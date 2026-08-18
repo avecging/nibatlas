@@ -62,7 +62,8 @@
 }
 
 .stamp:hover:not([disabled]) {
-  background: #b0422c;
+  border-color: var(--state-visited-hover);
+  background: var(--state-visited-hover);
 }
 
 .full {

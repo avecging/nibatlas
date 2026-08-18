@@ -46,7 +46,7 @@ interface MapCanvasProps {
   readonly onCameraSettled: (viewport: Viewport, source: CameraMoveSource) => void;
 }
 
-export type CameraMoveSource = "user" | "programmatic";
+export type CameraMoveSource = "user" | "programmatic" | "resize";
 
 const CLUSTER_RADIUS_PX = 46;
 const REVEAL_INSET_PX = 72;
@@ -125,7 +125,13 @@ export function MapCanvas({
   const onSelectRef = useRef(onSelectShop);
   const onCameraSettledRef = useRef(onCameraSettled);
   const syncRef = useRef<() => void>(() => {});
-  const programmaticMove = useRef(true);
+  /**
+   * Intent of the camera move currently in flight. It is set immediately before
+   * the application moves the camera itself and consumed by the next `moveend`,
+   * after which it falls back to `user` so an unattributed gesture is never
+   * mistaken for an application move.
+   */
+  const cameraIntent = useRef<CameraMoveSource>("programmatic");
 
   const [created, setCreated] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -191,23 +197,25 @@ export function MapCanvas({
     map.on("zoom", reproject);
     map.on("resize", reproject);
 
-    // A gesture that interrupts a programmatic fly is still user movement.
+    // A gesture that interrupts an application move outranks it.
     map.on("movestart", (event) => {
       if ((event as { originalEvent?: unknown }).originalEvent) {
-        programmaticMove.current = false;
+        cameraIntent.current = "user";
       }
     });
 
     map.on("moveend", () => {
-      onCameraSettledRef.current(
-        readViewport(map),
-        programmaticMove.current ? "programmatic" : "user",
-      );
+      const source = cameraIntent.current;
+      cameraIntent.current = "user";
+
+      onCameraSettledRef.current(readViewport(map), source);
       syncRef.current();
     });
 
+    // A container resize re-frames the same place; it is never user movement.
     map.on("resize", () => {
-      onCameraSettledRef.current(readViewport(map), "programmatic");
+      cameraIntent.current = "resize";
+      onCameraSettledRef.current(readViewport(map), "resize");
     });
 
     // The renderer resolves the requested bounds against its own aspect ratio,
@@ -216,7 +224,6 @@ export function MapCanvas({
     // loading must not strand the rest of the experience.
     requestAnimationFrame(() => {
       if (mapRef.current === map) {
-        programmaticMove.current = false;
         onCameraSettledRef.current(readViewport(map), "programmatic");
         syncRef.current();
       }
@@ -266,6 +273,9 @@ export function MapCanvas({
         }</span>`;
         button.addEventListener("click", (event) => {
           event.stopPropagation();
+          // Expanding a cluster is navigation the user asked for, so the new
+          // viewport may offer a fresh search.
+          cameraIntent.current = "user";
           const bounds = clusterBounds(cluster);
           instance.fitBounds(
             [
@@ -398,6 +408,9 @@ export function MapCanvas({
     }
 
     if (dx !== 0 || dy !== 0) {
+      // Revealing a selection is an application move: it must not make the map
+      // look as though the user went looking somewhere new.
+      cameraIntent.current = "programmatic";
       map.panBy([dx, dy], { duration: prefersReducedMotion() ? 0 : 240 });
     }
   }, [created, selectedShopId]);
@@ -412,10 +425,7 @@ export function MapCanvas({
 
     const { bounds } = cameraTarget.viewport;
 
-    programmaticMove.current = true;
-    map.once("moveend", () => {
-      programmaticMove.current = false;
-    });
+    cameraIntent.current = "programmatic";
 
     map.fitBounds(
       [

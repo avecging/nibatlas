@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
+import { useDialogFocus } from "@/src/components/hooks/useDialogFocus";
 import { StampArt } from "@/src/components/stamps/StampArt";
 import { Button, ButtonLink } from "@/src/components/ui/Button";
 import type { StampCollection } from "@/src/domain/passport";
@@ -29,18 +30,10 @@ export function StampCeremony({
   passportHref,
   onClose,
 }: StampCeremonyProps) {
-  const dialogRef = useRef<HTMLDivElement | null>(null);
-  const previouslyFocused = useRef<HTMLElement | null>(null);
+  const dialogRef = useDialogFocus<HTMLDivElement>(true, onClose);
   const [phase, setPhase] = useState<"pressing" | "settled">(
     alreadyCollected || usesReducedMotion() ? "settled" : "pressing",
   );
-
-  useEffect(() => {
-    previouslyFocused.current = document.activeElement as HTMLElement | null;
-    dialogRef.current?.focus();
-
-    return () => previouslyFocused.current?.focus();
-  }, []);
 
   useEffect(() => {
     if (phase !== "pressing") {
@@ -51,41 +44,6 @@ export function StampCeremony({
 
     return () => clearTimeout(timer);
   }, [phase]);
-
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
-        return;
-      }
-
-      if (event.key !== "Tab" || !dialogRef.current) {
-        return;
-      }
-
-      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      );
-
-      if (focusable.length === 0) {
-        return;
-      }
-
-      const first = focusable[0] as HTMLElement;
-      const last = focusable[focusable.length - 1] as HTMLElement;
-
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
-
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
 
   return (
     <div className={styles.backdrop} data-testid="stamp-ceremony">

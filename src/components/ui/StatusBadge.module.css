@@ -12,16 +12,28 @@
   white-space: nowrap;
 }
 
+/*
+ * Status is carried by the border and the icon; the label uses primary ink so
+ * it clears AA on the tinted surface at caption size.
+ */
 .visited {
   border-color: var(--state-visited);
   background: var(--state-visited-surface);
-  color: #8d3524;
+  color: var(--text-primary);
+}
+
+.visited svg {
+  color: var(--state-visited);
 }
 
 .saved {
   border-color: var(--state-saved);
   background: var(--state-saved-surface);
-  color: #1d5c5a;
+  color: var(--text-primary);
+}
+
+.saved svg {
+  color: var(--state-saved);
 }
 
 .unvisited {
@@ -39,7 +51,11 @@
 .warning {
   border-color: var(--warning);
   background: var(--bg-surface-warm);
-  color: #7d5218;
+  color: var(--text-primary);
+}
+
+.warning svg {
+  color: var(--warning);
 }
 
 .demo {

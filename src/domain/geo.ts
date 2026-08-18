@@ -21,18 +21,41 @@ export function isAntimeridianCrossing(bounds: ViewportBounds): boolean {
   return bounds.west > bounds.east;
 }
 
-export function boundsCenter(bounds: ViewportBounds): GeoPoint {
-  const latitude = (bounds.south + bounds.north) / 2;
-  const longitude = isAntimeridianCrossing(bounds)
-    ? normalizeLongitude((bounds.west + bounds.east + 360) / 2)
-    : (bounds.west + bounds.east) / 2;
-
-  return { latitude, longitude };
+/**
+ * Wraps a longitude into `[-180, 180)`.
+ *
+ * `180` and `-180` are the same meridian; this function returns `-180` for
+ * both so the result is a single canonical value. Never compare wrapped
+ * longitudes directly across the antimeridian — use `longitudeDelta` or
+ * `containsPoint`, which work in offsets rather than absolute values.
+ */
+export function normalizeLongitude(longitude: number): number {
+  return ((longitude + 180) % 360 + 360) % 360 - 180;
 }
 
-export function normalizeLongitude(longitude: number): number {
-  const wrapped = ((longitude + 180) % 360 + 360) % 360 - 180;
-  return wrapped === -180 ? 180 : wrapped;
+/** Shortest signed east-positive angle from one longitude to another, in `[-180, 180)`. */
+export function longitudeDelta(from: number, to: number): number {
+  return normalizeLongitude(to - from);
+}
+
+/**
+ * Width of a viewport in degrees, going east from `west`.
+ *
+ * Handles both forms MapLibre produces: wrapped bounds where `west > east`
+ * because the viewport crosses the antimeridian, and unwrapped bounds where
+ * `east` runs past 180 — or past 360 at world zoom.
+ */
+export function longitudeSpan(bounds: ViewportBounds): number {
+  const raw = bounds.east - bounds.west;
+
+  return raw < 0 ? raw + 360 : raw;
+}
+
+export function boundsCenter(bounds: ViewportBounds): GeoPoint {
+  return {
+    latitude: (bounds.south + bounds.north) / 2,
+    longitude: normalizeLongitude(bounds.west + longitudeSpan(bounds) / 2),
+  };
 }
 
 export function containsPoint(bounds: ViewportBounds, point: GeoPoint): boolean {
@@ -40,13 +63,18 @@ export function containsPoint(bounds: ViewportBounds, point: GeoPoint): boolean 
     return false;
   }
 
-  const longitude = normalizeLongitude(point.longitude);
+  const span = longitudeSpan(bounds);
 
-  if (isAntimeridianCrossing(bounds)) {
-    return longitude >= bounds.west || longitude <= bounds.east;
+  // A viewport at world zoom covers every meridian.
+  if (span >= 360) {
+    return true;
   }
 
-  return longitude >= bounds.west && longitude <= bounds.east;
+  // Measured as an eastward offset from `west`, so the antimeridian, an
+  // unwrapped `east`, and an exact 180 all fall out of the same arithmetic.
+  const offset = ((point.longitude - bounds.west) % 360 + 360) % 360;
+
+  return offset <= span;
 }
 
 const EARTH_RADIUS_M = 6_371_008.8;
@@ -69,12 +97,24 @@ export function distanceMeters(a: GeoPoint, b: GeoPoint): number {
   return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
-/** Approximate diagonal span of a viewport in metres. */
-export function boundsSpanMeters(bounds: ViewportBounds): number {
-  const southWest = { latitude: bounds.south, longitude: bounds.west };
-  const northEast = { latitude: bounds.north, longitude: bounds.east };
+const METERS_PER_DEGREE = (Math.PI / 180) * EARTH_RADIUS_M;
 
-  return distanceMeters(southWest, northEast);
+/**
+ * Approximate diagonal span of a viewport in metres.
+ *
+ * Derived from the degree spans rather than a corner-to-corner great-circle
+ * distance, because a corner measurement collapses across the antimeridian and
+ * saturates at world zoom, both of which would shrink the movement threshold.
+ */
+export function boundsSpanMeters(bounds: ViewportBounds): number {
+  const midLatitude = (bounds.south + bounds.north) / 2;
+  const horizontal =
+    Math.min(longitudeSpan(bounds), 360) *
+    METERS_PER_DEGREE *
+    Math.cos(toRadians(midLatitude));
+  const vertical = (bounds.north - bounds.south) * METERS_PER_DEGREE;
+
+  return Math.hypot(horizontal, vertical);
 }
 
 export interface MovementThreshold {

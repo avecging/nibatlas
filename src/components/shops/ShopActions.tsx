@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 
+import { useDialogFocus } from "@/src/components/hooks/useDialogFocus";
 import { StampCeremony } from "@/src/components/stamps/StampCeremony";
 import { Button, ButtonLink } from "@/src/components/ui/Button";
 import { Icon } from "@/src/components/ui/Icon";
@@ -33,18 +34,14 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
   const [preflightOpen, setPreflightOpen] = useState(false);
   const [ceremony, setCeremony] = useState<StampCollection | null>(null);
   const [wasAlreadyCollected, setWasAlreadyCollected] = useState(false);
-  const dialogRef = useRef<HTMLDivElement | null>(null);
+
+  const closePreflight = useCallback(() => setPreflightOpen(false), []);
+  const preflightRef = useDialogFocus<HTMLDivElement>(preflightOpen, closePreflight);
 
   const saved = collection.isSaved(shop.id);
   const existing = collection.collectionForShop(shop.id);
   const localitySlug = demoLocalitySlugById.get(shop.id) ?? shop.localityName.toLowerCase();
   const passportHref = `/passport/${countrySlug(shop.countryCode)}/${localitySlug}`;
-
-  useEffect(() => {
-    if (preflightOpen) {
-      dialogRef.current?.focus();
-    }
-  }, [preflightOpen]);
 
   function confirmCollection() {
     const alreadyCollected = existing !== undefined;
@@ -107,17 +104,12 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
       {preflightOpen ? (
         <div className={styles.backdrop}>
           <div
-            ref={dialogRef}
+            ref={preflightRef}
             className={styles.dialog}
             role="dialog"
             aria-modal="true"
             aria-labelledby="collect-preflight-title"
             tabIndex={-1}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                setPreflightOpen(false);
-              }
-            }}
           >
             <h2 className={styles.dialogTitle} id="collect-preflight-title">
               {existing ? "You already have this stamp" : "Before you collect"}
@@ -138,7 +130,7 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
               <Button variant="stamp" fullWidth onClick={confirmCollection}>
                 {existing ? "Show the impression" : "Simulate: I am at this shop"}
               </Button>
-              <Button variant="quiet" fullWidth onClick={() => setPreflightOpen(false)}>
+              <Button variant="quiet" fullWidth onClick={closePreflight}>
                 Cancel
               </Button>
             </div>

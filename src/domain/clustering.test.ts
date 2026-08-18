@@ -83,7 +83,8 @@ describe("clusterByScreenDistance", () => {
       40,
     );
 
-    expect(clusters[0]?.position).toEqual({ latitude: 0.1, longitude: 0.1 });
+    expect(clusters[0]?.position.latitude).toBeCloseTo(0.1, 9);
+    expect(clusters[0]?.position.longitude).toBeCloseTo(0.1, 9);
   });
 
   it("reports bounds covering every member", () => {
@@ -93,11 +94,54 @@ describe("clusterByScreenDistance", () => {
       40,
     );
 
-    expect(clusterBounds(cluster!)).toEqual({
-      west: 0,
-      south: 0,
-      east: 0.2,
-      north: 0.3,
-    });
+    const bounds = clusterBounds(cluster!);
+
+    expect(bounds.west).toBeCloseTo(0, 9);
+    expect(bounds.east).toBeCloseTo(0.2, 9);
+    expect(bounds.south).toBeCloseTo(0, 9);
+    expect(bounds.north).toBeCloseTo(0.3, 9);
+  });
+});
+
+describe("clustering across the antimeridian", () => {
+  // Projecting relative to a viewport centred on 180 keeps neighbouring shops
+  // adjacent on screen, which is what MapLibre's transform does.
+  const projectNear180 = (point: { latitude: number; longitude: number }) => ({
+    x: (((point.longitude - 180 + 540) % 360) - 180) * 100,
+    y: point.latitude * 100,
+  });
+
+  const straddling = [shop("west", 179.9, 0), shop("east", -179.9, 0.1)];
+
+  it("groups shops that straddle 180", () => {
+    const clusters = clusterByScreenDistance(straddling, projectNear180, 40);
+
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0]?.shops).toHaveLength(2);
+  });
+
+  it("places the cluster beside its members, not on the far side of the world", () => {
+    const [cluster] = clusterByScreenDistance(straddling, projectNear180, 40);
+    const longitude = cluster!.position.longitude;
+
+    // Either wrapped form of the antimeridian is correct; 0 would not be.
+    expect(Math.min(Math.abs(longitude - 180), Math.abs(longitude + 180))).toBeLessThan(0.1);
+  });
+
+  it("reports a narrow span rather than a near-global one", () => {
+    const [cluster] = clusterByScreenDistance(straddling, projectNear180, 40);
+    const bounds = clusterBounds(cluster!);
+
+    expect(bounds.east - bounds.west).toBeCloseTo(0.2, 6);
+    expect(bounds.south).toBeCloseTo(0, 9);
+    expect(bounds.north).toBeCloseTo(0.1, 9);
+  });
+
+  it("keeps a single member unchanged", () => {
+    const [cluster] = clusterByScreenDistance([shop("only", -179.9, 5)], projectNear180, 40);
+    const bounds = clusterBounds(cluster!);
+
+    expect(bounds.west).toBeCloseTo(-179.9, 9);
+    expect(bounds.east).toBeCloseTo(-179.9, 9);
   });
 });

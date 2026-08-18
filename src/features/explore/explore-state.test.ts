@@ -140,6 +140,44 @@ describe("explore reducer", () => {
     expect(refreshed.selectedShopId).toBe(shop.id);
   });
 
+  it("adopts a resize that arrives while nothing is pending", () => {
+    const initial = loaded(createExploreState({ viewport: tokyo }));
+    const resized = exploreReducer(initial, {
+      type: "reframeCamera",
+      camera: { ...tokyo, zoom: 11.3 },
+    });
+
+    expect(resized.committed).toEqual(resized.camera);
+    expect(shouldOfferSearchArea(resized)).toBe(false);
+    expect(resized.requestId).toBe(initial.requestId);
+  });
+
+  it("does not let a resize erase an outstanding Search this area", () => {
+    const initial = loaded(createExploreState({ viewport: tokyo }));
+    const moved = exploreReducer(initial, { type: "cameraMoved", camera: kyoto });
+
+    expect(shouldOfferSearchArea(moved)).toBe(true);
+
+    const resized = exploreReducer(moved, {
+      type: "reframeCamera",
+      camera: { ...kyoto, zoom: 11.1 },
+    });
+
+    expect(shouldOfferSearchArea(resized)).toBe(true);
+    expect(resized.committed).toEqual(initial.committed);
+    expect(resized.requestId).toBe(initial.requestId);
+  });
+
+  it("never refetches on a resize", () => {
+    const initial = loaded(createExploreState({ viewport: tokyo }));
+    const resized = exploreReducer(initial, {
+      type: "reframeCamera",
+      camera: { ...tokyo, zoom: 11.3 },
+    });
+
+    expect(resized.query).toBe(initial.query);
+  });
+
   it("moves the sheet between its three states", () => {
     const state = createExploreState({ viewport: tokyo });
 

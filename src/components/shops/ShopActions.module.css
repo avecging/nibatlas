@@ -11,7 +11,7 @@
   border: 1px solid var(--state-visited);
   border-radius: var(--radius-md);
   background: var(--state-visited-surface);
-  color: #7f3122;
+  color: var(--text-primary);
   font-size: var(--type-body-sm-size);
   line-height: var(--type-body-sm-line);
 }
@@ -23,7 +23,7 @@
   display: grid;
   place-items: center;
   padding: var(--space-4);
-  background: rgba(16, 45, 70, 0.42);
+  background: var(--overlay-scrim);
 }
 
 .dialog {

@@ -47,8 +47,8 @@
   inset: 0;
   background: radial-gradient(
     120% 90% at 30% 25%,
-    rgba(255, 255, 255, 0.42),
-    rgba(255, 255, 255, 0) 62%
+    var(--stamp-pressure-highlight),
+    var(--stamp-pressure-fade) 62%
   );
   pointer-events: none;
 }

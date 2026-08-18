@@ -48,6 +48,7 @@ export interface ExploreState {
 export type ExploreAction =
   | { readonly type: "cameraMoved"; readonly camera: Viewport }
   | { readonly type: "adoptCamera"; readonly camera: Viewport }
+  | { readonly type: "reframeCamera"; readonly camera: Viewport }
   | {
       readonly type: "commitSearch";
       readonly viewport?: Viewport;
@@ -112,6 +113,15 @@ export function exploreReducer(
       // Adopting that first camera keeps `Search this area` hidden until the
       // user actually moves the map.
       return { ...state, camera: action.camera, committed: action.camera };
+    }
+
+    case "reframeCamera": {
+      // A container resize shows the same place through a different window. It
+      // must not invent movement the user did not make, and it must not erase an
+      // outstanding `Search this area` they have not acted on yet.
+      const next = { ...state, camera: action.camera };
+
+      return shouldOfferSearchArea(state) ? next : { ...next, committed: action.camera };
     }
 
     case "commitSearch": {

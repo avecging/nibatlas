@@ -115,6 +115,65 @@ test("panning offers Search this area instead of refetching", async ({ page }) =
   ).toBeVisible();
 });
 
+test("selecting a card never looks like the user moved the map", async ({ page }) => {
+  await openMap(page);
+  await searchDestination(page, "Tokyo", /^Tokyo/);
+
+  const explore = page.getByTestId("explore");
+  await expect(explore).toHaveAttribute("data-search-offer", "hidden");
+
+  // Selection can pan the map to reveal a marker. That is an application move,
+  // so it must not offer a new search.
+  const cards = page.getByRole("article");
+  const count = await cards.count();
+
+  for (let index = 0; index < Math.min(count, 5); index += 1) {
+    await cards.nth(index).getByRole("button").first().click();
+    await expect(explore).toHaveAttribute("data-search-offer", "hidden");
+  }
+});
+
+test("resizing the window neither invents nor erases Search this area", async ({ page }) => {
+  await openMap(page);
+  await searchDestination(page, "Tokyo", /^Tokyo/);
+
+  const explore = page.getByTestId("explore");
+  const viewport = page.viewportSize();
+  expect(viewport).not.toBeNull();
+
+  // Settled: a resize must not invent movement.
+  await page.setViewportSize({ width: viewport!.width, height: viewport!.height - 80 });
+  await expect(explore).toHaveAttribute("data-search-offer", "hidden");
+  await expect(explore).toHaveAttribute("data-committed-label", /Tokyo/);
+
+  // Moved but not committed: a resize must not swallow the prompt.
+  await panMap(page, -0.5, -0.3);
+  await expect(explore).toHaveAttribute("data-search-offer", "offer");
+
+  await page.setViewportSize({ width: viewport!.width, height: viewport!.height });
+  await expect(explore).toHaveAttribute("data-search-offer", "offer");
+  await expect(explore).toHaveAttribute("data-committed-label", /Tokyo/);
+});
+
+test("a gesture during a destination fly leaves the user in control", async ({ page }) => {
+  await openMap(page);
+
+  await page.getByRole("combobox", { name: /search a destination or shop/i }).fill("Kyoto");
+  await page.getByRole("option", { name: /^Kyoto/ }).first().click();
+
+  // Interrupt the fly. Whether or not it had already landed, the user must end
+  // up somewhere they can search, never with a queued commit applied to a
+  // viewport they did not choose.
+  await panMap(page, -0.5, -0.35);
+
+  const explore = page.getByTestId("explore");
+  await expect(explore).toHaveAttribute("data-search-offer", "offer");
+  await expect(explore).toHaveAttribute("data-explore-status", "idle");
+
+  await page.getByRole("button", { name: /search this area/i }).click();
+  await expect(explore).toHaveAttribute("data-search-offer", "hidden");
+});
+
 test("filters apply only when the viewport query is committed", async ({ page }) => {
   await openMap(page);
   await searchDestination(page, "Tokyo", /^Tokyo/);

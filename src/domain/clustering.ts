@@ -1,4 +1,4 @@
-import type { GeoPoint } from "@/src/domain/geo";
+import { longitudeDelta, normalizeLongitude, type GeoPoint } from "@/src/domain/geo";
 import type { ShopMapSummary } from "@/src/domain/shops";
 
 export interface ScreenPoint {
@@ -92,29 +92,47 @@ export function clusterByScreenDistance(
   return clusters;
 }
 
+/**
+ * Averaged around the first member rather than over raw longitudes, so a
+ * cluster spanning the antimeridian lands beside its members instead of on the
+ * opposite side of the world.
+ */
 function centroid(shops: readonly ShopMapSummary[]): GeoPoint {
-  const total = shops.reduce(
-    (accumulator, shop) => ({
-      latitude: accumulator.latitude + shop.position.latitude,
-      longitude: accumulator.longitude + shop.position.longitude,
-    }),
-    { latitude: 0, longitude: 0 },
-  );
+  const base = (shops[0] as ShopMapSummary).position.longitude;
+
+  let latitudeTotal = 0;
+  let longitudeOffsetTotal = 0;
+
+  for (const shop of shops) {
+    latitudeTotal += shop.position.latitude;
+    longitudeOffsetTotal += longitudeDelta(base, shop.position.longitude);
+  }
 
   return {
-    latitude: total.latitude / shops.length,
-    longitude: total.longitude / shops.length,
+    latitude: latitudeTotal / shops.length,
+    longitude: normalizeLongitude(base + longitudeOffsetTotal / shops.length),
   };
 }
 
+/**
+ * Bounds covering every member of a cluster, for zooming into it.
+ *
+ * Longitudes are returned unwrapped relative to the first member, so a cluster
+ * straddling the antimeridian yields a narrow span such as 179 → 181 rather
+ * than the 358-degree span raw minimum and maximum would produce. MapLibre
+ * accepts longitudes beyond 180 in `fitBounds`.
+ */
 export function clusterBounds(cluster: MarkerCluster) {
+  const base = (cluster.shops[0] as ShopMapSummary).position.longitude;
+  const offsets = cluster.shops.map((shop) =>
+    longitudeDelta(base, shop.position.longitude),
+  );
   const latitudes = cluster.shops.map((shop) => shop.position.latitude);
-  const longitudes = cluster.shops.map((shop) => shop.position.longitude);
 
   return {
-    west: Math.min(...longitudes),
+    west: base + Math.min(...offsets),
     south: Math.min(...latitudes),
-    east: Math.max(...longitudes),
+    east: base + Math.max(...offsets),
     north: Math.max(...latitudes),
   };
 }

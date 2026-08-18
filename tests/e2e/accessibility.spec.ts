@@ -46,6 +46,54 @@ test("the collection dialogs are accessible", async ({ page }) => {
   expect((await analyze(page)).violations).toEqual([]);
 });
 
+test("the collection preflight traps focus and gives it back", async ({ page }) => {
+  await page.goto("/shops/demo-yokohama-harbour-pens");
+
+  const trigger = page.getByRole("button", { name: /collect stamp \(simulated\)/i });
+  await trigger.click();
+
+  const dialog = page.getByRole("dialog", { name: /before you collect/i });
+  await expect(dialog).toBeFocused();
+
+  // Tabbing repeatedly can never leave the dialog.
+  for (let press = 0; press < 6; press += 1) {
+    await page.keyboard.press("Tab");
+    await expect(dialog).toContainText("Before you collect");
+    expect(
+      await page.evaluate(() => {
+        const active = document.activeElement;
+        return active?.closest('[role="dialog"]') !== null;
+      }),
+    ).toBe(true);
+  }
+
+  await page.keyboard.press("Shift+Tab");
+  expect(
+    await page.evaluate(
+      () => document.activeElement?.closest('[role="dialog"]') !== null,
+    ),
+  ).toBe(true);
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+});
+
+test("the stamp ceremony returns focus to the shop page", async ({ page }) => {
+  await page.goto("/shops/demo-fukuoka-tenjin-pen-loft");
+
+  const trigger = page.getByRole("button", { name: /collect stamp \(simulated\)/i });
+  await trigger.click();
+  await page.getByRole("button", { name: /simulate: i am at this shop/i }).click();
+
+  const ceremony = page.getByRole("dialog", { name: /impression collected/i });
+  await expect(ceremony).toBeFocused();
+
+  await page.keyboard.press("Escape");
+  await expect(ceremony).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /view atlas stamp/i })).toBeFocused();
+});
+
 test("every control meets the minimum touch target size", async ({ page }) => {
   await page.goto("/shops/demo-ginza-fountain-pen-salon");
 

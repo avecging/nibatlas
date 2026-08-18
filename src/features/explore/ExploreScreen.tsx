@@ -100,8 +100,18 @@ export function ExploreScreen() {
 
   const onCameraSettled = useCallback((viewport: Viewport, source: CameraMoveSource) => {
     if (source === "user") {
+      // The user has taken over, so any camera commit we had queued — a
+      // destination fly they interrupted, for example — is abandoned rather
+      // than applied to wherever they end up.
+      pendingCommit.current = null;
+
       // Gestures never refetch; they only make `Search this area` available.
       dispatch({ type: "cameraMoved", camera: viewport });
+      return;
+    }
+
+    if (source === "resize") {
+      dispatch({ type: "reframeCamera", camera: viewport });
       return;
     }
 

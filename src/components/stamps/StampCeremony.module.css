@@ -5,7 +5,7 @@
   display: grid;
   place-items: center;
   padding: var(--space-4);
-  background: rgba(16, 45, 70, 0.42);
+  background: var(--overlay-scrim);
 }
 
 .dialog {
