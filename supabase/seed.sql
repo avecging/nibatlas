@@ -1,0 +1,2 @@
+-- Milestone 0 intentionally contains no database fixtures.
+-- Production-shaped demo data is introduced through versioned migrations in Milestone 2.
