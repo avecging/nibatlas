@@ -26,12 +26,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-      - run: pnpm install --no-frozen-lockfile
-      - name: Expose generated lockfile for the initial foundation only
-        run: |
-          echo "LOCKFILE_B64_BEGIN"
-          base64 pnpm-lock.yaml
-          echo "LOCKFILE_B64_END"
+      - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
@@ -50,7 +45,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
 
@@ -67,7 +62,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm install --frozen-lockfile
       - run: pnpm build:cloudflare
 
   db-test:
