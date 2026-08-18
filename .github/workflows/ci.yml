@@ -23,6 +23,12 @@ jobs:
         with:
           node-version: 24
       - run: pnpm install --no-frozen-lockfile
+      - name: Expose generated lockfile for the initial foundation only
+        run: |
+          echo "LOCKFILE_B64_BEGIN"
+          base64 -w0 pnpm-lock.yaml
+          echo
+          echo "LOCKFILE_B64_END"
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
