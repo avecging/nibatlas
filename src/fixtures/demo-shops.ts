@@ -1,0 +1,47 @@
+import type { ShopMapSummary } from "@/src/domain/shops";
+
+const fixtureNotice = "Demo fixture — not a verified business listing";
+
+export const demoShops = [
+  {
+    id: "00000000-0000-4000-8000-000000000101",
+    slug: "demo-singapore-pen-stop",
+    name: "Demo Singapore Pen Stop",
+    countryCode: "SG",
+    localityName: "Singapore",
+    position: { latitude: 1.2903, longitude: 103.8519 },
+    primaryType: "fountain_pen_specialist",
+    operationalStatus: "unknown",
+    markerState: "unvisited",
+    sourceQuality: "demo",
+    fixtureNotice,
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000102",
+    slug: "demo-japan-ink-counter",
+    name: "Demo Japan Ink Counter",
+    localName: "デモ万年筆店",
+    countryCode: "JP",
+    localityName: "Demo locality",
+    position: { latitude: 35.6812, longitude: 139.7671 },
+    primaryType: "stationery_store",
+    operationalStatus: "unknown",
+    markerState: "saved",
+    sourceQuality: "demo",
+    fixtureNotice,
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000103",
+    slug: "demo-taiwan-nib-workshop",
+    name: "Demo Taiwan Nib Workshop",
+    localName: "示範鋼筆工作室",
+    countryCode: "TW",
+    localityName: "Demo locality",
+    position: { latitude: 23.6978, longitude: 120.9605 },
+    primaryType: "nib_repair_services",
+    operationalStatus: "unknown",
+    markerState: "visited",
+    sourceQuality: "demo",
+    fixtureNotice,
+  },
+] as const satisfies readonly ShopMapSummary[];
