@@ -1,0 +1,104 @@
+.wrapper {
+  position: relative;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap-target);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  color: var(--text-muted);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--text-primary);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+  outline-offset: 4px;
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+.clear {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: var(--radius-round);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.panel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  right: 0;
+  max-height: 60vh;
+  overflow-y: auto;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-popover);
+}
+
+.groupLabel {
+  padding: var(--space-3) var(--space-3) var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--type-caption-size);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.option {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  min-height: var(--tap-target);
+  cursor: pointer;
+  align-content: center;
+}
+
+.option[aria-selected="true"],
+.option:hover {
+  background: var(--bg-surface-warm);
+}
+
+.optionTitle {
+  font-weight: 600;
+}
+
+.optionMeta {
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+.destinationKind {
+  color: var(--action-secondary);
+}
+
+.shopKind {
+  color: var(--atlas-900);
+}
+
+.empty {
+  padding: var(--space-4);
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+}

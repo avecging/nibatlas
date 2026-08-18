@@ -1,18 +1,11 @@
-export default function Home() {
+import { Suspense } from "react";
+
+import { ExploreScreen } from "@/src/features/explore/ExploreScreen";
+
+export default function MapPage() {
   return (
-    <main className="foundation-shell">
-      <section className="foundation-card" aria-labelledby="foundation-title">
-        <p className="foundation-overline">Engineering foundation</p>
-        <h1 id="foundation-title">Nib Atlas</h1>
-        <p className="foundation-lede">
-          Find fountain pen shops. Visit them. Keep the impression.
-        </p>
-        <p className="foundation-note">
-          Milestone 0 establishes the shared contracts and deployment foundation.
-          The map-first experience begins in Milestone 1.
-        </p>
-        <span className="foundation-badge">No production shop data</span>
-      </section>
-    </main>
+    <Suspense fallback={<p style={{ padding: "1rem" }}>Loading the map…</p>}>
+      <ExploreScreen />
+    </Suspense>
   );
 }

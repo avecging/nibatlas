@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test";
 
-test("renders the Nib Atlas foundation", async ({ page }) => {
+test("renders the map shell with a visible demo marker", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "Nib Atlas" })).toBeVisible();
-  await expect(page.getByText("No production shop data")).toBeVisible();
+  await expect(page.getByTestId("map-canvas")).toBeVisible();
+  await expect(page.getByText("Demo data").first()).toBeVisible();
 });
 
 test("reports application health", async ({ request }) => {

@@ -1,0 +1,151 @@
+.layout {
+  position: relative;
+  display: grid;
+  grid-template-rows: 1fr;
+  min-height: 0;
+  height: calc(100dvh - var(--nav-height));
+  background: var(--bg-canvas);
+}
+
+.mapPane {
+  position: relative;
+  min-height: 0;
+}
+
+.overlayTop {
+  position: absolute;
+  z-index: 22;
+  top: var(--space-3);
+  left: var(--space-3);
+  right: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.intro {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+.introText strong {
+  display: block;
+  color: var(--text-primary);
+  font-family: var(--font-serif);
+  font-size: 1rem;
+}
+
+.introDismiss {
+  display: grid;
+  place-items: center;
+  width: var(--tap-target);
+  height: var(--tap-target);
+  margin: calc(var(--space-2) * -1) calc(var(--space-2) * -1) 0 0;
+  border: 0;
+  border-radius: var(--radius-round);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex: none;
+}
+
+.searchAreaSlot {
+  position: absolute;
+  z-index: 24;
+  left: 0;
+  right: 0;
+  bottom: calc(9.5rem + var(--space-3));
+  display: grid;
+  justify-items: center;
+  pointer-events: none;
+}
+
+.searchAreaSlot > * {
+  pointer-events: auto;
+}
+
+.desktopPanel {
+  display: none;
+}
+
+.summaryLine {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mobileFilters {
+  border-top: 1px solid var(--border-default);
+}
+
+.statusRegion {
+  padding: 0 var(--space-4) var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+}
+
+.errorNote {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0 var(--space-4) var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--error);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--error);
+  font-size: var(--type-body-sm-size);
+}
+
+@media (min-width: 1024px) {
+  .layout {
+    grid-template-columns: 65fr 35fr;
+    grid-template-rows: 1fr;
+    height: calc(100dvh - 3.5rem);
+  }
+
+  .searchAreaSlot {
+    bottom: var(--space-6);
+  }
+
+  .desktopPanel {
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+    min-height: 0;
+    border-left: 1px solid var(--border-default);
+    background: var(--bg-canvas);
+  }
+
+  .desktopSummary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--border-default);
+    background: var(--bg-surface);
+  }
+
+  .desktopScroll {
+    min-height: 0;
+    overflow-y: auto;
+    padding-top: var(--space-3);
+  }
+
+  .mobileSheet {
+    display: none;
+  }
+
+  .overlayTop {
+    max-width: 26rem;
+    right: auto;
+    width: min(26rem, calc(100% - var(--space-6)));
+  }
+}

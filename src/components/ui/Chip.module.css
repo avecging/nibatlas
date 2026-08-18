@@ -1,0 +1,39 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap-target);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-round);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: var(--type-label-size);
+  line-height: var(--type-label-line);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--motion-micro) var(--ease-entrance),
+    border-color var(--motion-micro) var(--ease-entrance),
+    color var(--motion-micro) var(--ease-entrance);
+}
+
+.chip:hover {
+  background: var(--bg-surface-warm);
+}
+
+.chip[aria-pressed="true"] {
+  border-color: var(--action-primary);
+  background: var(--action-primary);
+  color: var(--text-on-dark);
+}
+
+.chip[aria-pressed="true"].intent {
+  border-color: var(--action-secondary);
+  background: var(--action-secondary);
+  color: var(--white);
+}
+
+.check {
+  display: inline-flex;
+}

@@ -1,0 +1,68 @@
+import { describe, expect, it } from "vitest";
+
+import { createFixtureShopSource, AbortedError } from "@/src/features/explore/shop-source";
+import { demoShopSummaries } from "@/src/fixtures/demo-catalogue";
+
+const japanBounds = { west: 128, south: 30, east: 146, north: 46 };
+
+describe("fixture shop source", () => {
+  it("returns only shops inside the requested bounds", async () => {
+    const source = createFixtureShopSource();
+    const response = await source.fetchViewport({ bounds: japanBounds, zoom: 6 });
+
+    expect(response.shops.length).toBeGreaterThan(0);
+    expect(response.shops.every((shop) => shop.countryCode === "JP")).toBe(true);
+  });
+
+  it("never leaks user state through the public projection", async () => {
+    const source = createFixtureShopSource();
+    const response = await source.fetchViewport({ bounds: japanBounds, zoom: 6 });
+
+    expect(response.shops.every((shop) => shop.markerState === "unvisited")).toBe(true);
+  });
+
+  it("filters by shop type", async () => {
+    const source = createFixtureShopSource();
+    const response = await source.fetchViewport({
+      bounds: japanBounds,
+      zoom: 6,
+      shopTypes: ["nib_repair_services"],
+    });
+
+    expect(response.shops.length).toBeGreaterThan(0);
+    expect(
+      response.shops.every((shop) => shop.primaryType === "nib_repair_services"),
+    ).toBe(true);
+  });
+
+  it("caps results and reports truncation", async () => {
+    const source = createFixtureShopSource({ resultCap: 3 });
+    const response = await source.fetchViewport({
+      bounds: { west: -180, south: -85, east: 180, north: 85 },
+      zoom: 2,
+    });
+
+    expect(response.shops).toHaveLength(3);
+    expect(response.truncated).toBe(true);
+  });
+
+  it("does not truncate when everything fits", async () => {
+    const source = createFixtureShopSource({ resultCap: demoShopSummaries.length });
+    const response = await source.fetchViewport({
+      bounds: { west: -180, south: -85, east: 180, north: 85 },
+      zoom: 2,
+    });
+
+    expect(response.truncated).toBe(false);
+  });
+
+  it("aborts an in-flight request", async () => {
+    const source = createFixtureShopSource({ latencyMs: 50 });
+    const controller = new AbortController();
+    const pending = source.fetchViewport({ bounds: japanBounds, zoom: 6 }, controller.signal);
+
+    controller.abort();
+
+    await expect(pending).rejects.toBeInstanceOf(AbortedError);
+  });
+});
