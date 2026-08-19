@@ -9,7 +9,6 @@ import { COUNTRY_LABELS } from "@/src/domain/shop-detail";
 import type { CountryCode } from "@/src/domain/geo";
 import { applyUserShopState } from "@/src/domain/user-state";
 import { useCollection } from "@/src/features/collection/collection-store";
-import { specialtyLineFor } from "@/src/features/explore/card-enrichment";
 import { demoShopSummaries } from "@/src/fixtures/demo-catalogue";
 
 import styles from "./SavedView.module.css";
@@ -75,7 +74,7 @@ export function SavedView() {
                   key={shop.id}
                   shop={shop}
                   selected={false}
-                  specialtyLine={specialtyLineFor(shop.slug)}
+                  specialtyLine={shop.specialtyLine}
                   saved={collection.savedShopIds.has(shop.id)}
                   onSelect={() => router.push(`/?shop=${shop.slug}`)}
                   onToggleSaved={(shopId) => collection.toggleSaved(shopId)}

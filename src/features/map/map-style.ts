@@ -3,13 +3,9 @@ import type { StyleSpecification } from "maplibre-gl";
 /**
  * `MapStyleProvider` keeps the tile supplier separable from the renderer, as
  * `ARCHITECTURE.md` requires. Milestone 1 ships an offline "field journal"
- * basemap so the prototype and its tests never depend on a paid tile key; when
- * `NEXT_PUBLIC_MAPTILER_KEY` is present the MapTiler style is used instead.
- *
- * The offline style deliberately declares no sources. MapLibre parses every
- * tiled source in a web worker, and this application currently has no working
- * worker under the Turbopack build — see `docs/adr/0002-maplibre-worker.md`.
- * A source-free background renders identically with or without it.
+ * basemap so automated tests never depend on a paid tile key. Staging and
+ * production provide `NEXT_PUBLIC_MAPTILER_KEY` and receive real MapTiler
+ * geography. The supplier response remains outside domain state.
  */
 export interface MapStyleProvider {
   readonly id: string;
@@ -37,14 +33,20 @@ export function createPaperStyle(): StyleSpecification {
 }
 
 export function createMapStyleProvider(apiKey?: string): MapStyleProvider {
-  if (apiKey) {
+  const key = apiKey?.trim();
+
+  if (key) {
+    const styleUrl = new URL(
+      "https://api.maptiler.com/maps/dataviz-light/style.json",
+    );
+    styleUrl.searchParams.set("key", key);
+
     return {
       id: "maptiler-nib-atlas",
       label: "MapTiler vector basemap",
       attribution: "\u00a9 MapTiler \u00a9 OpenStreetMap contributors",
       isOffline: false,
-      getStyle: () =>
-        `https://api.maptiler.com/maps/dataviz-light/style.json?key=${apiKey}`,
+      getStyle: () => styleUrl.toString(),
     };
   }
 

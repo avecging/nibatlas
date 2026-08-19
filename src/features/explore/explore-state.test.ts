@@ -28,6 +28,7 @@ const shop: ShopMapSummary = {
   localityName: "Chūō, Tokyo",
   position: { latitude: 35.67, longitude: 139.76 },
   primaryType: "fountain_pen_specialist",
+  specialtyLine: "Nib testing bench",
   operationalStatus: "open",
   markerState: "unvisited",
   sourceQuality: "demo",

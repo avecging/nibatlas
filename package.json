@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "node ./scripts/copy-maplibre-worker.mjs",
     "dev": "next dev",
+    "prebuild": "node ./scripts/copy-maplibre-worker.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
@@ -13,9 +15,13 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "prepreview:cloudflare": "node ./scripts/copy-maplibre-worker.mjs",
     "preview:cloudflare": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "prebuild:cloudflare": "node ./scripts/copy-maplibre-worker.mjs",
     "build:cloudflare": "opennextjs-cloudflare build",
+    "predeploy:staging": "node ./scripts/copy-maplibre-worker.mjs",
     "deploy:staging": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "predeploy:production": "node ./scripts/copy-maplibre-worker.mjs",
     "deploy:production": "opennextjs-cloudflare build && opennextjs-cloudflare deploy --env production",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },

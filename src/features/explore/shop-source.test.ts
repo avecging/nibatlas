@@ -21,6 +21,14 @@ describe("fixture shop source", () => {
     expect(response.shops.every((shop) => shop.markerState === "unvisited")).toBe(true);
   });
 
+  it("carries the approved specialty line in the viewport projection", async () => {
+    const source = createFixtureShopSource();
+    const response = await source.fetchViewport({ bounds: japanBounds, zoom: 6 });
+
+    expect(response.shops.every((shop) => "specialtyLine" in shop)).toBe(true);
+    expect(response.shops.some((shop) => shop.specialtyLine !== null)).toBe(true);
+  });
+
   it("filters by shop type", async () => {
     const source = createFixtureShopSource();
     const response = await source.fetchViewport({

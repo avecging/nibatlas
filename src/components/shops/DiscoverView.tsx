@@ -7,7 +7,6 @@ import { useMemo } from "react";
 import { ShopCard } from "@/src/components/shops/ShopCard";
 import { applyUserShopState } from "@/src/domain/user-state";
 import { useCollection } from "@/src/features/collection/collection-store";
-import { specialtyLineFor } from "@/src/features/explore/card-enrichment";
 import { demoShopSummaries } from "@/src/fixtures/demo-catalogue";
 import { demoDestinations } from "@/src/fixtures/demo-destinations";
 
@@ -136,7 +135,7 @@ export function DiscoverView() {
                   key={shop.id}
                   shop={shop}
                   selected={false}
-                  specialtyLine={specialtyLineFor(shop.slug)}
+                  specialtyLine={shop.specialtyLine}
                   saved={collection.savedShopIds.has(shop.id)}
                   onSelect={() => router.push(`/?shop=${shop.slug}`)}
                   onToggleSaved={(id) => collection.toggleSaved(id)}

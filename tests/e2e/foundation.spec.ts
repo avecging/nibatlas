@@ -16,3 +16,14 @@ test("reports application health", async ({ request }) => {
     status: "ok",
   });
 });
+
+test("serves the MapLibre worker modules as same-origin build assets", async ({
+  request,
+}) => {
+  const worker = await request.get("/maplibre/maplibre-gl-worker.mjs");
+  const shared = await request.get("/maplibre/maplibre-gl-shared.mjs");
+
+  expect(worker.ok()).toBe(true);
+  expect(shared.ok()).toBe(true);
+  expect(await worker.text()).toContain("maplibre-gl-shared.mjs");
+});

@@ -5,7 +5,6 @@ import { useEffect, useRef } from "react";
 import { ShopCard } from "@/src/components/shops/ShopCard";
 import { Icon } from "@/src/components/ui/Icon";
 import type { ShopMapSummary } from "@/src/domain/shops";
-import { specialtyLineFor } from "@/src/features/explore/card-enrichment";
 
 import styles from "./ShopList.module.css";
 
@@ -67,7 +66,7 @@ export function ShopList({
             key={shop.id}
             shop={shop}
             selected={shop.id === selectedShopId}
-            specialtyLine={specialtyLineFor(shop.slug)}
+            specialtyLine={shop.specialtyLine}
             saved={savedShopIds.has(shop.id)}
             onSelect={onSelect}
             onToggleSaved={onToggleSaved}

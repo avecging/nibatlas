@@ -36,11 +36,12 @@ images:
 
 ## Map basemap
 
-Without `NEXT_PUBLIC_MAPTILER_KEY` the map uses an offline demo basemap: a paper
-background with the demo markers and clusters on top, and no tile provider. Set
-the key in `.env.local` to work against MapTiler, and read
-`docs/adr/0002-maplibre-worker.md` first — the MapLibre worker does not start
-under the Turbopack build, so tiled sources cannot parse yet.
+Without `NEXT_PUBLIC_MAPTILER_KEY` the map uses a deterministic paper background
+for offline development and tests. Set a restricted browser key in `.env.local`
+before `pnpm build` to work against real MapTiler geography. The build copies the
+matching MapLibre worker modules into `public/maplibre/`; an explicit worker URL
+is needed only when the app is mounted below a path prefix. See
+`docs/adr/0002-maplibre-worker.md`.
 
 ## Local Supabase
 

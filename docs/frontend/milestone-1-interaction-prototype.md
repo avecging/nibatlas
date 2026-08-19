@@ -50,7 +50,7 @@ destination viewport.
 | --- | --- | --- |
 | `ShopSource` | `createFixtureShopSource` over `demoShopSummaries` | Milestone 3 (`GET /api/v1/shops/viewport`) |
 | `DestinationGeocoder` | `createFixtureGeocoder` | Milestone 3 (MapTiler geocoding) |
-| `MapStyleProvider` | Offline paper style, or MapTiler when a key is set | Milestone 3 |
+| `MapStyleProvider` | Deterministic paper style for tests; MapTiler geography when a key is set | Milestone 3 |
 | `MapTelemetry` | No-op recorder with the approved event names | Milestone 8 |
 | `CollectionStore` | Session-scoped simulated saves and impressions | Milestones 4 and 5 |
 
@@ -61,9 +61,9 @@ rule in `DATA-MODEL.md`.
 
 ## Fixtures
 
-- `src/fixtures/demo-shops.ts` is the shared Codex-owned fixture and is
-  unchanged. Its three records are reused verbatim for their `ShopMapSummary`
-  fields.
+- `src/fixtures/demo-shops.ts` is the shared Codex-owned fixture. Its three
+  records include the approved nullable `specialtyLine` contract and are reused
+  verbatim for their `ShopMapSummary` fields.
 - `src/fixtures/demo-catalogue.ts` extends that set to 30 demo shops across
   Singapore, Japan, and Taiwan, including Changhua, Tainan, Kaohsiung, Kanazawa,
   Sapporo, Hiroshima, and Sendai. Every record uses `sourceQuality: "demo"`,
@@ -111,12 +111,9 @@ journeys match what CI deploys.
   excludes. Destination search covers the same need in the meantime.
 - **No imagery.** No rights-cleared photography exists, so cards and shop pages
   show a labelled placeholder instead of inventing one.
-- **The shop card specialty line is enriched from the demo catalogue**
-  (`src/features/explore/card-enrichment.ts`) because `ShopMapSummary` has no
-  such field. A `specialtyLine` on the Milestone 2 viewport projection would let
-  that module be deleted.
-- **MapLibre's worker does not start under the Turbopack build**, so no tiled
-  source can be parsed. Milestone 1 works around it; Milestone 3 cannot. See
+- **Automated tests use the offline paper style.** Staging and production use
+  MapTiler geography when a restricted browser key is supplied at build time.
+  The MapLibre worker is served as a same-origin static asset; see
   `docs/adr/0002-maplibre-worker.md`.
 - **Visual baselines are not enforced in CI** until a canonical runner image is
   agreed.

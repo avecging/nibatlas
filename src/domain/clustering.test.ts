@@ -12,6 +12,7 @@ function shop(id: string, longitude: number, latitude: number): ShopMapSummary {
     localityName: "Demo locality",
     position: { latitude, longitude },
     primaryType: "fountain_pen_specialist",
+    specialtyLine: null,
     operationalStatus: "open",
     markerState: "unvisited",
     sourceQuality: "demo",
