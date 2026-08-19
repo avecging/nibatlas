@@ -2,9 +2,11 @@ name: Deploy staging
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
   push:
     branches:
-      - agent/claude-m1-frontend
       - staging
 
 permissions:
@@ -16,6 +18,7 @@ concurrency:
 
 jobs:
   verify-and-deploy:
+    if: github.event_name != 'pull_request' || github.head_ref == 'agent/claude-m1-frontend'
     name: Verify and deploy staging
     runs-on: ubuntu-latest
     timeout-minutes: 30
