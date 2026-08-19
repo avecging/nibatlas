@@ -22,14 +22,16 @@ export default defineConfig({
   },
   // Journeys run against a production build so the results match what CI
   // deploys, and so dev-only HMR behaviour cannot affect assertions.
-  webServer: stagingUrl
-    ? undefined
+  ...(stagingUrl
+    ? {}
     : {
-        command: "pnpm build && pnpm start --port 3000",
-        url: "http://127.0.0.1:3000/api/health",
-        reuseExistingServer: !process.env.CI,
-        timeout: 300_000,
-      },
+        webServer: {
+          command: "pnpm build && pnpm start --port 3000",
+          url: "http://127.0.0.1:3000/api/health",
+          reuseExistingServer: !process.env.CI,
+          timeout: 300_000,
+        },
+      }),
   projects: [
     {
       name: "mobile-360",
