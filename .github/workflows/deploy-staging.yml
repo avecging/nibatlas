@@ -61,7 +61,10 @@ jobs:
             echo
             echo "Staging URL: ${staging_url}"
           } >> "$GITHUB_STEP_SUMMARY"
-      - run: pnpm exec playwright install --with-deps chromium
+      # ubuntu-latest already provides Chromium's system libraries. Installing
+      # optional font packages here makes the live smoke gate depend on a slow
+      # Ubuntu mirror even though typography is covered by the full E2E job.
+      - run: pnpm exec playwright install chromium
       - name: Verify MapTiler geography and static MapLibre worker
         run: pnpm exec playwright test --project=staging-maptiler
       - name: Upload staging evidence
