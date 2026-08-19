@@ -1,8 +1,8 @@
 # Nib Atlas Brand and Design Foundation
 
 **Status:** Approved visual direction; implementation-ready and intentionally evolvable
-**Version:** 1.0
-**Last updated:** 11 August 2026
+**Version:** 1.1
+**Last updated:** 19 August 2026
 
 ## Brand idea
 
@@ -163,6 +163,22 @@ The everyday interface is dominated by Paper, Sumi, and Atlas Navy. Teal marks i
 | `disabled` | `#A9AEA9` | Disabled controls, paired with opacity/copy |
 
 Never communicate status with colour alone. Pair it with shape, icon, label, or pattern.
+
+### Derived interaction tokens
+
+These implementation tokens are approved derivations of the core palette. They
+support interaction and motion without expanding the primary brand colours.
+
+| Semantic token | Value | Usage |
+| --- | --- | --- |
+| `state-visited-hover` | `#B0422C` | Darkened Vermilion hover step for visited and stamp actions |
+| `overlay-scrim` | `rgba(16, 45, 70, 0.42)` | Atlas Navy scrim behind modal dialogs |
+| `shadow-nav` | `0 -2px 10px rgba(16, 45, 70, 0.06)` | Subtle separation above mobile navigation |
+| `stamp-pressure-highlight` | `rgba(255, 255, 255, 0.42)` | Light edge of the stamp-pressure animation |
+| `stamp-pressure-fade` | `rgba(255, 255, 255, 0)` | Transparent endpoint of the stamp-pressure animation |
+
+Keep these values centralized as semantic CSS variables. They are supporting
+interaction values, not standalone colours for arbitrary component use.
 
 ## Map visual language
 

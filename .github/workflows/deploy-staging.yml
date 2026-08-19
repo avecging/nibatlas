@@ -1,0 +1,73 @@
+name: Deploy staging
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/claude-m1-frontend
+      - staging
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  verify-and-deploy:
+    name: Verify and deploy staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: "true"
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      NEXT_PUBLIC_MAPTILER_KEY: ${{ secrets.NEXT_PUBLIC_MAPTILER_KEY }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+          run_install: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Validate staging secrets
+        shell: bash
+        run: |
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$NEXT_PUBLIC_MAPTILER_KEY"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - name: Deploy Cloudflare staging Worker
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm deploy:staging 2>&1 | tee "$RUNNER_TEMP/deploy-staging.log"
+          staging_url="$(grep -Eo 'https://[^[:space:]]+\.workers\.dev' "$RUNNER_TEMP/deploy-staging.log" | tail -1)"
+          test -n "$staging_url"
+          echo "STAGING_URL=$staging_url" >> "$GITHUB_ENV"
+          {
+            echo "### Nib Atlas staging"
+            echo
+            echo "Deployed commit: \`${GITHUB_SHA}\`"
+            echo
+            echo "Staging URL: ${staging_url}"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Verify MapTiler geography and static MapLibre worker
+        run: pnpm exec playwright test --project=staging-maptiler
+      - name: Upload staging evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-maptiler-evidence
+          path: |
+            test-results/**/maptiler-geography.png
+            test-results/**/*.zip
+          if-no-files-found: warn
+          retention-days: 14

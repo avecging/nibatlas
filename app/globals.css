@@ -55,8 +55,8 @@
    * Derived from the approved palette rather than new brand colours.
    * `--state-visited-hover` is Vermilion 700 darkened for a hover step, in the
    * same way `action-primary-hover` steps Atlas Navy. The scrim, nav shadow, and
-   * stamp highlight are alpha derivations of Atlas Navy and White. Proposed as
-   * BRAND.md additions in the pull request; no component defines its own colour.
+   * stamp highlight are alpha derivations of Atlas Navy and White. These five
+   * interaction tokens are approved in BRAND.md; no component defines its own colour.
    */
   --state-visited-hover: #b0422c;
   --overlay-scrim: rgba(16, 45, 70, 0.42);

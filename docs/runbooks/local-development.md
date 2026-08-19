@@ -52,3 +52,6 @@ The hosted staging project is not required for Milestone 0. After Docker Desktop
 - `pnpm exec supabase stop`
 
 Never commit `.env.local`, `.dev.vars`, database passwords, service-role keys, or API tokens.
+
+For the controlled Cloudflare staging deployment and its MapTiler verification,
+see `docs/runbooks/staging-deployment.md`.

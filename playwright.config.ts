@@ -8,6 +8,7 @@ import { defineConfig, devices } from "@playwright/test";
  * into with `VISUAL=1 pnpm test:e2e` and is not part of the default run.
  */
 const visualEnabled = Boolean(process.env.VISUAL);
+const stagingUrl = process.env.STAGING_URL?.trim();
 
 export default defineConfig({
   testDir: "./tests",
@@ -16,17 +17,19 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? "github" : "list",
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: stagingUrl || "http://127.0.0.1:3000",
     trace: "on-first-retry",
   },
   // Journeys run against a production build so the results match what CI
   // deploys, and so dev-only HMR behaviour cannot affect assertions.
-  webServer: {
-    command: "pnpm build && pnpm start --port 3000",
-    url: "http://127.0.0.1:3000/api/health",
-    reuseExistingServer: !process.env.CI,
-    timeout: 300_000,
-  },
+  webServer: stagingUrl
+    ? undefined
+    : {
+        command: "pnpm build && pnpm start --port 3000",
+        url: "http://127.0.0.1:3000/api/health",
+        reuseExistingServer: !process.env.CI,
+        timeout: 300_000,
+      },
   projects: [
     {
       name: "mobile-360",
@@ -49,6 +52,15 @@ export default defineConfig({
             name: "visual",
             testDir: "./tests/visual",
             use: { ...devices["Desktop Chrome"] },
+          },
+        ]
+      : []),
+    ...(stagingUrl
+      ? [
+          {
+            name: "staging-maptiler",
+            testDir: "./tests/staging",
+            use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
           },
         ]
       : []),
