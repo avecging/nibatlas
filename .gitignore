@@ -12,6 +12,10 @@
 
 # testing
 /coverage
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
 
 # next.js
 /.next/
@@ -20,6 +24,7 @@
 
 # production
 /build
+/public/maplibre/*.mjs
 
 # misc
 .DS_Store
@@ -43,6 +48,9 @@ cloudflare-env.d.ts
 
 # vercel
 .vercel
+
+# cloudflare local state
+/.wrangler/
 
 # typescript
 *.tsbuildinfo

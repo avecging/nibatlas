@@ -1,0 +1,53 @@
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap-target);
+  padding: 0 var(--space-5);
+  border: 1px solid var(--action-primary);
+  border-radius: var(--radius-round);
+  background: var(--action-primary);
+  color: var(--text-on-dark);
+  font-size: var(--type-label-size);
+  font-weight: 700;
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+}
+
+.pill:hover {
+  background: var(--action-primary-hover);
+}
+
+.loading {
+  border-color: var(--border-strong);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  cursor: progress;
+}
+
+.error {
+  border-color: var(--error);
+  background: var(--bg-surface);
+  color: var(--error);
+}
+
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--border-default);
+  border-top-color: var(--action-primary);
+  border-radius: var(--radius-round);
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}

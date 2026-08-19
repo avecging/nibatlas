@@ -1,0 +1,87 @@
+.wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 12rem;
+  background: var(--bg-canvas);
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.canvas :global(.maplibregl-ctrl-attrib) {
+  font-size: var(--type-caption-size);
+}
+
+.fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+  background: var(--bg-canvas);
+  text-align: center;
+}
+
+.fallbackCard {
+  max-width: 28rem;
+  padding: var(--space-5);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+}
+
+.marker {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: var(--state-unvisited);
+}
+
+.markerSaved {
+  color: var(--state-saved);
+}
+
+.markerVisited {
+  color: var(--state-visited);
+}
+
+.markerGlyph {
+  transition: transform var(--motion-micro) var(--ease-entrance);
+}
+
+.marker:hover .markerGlyph {
+  transform: scale(1.08);
+}
+
+.markerSelected .markerGlyph {
+  transform: scale(1.12);
+}
+
+.cluster {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: var(--atlas-900);
+}
+
+.clusterCount {
+  position: absolute;
+  font-size: var(--type-label-size);
+  font-weight: 700;
+  color: var(--paper-50);
+  pointer-events: none;
+}

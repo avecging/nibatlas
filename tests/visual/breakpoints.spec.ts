@@ -1,0 +1,57 @@
+import { expect, test } from "@playwright/test";
+
+/**
+ * Visual baselines and responsive screenshot evidence.
+ *
+ * Not part of the default `pnpm test:e2e` run: rendering differs between
+ * container images, so baselines are opted into with `VISUAL=1 pnpm test:e2e`
+ * and refreshed with `VISUAL=1 pnpm test:e2e --update-snapshots`.
+ *
+ * The offline "field journal" basemap is deterministic, so the map is captured
+ * as rendered; `maxDiffPixelRatio` absorbs sub-pixel renderer differences.
+ */
+const BREAKPOINTS = [
+  { name: "mobile-360x800", width: 360, height: 800 },
+  { name: "tablet-768x1024", width: 768, height: 1024 },
+  { name: "desktop-1440x900", width: 1440, height: 900 },
+];
+
+const SCREENS = [
+  { name: "map", path: "/" },
+  { name: "shop-detail", path: "/shops/demo-ginza-fountain-pen-salon" },
+  { name: "passport", path: "/passport" },
+  { name: "passport-locality", path: "/passport/jp/chuo-tokyo" },
+  { name: "saved", path: "/saved" },
+  { name: "discover", path: "/discover" },
+  { name: "styleguide", path: "/styleguide" },
+];
+
+test.beforeEach(async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+});
+
+for (const breakpoint of BREAKPOINTS) {
+  for (const screen of SCREENS) {
+    test(`${screen.name} at ${breakpoint.name}`, async ({ page }) => {
+      await page.setViewportSize({ width: breakpoint.width, height: breakpoint.height });
+      await page.goto(screen.path);
+      await expect(page.getByRole("heading").first()).toBeVisible();
+
+      if (screen.path === "/") {
+        await expect(
+          page.getByRole("list", { name: /shops in the searched area/i }),
+        ).toBeVisible();
+        await expect(page.getByTestId("explore")).toHaveAttribute(
+          "data-explore-status",
+          "idle",
+        );
+      }
+
+      await expect(page).toHaveScreenshot(`${screen.name}-${breakpoint.name}.png`, {
+        fullPage: screen.path !== "/",
+        animations: "disabled",
+        maxDiffPixelRatio: 0.02,
+      });
+    });
+  }
+}

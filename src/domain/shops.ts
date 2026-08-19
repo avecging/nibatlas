@@ -25,6 +25,8 @@ export interface ShopMapSummary {
   readonly localityName: string;
   readonly position: GeoPoint;
   readonly primaryType: ShopType;
+  /** One visit-oriented specialty or service for compact map/list cards. */
+  readonly specialtyLine: string | null;
   readonly operationalStatus: OperationalStatus;
   readonly markerState: MarkerState;
   readonly sourceQuality: SourceQuality;

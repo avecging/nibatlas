@@ -1,0 +1,106 @@
+.card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 4.5rem 1fr;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  transition: border-color var(--motion-micro) var(--ease-entrance),
+    background-color var(--motion-micro) var(--ease-entrance);
+}
+
+.card:hover {
+  background: var(--bg-surface-warm);
+}
+
+.selected {
+  border-color: var(--action-primary);
+  box-shadow: inset 0 0 0 1px var(--action-primary);
+}
+
+.thumb {
+  display: grid;
+  place-items: center;
+  height: 4.5rem;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-warm);
+  /* `--text-muted` fails AA at this size on the warm surface. */
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: 1.15;
+  text-align: center;
+  padding: var(--space-1);
+}
+
+.body {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.name {
+  font-family: var(--font-serif);
+  font-size: 1.0625rem;
+  line-height: 1.35;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+/* The name button is the card-wide selection target. */
+.selectButton {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.selectButton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-md);
+}
+
+.selectButton:focus-visible::after {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.localName {
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+  overflow-wrap: anywhere;
+}
+
+.meta,
+.specialty {
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}

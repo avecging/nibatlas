@@ -1,0 +1,67 @@
+.page {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.section {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.title {
+  font-family: var(--font-serif);
+  font-size: var(--type-h2-size);
+  line-height: var(--type-h2-line);
+  font-weight: 600;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: var(--space-3);
+}
+
+.swatch {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  font-size: var(--type-caption-size);
+}
+
+.chip {
+  height: 2.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+}
+
+.markers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.markerCell {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  font-size: var(--type-caption-size);
+  color: var(--text-secondary);
+}
+
+.stamps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}

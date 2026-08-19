@@ -1,0 +1,110 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: var(--overlay-scrim);
+}
+
+.dialog {
+  width: min(100%, 26rem);
+  padding: var(--space-6);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface-warm);
+  box-shadow: var(--shadow-popover);
+  text-align: center;
+}
+
+.title {
+  margin-bottom: var(--space-2);
+  font-family: var(--font-serif);
+  font-size: var(--type-h2-size);
+  line-height: var(--type-h2-line);
+  font-weight: 600;
+}
+
+.lede {
+  margin-bottom: var(--space-5);
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+.stage {
+  display: grid;
+  place-items: center;
+  min-height: 13rem;
+  margin-bottom: var(--space-4);
+}
+
+.impression {
+  transform-origin: center;
+}
+
+/* 600–900 ms: poised → press → ink settles → date appears. */
+.pressing .impression {
+  animation: press 780ms var(--ease-entrance) both;
+}
+
+.pressing .meta {
+  animation: reveal 280ms var(--ease-entrance) 520ms both;
+}
+
+.settled .meta {
+  opacity: 1;
+}
+
+.meta {
+  margin-top: var(--space-3);
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+.actions {
+  display: grid;
+  gap: var(--space-2);
+}
+
+@keyframes press {
+  0% {
+    transform: translateY(-26px) scale(1.12) rotate(-4deg);
+    opacity: 0;
+  }
+  38% {
+    transform: translateY(0) scale(0.97) rotate(-1.2deg);
+    opacity: 1;
+  }
+  52% {
+    transform: translateY(0) scale(1.02) rotate(-1.2deg);
+  }
+  100% {
+    transform: translateY(0) scale(1) rotate(-1.2deg);
+    opacity: 1;
+  }
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pressing .impression,
+  .pressing .meta {
+    animation: none;
+  }
+
+  .impression,
+  .meta {
+    transition: opacity 140ms linear;
+    opacity: 1;
+  }
+}

@@ -1,0 +1,68 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  min-height: 1.5rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-round);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/*
+ * Status is carried by the border and the icon; the label uses primary ink so
+ * it clears AA on the tinted surface at caption size.
+ */
+.visited {
+  border-color: var(--state-visited);
+  background: var(--state-visited-surface);
+  color: var(--text-primary);
+}
+
+.visited svg {
+  color: var(--state-visited);
+}
+
+.saved {
+  border-color: var(--state-saved);
+  background: var(--state-saved-surface);
+  color: var(--text-primary);
+}
+
+.saved svg {
+  color: var(--state-saved);
+}
+
+.unvisited {
+  border-color: var(--border-default);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+}
+
+.neutral {
+  border-color: var(--border-default);
+  background: var(--bg-surface-warm);
+  color: var(--text-secondary);
+}
+
+.warning {
+  border-color: var(--warning);
+  background: var(--bg-surface-warm);
+  color: var(--text-primary);
+}
+
+.warning svg {
+  color: var(--warning);
+}
+
+.demo {
+  border-color: var(--border-strong);
+  background: var(--bg-surface-warm);
+  color: var(--text-secondary);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}

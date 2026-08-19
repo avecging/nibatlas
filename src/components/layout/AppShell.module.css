@@ -1,0 +1,150 @@
+.shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto 1fr auto;
+  min-height: 100dvh;
+  background: var(--bg-canvas);
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-surface);
+}
+
+.headerMapVariant {
+  display: none;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-target);
+  gap: var(--space-2);
+  color: var(--atlas-900);
+  text-decoration: none;
+}
+
+.brandName {
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.headerSpacer {
+  flex: 1;
+  min-width: 0;
+}
+
+.desktopNav {
+  display: none;
+}
+
+.main {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 0;
+}
+
+.mainMapVariant {
+  display: grid;
+  min-height: 0;
+}
+
+.mainContentVariant {
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4) var(--space-10);
+}
+
+.bottomNav {
+  position: sticky;
+  bottom: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-nav);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.navItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: var(--nav-height);
+  padding: var(--space-1);
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.navItem[aria-current="page"] {
+  color: var(--atlas-900);
+}
+
+.navMarker {
+  display: block;
+  width: 1.25rem;
+  height: 3px;
+  border-radius: var(--radius-round);
+  background: transparent;
+}
+
+.navItem[aria-current="page"] .navMarker {
+  background: var(--atlas-900);
+}
+
+@media (min-width: 1024px) {
+  .shell {
+    grid-template-rows: auto 1fr;
+  }
+
+  .headerMapVariant {
+    display: flex;
+  }
+
+  .desktopNav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .desktopNavItem {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--tap-target);
+    padding: 0 var(--space-4);
+    border-radius: var(--radius-round);
+    color: var(--text-secondary);
+    font-size: var(--type-label-size);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .desktopNavItem:hover {
+    background: var(--bg-surface-warm);
+  }
+
+  .desktopNavItem[aria-current="page"] {
+    background: var(--bg-surface-warm);
+    color: var(--atlas-900);
+  }
+
+  .bottomNav {
+    display: none;
+  }
+}

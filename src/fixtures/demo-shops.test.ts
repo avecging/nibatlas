@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { demoShops } from "@/src/fixtures/demo-shops";
+import {
+  demoShopDetails,
+  demoShopSummaries,
+} from "@/src/fixtures/demo-catalogue";
 
 describe("demo shop fixtures", () => {
   it("are explicitly marked as demo data", () => {
@@ -16,5 +20,14 @@ describe("demo shop fixtures", () => {
     expect(new Set(demoShops.map((shop) => shop.countryCode))).toEqual(
       new Set(["SG", "JP", "TW"]),
     );
+  });
+
+  it("projects the same specialty line used by the detail catalogue", () => {
+    for (const summary of demoShopSummaries) {
+      const detail = demoShopDetails.find((shop) => shop.id === summary.id);
+      const expected = detail?.specialties[0] ?? detail?.services[0] ?? null;
+
+      expect(summary.specialtyLine).toBe(expected);
+    }
   });
 });
