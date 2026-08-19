@@ -168,10 +168,12 @@ export function MapCanvas({
           [initialViewport.bounds.west, initialViewport.bounds.south],
           [initialViewport.bounds.east, initialViewport.bounds.north],
         ],
-        attributionControl: {
-          compact: true,
-          customAttribution: styleProvider.attribution,
-        },
+        attributionControl: styleProvider.attribution
+          ? {
+              compact: true,
+              customAttribution: styleProvider.attribution,
+            }
+          : { compact: true },
         dragRotate: false,
         pitchWithRotate: false,
         maxZoom: 18,

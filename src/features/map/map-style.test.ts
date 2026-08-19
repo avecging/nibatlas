@@ -7,6 +7,9 @@ describe("map style provider", () => {
     const provider = createMapStyleProvider();
 
     expect(provider.isOffline).toBe(true);
+    expect(provider.attribution).toBe(
+      "Nib Atlas demo basemap — no tile provider configured",
+    );
     expect(provider.getStyle()).toEqual(createPaperStyle());
   });
 
@@ -15,9 +18,9 @@ describe("map style provider", () => {
     const style = new URL(provider.getStyle() as string);
 
     expect(provider.isOffline).toBe(false);
+    expect(provider.attribution).toBeNull();
     expect(style.origin).toBe("https://api.maptiler.com");
     expect(style.pathname).toBe("/maps/dataviz-light/style.json");
     expect(style.searchParams.get("key")).toBe("public test/key");
   });
 });
-

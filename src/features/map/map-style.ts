@@ -10,7 +10,7 @@ import type { StyleSpecification } from "maplibre-gl";
 export interface MapStyleProvider {
   readonly id: string;
   readonly label: string;
-  readonly attribution: string;
+  readonly attribution: string | null;
   readonly isOffline: boolean;
   getStyle(): StyleSpecification | string;
 }
@@ -44,7 +44,9 @@ export function createMapStyleProvider(apiKey?: string): MapStyleProvider {
     return {
       id: "maptiler-nib-atlas",
       label: "MapTiler vector basemap",
-      attribution: "\u00a9 MapTiler \u00a9 OpenStreetMap contributors",
+      // MapTiler's style sources already provide the required attribution.
+      // Adding a custom copy would render the legal line twice.
+      attribution: null,
       isOffline: false,
       getStyle: () => styleUrl.toString(),
     };
