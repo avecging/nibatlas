@@ -6,6 +6,7 @@ test("renders real MapTiler geography through the static MapLibre worker", async
 }, testInfo) => {
   const browserErrors: string[] = [];
   const successfulMapTilerResponses = new Set<string>();
+  const failedMapTilerResponses = new Map<string, number>();
 
   page.on("pageerror", (error) => browserErrors.push(error.message));
   page.on("console", (message) => {
@@ -14,8 +15,16 @@ test("renders real MapTiler geography through the static MapLibre worker", async
     }
   });
   page.on("response", (response) => {
-    if (response.url().includes("api.maptiler.com") && response.ok()) {
-      successfulMapTilerResponses.add(response.url());
+    if (!response.url().includes("api.maptiler.com")) {
+      return;
+    }
+
+    const resourcePath = new URL(response.url()).pathname;
+
+    if (response.ok()) {
+      successfulMapTilerResponses.add(resourcePath);
+    } else {
+      failedMapTilerResponses.set(resourcePath, response.status());
     }
   });
 
@@ -31,6 +40,12 @@ test("renders real MapTiler geography through the static MapLibre worker", async
   await expect(page.locator(".maplibregl-ctrl-attrib")).toContainText("MapTiler");
   await expect(page.locator(".maplibregl-ctrl-attrib")).toContainText("OpenStreetMap");
 
+  await page.waitForTimeout(2_000);
+  await page.screenshot({
+    path: testInfo.outputPath("maptiler-geography.png"),
+    fullPage: false,
+  });
+
   await expect
     .poll(() => successfulMapTilerResponses.size, {
       message: "MapTiler style and geography resources should load successfully",
@@ -38,11 +53,6 @@ test("renders real MapTiler geography through the static MapLibre worker", async
     })
     .toBeGreaterThan(2);
 
-  await page.waitForTimeout(2_000);
+  expect(Object.fromEntries(failedMapTilerResponses)).toEqual({});
   expect(browserErrors).toEqual([]);
-
-  await page.screenshot({
-    path: testInfo.outputPath("maptiler-geography.png"),
-    fullPage: false,
-  });
 });

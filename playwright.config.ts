@@ -62,7 +62,12 @@ export default defineConfig({
           {
             name: "staging-maptiler",
             testDir: "./tests/staging",
-            use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
+            retries: 0,
+            use: {
+              ...devices["Desktop Chrome"],
+              viewport: { width: 1440, height: 900 },
+              trace: "off" as const,
+            },
           },
         ]
       : []),

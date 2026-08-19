@@ -26,7 +26,11 @@ After deployment, a Playwright staging check verifies:
 - MapTiler and OpenStreetMap attribution is rendered;
 - multiple MapTiler style/geography resources return successfully;
 - the browser reports no console or page errors; and
-- a 1440 × 900 screenshot is retained as workflow evidence for 14 days.
+- a 1440 × 900 screenshot is retained as workflow evidence for one day.
+
+The staging project disables Playwright traces because browser request URLs
+contain the browser-visible MapTiler key. Evidence uploads contain only the
+rendered screenshot and never traces, network archives, or environment files.
 
 The normal PR CI remains authoritative for the complete breakpoint,
 accessibility, reduced-motion, database-reset, and Cloudflare-build suites.

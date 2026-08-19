@@ -69,8 +69,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: staging-maptiler-evidence
-          path: |
-            test-results/**/maptiler-geography.png
-            test-results/**/*.zip
+          path: test-results/**/maptiler-geography.png
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 1
