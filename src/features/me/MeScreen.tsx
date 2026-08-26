@@ -358,9 +358,17 @@ export function MeScreen() {
       */}
       {reviewer ? (
         <Section id="me-prototype" title="Prototype controls">
+          {/*
+            Reviewer-facing, so it names the storage. It also has to be accurate:
+            the store moved to mode-namespaced local storage, so this state now
+            survives a reload, a new tab and a closed browser — it is no longer a
+            session.
+          */}
           <p className={styles.sectionNote}>
-            This build keeps saves and simulated collections in this browser session
-            only. Nothing is sent anywhere.
+            Saves and simulated collections are kept on this device only, in this
+            browser&rsquo;s local storage under a reviewer-only key. They survive a
+            reload and a new tab, they are separate from the normal-mode store, and
+            nothing is sent anywhere.
           </p>
           <ul className={styles.rows}>
             <li>

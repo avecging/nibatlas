@@ -37,7 +37,8 @@ export function PrivacyReviewerNote() {
       <p>
         This build is a frontend prototype: no accounts, no server, and no location
         access. It never asks the browser for a position. Saved shops and simulated
-        collections are held in this browser session and are not sent anywhere.
+        collections are held on this device only, in this browser&rsquo;s local
+        storage, and are not sent anywhere.
       </p>
       <p>
         Shop records are a small sourced sample, not a complete or continuously

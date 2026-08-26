@@ -27,9 +27,9 @@ so the captures are deterministic.
 | Screen | Route | What the pair shows |
 | --- | --- | --- |
 | `map` | `/` | The "Prototype sample" badge beside the result count is gone; reviewer mode adds a strip over the map with the marker, its exit control, and the basemap diagnostic |
-| `shop` | `/shops/ginza-itoya-main-store` | One provenance sentence versus the full per-field source list, the *Map position* precision row, and the prototype-catalogue badge |
-| `shop-omitted` | `/shops/skb-kaohsiung` | The same on a record with fields omitted, including the one opening-hours caution |
-| `me` | `/me` | Four paragraphs of location explanation reduced to one sentence; milestone chips replaced by plain reasons; no prototype reset control; **About Nib Atlas** added |
+| `shop` | `/shops/ginza-itoya-main-store` | One provenance sentence — a single-source record, so *"checked 26 August 2026"* — versus the full per-field source list, the *Map position* precision row, and the prototype-catalogue badge |
+| `shop-omitted` | `/shops/skb-kaohsiung` | The same on a record with fields omitted, including the one opening-hours caution and the mixed-date provenance clause (*"oldest source checked 16 March 2026"*) |
+| `me` | `/me` | Four paragraphs of location explanation reduced to one sentence; milestone chips replaced by plain reasons; no prototype reset control; **About Nib Atlas** added. Reviewer mode adds the prototype controls, whose note names the mode-namespaced local storage the state actually lives in |
 | `passport` | `/passport` | Country seals without coverage-set version strings |
 | `privacy` | `/privacy` | The fuller location explanation is retained in both modes; the build note is reviewer-only |
 | `about` | `/about` | The WP1 destination. Product-facing only — there is no reviewer-only content beyond one note |

@@ -76,6 +76,23 @@ export function sourceKindsInOrder(
 }
 
 /**
+ * The distinct readable retrieval dates, oldest first.
+ *
+ * Unparseable dates are dropped rather than guessed at: a date that cannot be
+ * printed cannot be claimed. Distinct, because whether the sources agree is what
+ * decides how the sentence may word its date — see {@link provenanceSentence}.
+ */
+export function retrievalDates(sources: readonly ShopSourceRef[]): readonly string[] {
+  const dates = new Set(
+    sources
+      .map((source) => source.retrievedOn.trim())
+      .filter((date) => formatCheckedOn(date) !== null),
+  );
+
+  return [...dates].sort((a, b) => a.localeCompare(b));
+}
+
+/**
  * The date the record can honestly claim.
  *
  * The **oldest** retrieval among the named sources, because a page is only as
@@ -86,10 +103,7 @@ export function sourceKindsInOrder(
 export function oldestRetrievedOn(
   sources: readonly ShopSourceRef[],
 ): string | undefined {
-  return sources
-    .map((source) => source.retrievedOn)
-    .filter((date) => formatCheckedOn(date) !== null)
-    .sort((a, b) => a.localeCompare(b))[0];
+  return retrievalDates(sources)[0];
 }
 
 /** `A`, `A and B`, `A, B, and C`. */
@@ -110,6 +124,22 @@ function sentenceList(items: readonly string[]): string {
  *
  * A record with no source gets no line rather than a vague one — inventing
  * provenance is worse than omitting it.
+ *
+ * The date clause has to say what the date it prints actually means. The
+ * conservative policy is unchanged — the oldest retrieval, because a page is
+ * only as current as its stalest fact — but "checked 16 March 2026" on a record
+ * whose website was read in August states something untrue about the website.
+ * So the wording follows the sources:
+ *
+ * - **one date across every source** — "…, checked 26 August 2026." Nothing is
+ *   qualified because nothing needs qualifying.
+ * - **dates that differ** — "…; oldest source checked 16 March 2026." The
+ *   reader learns the floor on the record's freshness and is not told that
+ *   every part of it was read then.
+ * - **no readable date** — no clause at all.
+ *
+ * Still one subordinate sentence either way. The per-source dates stay in
+ * reviewer mode, where the full list already carries them.
  */
 export function provenanceSentence(sources: readonly ShopSourceRef[]): string | null {
   const kinds = sourceKindsInOrder(sources);
@@ -119,10 +149,14 @@ export function provenanceSentence(sources: readonly ShopSourceRef[]): string | 
   }
 
   const phrase = sentenceList(kinds.map((kind) => SOURCE_PHRASES[kind]));
-  const oldest = oldestRetrievedOn(sources);
-  const checkedOn = oldest === undefined ? null : formatCheckedOn(oldest);
+  const dates = retrievalDates(sources);
+  const oldest = dates[0] === undefined ? null : formatCheckedOn(dates[0]);
 
-  return checkedOn
-    ? `Details from ${phrase}, checked ${checkedOn}.`
-    : `Details from ${phrase}.`;
+  if (oldest === null) {
+    return `Details from ${phrase}.`;
+  }
+
+  return dates.length === 1
+    ? `Details from ${phrase}, checked ${oldest}.`
+    : `Details from ${phrase}; oldest source checked ${oldest}.`;
 }

@@ -461,11 +461,12 @@ mistaken for product decisions:
 
 1. **The provenance sentence is derived, not authored.**
    `src/components/shops/provenance.ts` names every distinct source kind a record
-   rests on, strongest first, with the oldest retrieval date among them —
+   rests on, strongest first, and a date clause that says what its date means —
    *"Details from the shop's own website and a community shop list, checked 26
-   August 2026."* A record with **no** source gets no line at all rather than a
-   vague one. *(Revised after the first Codex review; see revision 3 below for
-   why naming only the strongest source was wrong.)*
+   August 2026."* where the sources share a day, and *"…; oldest source checked
+   16 March 2026."* where they do not. A record with **no** source gets no line
+   at all rather than a vague one. *(Revised twice after review; see revision 3
+   below.)*
 2. **Unknown opening hours keep one caution.** Ordinary unknowns stay omitted,
    but arriving at a closed shop is the failure the page exists to prevent, so
    *"Opening hours are not confirmed. Check with the shop before travelling."*
@@ -569,10 +570,28 @@ from the shop's own website and a community shop list, checked 26 August 2026."*
 Kinds, not labels — that is what keeps it a sentence rather than the source dump
 reviewer mode already provides.
 
-The date is the **oldest** retrieval among those sources, because a page is only
-as current as its stalest fact. Pen House's website was read in August but its
-district came from a March visit note; claiming August would present the whole
-record as five months fresher than part of it is.
+**The date, and what the line is allowed to say about it.** The policy is the
+**oldest** retrieval among the named sources, because a page is only as current
+as its stalest fact: Pen House's website was read in August but its district came
+from a March visit note, and claiming August would present the whole record as
+five months fresher than part of it is.
+
+The first attempt applied that policy but kept the plain wording, which traded
+one inaccuracy for another — *"Details from the shop's own website and a Nib
+Atlas visit, checked 16 March 2026"* says the website was read in March, and it
+was not. Corrected in the second revision, the clause names what it means:
+
+| Sources | Clause | Example |
+| --- | --- | --- |
+| one date across all of them | `, checked <date>.` | Ginza Itoya, TY Lee |
+| dates that differ | `; oldest source checked <date>.` | SKB, Pen House |
+| no readable date | *(no clause)* | — |
+
+The reader gets a floor on the record's freshness either way, and is never told
+that a source was read on a day it was not. Still one subordinate sentence; the
+per-source dates stay in reviewer mode, where the full list already carries them.
+An unreadable date is dropped rather than guessed at, and does not by itself
+count as a disagreement.
 
 #### 4. Link previews name only present fields (`shop-metadata.ts`)
 
@@ -613,6 +632,32 @@ across records in a way that is false for one of them.
 became reachable — the "Nothing saved yet" title was a paragraph styled as one.
 It is now an `h3`.
 
+### WP1 revisions after the second Codex review
+
+Recorded 26 August 2026. Two wording defects, both introduced by the first
+revision pass rather than by the original WP1 work.
+
+#### 9. The provenance date clause names what its date means
+
+The conservative oldest-date policy was right; stating it as a plain "checked"
+was not. See the table under revision 3 above for the corrected wording and the
+tests that pin both cases as exact strings. `AGENTS.md` carries the rule with it,
+so the invariant no longer describes the date inaccurately either.
+
+#### 10. Reviewer copy no longer calls the store a browser session
+
+Two reviewer-only notes still said saves and simulated collections were held "in
+this browser session" — true before revision 1 moved the store to mode-namespaced
+`localStorage`, false afterwards. Me's prototype-controls note now reads *"kept on
+this device only, in this browser's local storage under a reviewer-only key. They
+survive a reload and a new tab, they are separate from the normal-mode store, and
+nothing is sent anywhere."* Privacy's reviewer note is corrected in the same
+terms. Reviewer copy may name the storage — that audience is the reason it
+exists — but it has to name it correctly.
+
+Both are asserted end to end, including a `browser session` count of zero on the
+pages that carried the phrase, so the claim cannot come back unnoticed.
+
 ### Deliberately not done in WP1
 
 - `/styleguide` keeps its milestone wording and component badges. It is an
@@ -650,8 +695,10 @@ Added with the review revisions:
   refusal to overwrite or to promote a corrupt blob.
 - `src/components/shops/shop-metadata.test.ts` — no generated preview names a
   field its record omits, checked across the whole catalogue.
-- `src/components/shops/provenance.test.ts` — every source kind credited, oldest
-  date claimed, TY Lee named explicitly.
+- `src/components/shops/provenance.test.ts` — every source kind credited; exact
+  strings for a same-date record (Ginza Itoya, TY Lee) and a mixed-date one (SKB,
+  Pen House); repeated and unreadable dates handled; and a catalogue sweep that
+  requires the qualified wording wherever a record's sources disagree.
 - `src/features/reviewer/reviewer-mode.test.ts` and
   `ReviewerModeProvider.test.tsx` — parameter stripping, and exit followed by a
   reload of the same URL.

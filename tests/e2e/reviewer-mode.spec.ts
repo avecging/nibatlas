@@ -210,6 +210,11 @@ test.describe("reviewer mode keeps the diagnostics", () => {
     await expectMode(page, "on");
 
     await expect(page.getByText("Sign-in and sync arrive in Milestone 4")).toBeVisible();
+    // The prototype-controls note names the storage, and has to be right about
+    // it: the store is mode-namespaced local storage, not a session.
+    await expect(page.getByText(/on this device only/i)).toBeVisible();
+    await expect(page.getByText(/local storage under a reviewer-only key/i)).toBeVisible();
+    await expect(page.getByText(/browser session/i)).toHaveCount(0);
     await expect(
       page.getByText(/Counted against curated set [a-z]{2}-/i).first(),
     ).toBeVisible();
@@ -249,6 +254,10 @@ test.describe("reviewer mode keeps the diagnostics", () => {
 
     await expect(page.getByTestId("reviewer-note")).toBeVisible();
     await expect(page.getByText(/frontend prototype/i)).toBeVisible();
+    await expect(
+      page.getByTestId("reviewer-note").getByText(/on this device only/i),
+    ).toBeVisible();
+    await expect(page.getByText(/browser session/i)).toHaveCount(0);
   });
 });
 
@@ -498,7 +507,8 @@ test.describe("copy that has to be true of every record", () => {
 
   test("a mixed-source record credits every source kind it rests on", async ({ page }) => {
     // TY Lee's own website confirms only its local-script name; the name,
-    // address and district come from a community list.
+    // address and district come from a community list. Both were read on the
+    // same day, so the plain "checked" wording is accurate here.
     await page.goto("/shops/ty-lee-pen-shop");
     await expectMode(page, "off");
 
@@ -507,6 +517,23 @@ test.describe("copy that has to be true of every record", () => {
         /Details from the shop's own website and a community shop list, checked \d+ \w+ \d{4}\./,
       ),
     ).toBeVisible();
+  });
+
+  test("a record whose sources were read on different days says so", async ({ page }) => {
+    // SKB's website was read in August; the visit note is from March. Printing
+    // "checked 16 March 2026" would state something untrue about the website, so
+    // the clause names the date as a floor instead.
+    await page.goto("/shops/skb-kaohsiung");
+    await expectMode(page, "off");
+
+    await expect(
+      page.getByText(
+        "Details from the shop's own website and a Nib Atlas visit; oldest source checked 16 March 2026.",
+      ),
+    ).toBeVisible();
+
+    // And it never claims the newer date for the whole record.
+    expect(await visibleText(page)).not.toContain("checked 26 August 2026");
   });
 
   test("a link preview never advertises a field the page omits", async ({ page }) => {
