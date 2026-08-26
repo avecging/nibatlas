@@ -1,208 +1,232 @@
-# Milestone 1 Prototype Acceptance — Mobile Map First
+# Milestone 1 Prototype Acceptance
 
-**Status:** Founder-directed implementation brief  
+**Status:** Founder-approved implementation brief  
 **Applies to:** Milestone 1 frontend prototype refinement  
-**Primary viewport:** 360 × 800 px  
+**Primary mobile viewport:** 360 × 800 px  
+**Desktop review viewport:** 1440 × 900 px  
 **Last updated:** 26 August 2026
 
 ## Purpose
 
-This brief converts the approved product, brand, UX, and stamp-system decisions into a focused acceptance target for the next Milestone 1 frontend pass.
+This brief converts the current product decisions into the acceptance target for the next Milestone 1 frontend pass.
 
-The attached standalone prototype supplied on 26 August 2026 is a useful interaction study, not a new source of product truth. Where it conflicts with `PRODUCT.md`, `BRAND.md`, `UX.md`, or `IMPLEMENTATION-PLAN.md`, those repository documents and the corrections below win.
+The standalone prototype supplied on 26 August 2026 is the founder's latest interaction and visual reference. Preserve its good decisions and character, but do not copy implementation shortcuts that conflict with the repository specifications. Repository documents remain authoritative.
 
 ## Outcome
 
-At 360 × 800, a first-time user should immediately understand that Nib Atlas is a map for finding physical fountain-pen shops. The screen must feel like a real product, not an annotated prototype or component demonstration.
+A first-time user should immediately understand that Nib Atlas helps them find physical fountain-pen shops and preserve verified visits as tactile stamp memories.
 
-The complete fixture journey remains:
+The complete prototype journey is:
 
-> Explore map → select shop → open shop → simulate collection → see the visited state → open Passport
+> Explore Map → select a shop → open shop → simulate collection → see Visited update → open Passport → inspect the new impression
 
-## Keep from the 26 August prototype
+The product should feel quiet, warm, geographic, and collectible without becoming a game, a feed, or a tracking product.
 
-- Map-first composition with search above the map.
-- Calm Paper / Atlas Navy cartographic treatment.
-- Distinct marker silhouettes for unvisited, saved, visited, and selected.
-- Results sheet layered over the map.
-- Editorial serif for shop identity and Passport; sans-serif for controls and metadata.
-- Shop detail organised around whether and how to visit.
-- Restrained stamp impression treatment and archival Passport mood.
-- List view as the immediately usable Passport presentation.
-- Reduced-motion support for collection and page/sheet movement.
+## Primary information architecture
 
-These are directions to refine, not permission to preserve conflicting navigation, stamp types, fixture claims, or incomplete sheet behaviour.
+Use exactly three primary destinations:
 
-## Required corrections
+1. **Map**
+2. **Passport**
+3. **Me**
 
-| Current prototype behaviour | Required Milestone 1 behaviour |
-| --- | --- |
-| Three tabs: Map, Passport, Me | Four primary destinations: Map, Discover, Passport, Saved |
-| “Me” opens Passport | Remove “Me” from primary navigation; account/preferences belong behind a later avatar menu |
-| “Demo” appears inside the search pill | Functional controls contain only customer-facing copy; any staging/demo notice is environment chrome and is absent from production |
-| All / Saved / Visited segmented control | Status options are All, Unvisited, Visited, Saved |
-| Only two sheet heights are implemented | Provide stable Peek, Half, and Full states |
-| Country and city stamps appear in Passport | Milestone 1 displays shop-stamp fixtures only |
-| Country/city completion and unversioned totals are shown | Show collected counts only; no `x / y` or implied completeness without a versioned curated coverage set |
-| Stamp colours imply geographic or tier meaning | One approved ink per stamp from the shared eight-colour global palette; no country or tier owns a colour |
-| Synthetic shops resemble verified real businesses | Fixtures must be unmistakably demo data and must not present invented business details as verified fact |
-| Search is a visual placeholder only | Destination and shop-name results are visually distinguishable in the mocked flow |
-| Filter changes update immediately | Active filters update the displayed map/list only when the viewport query is committed |
-| Prototype title/helper language leaks into the product surface | No implementation notes, helper commentary, acceptance text, or “prototype” status appears in customer-facing UI |
+Do not restore Discover or Saved as primary navigation.
 
-## 360 × 800 composition
+- Discovery is an activity within Map. Contextual editorial prompts may suggest where to explore, but there is no feed-shaped Discover destination.
+- Saved is a global Map mode/filter. It must let a user browse every saved shop across locations, not only saved shops in the current viewport.
+- Me is one conventional page containing profile, countries/localities visited, account, settings, privacy, help, export/delete, and sign-out placeholders.
+- Recent Impressions is deferred and must not appear. Avoid UI that makes users feel passively tracked or followed.
 
-### App shell
+## Map
 
-- Map fills the working canvas above the persistent bottom navigation.
-- Bottom navigation contains Map, Discover, Passport, and Saved, in that order.
-- Every navigation target is at least 44 × 44 px and has both icon and visible label.
-- No account, location, or sign-in prompt appears on initial load.
-- Search remains near the top safe area and does not obscure essential map controls.
+### Composition
 
-### Search
+- Map fills the working canvas around a persistent responsive app shell.
+- Search stays near the top safe area.
+- Mobile results use stable Peek, Half, and Full sheet states.
+- Desktop uses a useful map/list composition rather than stretching the mobile sheet.
+- Controls and sheet handles do not collide with browser or PWA safe areas.
+- Every control and map target has at least a 44 × 44 px hit area.
 
-- Default label: **Search shops or places**.
-- Mock results are grouped or labelled as:
-  - **Places** for destinations/localities;
-  - **Shops** for canonical shop results.
-- Choosing a place moves the camera and commits that viewport.
-- Choosing a shop selects its marker and raises the results sheet.
-- The search surface does not contain “Demo,” “Prototype,” implementation state, or explanatory prose.
+### Search and viewport
 
-### Map and viewport
+- Search label: **Search shops or places**.
+- Place and shop results are visibly distinguishable.
+- Choosing a place moves and commits the viewport.
+- Choosing a shop selects its marker and corresponding list/card.
+- Manual pan and zoom do not continuously refresh results.
+- Meaningful camera movement reveals **Search this area**.
+- **Search this area** commits the camera bounds and active filters.
+- Existing results stay visible while a prototype-local refresh is pending.
 
-- Manual pan and zoom never trigger continuous result fetching.
-- Meaningful movement reveals **Search this area**.
-- **Search this area** commits current camera bounds and active filters.
-- Old results remain visible while the mock refresh is loading.
-- Marker priority remains Visited → Saved → Unvisited; Selected is a temporary halo.
-- Every marker result has an equivalent list/card item.
+### States and synchronization
 
-### Results sheet
+- Persisted marker priority is Visited → Saved → Unvisited.
+- Selected is temporary and shown with a halo; it is not a persisted fourth status.
+- Marker, card, shop detail, Saved mode, and Passport must agree after simulated collection.
+- Card selection highlights its marker without discarding the broader viewport.
+- Marker selection raises the mobile sheet to at least Peek and scrolls the relevant card into view.
+- Dragging the sheet never pans the map.
+- Browser Back dismisses transient layers and higher sheet states before leaving Map.
 
-Three stable states are required:
+### Saved mode
 
-| State | 360 × 800 intent |
-| --- | --- |
-| Peek | Result count plus selected/first shop summary while most of the map stays visible |
-| Half | Browsable cards with enough map context to understand location |
-| Full | Scrollable results and filter access; map remains behind |
+- Saved belongs to Map and is reachable from an obvious labelled control.
+- Entering Saved mode changes the result scope from the current viewport to all saved shops.
+- Results remain grouped or searchable by geography where useful.
+- Opening a saved shop can return to Map with that shop selected and the camera positioned appropriately.
+- Do not add named trips, itinerary building, or a separate Saved primary destination.
 
-- Marker selection raises the sheet to at least Peek and scrolls to the corresponding card.
-- Card selection highlights the corresponding marker without resetting the broader viewport.
-- Dragging the sheet must not pan the map.
-- Browser Back closes Full → Half/Peek → transient layers before leaving the map route.
-- The locate control must not collide with the sheet handle or navigation.
+## Shop data and detail
 
-### Shop card
+Use a deliberately small subset of real shops already researched or known to the project. This is prototype data, not a claim of a complete or continuously verified catalogue.
 
-Required hierarchy:
+- Reuse only source-supported names, local-script names, locations, categories, links, and practical details.
+- Omit uncertain fields rather than inventing realistic-looking facts.
+- Show a quiet prototype/staging data notice at environment or page level, never inside a search field, status control, or shop fact.
+- Include Singapore, Japan, and Taiwan where supported by existing research.
+- Test long English, Japanese, and Traditional Chinese names.
+- Use authorized or rights-cleared imagery only.
 
-1. Shop name.
-2. Local-script name where available.
-3. Locality/neighbourhood and primary shop type.
-4. One useful specialty/service line.
-5. Reliable operational cue.
-6. Saved/Visited state using text/icon as well as colour.
+The first shop-detail viewport must establish:
 
-Do not show ratings, price, inventory, ranking, engagement cues, or implementation notes.
-
-### Shop detail
-
-The first mobile viewport must establish:
-
-- shop identity and local-script name;
-- locality and primary type;
+- identity and local-script name where available;
+- locality and primary shop type;
 - why it may be worth visiting;
-- operational state where reliable;
+- practical operational status where reliably sourced;
 - Save, Directions/official site, and simulated Collect Stamp actions.
 
-Further down, show practical information, services/specialties, appointment/accessibility notes where fixture data supports them, official links, and data freshness. Do not invent factual details for real shops.
+Do not show ratings, price ranking, engagement counts, inventory, or invented freshness claims.
 
-### Simulated collection
+## Simulated collection
 
-- Collection remains explicitly simulated in Milestone 1 test logic, not described as a real verification claim in customer UI.
-- Use one shop stamp only.
-- After collection, the same shop becomes Visited on marker, card, detail, and Passport exactly once.
-- The ceremony should be brief and restrained.
-- Reduced motion shows an immediate impression with an opacity transition under 150 ms.
-- No country stamp, city stamp, completion unlock, rarity, points, confetti, or reward language.
+- Collection is simulated prototype state; it is not real visit verification.
+- The ceremony is restrained: poised stamp → short press/impact → ink settles → date/place appears.
+- Target 600–900 ms total.
+- One soft haptic cue may be attempted only where supported and user-permitted.
+- After collection, the shop becomes Visited exactly once everywhere.
+- Reduced motion uses the completed impression with a short opacity transition under 150 ms.
+- No confetti, points, rarity reveal, streaks, or loot-style language.
 
-### Passport
+## Passport content
 
-- Default mobile presentation is a usable list/collection view.
-- An experimental book view may remain only if it does not replace or obstruct the accessible list.
-- Show total collected shops, countries represented, localities represented, recent impressions, and shop stamps.
-- Geography is organisational hierarchy, not a source of collectible country/city stamps.
-- Selecting a stamp opens its shop while preserving return context.
-- Empty states explain how to collect a shop stamp and link back to the Map.
-- Do not show unversioned denominators, locked silhouettes, or artificial completion.
+Passport contains shop stamps and derived geographic seals.
 
-### Discover and Saved
+### Standard stamp rule
 
-Milestone 1 needs coherent fixture screens, even when deliberately light:
+- The shared system has eight approved global ink colours.
+- A standard stamp uses exactly one ink.
+- Colour is place-sensitive art direction, but no colour belongs to a country, locality, shop tier, rarity, or achievement.
+- Stamp palette version is pinned for deterministic regeneration.
+- Dual-ink and spectrum/rainbow impressions are future editions and do not appear in Milestone 1.
 
-- Discover uses rule-based/editorial prompts and must not become a feed.
-- Saved shows bookmarked fixture shops and returns to the map with a shop selected.
-- Neither screen should contain prototype commentary or future-feature explanations.
-- No named trips, itineraries, social features, ratings, merchant tools, or user profile feed.
+### Derived geographic seals
 
-## Fixture policy
+- A locality seal derives from the first verified shop stamp acquired in that locality.
+- If check-in is later adopted, it must produce the same canonical verified-visit event rather than a second eligibility system.
+- A country seal derives after five verified shop stamps in that country, or after completing the eligible curated set when that versioned set contains fewer than five shops.
+- Once earned, a locality or country seal is never revoked when the curated set expands.
+- Prototype counters must not imply completeness unless their eligible set and version are explicit.
 
-- Synthetic data uses reserved fixture IDs and an environment-level **Demo / Not production data** treatment.
-- Do not place the demo label inside search, filters, shop status, or another functional control.
-- Do not use invented business details that could be mistaken for facts about a real shop.
-- Long English, Japanese, and Traditional Chinese names remain in the fixture set for layout testing.
-- Launch geography fixtures cover Singapore, Japan, and Taiwan without implying catalogue completeness.
+### Passport structure
 
-## Accessibility and interaction checks
+- Milestone 1 uses one Passport, not a library of books.
+- Multiple books / **A library of places I’ve visited** is recorded as a future scaling idea.
+- Geography may organize the collection, but country/locality profile summaries also belong in Me.
+- Selecting a shop stamp opens its shop and preserves return context.
+- Empty states explain how collection works and return the user to Map.
+- Recent Impressions is absent.
 
-- All controls and interactive map targets have at least 44 × 44 px hit areas.
-- Visible focus, semantic names, keyboard operation, and focus restoration are required.
+## Passport presentation and motion
+
+The complete physical model is specified in `docs/passport-interaction-spec.md`. The following are release-blocking outcomes.
+
+### Desktop
+
+- Closed Passport is a thin modern passport viewed at a slight three-quarter angle, centred on a quiet desk-like field with enough surrounding space to read as an object.
+- The cover has believable proportions, restrained grain, edge thickness, rounded corners, debossed/foil-like identity treatment, and a visible fore-edge. It must not look like a flat card or a heavy antique bible.
+- Opening originates at the spine. The front cover rotates around its bound edge and reveals the first spread; it does not dissolve, mirror, or rotate around its centre.
+- Open mode presents a complete two-page spread with a fixed central spine/gutter.
+- Page turns preserve which leaf belongs to the left and right stacks. Direction cannot be faked by reversing an unrelated card animation.
+- Shadows, curvature, and page thickness respond continuously to progress and settle cleanly without snapping.
+
+### Mobile
+
+- The MVP uses a portrait, single-page reading mode.
+- The page occupies the useful width with comfortable margins and stable controls.
+- Swipe/drag direction follows reading order; buttons and keyboard equivalents remain available.
+- Do not require device auto-rotate, motion permission, landscape orientation lock, or a sideways grip.
+- Manual sideways phone reading with an internally rotated 90° book and vertical drag gestures is explicitly post-MVP and documented separately.
+- Reduced motion replaces 3D turning with an immediate page change and short cross-fade.
+
+## Me
+
+Me is deliberately conventional and trustworthy.
+
+Show coherent prototype sections for:
+
+- profile identity;
+- countries and localities visited;
+- account and sign-in state;
+- preferences and accessibility;
+- privacy policy;
+- location/check-in explanation;
+- data export and account deletion;
+- help/contact;
+- sign out.
+
+Privacy copy must clearly distinguish active user actions from passive tracking. Do not imply background location history, surveillance, or automatic visit recording.
+
+## Accessibility and PWA checks
+
+- Semantic HTML, visible labels, visible focus, logical reading order, and focus restoration are required.
 - Status never relies on colour alone.
-- Bottom-sheet semantics expose the current state and controls to screen readers.
+- Map actions have list equivalents.
+- Page-turn and stamp animations respect `prefers-reduced-motion`.
+- Passport navigation works with touch, mouse, keyboard, and labelled buttons.
 - Test at 200% zoom.
-- Verify long English, Japanese, and Traditional Chinese names without clipping or forced CJK letter spacing.
-- Respect `prefers-reduced-motion` for sheet, marker, Passport, and ceremony motion.
+- Test mobile Safari and Android Chrome as an installed or add-to-home-screen PWA where possible.
+- Do not depend on browser APIs whose permission or support is inconsistent for the core MVP journey.
+- Prevent clipped content under notches, home indicators, and browser chrome.
 
 ## Acceptance scenarios
 
-The next pass is ready for founder review when all of these work at 360 × 800:
+The frontend PR is ready for founder review when these journeys work:
 
-1. Open the map without authentication or location permission.
-2. Search for a destination, distinguish it from a shop result, and commit the moved viewport.
-3. Pan the map without a request storm; use **Search this area** to refresh.
-4. Select a marker and see the same shop selected in the results sheet.
-5. Move the sheet through Peek, Half, and Full without panning the map.
-6. Open the selected shop and understand why/how to visit from the first viewport.
-7. Simulate one shop-stamp collection and see Visited update once everywhere.
-8. Open Passport and find that shop stamp without encountering country/city stamps or completion denominators.
-9. Reach Discover and Saved from the four-item primary navigation.
-10. Complete the journey with keyboard navigation and reduced motion enabled.
+1. Open Map without authentication or location permission.
+2. Search for a place and a shop, distinguish them, and commit the moved viewport.
+3. Pan without a request storm, then use **Search this area**.
+4. Select a marker and see the matching selected card.
+5. Move the mobile sheet through Peek, Half, and Full without panning the map.
+6. Enter global Saved mode and find a saved shop outside the previous viewport.
+7. Open a shop and understand why/how to visit from the first viewport.
+8. Simulate one shop-stamp collection and see Visited update once everywhere.
+9. Open Passport on mobile and navigate the single-page collection.
+10. Open Passport on desktop, inspect the closed object, open from the spine, and turn pages in both directions.
+11. See locality/country seal logic represented without an unversioned completeness claim.
+12. Open Me and find profile geography, privacy, account, and data controls.
+13. Complete the core journey with keyboard navigation and reduced motion.
 
 ## Evidence required in the frontend PR
 
-- Screenshots at 360 × 800 for:
-  - initial Map;
-  - selected marker + Peek;
-  - Half and Full sheet;
-  - shop first viewport;
-  - post-collection visited state;
-  - Passport list;
-  - Discover;
-  - Saved.
-- One 768 × 1024 and one 1440 × 900 integration screenshot.
-- Updated Playwright coverage for the ten acceptance scenarios above.
-- Axe smoke result and reduced-motion result.
-- Explicit list of any remaining visual debt.
+Provide screenshots or short recordings for:
+
+- 360 × 800: initial Map, selected + Peek, Half, Full, global Saved mode, shop first viewport, post-collection state, Passport single page, and Me;
+- 768 × 1024: Map and Passport;
+- 1440 × 900: closed Passport, opening transition, open spread, and reverse page turn;
+- reduced-motion collection and Passport transitions;
+- real-device mobile PWA check on iOS Safari and Android Chrome, with device/browser versions;
+- `pnpm verify`, `pnpm test:e2e`, and `pnpm build:cloudflare` results;
+- explicit visual debt and any source fields deliberately omitted.
 
 ## Out of scope
 
-- Real auth or saves.
-- Real PostGIS/API integration.
-- Real location verification.
-- Country/city collectible stamps.
-- Merchant claims or custom merchant stamps.
-- Reviews, ratings, achievements, campaigns, named trips, or social profiles.
-- Final production data, imagery, or logo commissioning.
+- Recent Impressions.
+- Discover or Saved primary navigation destinations.
+- Manual sideways/rotated phone-reading mode and rotate-phone tutorial.
+- Multiple Passport books.
+- Real authentication, persistence, saves, location verification, or check-ins.
+- Dual-ink and spectrum/rainbow editions.
+- Production catalogue completeness.
+- Reviews, ratings, feed, social profiles, named trips, achievements, merchant tools, or campaigns.
+- Database migrations, API contracts, Cloudflare configuration, CI, or secrets.
