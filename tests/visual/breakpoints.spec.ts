@@ -7,6 +7,11 @@ import { expect, test } from "@playwright/test";
  * container images, so baselines are opted into with `VISUAL=1 pnpm test:e2e`
  * and refreshed with `VISUAL=1 pnpm test:e2e --update-snapshots`.
  *
+ * The committed baselines under `breakpoints.spec.ts-snapshots/` were captured
+ * in the Linux container this branch was developed in, against a production
+ * build. They are review evidence and a local regression net, not a CI gate: a
+ * different image needs `--update-snapshots` once before the suite passes there.
+ *
  * The offline "field journal" basemap is deterministic, so the map is captured
  * as rendered; `maxDiffPixelRatio` absorbs sub-pixel renderer differences.
  */

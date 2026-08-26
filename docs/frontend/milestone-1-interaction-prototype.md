@@ -105,12 +105,14 @@ capped at 450 ms. Under `prefers-reduced-motion` there is no perspective
 rotation, parallax, or curl: content changes immediately with a fade under
 150 ms, and every control, announcement, and focus move is unchanged.
 
-### One documented deviation
+### Accepted centring treatment
 
-`docs/passport-interaction-spec.md` asks for the closed book to be centred *and*
-for the spine to stay fixed in world space while opening. Those cannot both hold,
-because opening a passport grows the object leftwards from its spine. The book
-box is therefore always two leaves wide with the spine at its centre, and the
+Reviewed and accepted on PR #5. `docs/passport-interaction-spec.md` asks for the
+closed book to be centred *and* for the spine to stay fixed in world space while
+opening. Those cannot both hold, because opening a passport grows the object
+leftwards from its spine. The accepted resolution keeps the hinge internally
+fixed and moves the whole stage instead, so the settled spread stays centred. The
+book box is therefore always two leaves wide with the spine at its centre, and the
 whole object — block, shadow, cover, and pages together — translates half a leaf
 as it opens, over the same duration and easing as the cover swing. The spine
 never moves relative to any other part of the object, and the cover still rotates
@@ -129,8 +131,10 @@ spread takes the room it needs to stay readable.
   code path; the Taiwan Sun-Star Coiro reference informs future work only.
 - `src/domain/seals.ts` derives geographic seals from verified shop stamps, never
   from a separate action. A locality seal comes from the first stamp there. A
-  country seal comes from five stamps, or from completing a versioned curated set
-  smaller than five. Earned seals are persisted with the coverage-set version in
+  country seal comes from five stamps, or from collecting every shop in a
+  versioned curated set smaller than five. The second rule is membership, not
+  arithmetic: four stamps from shops outside a four-shop curated set leave it
+  incomplete, and an empty set awards nothing. Earned seals are persisted with the coverage-set version in
   force at the time and are carried through unchanged, which is how "never
   revoked when the catalogue expands" is implemented: recomputing from
   collections alone would revoke a seal the moment its curated set grew.

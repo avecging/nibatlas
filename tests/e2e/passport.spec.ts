@@ -291,5 +291,34 @@ test("seal logic is shown against an explicit versioned set", async ({ page }) =
   // licensed. Japan and Taiwan show a plain count against a named set version.
   await expect(page.getByText(/curated set of 2 complete/i)).toBeVisible();
   await expect(page.getByText(/set sg-prototype-/)).toBeVisible();
-  await expect(page.getByText(/2 of 4 stamps/).first()).toBeVisible();
+  await expect(page.getByText(/2 of 4 curated shops/).first()).toBeVisible();
+});
+
+test("a new impression opens the Passport at its own locality page", async ({ page }) => {
+  // Ty Lee is uncollected in the seeded prototype state, so this is a first
+  // collection rather than a repeat view.
+  await page.goto("/shops/ty-lee-pen-shop");
+  await page.getByRole("button", { name: /collect stamp/i }).click();
+  await page.getByRole("button", { name: /i am at this shop/i }).click();
+
+  await page.getByRole("link", { name: /open in passport/i }).click();
+
+  // The locality route, not the generic overview.
+  await expect(page).toHaveURL(/\/passport\/tw\/daan-taipei$/);
+
+  // And the book lands on that locality's page, not page one.
+  await expect
+    .poll(async () => (await bookState(page)).opened, { timeout: 5000 })
+    .toBe(true);
+  await expect
+    .poll(
+      async () => {
+        const state = await bookState(page);
+        return [...state.pages, ...(state.turner?.faces.map((f) => f.heading) ?? [])]
+          .filter((heading): heading is string => heading !== null)
+          .some((heading) => /Da'an, Taipei/.test(heading));
+      },
+      { timeout: 5000 },
+    )
+    .toBe(true);
 });

@@ -111,7 +111,16 @@ export function PassportPageView({
                         </span>
                       ) : (
                         <span className={styles.sealMeta}>
-                          {country.stampCount} of {country.required} stamps
+                          {/*
+                            The denominator has to name the metric its rule
+                            actually counts. A curated set smaller than five is
+                            completed by collecting those specific shops, so any
+                            number of stamps elsewhere in the country does not
+                            move it.
+                          */}
+                          {country.requirementFromCuratedSet
+                            ? `${country.progressCount} of ${country.required} curated shops`
+                            : `${country.progressCount} of ${country.required} stamps`}
                         </span>
                       )}
                       {country.coverageSetVersion ? (

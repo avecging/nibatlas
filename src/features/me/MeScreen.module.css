@@ -269,3 +269,29 @@ button.row {
   color: var(--text-secondary);
   font-size: var(--type-body-sm-size);
 }
+
+/*
+ * 360 px is the primary review viewport, and it is where the milestone badge
+ * used to squeeze the row text into two or three words per line. Below 30rem the
+ * badge drops onto its own line, aligned with the row text rather than the icon,
+ * so the title and detail keep the full column width.
+ */
+@media (max-width: 30rem) {
+  .row {
+    flex-wrap: wrap;
+  }
+
+  .pending {
+    flex: 1 1 100%;
+    margin-left: calc(20px + var(--space-3));
+  }
+
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stats > .stat:only-child,
+  .stats > .stat:nth-child(3):last-child {
+    grid-column: 1 / -1;
+  }
+}

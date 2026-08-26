@@ -64,9 +64,20 @@ export interface EarnedSeal {
 export interface CountrySealProgress {
   readonly countryCode: CountryCode;
   readonly countryLabel: string;
+  /** Every verified stamp in the country. The five-stamp rule's own metric. */
   readonly stampCount: number;
+  /** Collected shops that are members of the curated eligible set. */
+  readonly eligibleCollected: number;
+  /** Size of the curated eligible set, or `null` when none is defined. */
+  readonly eligibleTotal: number | null;
   /** `min(5, eligible set size)`. */
   readonly required: number;
+  /**
+   * The count that pairs with `required`, so the interface never has to work out
+   * which rule is in force. Eligible members for a small curated set, total
+   * verified stamps otherwise.
+   */
+  readonly progressCount: number;
   readonly coverageSetVersion: string | null;
   /**
    * True only when the requirement came from completing a curated set smaller
@@ -79,7 +90,13 @@ export interface CountrySealProgress {
 export function countrySealRequirement(
   coverageSet: CountryCoverageSet | undefined,
 ): { readonly required: number; readonly fromCuratedSet: boolean } {
-  if (!coverageSet || coverageSet.eligibleShopIds.length >= COUNTRY_SEAL_STAMP_THRESHOLD) {
+  // An empty curated set licenses nothing: without it, `required` would be 0 and
+  // a country seal would be handed out before a single stamp was collected.
+  if (
+    !coverageSet ||
+    coverageSet.eligibleShopIds.length === 0 ||
+    coverageSet.eligibleShopIds.length >= COUNTRY_SEAL_STAMP_THRESHOLD
+  ) {
     return { required: COUNTRY_SEAL_STAMP_THRESHOLD, fromCuratedSet: false };
   }
 
@@ -193,10 +210,46 @@ export function deriveSeals({
     const id = countrySealId(countryCode);
     const countryLabel = countryCollections[0]?.countryLabel ?? countryCode;
     const existing = kept.get(id);
+    const eligibleIds = new Set(coverageSet?.eligibleShopIds ?? []);
 
-    if (!existing && countryCollections.length >= required) {
-      const deriving = countryCollections[required - 1] as StampCollection;
+    /*
+     * Two independent rules, and the seal derives from whichever a stamp
+     * satisfies first in collection order:
+     *
+     *   1. five verified stamps in the country, whatever they are;
+     *   2. every shop in a curated set smaller than five, by membership.
+     *
+     * Rule 2 is membership, not arithmetic. Four stamps from shops outside a
+     * four-shop curated set leave that set incomplete and must not award the
+     * seal, however many of them there are.
+     */
+    const collectedEligible = new Set<string>();
+    let deriving: StampCollection | undefined;
 
+    for (const [index, collection] of countryCollections.entries()) {
+      if (eligibleIds.has(collection.shopId)) {
+        collectedEligible.add(collection.shopId);
+      }
+
+      const byStampCount = index + 1 >= COUNTRY_SEAL_STAMP_THRESHOLD;
+      const bySetCompletion =
+        fromCuratedSet && collectedEligible.size === eligibleIds.size;
+
+      if (byStampCount || bySetCompletion) {
+        deriving = collection;
+        break;
+      }
+    }
+
+    // Counted over every collection, not just up to the deriving stamp, so
+    // progress keeps rising after the seal is earned.
+    const eligibleCollected = new Set(
+      countryCollections
+        .filter((collection) => eligibleIds.has(collection.shopId))
+        .map((collection) => collection.shopId),
+    ).size;
+
+    if (!existing && deriving) {
       kept.set(id, {
         id,
         scope: "country",
@@ -218,7 +271,10 @@ export function deriveSeals({
       countryCode,
       countryLabel,
       stampCount: countryCollections.length,
+      eligibleCollected,
+      eligibleTotal: coverageSet ? coverageSet.eligibleShopIds.length : null,
       required,
+      progressCount: fromCuratedSet ? eligibleCollected : countryCollections.length,
       coverageSetVersion: coverageSet?.version ?? null,
       requirementFromCuratedSet: fromCuratedSet,
       earned: kept.has(id),
@@ -243,7 +299,10 @@ export function deriveSeals({
       countryCode: seal.countryCode,
       countryLabel: seal.countryLabel,
       stampCount: 0,
+      eligibleCollected: 0,
+      eligibleTotal: coverageSet ? coverageSet.eligibleShopIds.length : null,
       required,
+      progressCount: 0,
       coverageSetVersion: seal.coverageSetVersion ?? coverageSet?.version ?? null,
       requirementFromCuratedSet: fromCuratedSet,
       earned: true,

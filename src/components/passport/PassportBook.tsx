@@ -166,6 +166,27 @@ export function PassportBook({ pages, initialPageIndex = null }: PassportBookPro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /*
+   * A requested page can arrive late. The collection store hydrates from session
+   * storage after mount, so a Passport opened at a freshly collected impression
+   * renders once with the seeded pages — where that locality may not exist yet —
+   * and only then learns the real target. Without this the reader would be left
+   * on whatever page the first render chose.
+   */
+  const requestedPage = useRef<number | null>(initialPageIndex);
+
+  useEffect(() => {
+    if (initialPageIndex === null || initialPageIndex === requestedPage.current) {
+      return;
+    }
+
+    requestedPage.current = initialPageIndex;
+    pendingFocus.current = normalizePosition(geometry, initialPageIndex);
+    // Synchronising to a prop that resolves asynchronously upstream.
+    setOpened(true);
+    setPageIndex(initialPageIndex);
+  }, [geometry, initialPageIndex]);
+
   useEffect(() => {
     try {
       window.sessionStorage.setItem(

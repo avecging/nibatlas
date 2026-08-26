@@ -7,11 +7,12 @@ import { StampCeremony } from "@/src/components/stamps/StampCeremony";
 import { Button, ButtonLink } from "@/src/components/ui/Button";
 import { Icon } from "@/src/components/ui/Icon";
 import { MarkerStateBadge } from "@/src/components/ui/StatusBadge";
-import type { StampCollection } from "@/src/domain/passport";
+import { countrySlug, type StampCollection } from "@/src/domain/passport";
 import type { ShopDetail } from "@/src/domain/shop-detail";
 import { markerStateFor } from "@/src/domain/user-state";
 import { useCollection } from "@/src/features/collection/collection-store";
 import { noopTelemetry } from "@/src/features/map/telemetry";
+import { prototypeLocalitySlugById } from "@/src/fixtures/prototype-catalogue";
 
 import styles from "./ShopActions.module.css";
 
@@ -39,6 +40,15 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
   const saved = collection.isSaved(shop.id);
   const existing = collection.collectionForShop(shop.id);
   const officialLink = (shop.links ?? []).find((link) => link.isOfficial);
+
+  /*
+   * The ceremony opens the Passport at the impression that was just pressed, not
+   * at whatever page the session happened to be on. `UX.md` requires a direct
+   * transition from a new stamp into the relevant Passport section.
+   */
+  const localitySlug =
+    prototypeLocalitySlugById.get(shop.id) ?? shop.localityName.toLowerCase();
+  const passportHref = `/passport/${countrySlug(shop.countryCode)}/${localitySlug}`;
 
   function confirmCollection() {
     const alreadyCollected = existing !== undefined;
@@ -146,7 +156,7 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
         <StampCeremony
           collection={ceremony}
           alreadyCollected={wasAlreadyCollected}
-          passportHref="/passport"
+          passportHref={passportHref}
           onClose={() => setCeremony(null)}
         />
       ) : null}

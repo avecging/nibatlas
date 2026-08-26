@@ -302,7 +302,12 @@ test("explore to simulated collection to Passport", async ({ page }) => {
   await expect(ceremony).toBeVisible();
   await ceremony.getByRole("link", { name: /open in passport/i }).click();
 
-  await expect(page.getByRole("button", { name: /open passport/i })).toBeVisible();
+  // The ceremony opens the Passport at the impression that was just pressed, so
+  // it lands on that locality's own page already open — not on the cover.
+  await expect(page).toHaveURL(/\/passport\/tw\/east-tainan$/);
+  await expect(
+    page.getByRole("heading", { level: 3, name: /East District, Tainan/ }).first(),
+  ).toBeVisible();
 });
 
 test("collecting once updates Visited everywhere, and only once", async ({ page }) => {

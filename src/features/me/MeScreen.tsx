@@ -84,6 +84,14 @@ export function MeScreen() {
   const localitySeals = seals.filter((seal) => seal.scope === "locality");
   const countrySeals = seals.filter((seal) => seal.scope === "country");
 
+  /** Countries and localities the collected stamps actually represent. */
+  const visitedCountries = passport.countries.map((country) => ({
+    countryCode: country.countryCode,
+    countryLabel: country.countryLabel,
+    stampCount: country.stampCount,
+    localityNames: country.localities.map((locality) => locality.name),
+  }));
+
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -118,13 +126,69 @@ export function MeScreen() {
       <Section
         id="me-geography"
         title="Places visited"
-        description="Derived from the shop stamps you have collected. Nothing here is recorded automatically."
+        description="Countries and localities your collected shop stamps represent. Nothing here is recorded automatically."
       >
+        {/*
+          Visited geography comes from the stamps themselves, never from seals. A
+          country is visited on its first stamp; its seal is a separate threshold
+          that may take four more. Reporting seals here would hide a country the
+          reader has genuinely been to.
+        */}
         <div className={styles.stats}>
           <p className={styles.stat}>
             <span className={styles.statValue}>{passport.stampCount}</span>
             <span className={styles.statLabel}>Shop stamps</span>
           </p>
+          <p className={styles.stat}>
+            <span className={styles.statValue}>{passport.countryCount}</span>
+            <span className={styles.statLabel}>Countries visited</span>
+          </p>
+          <p className={styles.stat}>
+            <span className={styles.statValue}>{passport.localityCount}</span>
+            <span className={styles.statLabel}>Localities visited</span>
+          </p>
+        </div>
+
+        {visitedCountries.length === 0 ? (
+          <p className={styles.empty}>
+            No visits yet. Collect a stamp at a shop and the country and locality
+            appear here.
+          </p>
+        ) : (
+          <ul className={styles.geoList}>
+            {visitedCountries.map((country) => (
+              <li className={styles.geoRow} key={country.countryCode}>
+                <div className={styles.geoHead}>
+                  <span className={styles.geoName}>{country.countryLabel}</span>
+                  <span className={styles.geoProgress}>
+                    {country.stampCount} stamp{country.stampCount === 1 ? "" : "s"} ·{" "}
+                    {country.localityNames.length} localit
+                    {country.localityNames.length === 1 ? "y" : "ies"}
+                  </span>
+                </div>
+                <p className={styles.geoLocalities}>
+                  {country.localityNames.length === 0
+                    ? "No localities yet"
+                    : country.localityNames.join(" · ")}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className={styles.sectionNote}>
+          <Link className={styles.inlineLink} href="/passport">
+            Open Passport
+          </Link>{" "}
+          to see the impressions themselves.
+        </p>
+      </Section>
+
+      <Section
+        id="me-seals"
+        title="Seal progress"
+        description="Seals are separate from places visited. They derive from verified stamps once a country reaches its threshold."
+      >
+        <div className={styles.stats}>
           <p className={styles.stat}>
             <span className={styles.statValue}>{countrySeals.length}</span>
             <span className={styles.statLabel}>Country seals</span>
@@ -137,56 +201,36 @@ export function MeScreen() {
 
         {countryProgress.length === 0 ? (
           <p className={styles.empty}>
-            No visits yet. Collect a stamp at a shop and the country and locality
-            appear here.
+            Collect a stamp and its locality seal derives straight away.
           </p>
         ) : (
           <ul className={styles.geoList}>
-            {countryProgress.map((country) => {
-              const localities = localitySeals.filter(
-                (seal) => seal.countryCode === country.countryCode,
-              );
-
-              return (
-                <li className={styles.geoRow} key={country.countryCode}>
-                  <div className={styles.geoHead}>
-                    <span className={styles.geoName}>{country.countryLabel}</span>
-                    {country.earned ? (
-                      <span className={styles.geoSeal}>
-                        <Icon name="seal" size={14} />
-                        Country seal earned
-                      </span>
-                    ) : (
-                      <span className={styles.geoProgress}>
-                        {country.stampCount} of {country.required} stamps towards the
-                        country seal
-                      </span>
-                    )}
-                  </div>
-                  <p className={styles.geoLocalities}>
-                    {localities.length === 0
-                      ? "No localities yet"
-                      : localities
-                          .map((seal) => seal.localityName)
-                          .filter((name): name is string => Boolean(name))
-                          .join(" · ")}
+            {countryProgress.map((country) => (
+              <li className={styles.geoRow} key={country.countryCode}>
+                <div className={styles.geoHead}>
+                  <span className={styles.geoName}>{country.countryLabel}</span>
+                  {country.earned ? (
+                    <span className={styles.geoSeal}>
+                      <Icon name="seal" size={14} />
+                      Country seal earned
+                    </span>
+                  ) : (
+                    <span className={styles.geoProgress}>
+                      {country.requirementFromCuratedSet
+                        ? `${country.progressCount} of ${country.required} curated shops collected`
+                        : `${country.progressCount} of ${country.required} stamps towards the country seal`}
+                    </span>
+                  )}
+                </div>
+                {country.coverageSetVersion ? (
+                  <p className={styles.geoVersion}>
+                    Counted against curated set {country.coverageSetVersion}
                   </p>
-                  {country.coverageSetVersion ? (
-                    <p className={styles.geoVersion}>
-                      Counted against curated set {country.coverageSetVersion}
-                    </p>
-                  ) : null}
-                </li>
-              );
-            })}
+                ) : null}
+              </li>
+            ))}
           </ul>
         )}
-        <p className={styles.sectionNote}>
-          <Link className={styles.inlineLink} href="/passport">
-            Open Passport
-          </Link>{" "}
-          to see the impressions themselves.
-        </p>
       </Section>
 
       <Section id="me-preferences" title="Preferences and accessibility">
