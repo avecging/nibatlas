@@ -29,9 +29,11 @@ export async function generateMetadata({
 
   return {
     title: shop.name,
+    // Shared and indexed, so this is product copy rather than a build note. The
+    // catalogue's limits belong on About, not in every shop's meta description.
     description:
       shop.shortDescription ??
-      `${shop.name} in ${shop.localityName}. Prototype catalogue record — a small sourced sample, not a complete listing.`,
+      `${shop.name} in ${shop.localityName}. Address, hours, and what you can do there, on Nib Atlas.`,
   };
 }
 

@@ -52,6 +52,32 @@
   line-height: var(--type-body-sm-line);
 }
 
+.dialogBody strong {
+  color: var(--text-primary);
+}
+
+/*
+ * The Privacy link is inline prose, not a control: the fuller location
+ * explanation lives on that page and is reached from here rather than repeated
+ * in the dialog.
+ */
+.dialogLink {
+  color: var(--action-secondary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Reviewer-only. Never rendered in normal mode. */
+.dialogDiagnostic {
+  padding: var(--space-2);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-warm);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
 .dialogActions {
   display: grid;
   gap: var(--space-2);

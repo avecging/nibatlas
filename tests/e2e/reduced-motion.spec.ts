@@ -7,8 +7,8 @@ test.beforeEach(async ({ page }) => {
 test("the stamp ceremony has an instant reduced-motion treatment", async ({ page }) => {
   await page.goto("/shops/juspirit-banqiao");
 
-  await page.getByRole("button", { name: /collect stamp \(simulated\)/i }).click();
-  await page.getByRole("button", { name: /simulate: i am at this shop/i }).click();
+  await page.getByRole("button", { name: /^collect stamp$/i }).click();
+  await page.getByRole("button", { name: /^i am at this shop$/i }).click();
 
   const dialog = page.getByRole("dialog", { name: /impression collected/i });
   await expect(dialog).toBeVisible();

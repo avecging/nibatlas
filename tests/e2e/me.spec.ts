@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test";
 
 /**
- * Me, checked against the two properties the review found broken: visited
- * geography must come from stamps rather than from seals, and the milestone
- * badge must not squeeze the row text at 360 px.
+ * Me, checked against the two properties the Milestone 1 review found broken:
+ * visited geography must come from stamps rather than from seals, and the
+ * pending-action badge must not squeeze the row text at 360 px.
  */
 test("reports countries and localities visited, separately from seals", async ({
   page,
@@ -45,6 +45,10 @@ test("reports countries and localities visited, separately from seals", async ({
     seals.getByText(/2 of 4 curated shops collected/).first(),
   ).toBeVisible();
 
+  // The coverage-set version behind that denominator is reviewer instrumentation
+  // and must not appear in the product surface.
+  await expect(seals.getByText(/curated set [a-z]{2}-/i)).toHaveCount(0);
+
   // Places visited points into the Passport itself.
   await expect(visited.getByRole("link", { name: /open passport/i })).toHaveAttribute(
     "href",
@@ -59,7 +63,8 @@ test("the profile row keeps its text readable at 360 px", async ({ page }) => {
   const detail = page.getByText(
     /Saving shops and keeping a Passport need an account/i,
   );
-  const badge = page.getByText("Sign-in arrives in Milestone 4");
+  // Normal mode states the same fact without the milestone number.
+  const badge = page.getByText("Sign-in not available yet");
 
   const detailBox = await detail.boundingBox();
   const badgeBox = await badge.boundingBox();

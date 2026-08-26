@@ -10,7 +10,18 @@ import type { StyleSpecification } from "maplibre-gl";
 export interface MapStyleProvider {
   readonly id: string;
   readonly label: string;
+  /**
+   * Attribution the map is legally obliged to display. Never gated by reviewer
+   * mode: a licence requirement is not instrumentation.
+   */
   readonly attribution: string | null;
+  /**
+   * A line describing which supplier is in use, for internal review only. The
+   * offline style draws nothing but a graticule generated in this repository,
+   * so naming it satisfies no licence — it answers "is staging actually on
+   * MapTiler?", which is a reviewer's question, not a visitor's.
+   */
+  readonly diagnosticAttribution: string;
   readonly isOffline: boolean;
   getStyle(): StyleSpecification | string;
 }
@@ -126,6 +137,7 @@ export function createMapStyleProvider(apiKey?: string): MapStyleProvider {
       // MapTiler's style sources already provide the required attribution.
       // Adding a custom copy would render the legal line twice.
       attribution: null,
+      diagnosticAttribution: "MapTiler vector basemap \u2014 tile key configured",
       isOffline: false,
       getStyle: () => styleUrl.toString(),
     };
@@ -134,7 +146,9 @@ export function createMapStyleProvider(apiKey?: string): MapStyleProvider {
   return {
     id: "nib-atlas-paper",
     label: "Offline field-journal basemap",
-    attribution: "Nib Atlas demo basemap \u2014 no tile provider configured",
+    attribution: null,
+    diagnosticAttribution:
+      "Nib Atlas offline field-journal basemap \u2014 no tile provider configured",
     isOffline: true,
     getStyle: createPaperStyle,
   };

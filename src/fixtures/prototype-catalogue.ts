@@ -174,8 +174,13 @@ const HOURS = {
   ],
 } as const satisfies Record<string, readonly OpeningHoursEntry[]>;
 
+/*
+ * One concise caution, not an explanation of the omission. WP1 keeps a caution
+ * where missing information could disrupt a visit and drops the narration of
+ * why the field is empty.
+ */
 const NO_PUBLISHED_HOURS =
-  "No opening hours are published by the shop itself, so none are shown. Confirm before travelling.";
+  "Opening hours are not published by the shop, so confirm before travelling.";
 
 /* --------------------------------------------------------------------------
  * Seeds

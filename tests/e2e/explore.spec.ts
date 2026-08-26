@@ -313,8 +313,8 @@ test("explore to simulated collection to Passport", async ({ page }) => {
 test("collecting once updates Visited everywhere, and only once", async ({ page }) => {
   await page.goto("/shops/juspirit-banqiao");
 
-  await page.getByRole("button", { name: /collect stamp \(simulated\)/i }).click();
-  await page.getByRole("button", { name: /simulate: i am at this shop/i }).click();
+  await page.getByRole("button", { name: /^collect stamp$/i }).click();
+  await page.getByRole("button", { name: /^i am at this shop$/i }).click();
   await expect(page.getByRole("dialog", { name: /impression collected/i })).toBeVisible();
   await page.getByRole("button", { name: /back to shop/i }).click();
 
@@ -369,23 +369,44 @@ test("long Japanese and Traditional Chinese names render without overflow", asyn
   expect(overflowing).toBe(false);
 });
 
-test("a shop with no published hours shows none, and says so", async ({ page }) => {
+test("a shop with no published hours gives one caution, not an explanation", async ({
+  page,
+}) => {
   await page.goto("/shops/skb-kaohsiung");
 
-  await expect(page.getByText(/No opening hours are published/i)).toBeVisible();
+  // Unknown hours could disrupt a visit, so one concise caution stands.
+  await expect(
+    page.getByText(/Opening hours are not published by the shop/i),
+  ).toBeVisible();
+
   // No invented address, and no empty placeholder pretending to be one.
   await expect(page.getByText("Address", { exact: true })).toHaveCount(0);
+
+  // Coordinate precision is a note to field verification, not a fact a visitor
+  // can use, so it is reviewer-only now.
+  await expect(page.getByText(/Approximate, locality only/i)).toHaveCount(0);
+  await expect(page.getByText(/Map position/)).toHaveCount(0);
+
+  await page.goto("/shops/skb-kaohsiung?review=1");
   await expect(page.getByText(/Approximate, locality only/i)).toBeVisible();
 });
 
 test("every shop page says where its facts came from", async ({ page }) => {
+  // Normal mode: one subordinate sentence naming the source and the date it was
+  // read. The per-field breakdown moved behind reviewer mode.
   await page.goto("/shops/ginza-itoya-main-store");
 
-  const provenance = page.getByRole("region", { name: /where this came from/i }).or(
-    page.locator("section", { has: page.getByRole("heading", { name: /where this came from/i }) }),
-  );
+  await expect(
+    page.getByText(/Details from the shop's own website, checked \d+ \w+ \d{4}\./),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: /where this came from/i })).toHaveCount(0);
 
-  await expect(provenance.first()).toContainText("ito-ya.co.jp");
-  await expect(provenance.first()).toContainText(/confirms/i);
-  await expect(page.getByText(/not a complete or\s+continuously verified catalogue/i)).toBeVisible();
+  // Reviewer mode: the full list, with its retrieval dates and confirmed fields.
+  await page.goto("/shops/ginza-itoya-main-store?review=1");
+
+  const provenance = page.getByTestId("shop-provenance-detail");
+
+  await expect(provenance).toContainText("ito-ya.co.jp");
+  await expect(provenance).toContainText(/confirms/i);
+  await expect(provenance).toContainText(/not a complete or\s+continuously verified catalogue/i);
 });

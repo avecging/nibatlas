@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import { AppShell } from "@/src/components/layout/AppShell";
 import { CollectionProvider } from "@/src/features/collection/collection-store";
+import { ReviewerModeProvider } from "@/src/features/reviewer/ReviewerModeProvider";
 
 import "./globals.css";
 
@@ -38,9 +39,11 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
   return (
     <html lang="en" className={`${inter.variable} ${sourceSerif.variable}`}>
       <body>
-        <CollectionProvider>
-          <AppShell>{children}</AppShell>
-        </CollectionProvider>
+        <ReviewerModeProvider>
+          <CollectionProvider>
+            <AppShell>{children}</AppShell>
+          </CollectionProvider>
+        </ReviewerModeProvider>
       </body>
     </html>
   );

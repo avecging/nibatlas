@@ -1,6 +1,6 @@
 # Milestone 1.5 — Production-like product refinement
 
-**Status:** Founder-approved direction. Not yet implemented.
+**Status:** Founder-approved direction. **WP1 implemented**; WP2–WP7 and WP-D not started.
 **Recorded:** 26 August 2026
 **Owner:** Claude Code (frontend), with founder and Codex on sourcing
 **Depends on:** Milestone 1 (PR #5) landing as the corrected technical foundation
@@ -343,21 +343,168 @@ that feedback exists.
 
 ## Work packages
 
-| WP | Scope | Depends on |
-| --- | --- | --- |
-| **WP0** | The five PR #5 review findings. **Milestone 1, not 1.5.** | — |
-| **WP1** | Reviewer mode plus the copy pass: the flag, migrating every badge and milestone label behind it, production copy for location and collection, About Nib Atlas | WP0 |
-| **WP2** | Me restructure: signed-out/signed-in split, compact Places Visited linked into Passport, local-data controls, Contribute entries, Danger group | WP1 |
-| **WP3** | Passport IA: List/Book toggle, opening spread on content, country/locality index and linked routes, stamp detail overlay, first-run-only cover, cover redesign, display name on the identity page | WP1 |
-| **WP4** | Shop value layer: the data-model extension, sourced content, reordered page, native directions, contextual report | WP1, sourcing |
-| **WP5** | Visual fidelity: shop identity system, interim hero, paper and cover texture, stamp at large size, ceremony material pass | WP3, WP4 |
-| **WP6** | Filter drawer: segment plus drawer, active count, one-tap clear | WP1 |
-| **WP7** | Contribution flows: `mailto` routing now, `/suggest-shop` page later | WP2 |
-| **WP-D** | **Required desktop audit** across all of the above | Founder desktop feedback |
+| WP | Scope | Depends on | Status |
+| --- | --- | --- | --- |
+| **WP0** | The five PR #5 review findings. **Milestone 1, not 1.5.** | — | Landed in PR #5 |
+| **WP1** | Reviewer mode plus the copy pass: the flag, migrating every badge and milestone label behind it, production copy for location and collection, About Nib Atlas | WP0 | **Implemented** |
+| **WP2** | Me restructure: signed-out/signed-in split, compact Places Visited linked into Passport, local-data controls, Contribute entries, Danger group | WP1 | Not started |
+| **WP3** | Passport IA: List/Book toggle, opening spread on content, country/locality index and linked routes, stamp detail overlay, first-run-only cover, cover redesign, display name on the identity page | WP1 | Not started |
+| **WP4** | Shop value layer: the data-model extension, sourced content, reordered page, native directions, contextual report | WP1, sourcing | Not started |
+| **WP5** | Visual fidelity: shop identity system, interim hero, paper and cover texture, stamp at large size, ceremony material pass | WP3, WP4 | Not started |
+| **WP6** | Filter drawer: segment plus drawer, active count, one-tap clear | WP1 | Not started |
+| **WP7** | Contribution flows: `mailto` routing now, `/suggest-shop` page later | WP2 | Not started |
+| **WP-D** | **Required desktop audit** across all of the above | Founder desktop feedback | Not started |
 
 WP1 is the smallest package with the largest effect on testability: it is what
 makes staging sendable to a non-technical tester. WP3 and WP4 are the substantial
 ones. WP4 is gated on data, so its schema work can run in parallel with WP3.
+
+## WP1 implementation record
+
+**Implemented:** 26 August 2026 · Claude Code · branch
+`claude/m1-5-wp1-reviewer-mode`.
+
+Scope was WP1 only. Nothing in WP2–WP7 or WP-D was started, and none of the
+accepted decisions above were reopened. This section records how WP1 was built
+and the implementation choices a reviewer would otherwise have to infer from the
+diff.
+
+### The mechanism
+
+`src/features/reviewer/reviewer-mode.ts` holds the resolution rules as pure
+functions; `ReviewerModeProvider` owns the URL and the storage.
+
+- `?review=1` / `?review=0`, with `true/false`, `on/off` and `yes/no` also
+  accepted. An unrecognised value is **not** a decision: it falls through to the
+  remembered choice rather than being read as `false`.
+- The choice is remembered in `localStorage` under
+  `nib-atlas.reviewer-mode.v1`. Session storage would have forced the parameter
+  onto every reload, which is the thing accepted decision 3 removes.
+- An explicit parameter is written even when it matches the default, so
+  `?review=0` on a fresh device records a real choice.
+- A device that has never chosen resolves to **off**.
+
+**Resolution is client-side and post-mount, deliberately.** The server render and
+the first client paint are always the product, so the two renders agree and there
+is no hydration mismatch, and reviewer material never enters the HTML or the RSC
+payload a normal tester's browser receives. The cost is paid on the reviewer's
+side: they see production copy for one frame before the instrumentation appears.
+
+Two consequences worth naming:
+
+- Reviewer-only *prose* on server-rendered pages lives inside client components
+  (`src/features/reviewer/ReviewerNotes.tsx`), not as children passed into a
+  reviewer gate. Wrapping server children would have serialised the text into
+  every visitor's payload — hidden in the interface, present in the document.
+  The copy is still in the client JS bundle; that is inherent to any client-side
+  gate and is not the exposure the requirement is about.
+- No route became dynamically rendered. `useSearchParams` would have forced that
+  or a Suspense boundary around the shell, so the provider reads
+  `window.location.search` directly. The parameter always arrives with a document
+  load, which is how it is used.
+
+### The way out
+
+Reviewer mode marks itself and offers its own exit — never a way *in*, which
+would put the control in front of testers.
+
+- `ReviewerModeBadge`: a "Reviewer mode" chip plus an exit control, in the shell
+  header, in Me, and in a strip over the map.
+- Map needed its own slot: the shell header is `display: none` below 1024 px on
+  the map variant, and the results sheet's summary row is too tight at 360 px to
+  hold a badge and a control without clipping one. The strip in the map overlay
+  also carries the basemap diagnostic.
+
+### What moved behind the flag
+
+| Moved | Where it was | Where it is now |
+| --- | --- | --- |
+| "Prototype data" badge | Shell header, every page | Reviewer marker |
+| "Prototype sample" badge | Beside every result count | Removed; reviewer strip on the map |
+| "Prototype" badge | Me header | Reviewer marker |
+| "Prototype catalogue" badge | Every shop page | Reviewer provenance block |
+| "Simulated collection…" | Ceremony | Reviewer-only; product line replaces it |
+| "(simulated)" suffixes | Collect button, collected line, confirm button | Reviewer-only |
+| "Arrives in Milestone N" chips | Me, five rows | Reviewer-only; plain-language reasons in normal mode |
+| Prototype reset control | Me | Reviewer-only section, absent from the document otherwise |
+| Coverage-set version strings | Me, Passport country seals | Reviewer-only |
+| *Map position* precision row | Every shop page | Reviewer-only |
+| Per-field source list with retrieval dates | Every shop page | Reviewer-only; one provenance sentence in normal mode |
+| Offline-basemap attribution line | MapLibre attribution control | Reviewer strip |
+| Four-paragraph location essay | Me | One sentence plus a Privacy link |
+| Two-paragraph simulation notice | Collect preflight | Two short sentences, honest, no simulation vocabulary |
+
+Nothing was deleted. Every diagnostic above is still reachable, with the same
+precision, at `?review=1`.
+
+### Precise implementation decisions
+
+These are implementation choices inside WP1's remit, recorded so they are not
+mistaken for product decisions:
+
+1. **The provenance sentence is derived, not authored.**
+   `src/components/shops/provenance.ts` picks the strongest source — the shop's
+   own website over a dealer listing over a community list — and formats its
+   retrieval date, producing *"Details from the shop's own website, checked 26
+   August 2026."* A record with **no** source gets no line at all rather than a
+   vague one.
+2. **Unknown opening hours keep one caution.** Ordinary unknowns stay omitted,
+   but arriving at a closed shop is the failure the page exists to prevent, so
+   *"Opening hours are not confirmed. Check with the shop before travelling."*
+   stands as the one concise caution accepted decision 1 allows. The duplicate
+   "Always confirm" line now appears only where hours *are* listed.
+3. **Milestone chips became reasons, not silence.** A row that cannot be used
+   still says why — "Needs an account", "Not available yet", "Sign-in not
+   available yet" — because hiding the label would leave a row that looks
+   tappable. The milestone numbering is the reviewer form of the same fact.
+4. **Legally required attribution is not gated.** `MapStyleProvider` now
+   separates `attribution` (a licence obligation, always shown) from
+   `diagnosticAttribution` (which supplier resolved, reviewer-only). The offline
+   style draws only a graticule generated in this repository, so its line carries
+   no licence and is reviewer-only; MapTiler's own style sources carry theirs and
+   are untouched.
+5. **The shop-page meta description became product copy.** It previously read
+   "Prototype catalogue record — a small sourced sample, not a complete listing",
+   which is shared and indexed. The catalogue's limits are stated on About.
+6. **About coverage is counted from the catalogue at build time**, not written as
+   prose, so the page cannot drift. It reports plain counts with no denominator,
+   per the `PRODUCT.md` invariant.
+7. **`.privacy-page` was renamed `.prose-page`** in `app/globals.css`. It was
+   always a generic prose layout and now has a second consumer. No values
+   changed.
+8. **Me was shortened, not restructured.** The signed-out/signed-in split,
+   Places Visited deep links, local-data controls, the Contribute group and the
+   Danger group are WP2 and were not built. **About Nib Atlas** was added as a Me
+   row because WP1 owns that destination.
+
+### Deliberately not done in WP1
+
+- `/styleguide` keeps its milestone wording and component badges. It is an
+  internal reference page, unlinked from product navigation, and is a reviewer
+  surface by nature. Gating it would hide the badge components from the page
+  whose purpose is to show them.
+- **Report incorrect information** and the contribution invitation are named in
+  *Visible versus reviewer-only* above but are WP7's routing work. The Milestone 1
+  line that promised them with a milestone number was removed rather than
+  replaced, so normal mode currently offers no correction route. WP7 restores it.
+- Desktop layout was not touched. The 1440 × 900 evidence shows the copy and
+  visibility pass on the existing Milestone 1 desktop treatment and is not
+  desktop sign-off; WP-D still awaits founder feedback.
+
+### Coverage
+
+- `src/features/reviewer/reviewer-mode.test.ts` — the resolution rules.
+- `src/features/reviewer/ReviewerModeProvider.test.tsx` — default off, both
+  parameters, remembered choice, the exit control, and blocked storage.
+- `src/components/shops/provenance.test.ts` — source ranking, date formatting,
+  and a line for every catalogue shop.
+- `src/components/shops/ShopActions.test.tsx`,
+  `src/components/stamps/StampCeremony.test.tsx` — collection copy in both modes.
+- `tests/e2e/reviewer-mode.spec.ts` — the acceptance criteria end to end,
+  including a ten-pattern sweep for reviewer-only material across nine product
+  routes at all three breakpoints.
+- `tests/evidence/wp1-reviewer-mode.spec.ts` — the paired screenshots, opted into
+  with `EVIDENCE=1`. Output in `docs/evidence/milestone-1-5-wp1/`.
 
 ## Open items still needing founder input
 

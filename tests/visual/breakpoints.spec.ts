@@ -29,6 +29,7 @@ const SCREENS = [
   { name: "passport-closed", path: "/passport" },
   { name: "me", path: "/me" },
   { name: "privacy", path: "/privacy" },
+  { name: "about", path: "/about" },
   { name: "styleguide", path: "/styleguide" },
 ];
 

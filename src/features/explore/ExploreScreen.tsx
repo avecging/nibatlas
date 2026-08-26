@@ -13,7 +13,6 @@ import { SearchThisArea } from "@/src/components/map/SearchThisArea";
 import { ShopList } from "@/src/components/shops/ShopList";
 import { useMediaQuery } from "@/src/components/hooks/useMediaQuery";
 import { Icon } from "@/src/components/ui/Icon";
-import { PrototypeBadge } from "@/src/components/ui/StatusBadge";
 import type { CountryCode, Viewport } from "@/src/domain/geo";
 import { COUNTRY_LABELS } from "@/src/domain/shop-detail";
 import type { ShopMapSummary } from "@/src/domain/shops";
@@ -36,6 +35,8 @@ import { prototypeDestinations } from "@/src/fixtures/prototype-destinations";
 import { prototypeShopSummaries } from "@/src/fixtures/prototype-catalogue";
 import { createMapStyleProvider } from "@/src/features/map/map-style";
 import { noopTelemetry } from "@/src/features/map/telemetry";
+import { ReviewerModeBadge } from "@/src/features/reviewer/ReviewerModeBadge";
+import { useReviewerMode } from "@/src/features/reviewer/ReviewerModeProvider";
 
 import styles from "./ExploreScreen.module.css";
 
@@ -101,6 +102,7 @@ function shopViewport(shop: ShopMapSummary): Viewport {
 
 export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }) {
   const collection = useCollection();
+  const reviewer = useReviewerMode();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const searchParams = useSearchParams();
   const [state, dispatch] = useReducer(
@@ -349,32 +351,30 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
             : "hidden";
 
   /*
-   * The prototype notice rides with the result summary so it is present at page
-   * level on every breakpoint — the mobile Map has no header to carry it — while
-   * staying out of the search field, the status controls, and any shop fact.
+   * Where Milestone 1 put a "Prototype sample" badge beside every result count,
+   * there is now nothing. The reviewer marker moved to the map overlay instead:
+   * the mobile shell header is hidden on Map, and the sheet's summary row is too
+   * tight at 360 px to hold a badge and a control without clipping one of them.
    */
   const summary = (
-    <>
-      <span className={styles.summaryLine}>
-        <span className="type-h3">
-          {mode === "saved"
-            ? `${results.length} saved shop${results.length === 1 ? "" : "s"}`
-            : state.status === "loading" && results.length === 0
-              ? "Searching…"
-              : `${results.length} shop${results.length === 1 ? "" : "s"} in this area`}
-        </span>
-        <span className="type-body-sm">
-          {selectedShop
-            ? `Selected: ${selectedShop.name}`
-            : mode === "saved"
-              ? "All locations, not only this map view"
-              : state.lastCommittedLabel
-                ? `Searched: ${state.lastCommittedLabel}`
-                : "Move the map, then search this area"}
-        </span>
+    <span className={styles.summaryLine}>
+      <span className="type-h3">
+        {mode === "saved"
+          ? `${results.length} saved shop${results.length === 1 ? "" : "s"}`
+          : state.status === "loading" && results.length === 0
+            ? "Searching…"
+            : `${results.length} shop${results.length === 1 ? "" : "s"} in this area`}
       </span>
-      <PrototypeBadge>Prototype sample</PrototypeBadge>
-    </>
+      <span className="type-body-sm">
+        {selectedShop
+          ? `Selected: ${selectedShop.name}`
+          : mode === "saved"
+            ? "All locations, not only this map view"
+            : state.lastCommittedLabel
+              ? `Searched: ${state.lastCommittedLabel}`
+              : "Move the map, then search this area"}
+      </span>
+    </span>
   );
 
   const modeSwitch = (
@@ -404,7 +404,9 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
         Places to explore
       </h3>
       <p className={styles.promptsNote}>
-        Jump the map to a committed viewport in one of the three launch countries.
+        {reviewer
+          ? "Jump the map to a committed viewport in one of the three launch countries."
+          : "Somewhere in Singapore, Japan, or Taiwan to start from."}
       </p>
       <ul className={styles.promptList}>
         {prototypeDestinations.slice(0, 8).map((destination) => (
@@ -530,6 +532,19 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
             }
           />
           {modeSwitch}
+          {/*
+            The reviewer strip. Map is the one screen with no header at mobile
+            widths, so the marker, the way out, and the basemap diagnostic sit in
+            the map overlay instead. Nothing here renders in normal mode.
+          */}
+          {reviewer ? (
+            <div className={styles.reviewerStrip} data-testid="reviewer-strip">
+              <ReviewerModeBadge compact />
+              <span className={styles.basemapDiagnostic} data-testid="basemap-diagnostic">
+                {styleProvider.diagnosticAttribution}
+              </span>
+            </div>
+          ) : null}
           {introDismissed ? null : (
             <div className={styles.intro}>
               <span className={styles.introText}>

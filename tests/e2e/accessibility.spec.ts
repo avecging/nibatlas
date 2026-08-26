@@ -8,6 +8,7 @@ const ROUTES = [
   { path: "/passport/jp/chuo-tokyo", name: "passport locality" },
   { path: "/me", name: "me" },
   { path: "/privacy", name: "privacy" },
+  { path: "/about", name: "about" },
   { path: "/shops/ginza-itoya-main-store", name: "shop detail" },
   { path: "/shops/skb-kaohsiung", name: "shop detail with omitted fields" },
   { path: "/styleguide", name: "styleguide" },
@@ -37,12 +38,12 @@ for (const route of ROUTES) {
 
 test("the collection dialogs are accessible", async ({ page }) => {
   await page.goto("/shops/juspirit-banqiao");
-  await page.getByRole("button", { name: /collect stamp \(simulated\)/i }).click();
+  await page.getByRole("button", { name: /^collect stamp$/i }).click();
   await expect(page.getByRole("dialog", { name: /before you collect/i })).toBeVisible();
 
   expect((await analyze(page)).violations).toEqual([]);
 
-  await page.getByRole("button", { name: /simulate: i am at this shop/i }).click();
+  await page.getByRole("button", { name: /^i am at this shop$/i }).click();
   await expect(page.getByRole("dialog", { name: /impression collected/i })).toBeVisible();
 
   expect((await analyze(page)).violations).toEqual([]);
@@ -51,7 +52,7 @@ test("the collection dialogs are accessible", async ({ page }) => {
 test("the collection preflight traps focus and gives it back", async ({ page }) => {
   await page.goto("/shops/nagasawa-penstyle-den");
 
-  const trigger = page.getByRole("button", { name: /collect stamp \(simulated\)/i });
+  const trigger = page.getByRole("button", { name: /^collect stamp$/i });
   await trigger.click();
 
   const dialog = page.getByRole("dialog", { name: /before you collect/i });
@@ -84,9 +85,9 @@ test("the collection preflight traps focus and gives it back", async ({ page }) 
 test("the stamp ceremony returns focus to the shop page", async ({ page }) => {
   await page.goto("/shops/ty-lee-pen-shop");
 
-  const trigger = page.getByRole("button", { name: /collect stamp \(simulated\)/i });
+  const trigger = page.getByRole("button", { name: /^collect stamp$/i });
   await trigger.click();
-  await page.getByRole("button", { name: /simulate: i am at this shop/i }).click();
+  await page.getByRole("button", { name: /^i am at this shop$/i }).click();
 
   const ceremony = page.getByRole("dialog", { name: /impression collected/i });
   await expect(ceremony).toBeFocused();

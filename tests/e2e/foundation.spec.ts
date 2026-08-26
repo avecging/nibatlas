@@ -1,10 +1,19 @@
 import { expect, test } from "@playwright/test";
 
-test("renders the map shell with a visible prototype notice", async ({ page }) => {
+test("renders the map shell as the product, with no prototype notice", async ({
+  page,
+}) => {
   await page.goto("/");
 
   await expect(page.getByTestId("map-canvas")).toBeVisible();
-  await expect(page.getByText("Prototype sample")).toBeVisible();
+  await expect(
+    page.getByRole("list", { name: /shops in the searched area/i }),
+  ).toBeVisible();
+
+  // Milestone 1 put a "Prototype sample" badge beside the result count on every
+  // breakpoint. WP1 moves it behind reviewer mode.
+  await expect(page.getByText("Prototype sample")).toHaveCount(0);
+  await expect(page.getByText("Prototype data")).toHaveCount(0);
 });
 
 test("reports application health", async ({ request }) => {

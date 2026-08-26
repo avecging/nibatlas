@@ -5,6 +5,7 @@ import Link from "next/link";
 import { NibAtlasMark } from "@/src/components/brand/NibAtlasMark";
 import { StampArt } from "@/src/components/stamps/StampArt";
 import { STAMP_INKS } from "@/src/domain/stamp-palette";
+import { useReviewerMode } from "@/src/features/reviewer/ReviewerModeProvider";
 import type { PassportPage } from "@/src/features/passport/passport-pages";
 
 import styles from "./PassportPageView.module.css";
@@ -26,6 +27,8 @@ export function PassportPageView({
   readonly page: PassportPage;
   readonly headingId: string;
 }) {
+  const reviewer = useReviewerMode();
+
   return (
     <div className={styles.page} data-page-kind={page.kind}>
       {page.runningHead || page.runningFoot ? (
@@ -123,7 +126,13 @@ export function PassportPageView({
                             : `${country.progressCount} of ${country.required} stamps`}
                         </span>
                       )}
-                      {country.coverageSetVersion ? (
+                      {/*
+                        The coverage-set identifier proves an earned seal is not
+                        revoked when the curated set grows, which is a review
+                        concern. On the page itself it is a version string on a
+                        keepsake.
+                      */}
+                      {reviewer && country.coverageSetVersion ? (
                         <span className={styles.sealVersion}>
                           set {country.coverageSetVersion}
                         </span>

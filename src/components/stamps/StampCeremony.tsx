@@ -6,6 +6,7 @@ import { useDialogFocus } from "@/src/components/hooks/useDialogFocus";
 import { StampArt } from "@/src/components/stamps/StampArt";
 import { Button, ButtonLink } from "@/src/components/ui/Button";
 import type { StampCollection } from "@/src/domain/passport";
+import { useReviewerMode } from "@/src/features/reviewer/ReviewerModeProvider";
 
 import styles from "./StampCeremony.module.css";
 
@@ -44,6 +45,7 @@ export function StampCeremony({
   onClose,
 }: StampCeremonyProps) {
   const dialogRef = useDialogFocus<HTMLDivElement>(true, onClose);
+  const reviewer = useReviewerMode();
   const reduced = usesReducedMotion();
   const pressing = !alreadyCollected && !reduced;
   const [phase, setPhase] = useState<"pressing" | "settled">(
@@ -81,9 +83,16 @@ export function StampCeremony({
         <h2 className={styles.title} id="stamp-ceremony-title">
           {alreadyCollected ? "Already in your Passport" : "Impression collected"}
         </h2>
+        {/*
+          The ceremony has to stay honest without becoming a bulletin. Normal mode
+          says the one thing a tester needs — the impression is a preview, their
+          position was not checked — and says it once. The implementation detail
+          behind that sentence belongs to reviewers.
+        */}
         <p className={styles.lede}>
-          Simulated collection. Milestone 1 does not use your location and issues no
-          real stamp.
+          {reviewer
+            ? "Simulated collection. This build does not use your location and issues no real stamp."
+            : "A preview impression. Your location was not checked, so this is not a verified visit yet."}
         </p>
 
         <div

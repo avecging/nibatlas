@@ -206,6 +206,40 @@
 }
 
 /*
+ * Reviewer-only strip over the map.
+ *
+ * Map has no header below 1024 px, so this is where the reviewer marker and its
+ * exit control live on mobile. The basemap line answers a deployment question —
+ * did staging resolve a tile key? — rather than a legal one: the offline style
+ * draws only a graticule generated in this repository, so it is not required
+ * attribution.
+ */
+.reviewerStrip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.basemapDiagnostic {
+  flex: 1 1 12rem;
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-warm);
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: 600;
+}
+
+/*
  * `Search this area` sits above the results sheet, so it has to move with it.
  * At Full the sheet covers the map and the pill would have nowhere to sit that
  * is not on top of the results, so it steps aside until the sheet is lowered.
