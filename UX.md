@@ -1,8 +1,8 @@
 # Nib Atlas UX Foundation
 
 **Status:** Implementation-ready
-**Version:** 1.0
-**Last updated:** 11 August 2026
+**Version:** 1.1
+**Last updated:** 26 August 2026
 
 ## Experience model
 
@@ -11,7 +11,7 @@ Nib Atlas has two complementary collection surfaces:
 - **Map = where I have explored.** Visited geography changes visibly over time.
 - **Passport = what I have collected.** Stamps preserve individual place memories.
 
-The map is the primary discovery surface. Discover provides curated prompts; it does not become a feed. Passport is the durable personal archive. Saved supports trip planning without becoming a full itinerary tool.
+The map is the primary discovery surface. Passport is the durable personal archive. Me contains conventional profile, account, settings, privacy, help, export/deletion, and sign-out functions. Editorial discovery prompts may complement the map later but do not consume a primary navigation destination. Saved supports trip planning as a global Map-owned mode without becoming a full itinerary tool.
 
 ## Information architecture
 
@@ -19,27 +19,27 @@ The map is the primary discovery surface. Discover provides curated prompts; it 
 
 | Destination | Purpose | Authentication |
 | --- | --- | --- |
-| **Map** | Geographic discovery and collection-aware exploration | Public |
-| **Discover** | Editorial/rule-based destinations and shop prompts | Public |
-| **Passport** | Personal geographic stamp collection | Required |
-| **Saved** | Shops bookmarked for later visits | Required |
+| **Map** | Geographic discovery, results, and global Saved mode | Public; persistent saves require authentication |
+| **Passport** | Personal book of shop impressions and derived geographic seals | Required |
+| **Me** | Profile, account, settings, privacy, help, export/delete, and sign out | Public shell; personal data requires authentication |
 
-This resolves an earlier `Profile` versus `Saved` navigation variation in favour of **Saved**, because saving is a core loop action and profile settings are low-frequency. Account, privacy, preferences, and help live behind the user/avatar menu rather than consuming a primary mobile tab.
+This three-destination structure deliberately keeps Map central and Passport directly accessible. Saved places remain available through a complete cross-location Map mode rather than being duplicated inside Me. Countries and localities visited are expressed through Passport; profile geography and Recent Impressions are deferred unless beta or post-launch evidence shows users want them.
 
 ### Route map
 
 | Route | Screen | Access |
 | --- | --- | --- |
 | `/` | Map, search, filters, results | Public |
-| `/discover` | Curated discovery modules | Public |
 | `/shops/[slug]` | Stable shop detail | Public; actions gated |
 | `/login` | Email OTP/magic link and Google sign-in | Public |
 | `/auth/callback` | Authentication return | Public |
-| `/saved` | Saved shop list with map return | Required |
+| `/saved` | Global Saved map/list mode with map return | Required |
 | `/passport` | Passport overview | Required |
 | `/passport/[country]` | Country collection | Required |
 | `/passport/[country]/[locality]` | Locality stamps | Required |
-| `/account` | Account, locale, privacy, export/delete, sign out | Required |
+| `/me` | Profile, account, settings, privacy controls, help, export/delete, sign out | Public shell; personal data required |
+| `/privacy` | Plain-language Privacy Policy | Public |
+| `/account` | Compatibility route redirecting to the relevant Me section | Required |
 | `/admin` | Founder/editor dashboard | Admin |
 | `/admin/shops` | Shop list/import | Admin |
 | `/admin/shops/[id]` | Shop and stamp editor | Admin |
@@ -122,7 +122,7 @@ Failure paths:
 ### Application shell
 
 - Mobile-first baseline at 360 px width.
-- Persistent bottom navigation: Map, Discover, Passport, Saved.
+- Persistent bottom navigation: Map, Passport, Me.
 - Map occupies the full working canvas above navigation.
 - Search sits near the top safe area; key actions remain reachable one-handed where feasible.
 - Location, zoom, and filter controls do not compete with the results sheet handle.
@@ -152,7 +152,7 @@ Rules:
 - List scroll and map pan are independent.
 - Selecting a marker scrolls/highlights its row; selecting a row highlights its marker.
 - Shop detail may use a route-level side panel on wide screens, but the stable shop URL remains canonical.
-- Passport and Discover use a centred content layout rather than forcing map split everywhere.
+- Passport and Me use centred content layouts rather than forcing map split everywhere.
 
 ## Map interactions
 
@@ -232,24 +232,18 @@ Filters update both map and list only when the viewport query is committed. Acti
 
 Do not centre ratings, user-generated review prose, stock claims, or e-commerce actions.
 
-## Discover
+## Secondary discovery prompts
 
-Discover complements the map with rule-based/editorial modules:
-
-- Near You, after user-requested location access;
-- Cities and Localities to Explore;
-- Recently Added;
-- Worth a Detour;
-- Independent Shops;
-- Nib & Repair Specialists.
+Editorial or rule-based prompts may later complement Map, including Near You, Cities and Localities to Explore, Recently Added, Worth a Detour, Independent Shops, and Nib & Repair Specialists. They are not a primary navigation destination in the current prototype.
 
 Do not show “Popular” until there is a defensible signal. Do not use infinite scrolling or engagement ranking.
 
 ## Saved
 
-- Dedicated primary destination and map status filter.
-- Default list grouped by country/locality or recent save date.
-- Each entry can open shop detail or return to map with shop selected.
+- Saved is a Map-owned status and global mode, not a primary destination or a duplicate section inside Me.
+- The global Saved mode must retrieve all saved shops across countries, not only saved shops inside the current viewport.
+- Default list may be grouped by country/locality or recent save date.
+- Each entry can open shop detail or return to the map with the shop selected.
 - No named trips, schedule, route ordering, or itinerary optimization in MVP.
 
 ## Passport experience
@@ -258,9 +252,9 @@ Passport should feel browseable years later, not like a checklist.
 
 ### Hierarchy
 
-- Overview: total collected, countries, recent impressions.
-- Country: localities visited and stamp count.
-- Locality: collected shop stamps.
+- Overview: the Passport book, total collected shop stamps, and earned locality/country seals.
+- Country: earned country seal, localities visited, and shop-stamp count.
+- Locality: locality seal and collected shop stamps.
 - Stamp: shop identity, location, local date, and route back to shop/map.
 
 ### Empty states
@@ -272,6 +266,11 @@ Passport should feel browseable years later, not like a checklist.
 ### Completion
 
 Only show `x / y` where `y` is a clearly versioned curated coverage set. Otherwise show counts without implying completeness.
+
+- Derive a locality seal from the first verified shop stamp in that locality.
+- Derive a country seal after five verified shop stamps, or the complete eligible curated set when it contains fewer than five shops.
+- Record the applicable coverage-set version and never revoke an earned country seal because the catalogue later changes.
+- Treat a future check-in as an interface over the same verified-visit event; do not create a second unlock source.
 
 ## Authentication and interruption
 
