@@ -1,8 +1,8 @@
 # Nib Atlas Brand and Design Foundation
 
 **Status:** Approved visual direction; implementation-ready and intentionally evolvable
-**Version:** 1.1
-**Last updated:** 19 August 2026
+**Version:** 1.3
+**Last updated:** 26 August 2026
 
 ## Brand idea
 
@@ -134,11 +134,11 @@ Use variable font files where practical and self-host production webfonts to red
 | `teal-100` | `#DCEBE7` | Saved-state surface |
 | `vermilion-700` | `#C54B32` | Collected/visited impression |
 | `vermilion-100` | `#F3DED4` | Collected-state surface |
-| `indigo-700` | `#365E88` | Regional stamp variation |
+| `indigo-700` | `#365E88` | Approved stamp-ink option |
 | `brass-600` | `#98723D` | Rare ceremonial accent only |
 | `white` | `#FFFFFF` | High-contrast surface where needed |
 
-The everyday interface is dominated by Paper, Sumi, and Atlas Navy. Teal marks intent/saving. Vermilion marks completed visits and the stamp ceremony. Indigo may vary regional stamp art. Brass is not a default button or status colour.
+The everyday interface is dominated by Paper, Sumi, and Atlas Navy. Teal marks intent/saving. Vermilion marks completed visits and the stamp ceremony. Stamp artwork may use approved palette inks independently of country or tier. Brass is not a default button or status colour.
 
 ### Semantic UI colours
 
@@ -209,12 +209,26 @@ Atlas Stamps draw from eki stamps, passport impressions, rubber stamps, local ar
 
 ### MVP stamp system
 
-- Templated but distinct: a shared construction system with local motif, locality label, shop name, and controlled regional ink colour.
-- Prefer one or two ink colours per stamp.
+- Templated but distinct: a shared construction system with local motif, locality label, shop name, and one approved ink from the global stamp palette.
+- Use exactly one approved ink colour per stamp.
 - Allow slightly imperfect edges, mild registration shift, and pressure variation.
 - Preserve legibility at Passport-card size.
 - Include shop identity, locality/country, and Nib Atlas provenance.
 - Avoid heraldic clutter, fake official-government language, game rarity tiers, metallic gradients, neon effects, or NFT badge styling.
+
+### Global stamp-ink rules
+
+- The stamp system uses one shared eight-colour global palette.
+- No colour belongs to a country, locality, shop tier, rarity, or achievement state.
+- New countries do not require or introduce new colours.
+- Tier is communicated through frame and stamp anatomy, never through colour ownership.
+- Every generated stamp pins the palette version used so regeneration remains deterministic.
+- Shop stamps are the primary collected objects.
+- A locality seal is derived when the user's first verified shop stamp in that locality is acquired. If check-in is later introduced, it must emit the same canonical verified-visit event rather than create a parallel rule.
+- A country seal is derived after five verified shop stamps in that country, or after the complete eligible curated set when that versioned set contains fewer than five shops.
+- Once earned, a geographic seal is never revoked because the curated catalogue later expands.
+- Milestone 1 may demonstrate these derived seals with selected real-shop prototype data; it must not imply unversioned global completeness.
+- Dual-ink and spectrum/rainbow impressions are reserved future treatments. They must remain one coherent physical impression with irregular colour boundaries and pressure variation, not gradients or rarity tiers. The Taiwan Sun-Star Coiro reference supplied by the founder is the physical benchmark for this future direction.
 
 ### Regional respect
 

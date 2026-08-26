@@ -1,8 +1,8 @@
 # Nib Atlas MVP Implementation Plan
 
 **Status:** Ready for GitHub-based execution
-**Version:** 1.0
-**Last updated:** 11 August 2026
+**Version:** 1.1
+**Last updated:** 26 August 2026
 
 ## Working model
 
@@ -26,7 +26,7 @@ Neither coding agent may silently change `PRODUCT.md`, product invariants, datab
 - New environment variables are documented in `.env.example` without values.
 - Database changes include migration and tests.
 - Frontend changes include mobile/desktop evidence and accessibility checks.
-- Fixture/demo data remains visibly non-factual.
+- Prototype data uses a small, source-reviewed subset of real shops already known to the project; uncertain fields are omitted or clearly marked, and no listing is presented as fully verified.
 - Docs are updated when contracts or operational steps change.
 - PR names assumptions, known gaps, and handoff owner.
 
@@ -85,59 +85,65 @@ Create a reproducible, deployable skeleton with shared contracts and safe collab
 
 ### Milestone 1 — Frontend interaction prototype
 
-**Owner:** Claude Code
-**Codex supplies:** stable fixture/types and integration review.
+**Owner:** Claude Code  
+**Codex supplies:** product/interaction specifications and integration review.
 
 **Objective**
 
-Prove that map-first discovery and Passport presentation work responsively before connecting production data.
+Prove that map-first shop discovery and a tactile, believable Passport work responsively before production APIs, authentication, or visit verification are connected.
 
 **Scope**
 
 - Approved design tokens and font setup.
-- Responsive app shell and Map/Discover/Passport/Saved navigation.
-- MapLibre adapter with fixture GeoJSON across Singapore, Japan, and Taiwan.
-- Destination search UI with mocked results.
-- Marker states, clusters, selected halo.
+- Responsive app shell with three primary destinations: Map, Passport, and Me.
+- Me as one conventional page for profile, countries/localities visited, account, settings, privacy, help, export/delete, and sign-out placeholders.
+- MapLibre adapter using a small, source-reviewed subset of real shops already known to the project across launch geographies. Omit unverified details; do not imply catalogue completeness.
+- Destination and shop-name search UI with prototype-local results.
+- Marker states, clusters, selected halo, and a global Saved mode owned by Map.
 - **Search this area** camera/committed-bounds behavior.
-- Mobile Peek/Half/Full bottom sheet.
-- Desktop 65/35 map/list split.
-- Marker/card synchronization.
-- Shop card and shop-detail presentation.
-- Passport overview, one country, and one locality fixture view.
-- Simulated stamp ceremony and reduced-motion version.
-- Component stories/screenshots at representative breakpoints.
+- Mobile Peek/Half/Full bottom sheet and desktop 65/35 map/list split.
+- Marker/card synchronization and shop-detail presentation.
+- Passport overview with shop stamps plus derived locality/country seal examples.
+- Desktop Passport as a believable modern-passport object: closed cover state and open two-page spread.
+- Mobile Passport as a single-page reading mode for the MVP.
+- Spine-aware page turns, stamp ceremony, and reduced-motion equivalents.
+- Component screenshots at representative breakpoints.
 
 **Dependencies**
 
 - Milestone 0.
-- `BRAND.md`, `UX.md`, shared fixture contract.
+- `PRODUCT.md`, `BRAND.md`, `UX.md`, `docs/passport-interaction-spec.md`, and the shared data contract.
 
 **Acceptance criteria**
 
-- User can complete Explore → Shop → simulated Collect → Passport without coaching.
-- Pan/zoom does not continuously refetch.
-- Marker and card selection remain synchronized.
-- Mobile sheet states do not fight map gestures.
-- Desktop list/map remain synchronized.
-- English/Japanese/Traditional Chinese long-name fixtures render acceptably.
-- Design matches the approved hybrid rather than generic SaaS/map styling.
+- User can complete: Explore map → select shop → open shop → simulate collection → see visited state → open Passport.
+- The primary navigation is Map / Passport / Me. Discover appears only as contextual/editorial prompts; Saved is a global Map mode, not a primary destination.
+- Recent Impressions is absent. The interface does not imply passive location tracking.
+- Saved results can be viewed across locations and return to the relevant selected shop on the map.
+- Passport desktop and mobile behavior matches the interaction specification, including the fixed spine, believable page stacks, keyboard controls, and reduced motion.
+- Locality seals derive on the first verified shop stamp. Country seals derive at five verified shop stamps or completion of a versioned eligible set containing fewer than five shops; earned seals are never revoked.
+- Standard stamps use exactly one ink from the shared eight-colour palette. Future dual/spectrum impressions do not appear in the MVP.
+- Selected real-shop prototype records contain no invented operational facts and do not claim catalogue completeness.
+- Map, list, and Passport status remain consistent.
+- 360 × 800, tablet, and desktop evidence is included.
 
 **Tests/checks**
 
-- Component tests for selection/filter state.
-- Playwright at 360×800, 768×1024, and 1440×900.
-- axe/accessibility smoke.
-- Visual regression baselines.
-- Reduced-motion check.
+- `pnpm verify`.
+- `pnpm test:e2e`.
+- `pnpm build:cloudflare`.
+- Playwright coverage for map, sheet, collection, Passport, Me, Saved mode, keyboard, and reduced motion.
+- Manual real-device PWA review on iOS Safari and Android Chrome.
+- No frontend change to database migrations, API contracts, Cloudflare configuration, CI, or secrets.
 
-**Do not build yet**
+**Explicitly deferred**
 
-- Real auth.
-- Production PostGIS queries.
-- Real location collection.
-- Merchant, campaigns, achievements, named trips, reviews.
-- Final production logo artwork unless commissioned/approved separately.
+- Recent Impressions.
+- Manual sideways phone-reading mode and rotate-phone cue (post-MVP, candidate for late closed beta).
+- Multiple Passport books / “Library of places I’ve visited.”
+- Real authentication, saves, visit verification, or check-ins.
+- Dual-ink and spectrum/rainbow stamp editions.
+- Feed, ratings, social graph, named trips, merchant tools, or catalogue-completion claims.
 
 ### Milestone 2 — PostGIS data foundation and read APIs
 
@@ -576,6 +582,7 @@ nibatlas/
 8. Reserve `staging.<domain>` and production root/app hostname.
 9. Enable Web Analytics for production; use a separate dataset/marker for staging.
 10. Add spend/usage notifications for Workers, R2, Images, and MapTiler before public launch.
+11. Before closed beta, protect the beta Worker with Cloudflare Access using one-time PIN authentication and an exact tester-email allowlist. Preserve automated smoke tests with an Access service token; do not rely on a shared password or leave an unprotected workers.dev bypass. Follow `docs/runbooks/closed-beta-access.md`.
 
 ### Supabase and MapTiler preparation
 
