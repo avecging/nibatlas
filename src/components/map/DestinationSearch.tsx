@@ -37,13 +37,31 @@ export function DestinationSearch({
   const [activeIndex, setActiveIndex] = useState(-1);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  /**
+   * The query whose results were already applied by choosing them. Compared
+   * rather than consumed, so an unrelated re-render cannot let the search fire
+   * again and reopen the panel over the map the user has just moved.
+   */
+  const appliedQuery = useRef<string | null>(null);
+  const onSearchedRef = useRef(onSearched);
   const listboxId = useId();
+
+  useEffect(() => {
+    onSearchedRef.current = onSearched;
+  });
 
   useEffect(() => {
     let cancelled = false;
     const trimmed = query.trim();
 
     if (trimmed.length < 2) {
+      return;
+    }
+
+    // Choosing a result writes its label into the field. That is not a new
+    // search, and re-running one would reopen the panel over the map the moment
+    // the user had finished with it.
+    if (appliedQuery.current === trimmed) {
       return;
     }
 
@@ -55,9 +73,11 @@ export function DestinationSearch({
         }
 
         setResults(next);
+        // Opened even with no matches, so "nothing found" is stated rather than
+        // silently doing nothing. Dismissing it is a tap outside, as usual.
         setOpen(true);
         setActiveIndex(-1);
-        onSearched?.(trimmed.length);
+        onSearchedRef.current?.(trimmed.length);
       });
     }, 180);
 
@@ -65,7 +85,7 @@ export function DestinationSearch({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [geocoder, onSearched, query]);
+  }, [geocoder, query]);
 
   useEffect(() => {
     function onPointerDown(event: MouseEvent) {
@@ -97,7 +117,7 @@ export function DestinationSearch({
         kind: "shop",
         id: result.shop.id,
         title: result.shop.name,
-        subtitle: `${result.shop.localityName} · Nib Atlas shop`,
+        subtitle: `${result.shop.localityName} · Shop in the Nib Atlas catalogue`,
         viewport: result.viewport,
         shop: result.shop,
       })),
@@ -106,6 +126,7 @@ export function DestinationSearch({
   );
 
   function choose(option: Option) {
+    appliedQuery.current = option.title.trim();
     setOpen(false);
     setQuery(option.kind === "destination" ? option.title : option.title);
     inputRef.current?.blur();
@@ -132,8 +153,8 @@ export function DestinationSearch({
           aria-expanded={open && hasResults}
           aria-controls={listboxId}
           aria-autocomplete="list"
-          aria-label="Search a destination or shop"
-          placeholder="Search a city, area, or shop"
+          aria-label="Search shops or places"
+          placeholder="Search shops or places"
           value={query}
           {...(activeOption ? { "aria-activedescendant": `${listboxId}-${activeOption.id}` } : {})}
           onChange={(event) => setQuery(event.target.value)}
@@ -167,6 +188,7 @@ export function DestinationSearch({
             className={styles.clear}
             aria-label="Clear search"
             onClick={() => {
+              appliedQuery.current = null;
               setQuery("");
               setResults(EMPTY);
               setOpen(false);
@@ -183,7 +205,7 @@ export function DestinationSearch({
           <ul id={listboxId} role="listbox" aria-label="Search results">
             {activeResults.destinations.length > 0 ? (
               <li>
-                <p className={`${styles.groupLabel} ${styles.destinationKind}`}>Destinations</p>
+                <p className={`${styles.groupLabel} ${styles.destinationKind}`}>Places</p>
               </li>
             ) : null}
             {options
@@ -193,19 +215,22 @@ export function DestinationSearch({
                   key={option.id}
                   id={`${listboxId}-${option.id}`}
                   role="option"
-                  className={styles.option}
+                  className={`${styles.option} ${styles.optionPlace}`}
                   aria-selected={activeOption?.id === option.id}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => choose(option)}
                 >
+                  <span className={styles.optionIcon} aria-hidden="true">
+                    <Icon name="map" size={18} />
+                  </span>
                   <span className={styles.optionTitle}>{option.title}</span>
-                  <span className={styles.optionMeta}>{option.subtitle}</span>
+                  <span className={styles.optionMeta}>Place · {option.subtitle}</span>
                 </li>
               ))}
 
             {activeResults.shops.length > 0 ? (
               <li>
-                <p className={`${styles.groupLabel} ${styles.shopKind}`}>Nib Atlas shops</p>
+                <p className={`${styles.groupLabel} ${styles.shopKind}`}>Shops</p>
               </li>
             ) : null}
             {options
@@ -215,18 +240,23 @@ export function DestinationSearch({
                   key={option.id}
                   id={`${listboxId}-${option.id}`}
                   role="option"
-                  className={styles.option}
+                  className={`${styles.option} ${styles.optionShop}`}
                   aria-selected={activeOption?.id === option.id}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => choose(option)}
                 >
+                  <span className={styles.optionIcon} aria-hidden="true">
+                    <Icon name="seal" size={18} />
+                  </span>
                   <span className={styles.optionTitle}>{option.title}</span>
                   <span className={styles.optionMeta}>{option.subtitle}</span>
                 </li>
               ))}
 
             {!hasResults ? (
-              <li className={styles.empty}>No destinations or demo shops match that search.</li>
+              <li className={styles.empty}>
+                No places or catalogue shops match that search.
+              </li>
             ) : null}
           </ul>
         </div>

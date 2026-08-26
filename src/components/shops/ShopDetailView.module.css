@@ -140,6 +140,57 @@
   line-height: var(--type-body-sm-line);
 }
 
+.sourceList {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.sourceRow {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+}
+
+.sourceKind {
+  /* `--text-muted` fails AA at 12 px on white; the secondary step passes. */
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sourceLabel {
+  color: var(--text-primary);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.sourceLabel a {
+  color: var(--action-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.sourceMeta {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.provenanceFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-default);
+}
+
 .linkRow {
   display: flex;
   align-items: center;

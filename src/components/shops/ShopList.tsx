@@ -17,6 +17,8 @@ interface ShopListProps {
   readonly onToggleSaved: (shopId: string) => void;
   readonly onOpenDetail?: (shop: ShopMapSummary) => void;
   readonly emptyMessage?: string;
+  readonly listLabel?: string;
+  readonly detailFrom?: "map" | "saved" | "passport";
 }
 
 export function ShopList({
@@ -28,6 +30,8 @@ export function ShopList({
   onToggleSaved,
   onOpenDetail,
   emptyMessage = "No shops match this area and these filters. Move the map or clear a filter, then search again.",
+  listLabel = "Shops in the searched area",
+  detailFrom = "map",
 }: ShopListProps) {
   const listRef = useRef<HTMLOListElement | null>(null);
 
@@ -60,7 +64,7 @@ export function ShopList({
           </span>
         </p>
       ) : null}
-      <ol className={styles.list} ref={listRef} aria-label="Shops in the searched area">
+      <ol className={styles.list} ref={listRef} aria-label={listLabel}>
         {shops.map((shop) => (
           <ShopCard
             key={shop.id}
@@ -68,6 +72,7 @@ export function ShopList({
             selected={shop.id === selectedShopId}
             specialtyLine={shop.specialtyLine}
             saved={savedShopIds.has(shop.id)}
+            detailFrom={detailFrom}
             onSelect={onSelect}
             onToggleSaved={onToggleSaved}
             {...(onOpenDetail ? { onOpenDetail } : {})}

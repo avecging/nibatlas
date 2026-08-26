@@ -13,6 +13,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored MapLibre worker bundles, copied into place by
+    // `scripts/copy-maplibre-worker.mjs` before dev and build. They are
+    // gitignored build output, not source, and linting them makes `pnpm verify`
+    // fail on any tree where a build has already run.
+    "public/maplibre/*.mjs",
   ]),
 ]);
 

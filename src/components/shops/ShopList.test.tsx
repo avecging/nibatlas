@@ -2,9 +2,9 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ShopList } from "@/src/components/shops/ShopList";
-import { demoShopSummaries } from "@/src/fixtures/demo-catalogue";
+import { prototypeShopSummaries } from "@/src/fixtures/prototype-catalogue";
 
-const shops = demoShopSummaries.slice(0, 3);
+const shops = prototypeShopSummaries.slice(0, 3);
 const first = shops[0]!;
 const second = shops[1]!;
 

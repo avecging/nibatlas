@@ -1,40 +1,49 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 
-import { StampArt } from "@/src/components/stamps/StampArt";
+import { PassportBook } from "@/src/components/passport/PassportBook";
 import { ButtonLink } from "@/src/components/ui/Button";
-import { Icon } from "@/src/components/ui/Icon";
-import {
-  countrySlug,
-  findPassportCountry,
-  findPassportLocality,
-  type PassportOverview,
-  type StampCollection,
-} from "@/src/domain/passport";
+import { countrySlug } from "@/src/domain/passport";
+import type { CountryCode } from "@/src/domain/geo";
 import { useCollection } from "@/src/features/collection/collection-store";
 import { noopTelemetry } from "@/src/features/map/telemetry";
+import {
+  buildPassportPages,
+  pageIndexForLocality,
+} from "@/src/features/passport/passport-pages";
 
 import styles from "./Passport.module.css";
 
-function DemoNote() {
-  return (
-    <p className={styles.demoNote}>
-      Passport is private by default and requires an account in the finished
-      product. Milestone 1 shows a simulated collection stored only in this browser
-      session.
-    </p>
+/**
+ * Passport is one book.
+ *
+ * The overview, a country, and a locality are all the same volume opened at a
+ * different page — there is no separate list screen to keep in sync, and no
+ * Recent Impressions anywhere. `docs/future/passport-library.md` records the
+ * multiple-volume Library as a later idea; nothing here anticipates it.
+ */
+function usePassportPages() {
+  const { passport, seals, countryProgress } = useCollection();
+
+  return useMemo(
+    () => buildPassportPages({ passport, seals, countryProgress }),
+    [countryProgress, passport, seals],
   );
 }
 
 function PassportEmpty() {
   return (
     <div className={styles.empty}>
-      <p className="type-h3">No impressions yet</p>
+      <h1 className={styles.emptyTitle}>Your Passport is empty</h1>
       <p>
-        Atlas Stamps are collected at the shop itself. Find a shop on the map, visit
-        it, and collect the stamp there.
+        Atlas Stamps are collected at the shop itself. Find a shop on the map, go
+        there, and collect the stamp while you are standing in it.
+      </p>
+      <p className={styles.emptyNote}>
+        Nothing is recorded automatically, and nothing here is visible to anyone
+        else.
       </p>
       <ButtonLink href="/" variant="primary">
         Explore the map
@@ -43,174 +52,57 @@ function PassportEmpty() {
   );
 }
 
-function StampCell({ collection }: { readonly collection: StampCollection }) {
-  return (
-    <li className={styles.stampCell}>
-      <StampArt
-        stamp={collection.stamp}
-        shopName={collection.shopNameSnapshot}
-        collectedOn={collection.collectedOn}
-      />
-      <Link className={styles.stampLink} href={`/shops/${collection.shopSlug}`}>
-        Open shop
-      </Link>
-    </li>
-  );
-}
-
-function PassportHeader({
-  overline,
-  title,
-  subtitle,
-}: {
-  readonly overline: string;
-  readonly title: string;
-  readonly subtitle: string;
-}) {
-  return (
-    <header className={styles.header}>
-      <p className={styles.overline}>{overline}</p>
-      <h1 className={styles.title}>{title}</h1>
-      <p className={styles.subtitle}>{subtitle}</p>
-    </header>
-  );
-}
-
-function Stats({ passport }: { readonly passport: PassportOverview }) {
-  return (
-    <div className={styles.stats}>
-      <p className={styles.stat}>
-        <span className={styles.statValue}>{passport.stampCount}</span>
-        <span className={styles.statLabel}>Stamps</span>
-      </p>
-      <p className={styles.stat}>
-        <span className={styles.statValue}>{passport.countryCount}</span>
-        <span className={styles.statLabel}>Countries</span>
-      </p>
-      <p className={styles.stat}>
-        <span className={styles.statValue}>{passport.localityCount}</span>
-        <span className={styles.statLabel}>Localities</span>
-      </p>
-    </div>
-  );
-}
-
 export function PassportOverviewView() {
   const { passport } = useCollection();
+  const pages = usePassportPages();
 
   useEffect(() => {
     noopTelemetry.record("passport_opened", { surface: "overview" });
   }, []);
 
+  if (passport.stampCount === 0) {
+    return <PassportEmpty />;
+  }
+
   return (
-    <div className={styles.page}>
-      <PassportHeader
-        overline="Passport"
-        title="Places you have kept"
-        subtitle="Each impression records one shop, its locality, and the local date you collected it."
-      />
-      <DemoNote />
-      <Stats passport={passport} />
-
-      {passport.stampCount === 0 ? (
-        <PassportEmpty />
-      ) : (
-        <>
-          <section className={styles.divider} aria-labelledby="recent-impressions">
-            <h2 className={styles.sectionTitle} id="recent-impressions">
-              Recent impressions
-            </h2>
-            <ul className={styles.stampGrid}>
-              {passport.recent.map((collection) => (
-                <StampCell key={collection.id} collection={collection} />
-              ))}
-            </ul>
-          </section>
-
-          <section className={styles.divider} aria-labelledby="countries">
-            <h2 className={styles.sectionTitle} id="countries">
-              Countries
-            </h2>
-            <ul className={styles.countryList}>
-              {passport.countries.map((country) => (
-                <li key={country.slug}>
-                  <Link className={styles.countryRow} href={`/passport/${country.slug}`}>
-                    <span>
-                      <span className={styles.rowTitle}>{country.countryLabel}</span>
-                      <span className={styles.rowMeta}>
-                        {" "}
-                        · {country.localities.length} localit
-                        {country.localities.length === 1 ? "y" : "ies"}
-                      </span>
-                    </span>
-                    <span className={styles.rowMeta}>
-                      {country.stampCount} stamp{country.stampCount === 1 ? "" : "s"}
-                      <Icon name="chevron-right" size={16} />
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        </>
-      )}
-    </div>
+    <>
+      <h1 className="visually-hidden">Passport</h1>
+      <PassportBook pages={pages} />
+    </>
   );
 }
 
 export function PassportCountryView({ country }: { readonly country: string }) {
   const { passport } = useCollection();
-  const view = findPassportCountry(passport, country);
+  const pages = usePassportPages();
+
+  const view = passport.countries.find(
+    (candidate) => candidate.slug === country.toLowerCase(),
+  );
+
+  const firstLocality = view?.localities[0];
+  const target =
+    view && firstLocality
+      ? pageIndexForLocality(pages, view.countryCode, firstLocality.slug)
+      : null;
 
   if (!view) {
     return (
-      <div className={styles.page}>
-        <Link className={styles.breadcrumb} href="/passport">
-          <Icon name="chevron-right" size={16} />
-          Passport
-        </Link>
-        <div className={styles.empty}>
-          <p className="type-h3">No impressions from this country yet</p>
-          <p>Collect a stamp at a shop in this country and it will appear here.</p>
-          <ButtonLink href="/" variant="primary">
-            Explore the map
-          </ButtonLink>
-        </div>
+      <div className={styles.empty}>
+        <h1 className={styles.emptyTitle}>No impressions from this country yet</h1>
+        <p>Collect a stamp at a shop in this country and a page appears here.</p>
+        <ButtonLink href="/passport" variant="primary">
+          Open Passport
+        </ButtonLink>
       </div>
     );
   }
 
   return (
-    <div className={styles.page}>
-      <Link className={styles.breadcrumb} href="/passport">
-        <Icon name="chevron-right" size={16} />
-        Passport
-      </Link>
-      <PassportHeader
-        overline="Passport country"
-        title={view.countryLabel}
-        subtitle={`${view.stampCount} impression${view.stampCount === 1 ? "" : "s"} across ${
-          view.localities.length
-        } localit${view.localities.length === 1 ? "y" : "ies"}.`}
-      />
-      <ul className={styles.countryList}>
-        {view.localities.map((locality) => (
-          <li key={locality.slug}>
-            <Link
-              className={styles.countryRow}
-              href={`/passport/${view.slug}/${locality.slug}`}
-            >
-              <span className={styles.rowTitle}>{locality.name}</span>
-              <span className={styles.rowMeta}>
-                {locality.collections.length} stamp
-                {locality.collections.length === 1 ? "" : "s"}
-                <Icon name="chevron-right" size={16} />
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <>
+      <h1 className="visually-hidden">Passport · {view.countryLabel}</h1>
+      <PassportBook pages={pages} initialPageIndex={target} />
+    </>
   );
 }
 
@@ -222,46 +114,46 @@ export function PassportLocalityView({
   readonly locality: string;
 }) {
   const { passport } = useCollection();
-  const countryView = findPassportCountry(passport, country);
-  const localityView = countryView ? findPassportLocality(countryView, locality) : undefined;
+  const pages = usePassportPages();
+
+  const countryView = passport.countries.find(
+    (candidate) => candidate.slug === country.toLowerCase(),
+  );
+  const localityView = countryView?.localities.find(
+    (candidate) => candidate.slug === locality.toLowerCase(),
+  );
 
   if (!countryView || !localityView) {
     return (
-      <div className={styles.page}>
-        <Link className={styles.breadcrumb} href="/passport">
-          <Icon name="chevron-right" size={16} />
-          Passport
-        </Link>
-        <div className={styles.empty}>
-          <p className="type-h3">No impressions from this locality yet</p>
-          <p>Stamps appear here once you collect one at a shop in this locality.</p>
-          <ButtonLink href="/" variant="primary">
-            Explore the map
-          </ButtonLink>
-        </div>
+      <div className={styles.empty}>
+        <h1 className={styles.emptyTitle}>No impressions from this locality yet</h1>
+        <p>Stamps appear here once you collect one at a shop in this locality.</p>
+        <ButtonLink href="/passport" variant="primary">
+          Open Passport
+        </ButtonLink>
       </div>
     );
   }
 
+  const target = pageIndexForLocality(
+    pages,
+    countryView.countryCode as CountryCode,
+    localityView.slug,
+  );
+
   return (
-    <div className={styles.page}>
-      <Link
-        className={styles.breadcrumb}
-        href={`/passport/${countrySlug(countryView.countryCode)}`}
-      >
-        <Icon name="chevron-right" size={16} />
-        {countryView.countryLabel}
-      </Link>
-      <PassportHeader
-        overline={`${countryView.countryLabel} · Locality`}
-        title={localityView.name}
-        subtitle="Impressions are listed by collection date, newest first."
-      />
-      <ul className={styles.stampGrid}>
-        {localityView.collections.map((collection) => (
-          <StampCell key={collection.id} collection={collection} />
-        ))}
-      </ul>
-    </div>
+    <>
+      <h1 className="visually-hidden">
+        Passport · {localityView.name}, {countryView.countryLabel}
+      </h1>
+      <nav className={styles.crumbs} aria-label="Passport">
+        <Link href="/passport">Passport</Link>
+        <span aria-hidden="true">·</span>
+        <Link href={`/passport/${countrySlug(countryView.countryCode)}`}>
+          {countryView.countryLabel}
+        </Link>
+      </nav>
+      <PassportBook pages={pages} initialPageIndex={target} />
+    </>
   );
 }

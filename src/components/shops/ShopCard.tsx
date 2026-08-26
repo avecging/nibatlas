@@ -17,21 +17,33 @@ interface ShopCardProps {
   readonly selected: boolean;
   readonly specialtyLine: string | null;
   readonly saved: boolean;
+  /** Surface the card sits on, so the shop page can offer the right way back. */
+  readonly detailFrom?: "map" | "saved" | "passport";
   readonly onSelect: (shopId: string) => void;
   readonly onToggleSaved: (shopId: string) => void;
   readonly onOpenDetail?: (shop: ShopMapSummary) => void;
 }
 
+/**
+ * No photograph appears on a card.
+ *
+ * `BRAND.md` allows one restrained image only where rights are known, and no
+ * image in the prototype catalogue is rights-cleared. A serif monogram stands in
+ * for it — quiet, and honest about the fact that there is no photo rather than
+ * showing an empty frame that reads as a failure to load.
+ */
 export function ShopCard({
   shop,
   selected,
   specialtyLine,
   saved,
+  detailFrom = "map",
   onSelect,
   onToggleSaved,
   onOpenDetail,
 }: ShopCardProps) {
   const headingId = `shop-card-${shop.id}`;
+  const monogram = [...shop.name][0]?.toUpperCase() ?? "N";
 
   return (
     <li>
@@ -41,11 +53,9 @@ export function ShopCard({
         data-shop-id={shop.id}
         data-selected={selected ? "true" : "false"}
       >
-        <div className={styles.thumb} aria-hidden="true">
-          No image
-          <br />
-          (demo)
-        </div>
+        <span className={styles.monogram} aria-hidden="true">
+          {monogram}
+        </span>
         <div className={styles.body}>
           <h3 className={styles.name} id={headingId}>
             <button
@@ -72,7 +82,7 @@ export function ShopCard({
           </div>
           <div className={styles.actions}>
             <ButtonLink
-              href={`/shops/${shop.slug}`}
+              href={`/shops/${shop.slug}?from=${detailFrom}`}
               variant="quiet"
               compact
               onClick={() => onOpenDetail?.(shop)}

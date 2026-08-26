@@ -67,11 +67,41 @@
 
 .option {
   display: grid;
-  gap: 2px;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0 var(--space-3);
   padding: var(--space-2) var(--space-3);
   min-height: var(--tap-target);
   cursor: pointer;
   align-content: center;
+  align-items: center;
+  border-left: 3px solid transparent;
+}
+
+/*
+ * Places and shops must be distinguishable without reading the group heading:
+ * they carry a different icon, a different edge colour, and a different meta
+ * prefix. Selecting a place moves the camera; selecting a shop selects a marker.
+ */
+.optionPlace {
+  border-left-color: var(--action-secondary);
+}
+
+.optionShop {
+  border-left-color: var(--state-visited);
+}
+
+.optionIcon {
+  grid-row: span 2;
+  display: inline-flex;
+  color: var(--text-secondary);
+}
+
+.optionPlace .optionIcon {
+  color: var(--action-secondary);
+}
+
+.optionShop .optionIcon {
+  color: var(--state-visited);
 }
 
 .option[aria-selected="true"],

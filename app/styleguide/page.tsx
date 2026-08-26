@@ -5,13 +5,20 @@ import { StampArt } from "@/src/components/stamps/StampArt";
 import { Button } from "@/src/components/ui/Button";
 import { Icon } from "@/src/components/ui/Icon";
 import {
-  DemoBadge,
   MarkerStateBadge,
   OperationalStatusBadge,
+  PrototypeBadge,
 } from "@/src/components/ui/StatusBadge";
 import { markerGlyph, clusterGlyph } from "@/src/components/map/marker-markup";
 import type { MarkerState } from "@/src/domain/shops";
-import { demoShopDetails } from "@/src/fixtures/demo-catalogue";
+import { PROTOTYPE_DESIGN_VERSION } from "@/src/fixtures/prototype-catalogue";
+import {
+  inkForStampKey,
+  STAMP_INKS,
+  STAMP_INK_LABELS,
+  STAMP_PALETTE_VERSION,
+} from "@/src/domain/stamp-palette";
+import type { StampMotif } from "@/src/domain/shop-detail";
 
 import styles from "./styleguide.module.css";
 
@@ -34,21 +41,20 @@ const TOKENS = [
   "--brass-600",
 ];
 
+const MOTIF_SAMPLES: readonly StampMotif[] = [
+  "storefront",
+  "shophouse",
+  "ink-bottle",
+  "nib",
+  "arcade",
+  "harbour",
+  "counter",
+  "workbench",
+];
+
 const MARKER_STATES: readonly MarkerState[] = ["unvisited", "saved", "visited"];
 
 export default function StyleguidePage() {
-  // One sample per regional ink, with distinct motifs.
-  const stampSlugs = [
-    "demo-ginza-fountain-pen-salon",
-    "demo-chinatown-vintage-nibs",
-    "demo-bugis-ink-atelier",
-    "demo-hualien-coastline-pen-stop",
-    "demo-kanazawa-lacquer-pen-room",
-  ];
-  const stampSamples = stampSlugs
-    .map((slug) => demoShopDetails.find((shop) => shop.slug === slug))
-    .filter((shop): shop is (typeof demoShopDetails)[number] => shop !== undefined);
-
   return (
     <div className={styles.page}>
       <header>
@@ -94,9 +100,31 @@ export default function StyleguidePage() {
         </p>
       </section>
 
+      <section className={styles.section} aria-labelledby="inks">
+        <h2 className={styles.title} id="inks">
+          Stamp inks · palette v{STAMP_PALETTE_VERSION}
+        </h2>
+        <p className="type-body-sm">
+          Eight shared global inks. A standard stamp uses exactly one. No ink
+          belongs to a country, locality, tier, rarity, or achievement, and no
+          impression mixes two.
+        </p>
+        <div className={styles.swatches}>
+          {STAMP_INKS.map((ink) => (
+            <div className={styles.swatch} key={ink}>
+              <span
+                className={styles.chip}
+                style={{ background: `var(--ink-${ink})` }}
+              />
+              <code>{STAMP_INK_LABELS[ink]}</code>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section className={styles.section} aria-labelledby="brand">
         <h2 className={styles.title} id="brand">
-          Provisional mark
+          Brand mark
         </h2>
         <div className={styles.row} style={{ color: "var(--atlas-900)" }}>
           <NibAtlasMark size={20} title="Nib Atlas at 20 px" />
@@ -104,9 +132,13 @@ export default function StyleguidePage() {
           <NibAtlasMark size={64} title="Nib Atlas at 64 px" />
           <NibAtlasMark size={120} title="Nib Atlas at 120 px" />
         </div>
+        <div className={styles.row} style={{ background: "var(--atlas-900)", padding: "1rem", color: "var(--foil-bright)" }}>
+          <NibAtlasMark size={64} tone="single" title="One-colour imprint" />
+        </div>
         <p className="type-body-sm">
-          Placeholder construction only. `BRAND.md` requires a commissioned SVG master
-          before public launch.
+          The founder&rsquo;s drawn mark. `BRAND.md` still requires simplified
+          small-size artwork before public launch; below about 20 px the globe grid
+          closes up, so the one-colour tone is preferred in imprint contexts.
         </p>
       </section>
 
@@ -136,7 +168,7 @@ export default function StyleguidePage() {
           <OperationalStatusBadge status="open" />
           <OperationalStatusBadge status="temporarily_closed" />
           <OperationalStatusBadge status="unknown" />
-          <DemoBadge />
+          <PrototypeBadge />
         </div>
       </section>
 
@@ -189,13 +221,45 @@ export default function StyleguidePage() {
         <h2 className={styles.title} id="stamps">
           Atlas Stamps
         </h2>
+        <p className="type-body-sm">
+          Frame anatomy carries tier, never colour: rounded for a shop, cornered
+          for a locality, double-ruled for a country.
+        </p>
         <div className={styles.stamps}>
-          {stampSamples.map((shop) => (
+          {(["shop", "locality", "country"] as const).map((tier) => (
             <StampArt
-              key={shop.slug}
-              stamp={shop.stamp}
-              shopName={shop.name}
-              collectedOn="2026-06-12"
+              key={tier}
+              stamp={{
+                id: `styleguide-${tier}`,
+                tier,
+                motif: "storefront",
+                ink: inkForStampKey(`styleguide-${tier}`),
+                localityLabel: "Chūō, Tokyo",
+                countryLabel: "Japan",
+                designVersion: PROTOTYPE_DESIGN_VERSION,
+                paletteVersion: STAMP_PALETTE_VERSION,
+              }}
+              title={tier === "country" ? "Japan" : "Ginza Itoya Main Store"}
+              subtitle="2026-03-14"
+            />
+          ))}
+        </div>
+        <div className={styles.stamps}>
+          {MOTIF_SAMPLES.map((motif) => (
+            <StampArt
+              key={motif}
+              size="small"
+              stamp={{
+                id: `styleguide-motif-${motif}`,
+                tier: "shop",
+                motif,
+                ink: inkForStampKey(`styleguide-motif-${motif}`),
+                localityLabel: "Motif",
+                countryLabel: "Nib Atlas",
+                designVersion: PROTOTYPE_DESIGN_VERSION,
+                paletteVersion: STAMP_PALETTE_VERSION,
+              }}
+              title={motif}
             />
           ))}
         </div>

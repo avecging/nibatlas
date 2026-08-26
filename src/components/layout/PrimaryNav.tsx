@@ -9,21 +9,33 @@ interface NavItem {
   readonly href: string;
   readonly label: string;
   readonly icon: IconName;
+  /**
+   * Extra routes that belong to this destination. Saved is a mode Map owns, not
+   * a destination of its own, so `/saved` keeps Map marked as the current
+   * section rather than leaving the navigation with nothing selected.
+   */
+  readonly alsoOwns?: readonly string[];
 }
 
+/**
+ * Exactly three primary destinations.
+ *
+ * Discover is not a destination: exploring is what Map is for, and contextual
+ * place prompts live inside it. Saved is not a destination either: it is a
+ * global mode Map owns, reached from a labelled control on Map itself.
+ */
 export const NAV_ITEMS: readonly NavItem[] = [
-  { href: "/", label: "Map", icon: "locate" },
-  { href: "/discover", label: "Discover", icon: "search" },
-  { href: "/passport", label: "Passport", icon: "seal" },
-  { href: "/saved", label: "Saved", icon: "bookmark" },
+  { href: "/", label: "Map", icon: "map", alsoOwns: ["/saved"] },
+  { href: "/passport", label: "Passport", icon: "passport" },
+  { href: "/me", label: "Me", icon: "person", alsoOwns: ["/privacy", "/account"] },
 ];
 
-export function isActive(pathname: string, href: string): boolean {
-  if (href === "/") {
-    return pathname === "/";
-  }
+export function isActive(pathname: string, item: NavItem): boolean {
+  const owned = [item.href, ...(item.alsoOwns ?? [])];
 
-  return pathname === href || pathname.startsWith(`${href}/`);
+  return owned.some((href) =>
+    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`),
+  );
 }
 
 interface PrimaryNavProps {
@@ -47,7 +59,7 @@ export function PrimaryNav({
       aria-label={variant === "bottom" ? "Primary" : "Primary sections"}
     >
       {NAV_ITEMS.map((item) => {
-        const active = isActive(pathname, item.href);
+        const active = isActive(pathname, item);
 
         return (
           <Link

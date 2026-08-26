@@ -9,17 +9,20 @@
 }
 
 .dialog {
-  width: min(100%, 26rem);
-  padding: var(--space-6);
-  border: 1px solid var(--border-default);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 27rem;
+  max-height: 90dvh;
+  padding: var(--space-5);
+  overflow-y: auto;
   border-radius: var(--radius-lg);
-  background: var(--bg-surface-warm);
-  box-shadow: var(--shadow-popover);
-  text-align: center;
+  background: var(--bg-surface);
+  box-shadow: 0 24px 60px rgba(16, 45, 70, 0.3);
 }
 
 .title {
-  margin-bottom: var(--space-2);
   font-family: var(--font-serif);
   font-size: var(--type-h2-size);
   line-height: var(--type-h2-line);
@@ -27,38 +30,195 @@
 }
 
 .lede {
-  margin-bottom: var(--space-5);
   color: var(--text-secondary);
   font-size: var(--type-body-sm-size);
   line-height: var(--type-body-sm-line);
 }
 
-.stage {
+/*
+ * The press plate.
+ *
+ * The impression is the only thing that moves: it descends, makes contact, and
+ * settles. A short white flash marks the contact instant and a contact shadow
+ * shrinks beneath it. Both are opacity and transform only.
+ */
+.plate {
+  position: relative;
   display: grid;
   place-items: center;
-  min-height: 13rem;
-  margin-bottom: var(--space-4);
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  padding: var(--space-3);
+}
+
+.paper {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-stamp);
+  background: var(--paper-50);
+}
+
+.contactShadow {
+  position: absolute;
+  inset: 12%;
+  border-radius: var(--radius-md);
+  background: rgba(16, 45, 70, 0.16);
+  filter: blur(9px);
+  opacity: 0;
 }
 
 .impression {
-  transform-origin: center;
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 82%;
+  transform: rotate(-2.4deg);
 }
 
-/* 600–900 ms: poised → press → ink settles → date appears. */
-.pressing .impression {
-  animation: press 780ms var(--ease-entrance) both;
+.pressFlash {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: var(--radius-stamp);
+  background: linear-gradient(
+    var(--stamp-pressure-highlight),
+    var(--stamp-pressure-fade)
+  );
+  opacity: 0;
+  pointer-events: none;
 }
 
-.pressing .meta {
-  animation: reveal 280ms var(--ease-entrance) 520ms both;
+/* 0-45% descend and darken · 45% contact · 45-62% hold · 62-100% ink settles */
+.plate[data-phase="pressing"] .impression {
+  animation: stampPress var(--motion-ceremony) linear both;
 }
 
-.settled .meta {
-  opacity: 1;
+.plate[data-phase="pressing"] .contactShadow {
+  animation: stampContact var(--motion-ceremony) linear both;
+}
+
+.plate[data-phase="pressing"] .pressFlash {
+  animation: stampFlash var(--motion-ceremony) linear both;
+}
+
+.plate[data-phase="pressing"] .impression :global(figure) {
+  animation: stampSettle var(--motion-ceremony) linear both;
+}
+
+@keyframes stampPress {
+  0% {
+    transform: scale(1.62) rotate(-7deg);
+  }
+
+  38% {
+    transform: scale(1.1) rotate(-3.4deg);
+  }
+
+  45% {
+    transform: scale(0.965) rotate(-2.4deg);
+  }
+
+  62% {
+    transform: scale(0.972) rotate(-2.4deg);
+  }
+
+  100% {
+    transform: scale(1) rotate(-2.4deg);
+  }
+}
+
+/* The ink itself: faint while the stamp is in the air, full at contact. */
+@keyframes stampSettle {
+  0% {
+    opacity: 0.32;
+  }
+
+  38% {
+    opacity: 0.6;
+  }
+
+  45% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes stampContact {
+  0% {
+    opacity: 0.1;
+    transform: scale(1.42);
+  }
+
+  40% {
+    opacity: 0.3;
+    transform: scale(1.05);
+  }
+
+  45% {
+    opacity: 0;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes stampFlash {
+  0%,
+  43% {
+    opacity: 0;
+  }
+
+  46% {
+    opacity: 1;
+  }
+
+  58%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/*
+ * Reduced motion: the completed impression, faded in under 150 ms. No press, no
+ * flash, no descent — and the same copy, controls, and status line.
+ */
+.plate[data-reduced="true"] .impression,
+.plate[data-reduced="true"] .impression :global(figure) {
+  animation: none;
+}
+
+.plate[data-reduced="true"] .impression {
+  animation: stampReducedFade var(--motion-reduced-fade) linear both;
+}
+
+.plate[data-reduced="true"] .contactShadow,
+.plate[data-reduced="true"] .pressFlash {
+  animation: none;
+  opacity: 0;
+}
+
+@keyframes stampReducedFade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .meta {
-  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-warm);
   color: var(--text-secondary);
   font-size: var(--type-body-sm-size);
   line-height: var(--type-body-sm-line);
@@ -67,44 +227,4 @@
 .actions {
   display: grid;
   gap: var(--space-2);
-}
-
-@keyframes press {
-  0% {
-    transform: translateY(-26px) scale(1.12) rotate(-4deg);
-    opacity: 0;
-  }
-  38% {
-    transform: translateY(0) scale(0.97) rotate(-1.2deg);
-    opacity: 1;
-  }
-  52% {
-    transform: translateY(0) scale(1.02) rotate(-1.2deg);
-  }
-  100% {
-    transform: translateY(0) scale(1) rotate(-1.2deg);
-    opacity: 1;
-  }
-}
-
-@keyframes reveal {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pressing .impression,
-  .pressing .meta {
-    animation: none;
-  }
-
-  .impression,
-  .meta {
-    transition: opacity 140ms linear;
-    opacity: 1;
-  }
 }

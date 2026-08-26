@@ -18,7 +18,7 @@
 }
 
 .sheet[data-state="peek"] {
-  --sheet-height: 9.5rem;
+  --sheet-height: 11rem;
 }
 
 .sheet[data-state="half"] {

@@ -6,20 +6,32 @@ import type { ReactNode } from "react";
 
 import { NibAtlasMark } from "@/src/components/brand/NibAtlasMark";
 import { PrimaryNav } from "@/src/components/layout/PrimaryNav";
-import { DemoBadge } from "@/src/components/ui/StatusBadge";
+import { PrototypeBadge } from "@/src/components/ui/StatusBadge";
 
 import styles from "./AppShell.module.css";
 
-/**
- * The map route gets the full mobile canvas above the navigation; every other
- * route keeps the header for orientation.
- */
+type ShellVariant = "map" | "passport" | "content";
+
+/** Map and its Saved mode take the full mobile canvas; Passport needs an
+ *  uninterrupted field to sit its book in; everything else keeps the header. */
+function variantFor(pathname: string): ShellVariant {
+  if (pathname === "/" || pathname === "/saved") {
+    return "map";
+  }
+
+  if (pathname === "/passport" || pathname.startsWith("/passport/")) {
+    return "passport";
+  }
+
+  return "content";
+}
+
 export function AppShell({ children }: { readonly children: ReactNode }) {
   const pathname = usePathname() ?? "/";
-  const variant = pathname === "/" ? "map" : "content";
+  const variant = variantFor(pathname);
 
   return (
-    <div className={styles.shell}>
+    <div className={styles.shell} data-shell-variant={variant}>
       <a className="skip-link" href="#main-content">
         Skip to main content
       </a>
@@ -36,13 +48,13 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
           itemClassName={styles.desktopNavItem}
         />
         <span className={styles.headerSpacer} />
-        <DemoBadge>Demo · not production data</DemoBadge>
+        <PrototypeBadge>Prototype data</PrototypeBadge>
       </header>
 
       <main
         id="main-content"
         className={`${styles.main} ${
-          variant === "map" ? styles.mainMapVariant : styles.mainContentVariant
+          variant === "content" ? styles.mainContentVariant : styles.mainFullVariant
         }`}
       >
         {children}

@@ -1,0 +1,297 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: 100%;
+  max-width: 46rem;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  flex: 0 0 auto;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-round);
+  background: var(--bg-surface);
+}
+
+.title {
+  font-family: var(--font-serif);
+  font-size: var(--type-h1-size);
+  line-height: var(--type-h1-line);
+  font-weight: 600;
+}
+
+.subtitle {
+  max-width: 34rem;
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border-default);
+}
+
+.sectionTitle {
+  font-family: var(--font-serif);
+  font-size: var(--type-h2-size);
+  line-height: var(--type-h2-line);
+  font-weight: 600;
+}
+
+.sectionNote {
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+.inlineLink {
+  color: var(--action-secondary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+.rows > li + li .row {
+  border-top: 1px solid var(--border-default);
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--tap-target);
+  padding: var(--space-4);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+}
+
+a.row:hover,
+button.row:hover {
+  background: var(--bg-surface-warm);
+}
+
+button.row {
+  cursor: pointer;
+}
+
+.rowIcon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  padding-top: 2px;
+  color: var(--atlas-900);
+}
+
+.rowText {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rowTitle {
+  font-size: var(--type-body-size);
+  font-weight: 600;
+}
+
+.rowDetail {
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+.pending {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-warm);
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: 600;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.statValue {
+  font-family: var(--font-serif);
+  font-size: var(--type-h2-size);
+  line-height: var(--type-h2-line);
+  font-weight: 600;
+}
+
+.statLabel {
+  /* `--text-muted` fails AA at 12 px; the secondary step passes at this size. */
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.geoList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.geoRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-warm);
+}
+
+.geoHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.geoName {
+  font-family: var(--font-serif);
+  font-size: var(--type-h3-size);
+  line-height: var(--type-h3-line);
+  font-weight: 600;
+}
+
+.geoSeal {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  /*
+   * Vermilion on the Vermilion 100 surface is only 3.66:1 at this size. The
+   * white surface carries the same ink at 5.3:1, and the border keeps the chip
+   * reading as a chip.
+   */
+  border: 1px solid var(--state-visited);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--state-visited);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: 700;
+}
+
+.geoProgress,
+.geoLocalities {
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+.geoVersion {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.explainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-lg-line);
+  color: var(--text-secondary);
+}
+
+.explainer strong {
+  color: var(--text-primary);
+}
+
+.explainerNote {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-default);
+  color: var(--text-secondary);
+}
+
+.empty {
+  padding: var(--space-4);
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+}
+
+/*
+ * 360 px is the primary review viewport, and it is where the milestone badge
+ * used to squeeze the row text into two or three words per line. Below 30rem the
+ * badge drops onto its own line, aligned with the row text rather than the icon,
+ * so the title and detail keep the full column width.
+ */
+@media (max-width: 30rem) {
+  .row {
+    flex-wrap: wrap;
+  }
+
+  .pending {
+    flex: 1 1 100%;
+    margin-left: calc(20px + var(--space-3));
+  }
+
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stats > .stat:only-child,
+  .stats > .stat:nth-child(3):last-child {
+    grid-column: 1 / -1;
+  }
+}

@@ -15,6 +15,22 @@
   font-size: var(--type-caption-size);
 }
 
+/*
+ * The renderer's own zoom control must not sit under the search field or the
+ * result-scope switch. On mobile the overlay stack is two rows deep, so the
+ * control starts below it; from the desktop split the overlay is a narrow column
+ * on the left and the control can return to its usual place.
+ */
+.canvas :global(.maplibregl-ctrl-top-right) {
+  margin-top: 7.5rem;
+}
+
+@media (min-width: 1024px) {
+  .canvas :global(.maplibregl-ctrl-top-right) {
+    margin-top: 0;
+  }
+}
+
 .fallback {
   position: absolute;
   inset: 0;

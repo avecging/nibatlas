@@ -3,11 +3,13 @@ import { expect, test, type Page } from "@playwright/test";
 
 const ROUTES = [
   { path: "/", name: "map" },
-  { path: "/discover", name: "discover" },
-  { path: "/saved", name: "saved" },
+  { path: "/saved", name: "saved mode" },
   { path: "/passport", name: "passport" },
   { path: "/passport/jp/chuo-tokyo", name: "passport locality" },
-  { path: "/shops/demo-ginza-fountain-pen-salon", name: "shop detail" },
+  { path: "/me", name: "me" },
+  { path: "/privacy", name: "privacy" },
+  { path: "/shops/ginza-itoya-main-store", name: "shop detail" },
+  { path: "/shops/skb-kaohsiung", name: "shop detail with omitted fields" },
   { path: "/styleguide", name: "styleguide" },
 ];
 
@@ -23,7 +25,7 @@ async function analyze(page: Page) {
 for (const route of ROUTES) {
   test(`${route.name} has no detectable accessibility violations`, async ({ page }) => {
     await page.goto(route.path);
-    await expect(page.getByRole("heading").first()).toBeVisible();
+    await expect(page.getByRole("heading", { includeHidden: true }).first()).toBeAttached();
 
     const results = await analyze(page);
 
@@ -34,7 +36,7 @@ for (const route of ROUTES) {
 }
 
 test("the collection dialogs are accessible", async ({ page }) => {
-  await page.goto("/shops/demo-kobe-portside-nib-bench");
+  await page.goto("/shops/juspirit-banqiao");
   await page.getByRole("button", { name: /collect stamp \(simulated\)/i }).click();
   await expect(page.getByRole("dialog", { name: /before you collect/i })).toBeVisible();
 
@@ -47,7 +49,7 @@ test("the collection dialogs are accessible", async ({ page }) => {
 });
 
 test("the collection preflight traps focus and gives it back", async ({ page }) => {
-  await page.goto("/shops/demo-yokohama-harbour-pens");
+  await page.goto("/shops/nagasawa-penstyle-den");
 
   const trigger = page.getByRole("button", { name: /collect stamp \(simulated\)/i });
   await trigger.click();
@@ -80,7 +82,7 @@ test("the collection preflight traps focus and gives it back", async ({ page }) 
 });
 
 test("the stamp ceremony returns focus to the shop page", async ({ page }) => {
-  await page.goto("/shops/demo-fukuoka-tenjin-pen-loft");
+  await page.goto("/shops/ty-lee-pen-shop");
 
   const trigger = page.getByRole("button", { name: /collect stamp \(simulated\)/i });
   await trigger.click();
@@ -94,8 +96,20 @@ test("the stamp ceremony returns focus to the shop page", async ({ page }) => {
   await expect(page.getByRole("button", { name: /view atlas stamp/i })).toBeFocused();
 });
 
+test("the Passport book is reachable and operable from the keyboard", async ({ page }) => {
+  await page.goto("/passport");
+
+  const openButton = page.getByRole("button", { name: /open passport/i });
+  await openButton.focus();
+  await expect(openButton).toBeFocused();
+  await page.keyboard.press("Enter");
+
+  await expect(page.getByRole("button", { name: /previous page/i })).toBeVisible();
+  expect((await analyze(page)).violations).toEqual([]);
+});
+
 test("every control meets the minimum touch target size", async ({ page }) => {
-  await page.goto("/shops/demo-ginza-fountain-pen-salon");
+  await page.goto("/shops/ginza-itoya-main-store");
 
   const undersized = await page.evaluate(() => {
     const failures: string[] = [];

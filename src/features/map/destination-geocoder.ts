@@ -1,6 +1,6 @@
 import type { Viewport } from "@/src/domain/geo";
-import { demoDestinations, type DemoDestination } from "@/src/fixtures/demo-destinations";
-import { demoShopSummaries } from "@/src/fixtures/demo-catalogue";
+import { prototypeDestinations, type PrototypeDestination } from "@/src/fixtures/prototype-destinations";
+import { prototypeShopSummaries } from "@/src/fixtures/prototype-catalogue";
 import type { ShopMapSummary } from "@/src/domain/shops";
 
 export interface DestinationResult {
@@ -46,7 +46,7 @@ function matches(query: string, ...candidates: readonly (string | undefined)[]):
   );
 }
 
-function destinationViewport(destination: DemoDestination): Viewport {
+function destinationViewport(destination: PrototypeDestination): Viewport {
   return { bounds: destination.bounds, zoom: destination.zoom };
 }
 
@@ -65,8 +65,8 @@ function shopViewport(shop: ShopMapSummary): Viewport {
 }
 
 export function createFixtureGeocoder(
-  shops: readonly ShopMapSummary[] = demoShopSummaries,
-  destinations: readonly DemoDestination[] = demoDestinations,
+  shops: readonly ShopMapSummary[] = prototypeShopSummaries,
+  destinations: readonly PrototypeDestination[] = prototypeDestinations,
 ): DestinationGeocoder {
   return {
     async search(query) {

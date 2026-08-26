@@ -52,8 +52,9 @@
   min-height: 0;
 }
 
-.mainMapVariant {
+.mainFullVariant {
   display: grid;
+  min-width: 0;
   min-height: 0;
 }
 
@@ -69,7 +70,7 @@
   bottom: 0;
   z-index: 30;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   border-top: 1px solid var(--border-default);
   background: var(--bg-surface);
   box-shadow: var(--shadow-nav);
