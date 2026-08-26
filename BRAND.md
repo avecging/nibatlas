@@ -1,8 +1,8 @@
 # Nib Atlas Brand and Design Foundation
 
 **Status:** Approved visual direction; implementation-ready and intentionally evolvable
-**Version:** 1.1
-**Last updated:** 19 August 2026
+**Version:** 1.2
+**Last updated:** 26 August 2026
 
 ## Brand idea
 
@@ -209,12 +209,21 @@ Atlas Stamps draw from eki stamps, passport impressions, rubber stamps, local ar
 
 ### MVP stamp system
 
-- Templated but distinct: a shared construction system with local motif, locality label, shop name, and controlled regional ink colour.
-- Prefer one or two ink colours per stamp.
+- Templated but distinct: a shared construction system with local motif, locality label, shop name, and one approved ink from the global stamp palette.
+- Use exactly one approved ink colour per stamp.
 - Allow slightly imperfect edges, mild registration shift, and pressure variation.
 - Preserve legibility at Passport-card size.
 - Include shop identity, locality/country, and Nib Atlas provenance.
 - Avoid heraldic clutter, fake official-government language, game rarity tiers, metallic gradients, neon effects, or NFT badge styling.
+
+### Global stamp-ink rules
+
+- The stamp system uses one shared eight-colour global palette.
+- No colour belongs to a country, locality, shop tier, rarity, or achievement state.
+- New countries do not require or introduce new colours.
+- Tier is communicated through frame and stamp anatomy, never through colour ownership.
+- Every generated stamp pins the palette version used so regeneration remains deterministic.
+- The MVP displays and collects shop stamps only. Country and city templates remain future-ready and must not appear as collectible or completion-gated stamps in Milestone 1.
 
 ### Regional respect
 
