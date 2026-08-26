@@ -2,10 +2,10 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { StampCeremony } from "@/src/components/stamps/StampCeremony";
-import { toStampCollection } from "@/src/fixtures/demo-passport";
-import { findDemoShop } from "@/src/fixtures/demo-catalogue";
+import { toStampCollection } from "@/src/fixtures/prototype-passport";
+import { findPrototypeShop } from "@/src/fixtures/prototype-catalogue";
 
-const shop = findDemoShop("demo-ginza-fountain-pen-salon")!;
+const shop = findPrototypeShop("ginza-itoya-main-store")!;
 const collection = toStampCollection(shop, "2026-06-12");
 
 function setReducedMotion(reduced: boolean) {
@@ -51,7 +51,7 @@ describe("StampCeremony", () => {
     );
 
     expect(
-      screen.getByText(/Demo Ginza Fountain Pen Salon · Chūō, Tokyo, Japan · 2026-06-12/),
+      screen.getByText(/Ginza Itoya Main Store · Chūō, Tokyo, Japan · 2026-06-12/),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /open in passport/i })).toHaveAttribute(
       "href",
@@ -59,7 +59,7 @@ describe("StampCeremony", () => {
     );
   });
 
-  it("skips the press animation when reduced motion is requested", () => {
+  it("shows the completed impression instead of pressing it under reduced motion", () => {
     setReducedMotion(true);
     const { container } = render(
       <StampCeremony
@@ -70,10 +70,45 @@ describe("StampCeremony", () => {
       />,
     );
 
-    const dialog = container.querySelector('[role="dialog"]');
+    const plate = container.querySelector("[data-phase]");
 
-    expect(dialog?.className).toMatch(/settled/);
-    expect(dialog?.className).not.toMatch(/pressing/);
+    expect(plate).toHaveAttribute("data-reduced", "true");
+    // Settled from the first frame: there is no press to skip past.
+    expect(plate).toHaveAttribute("data-phase", "settled");
+  });
+
+  it("presses the impression when motion is allowed", () => {
+    setReducedMotion(false);
+    const { container } = render(
+      <StampCeremony
+        collection={collection}
+        alreadyCollected={false}
+        passportHref="/passport/jp/chuo-tokyo"
+        onClose={vi.fn()}
+      />,
+    );
+
+    const plate = container.querySelector("[data-phase]");
+
+    expect(plate).toHaveAttribute("data-reduced", "false");
+    expect(plate).toHaveAttribute("data-phase", "pressing");
+  });
+
+  it("never presses an impression that was already collected", () => {
+    setReducedMotion(false);
+    const { container } = render(
+      <StampCeremony
+        collection={collection}
+        alreadyCollected
+        passportHref="/passport/jp/chuo-tokyo"
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector("[data-phase]")).toHaveAttribute(
+      "data-phase",
+      "settled",
+    );
   });
 
   it("names a duplicate collection instead of pretending it is new", () => {

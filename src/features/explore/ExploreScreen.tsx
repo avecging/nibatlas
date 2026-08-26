@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 
@@ -12,10 +13,11 @@ import { SearchThisArea } from "@/src/components/map/SearchThisArea";
 import { ShopList } from "@/src/components/shops/ShopList";
 import { useMediaQuery } from "@/src/components/hooks/useMediaQuery";
 import { Icon } from "@/src/components/ui/Icon";
-import { DemoBadge } from "@/src/components/ui/StatusBadge";
-import type { Viewport } from "@/src/domain/geo";
+import { PrototypeBadge } from "@/src/components/ui/StatusBadge";
+import type { CountryCode, Viewport } from "@/src/domain/geo";
+import { COUNTRY_LABELS } from "@/src/domain/shop-detail";
 import type { ShopMapSummary } from "@/src/domain/shops";
-import { decorateResults } from "@/src/domain/user-state";
+import { applyUserShopState, decorateResults } from "@/src/domain/user-state";
 import { useCollection } from "@/src/features/collection/collection-store";
 import {
   createExploreState,
@@ -27,11 +29,11 @@ import {
 import {
   AbortedError,
   createFixtureShopSource,
-  DEMO_RESULT_CAP,
+  PROTOTYPE_RESULT_CAP,
 } from "@/src/features/explore/shop-source";
 import { createFixtureGeocoder } from "@/src/features/map/destination-geocoder";
-import { demoDestinations } from "@/src/fixtures/demo-destinations";
-import { demoShopSummaries } from "@/src/fixtures/demo-catalogue";
+import { prototypeDestinations } from "@/src/fixtures/prototype-destinations";
+import { prototypeShopSummaries } from "@/src/fixtures/prototype-catalogue";
 import { createMapStyleProvider } from "@/src/features/map/map-style";
 import { noopTelemetry } from "@/src/features/map/telemetry";
 
@@ -42,15 +44,25 @@ const MapCanvas = dynamic(
   { ssr: false },
 );
 
-/** Opens on the three launch countries so the demo shows clusters immediately. */
+/** Opens on the three launch countries so the prototype shows clusters immediately. */
 const INITIAL_VIEWPORT: Viewport = {
   bounds: { west: 96, south: -4, east: 149, north: 46 },
   zoom: 3,
 };
 
-const DEMO_LATENCY_MS = 220;
+const PROTOTYPE_LATENCY_MS = 220;
 const INTRO_STORAGE_KEY = "nib-atlas.intro-dismissed.v1";
 const VIEWPORT_STORAGE_KEY = "nib-atlas.explore-viewport.v1";
+
+/**
+ * Map has two result scopes.
+ *
+ * `area` is the committed viewport. `saved` is every saved shop everywhere — the
+ * global Saved mode Map owns. Saved is not a primary destination and not a
+ * viewport filter: entering it replaces the scope of the result set entirely, so
+ * a shop saved in Kobe is findable from a map sitting over Tainan.
+ */
+export type ExploreMode = "area" | "saved";
 
 interface PersistedExplore {
   readonly viewport: Viewport;
@@ -73,7 +85,21 @@ function readPersistedViewport(): PersistedExplore | null {
   }
 }
 
-export function ExploreScreen() {
+function shopViewport(shop: ShopMapSummary): Viewport {
+  const padding = 0.006;
+
+  return {
+    bounds: {
+      west: shop.position.longitude - padding,
+      south: shop.position.latitude - padding,
+      east: shop.position.longitude + padding,
+      north: shop.position.latitude + padding,
+    },
+    zoom: 16,
+  };
+}
+
+export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }) {
   const collection = useCollection();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const searchParams = useSearchParams();
@@ -89,7 +115,7 @@ export function ExploreScreen() {
   const cameraToken = useRef(0);
 
   const source = useMemo(
-    () => createFixtureShopSource({ latencyMs: DEMO_LATENCY_MS }),
+    () => createFixtureShopSource({ latencyMs: PROTOTYPE_LATENCY_MS }),
     [],
   );
   const geocoder = useMemo(() => createFixtureGeocoder(), []);
@@ -144,40 +170,31 @@ export function ExploreScreen() {
   }, []);
 
   // Restore the previous map context after shop-detail navigation, or honour a
-  // deep link from Saved and Discover.
+  // deep link from Saved mode and the place prompts.
   useEffect(() => {
     const shopSlug = searchParams?.get("shop");
     const destinationId = searchParams?.get("destination");
 
     if (shopSlug) {
-      const shop = demoShopSummaries.find((candidate) => candidate.slug === shopSlug);
+      const shop = prototypeShopSummaries.find((candidate) => candidate.slug === shopSlug);
 
       if (shop) {
-        const padding = 0.006;
-        moveCamera(
-          {
-            bounds: {
-              west: shop.position.longitude - padding,
-              south: shop.position.latitude - padding,
-              east: shop.position.longitude + padding,
-              north: shop.position.latitude + padding,
-            },
-            zoom: 16,
-          },
-          shop.name,
-        );
+        moveCamera(shopViewport(shop), shop.name);
         dispatch({ type: "selectShop", shopId: shop.id });
         return;
       }
     }
 
     if (destinationId) {
-      const destination = demoDestinations.find(
+      const destination = prototypeDestinations.find(
         (candidate) => candidate.id === destinationId,
       );
 
       if (destination) {
-        moveCamera({ bounds: destination.bounds, zoom: destination.zoom }, destination.name);
+        moveCamera(
+          { bounds: destination.bounds, zoom: destination.zoom },
+          destination.name,
+        );
         return;
       }
     }
@@ -204,7 +221,7 @@ export function ExploreScreen() {
           bounds: query.bounds,
           zoom: query.zoom,
           shopTypes: query.shopTypes,
-          limit: DEMO_RESULT_CAP,
+          limit: PROTOTYPE_RESULT_CAP,
         },
         controller.signal,
       )
@@ -246,11 +263,46 @@ export function ExploreScreen() {
     }
   }, [state.committed, state.lastCommittedLabel]);
 
-  const results = useMemo(
+  const areaResults = useMemo(
     () =>
       decorateResults(state.results, collection.userShopState, state.committedFilters.status),
     [collection.userShopState, state.committedFilters.status, state.results],
   );
+
+  /**
+   * Saved mode reaches past the viewport entirely: the whole catalogue is
+   * filtered by the saved set, so nothing depends on where the camera is.
+   */
+  const savedResults = useMemo(
+    () =>
+      applyUserShopState(
+        prototypeShopSummaries.filter((shop) => collection.savedShopIds.has(shop.id)),
+        collection.userShopState,
+      ),
+    [collection.savedShopIds, collection.userShopState],
+  );
+
+  const results = mode === "saved" ? savedResults : areaResults;
+
+  const savedGroups = useMemo(() => {
+    if (mode !== "saved") {
+      return [];
+    }
+
+    const byCountry = new Map<CountryCode, ShopMapSummary[]>();
+
+    for (const shop of savedResults) {
+      byCountry.set(shop.countryCode, [...(byCountry.get(shop.countryCode) ?? []), shop]);
+    }
+
+    return [...byCountry.entries()]
+      .map(([countryCode, shops]) => ({
+        countryCode,
+        label: COUNTRY_LABELS[countryCode],
+        shops: [...shops].sort((a, b) => a.localityName.localeCompare(b.localityName)),
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [mode, savedResults]);
 
   const selectedShop = useMemo(
     () => results.find((shop) => shop.id === state.selectedShopId) ?? null,
@@ -271,32 +323,100 @@ export function ExploreScreen() {
     [collection],
   );
 
-  const offerMode = shouldOfferSearchArea(state)
-    ? "offer"
-    : state.status === "loading"
-      ? "loading"
-      : state.status === "error"
-        ? "error"
-        : "hidden";
+  /** Selecting a saved shop brings the camera to it without leaving Saved mode. */
+  const handleSelectSaved = useCallback(
+    (shopId: string) => {
+      const shop = savedResults.find((candidate) => candidate.id === shopId);
 
+      dispatch({ type: "selectShop", shopId });
+
+      if (shop) {
+        moveCamera(shopViewport(shop), shop.name);
+      }
+    },
+    [moveCamera, savedResults],
+  );
+
+  const offerMode =
+    mode === "saved"
+      ? "hidden"
+      : shouldOfferSearchArea(state)
+        ? "offer"
+        : state.status === "loading"
+          ? "loading"
+          : state.status === "error"
+            ? "error"
+            : "hidden";
+
+  /*
+   * The prototype notice rides with the result summary so it is present at page
+   * level on every breakpoint — the mobile Map has no header to carry it — while
+   * staying out of the search field, the status controls, and any shop fact.
+   */
   const summary = (
     <>
       <span className={styles.summaryLine}>
         <span className="type-h3">
-          {state.status === "loading" && results.length === 0
-            ? "Searching…"
-            : `${results.length} shop${results.length === 1 ? "" : "s"} in this area`}
+          {mode === "saved"
+            ? `${results.length} saved shop${results.length === 1 ? "" : "s"}`
+            : state.status === "loading" && results.length === 0
+              ? "Searching…"
+              : `${results.length} shop${results.length === 1 ? "" : "s"} in this area`}
         </span>
         <span className="type-body-sm">
           {selectedShop
             ? `Selected: ${selectedShop.name}`
-            : state.lastCommittedLabel
-              ? `Searched: ${state.lastCommittedLabel}`
-              : "Move the map, then search this area"}
+            : mode === "saved"
+              ? "All locations, not only this map view"
+              : state.lastCommittedLabel
+                ? `Searched: ${state.lastCommittedLabel}`
+                : "Move the map, then search this area"}
         </span>
       </span>
-      <DemoBadge>Demo data</DemoBadge>
+      <PrototypeBadge>Prototype sample</PrototypeBadge>
     </>
+  );
+
+  const modeSwitch = (
+    <div className={styles.modeSwitch} role="group" aria-label="Result scope">
+      <Link
+        className={styles.modeButton}
+        href="/"
+        aria-current={mode === "area" ? "true" : undefined}
+      >
+        <Icon name="map" size={16} />
+        This area
+      </Link>
+      <Link
+        className={styles.modeButton}
+        href="/saved"
+        aria-current={mode === "saved" ? "true" : undefined}
+      >
+        <Icon name="bookmark" size={16} />
+        Saved ({collection.savedShopIds.size})
+      </Link>
+    </div>
+  );
+
+  const placePrompts = (
+    <section className={styles.prompts} aria-labelledby="place-prompts">
+      <h3 className={styles.promptsTitle} id="place-prompts">
+        Places to explore
+      </h3>
+      <p className={styles.promptsNote}>
+        Jump the map to a committed viewport in one of the three launch countries.
+      </p>
+      <ul className={styles.promptList}>
+        {prototypeDestinations.slice(0, 8).map((destination) => (
+          <li key={destination.id}>
+            <Link className={styles.promptChip} href={`/?destination=${destination.id}`}>
+              {destination.name}
+              {destination.localName ? ` · ${destination.localName}` : ""}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 
   const filterBar = (
@@ -309,14 +429,63 @@ export function ExploreScreen() {
     />
   );
 
-  const list = (
+  const savedList = (
+    <div className={styles.savedScope}>
+      <p className={styles.savedBanner}>
+        <Icon name="bookmark-filled" size={18} />
+        <span>
+          <strong>Saved — all locations.</strong> Every shop you have saved, wherever
+          it is. Selecting one moves the map to it.
+        </span>
+      </p>
+      {savedGroups.length === 0 ? (
+        <div className={styles.savedEmpty}>
+          <p className="type-h3">Nothing saved yet</p>
+          <p>
+            Save a shop from a marker, a card, or a shop page and it appears here —
+            in any country.
+          </p>
+          <Link className={styles.savedEmptyLink} href="/">
+            Back to map results
+          </Link>
+        </div>
+      ) : (
+        savedGroups.map((group) => (
+          <section
+            className={styles.savedGroup}
+            key={group.countryCode}
+            aria-labelledby={`saved-${group.countryCode}`}
+          >
+            <h3 className={styles.savedGroupTitle} id={`saved-${group.countryCode}`}>
+              {group.label}
+            </h3>
+            <ShopList
+              shops={group.shops}
+              selectedShopId={state.selectedShopId}
+              savedShopIds={collection.savedShopIds}
+              truncated={false}
+              listLabel={`Saved shops in ${group.label}`}
+              detailFrom="saved"
+              onSelect={handleSelectSaved}
+              onToggleSaved={handleToggleSaved}
+              onOpenDetail={(shop) =>
+                noopTelemetry.record("shop_opened", { shopSlug: shop.slug, surface: "saved" })
+              }
+            />
+          </section>
+        ))
+      )}
+    </div>
+  );
+
+  const areaList = (
     <>
       {state.status === "error" ? (
         <p className={styles.errorNote} role="alert">
           <Icon name="alert" size={18} />
           <span>
-            The demo viewport request failed. These results are from the previous
-            search — use Retry above.
+            The viewport request failed. These results are from the previous search —
+            use Retry above.
           </span>
         </p>
       ) : null}
@@ -331,13 +500,18 @@ export function ExploreScreen() {
           noopTelemetry.record("shop_opened", { shopSlug: shop.slug, surface: "list" })
         }
       />
+      {results.length === 0 && state.status !== "loading" ? placePrompts : null}
     </>
   );
+
+  const list = mode === "saved" ? savedList : areaList;
 
   return (
     <div
       className={styles.layout}
       data-testid="explore"
+      data-explore-mode={mode}
+      data-sheet-state={state.sheetState}
       data-explore-status={state.status}
       data-search-offer={offerMode}
       data-committed-label={state.lastCommittedLabel ?? ""}
@@ -355,6 +529,7 @@ export function ExploreScreen() {
               noopTelemetry.record("destination_searched", { queryLength })
             }
           />
+          {modeSwitch}
           {introDismissed ? null : (
             <div className={styles.intro}>
               <span className={styles.introText}>
@@ -402,7 +577,14 @@ export function ExploreScreen() {
             }
             summary={summary}
           >
-            <div className={styles.mobileFilters}>{filterBar}</div>
+            {/*
+              Peek shows the count and the top of the first or selected card
+              only, per `UX.md`. Filters would be clipped mid-row at that
+              height, which reads as broken rather than as a peek.
+            */}
+            {mode === "saved" || state.sheetState === "peek" ? null : (
+              <div className={styles.mobileFilters}>{filterBar}</div>
+            )}
             {list}
           </ResultsSheet>
         )}
@@ -411,7 +593,7 @@ export function ExploreScreen() {
       {isDesktop ? (
         <aside className={styles.desktopPanel} aria-label="Results list">
           <div className={styles.desktopSummary}>{summary}</div>
-          {filterBar}
+          {mode === "saved" ? null : filterBar}
           <div className={styles.desktopScroll}>{list}</div>
         </aside>
       ) : null}

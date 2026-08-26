@@ -44,4 +44,43 @@ test.describe("mobile results sheet", () => {
     await expect(firstCard).toHaveAttribute("data-selected", "true");
     await expect(page.getByText(`Selected: ${name}`)).toBeVisible();
   });
+
+  test("dragging the handle resizes the sheet without panning the map", async ({ page }) => {
+    await page.goto("/");
+
+    const sheet = page.getByTestId("results-sheet");
+    await expect(sheet).toHaveAttribute("data-state", "peek");
+
+    const explore = page.getByTestId("explore");
+    await expect(explore).toHaveAttribute("data-search-offer", "hidden");
+
+    const handle = page.getByRole("button", { name: /results sheet/i });
+    const box = await handle.boundingBox();
+    expect(box).not.toBeNull();
+
+    const startX = box!.x + box!.width / 2;
+    const startY = box!.y + box!.height / 2;
+
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    for (let step = 1; step <= 12; step += 1) {
+      await page.mouse.move(startX, startY - (240 * step) / 12);
+    }
+    await page.mouse.up();
+
+    await expect(sheet).toHaveAttribute("data-state", "half");
+    // The gesture never reached the map, so no new search is on offer.
+    await expect(explore).toHaveAttribute("data-search-offer", "hidden");
+  });
+
+  test("peek shows the count and the first card, not clipped filters", async ({ page }) => {
+    await page.goto("/");
+
+    await expect(page.getByTestId("results-sheet")).toHaveAttribute("data-state", "peek");
+    await expect(page.getByText(/shops in this area/i)).toBeVisible();
+    await expect(page.getByRole("group", { name: /visit status/i })).toHaveCount(0);
+
+    await page.getByRole("button", { name: /results sheet/i }).click();
+    await expect(page.getByRole("group", { name: /visit status/i })).toBeVisible();
+  });
 });

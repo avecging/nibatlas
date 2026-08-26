@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { ShopActions } from "@/src/components/shops/ShopActions";
 import { CollectionProvider } from "@/src/features/collection/collection-store";
-import { findDemoShop } from "@/src/fixtures/demo-catalogue";
+import { findPrototypeShop } from "@/src/fixtures/prototype-catalogue";
 
-const shop = findDemoShop("demo-nakano-pen-archive")!;
+const shop = findPrototypeShop("juspirit-banqiao")!;
 
 function renderActions() {
   render(

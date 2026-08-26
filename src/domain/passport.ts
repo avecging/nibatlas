@@ -44,8 +44,15 @@ export interface PassportOverview {
   readonly countryCount: number;
   readonly localityCount: number;
   readonly countries: readonly PassportCountry[];
-  readonly recent: readonly StampCollection[];
 }
+
+/*
+ * There is no `recent` projection.
+ *
+ * Recent Impressions is deferred: the acceptance brief asks for it to be absent
+ * because a running list of where someone has just been reads as tracking. The
+ * shape is left out here so no surface can quietly reintroduce it.
+ */
 
 function byCollectedDesc(a: StampCollection, b: StampCollection): number {
   if (a.collectedOn === b.collectedOn) {
@@ -108,7 +115,6 @@ export function buildPassport(collections: readonly StampCollection[]): Passport
       0,
     ),
     countries: countryViews,
-    recent: ordered.slice(0, 4),
   };
 }
 

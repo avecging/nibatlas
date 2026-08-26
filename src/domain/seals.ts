@@ -1,0 +1,279 @@
+import type { CountryCode } from "@/src/domain/geo";
+import type { StampCollection } from "@/src/domain/passport";
+import type { ShopStampDesign } from "@/src/domain/shop-detail";
+
+/**
+ * Derived geographic seals.
+ *
+ * Seals are never collected directly. They fall out of verified shop stamps, so
+ * a future check-in feature can emit the same canonical verified-visit event
+ * rather than becoming a second unlock system.
+ *
+ * The two rules, from `PRODUCT.md` and `BRAND.md`:
+ *
+ * - a locality seal derives from the first verified shop stamp in that locality;
+ * - a country seal derives after five verified shop stamps in that country, or
+ *   after the complete eligible curated set when that versioned set holds fewer
+ *   than five shops.
+ *
+ * And the rule that shapes the whole module: once earned, a seal is never
+ * revoked because the curated catalogue later expands.
+ */
+export const COUNTRY_SEAL_STAMP_THRESHOLD = 5;
+
+/**
+ * A versioned curated coverage set.
+ *
+ * `version` is what makes a country seal durable. The threshold that earned a
+ * seal is computed from the set version recorded at the moment it was earned, so
+ * adding shops to the catalogue afterwards cannot retroactively raise the bar.
+ *
+ * It is also the only thing that licenses an `x / y` count anywhere in the
+ * interface. Without an explicit eligible set and version, the UI shows plain
+ * counts and never a denominator.
+ */
+export interface CountryCoverageSet {
+  readonly countryCode: CountryCode;
+  readonly version: string;
+  readonly eligibleShopIds: readonly string[];
+}
+
+export type SealScope = "locality" | "country";
+
+export interface EarnedSeal {
+  readonly id: string;
+  readonly scope: SealScope;
+  readonly countryCode: CountryCode;
+  readonly countryLabel: string;
+  /** Present for locality seals only. */
+  readonly localitySlug?: string;
+  readonly localityName?: string;
+  /** Local date of the verified visit that derived the seal. */
+  readonly earnedOn: string;
+  /** The shop stamp whose collection derived it. */
+  readonly derivedFromShopId: string;
+  /** Coverage-set version in force when a country seal was earned. */
+  readonly coverageSetVersion?: string;
+  readonly stamp: ShopStampDesign;
+}
+
+/**
+ * How close a country is to its seal, expressed only in terms an explicit
+ * versioned set supports.
+ */
+export interface CountrySealProgress {
+  readonly countryCode: CountryCode;
+  readonly countryLabel: string;
+  readonly stampCount: number;
+  /** `min(5, eligible set size)`. */
+  readonly required: number;
+  readonly coverageSetVersion: string | null;
+  /**
+   * True only when the requirement came from completing a curated set smaller
+   * than five, which is the one case where the interface may say "complete".
+   */
+  readonly requirementFromCuratedSet: boolean;
+  readonly earned: boolean;
+}
+
+export function countrySealRequirement(
+  coverageSet: CountryCoverageSet | undefined,
+): { readonly required: number; readonly fromCuratedSet: boolean } {
+  if (!coverageSet || coverageSet.eligibleShopIds.length >= COUNTRY_SEAL_STAMP_THRESHOLD) {
+    return { required: COUNTRY_SEAL_STAMP_THRESHOLD, fromCuratedSet: false };
+  }
+
+  return { required: coverageSet.eligibleShopIds.length, fromCuratedSet: true };
+}
+
+function byCollectedAsc(a: StampCollection, b: StampCollection): number {
+  if (a.collectedOn === b.collectedOn) {
+    return a.shopNameSnapshot.localeCompare(b.shopNameSnapshot);
+  }
+
+  return a.collectedOn < b.collectedOn ? -1 : 1;
+}
+
+export function localitySealId(countryCode: CountryCode, localitySlug: string): string {
+  return `seal-locality-${countryCode.toLowerCase()}-${localitySlug}`;
+}
+
+export function countrySealId(countryCode: CountryCode): string {
+  return `seal-country-${countryCode.toLowerCase()}`;
+}
+
+export interface DeriveSealsOptions {
+  readonly collections: readonly StampCollection[];
+  readonly coverageSets: readonly CountryCoverageSet[];
+  /**
+   * Seals already earned in an earlier session. They are carried through
+   * unchanged, which is how "never revoked" is implemented: a seal survives a
+   * catalogue expansion, a coverage-set version bump, and even the removal of
+   * the shop that derived it.
+   */
+  readonly alreadyEarned?: readonly EarnedSeal[];
+  /** Design factory, so the ink and motif rules stay in one place. */
+  readonly designSeal: (input: SealDesignInput) => ShopStampDesign;
+}
+
+export interface SealDesignInput {
+  readonly scope: SealScope;
+  readonly countryCode: CountryCode;
+  readonly countryLabel: string;
+  readonly localitySlug?: string;
+  readonly localityName?: string;
+  readonly key: string;
+}
+
+export interface DerivedSeals {
+  readonly seals: readonly EarnedSeal[];
+  readonly countryProgress: readonly CountrySealProgress[];
+}
+
+export function deriveSeals({
+  collections,
+  coverageSets,
+  alreadyEarned = [],
+  designSeal,
+}: DeriveSealsOptions): DerivedSeals {
+  const ordered = [...collections].sort(byCollectedAsc);
+  const kept = new Map<string, EarnedSeal>();
+
+  for (const seal of alreadyEarned) {
+    kept.set(seal.id, seal);
+  }
+
+  const coverageByCountry = new Map(
+    coverageSets.map((set) => [set.countryCode, set] as const),
+  );
+
+  // Locality seals: the first verified stamp in a locality derives it.
+  for (const collection of ordered) {
+    const id = localitySealId(collection.countryCode, collection.localitySlug);
+
+    if (kept.has(id)) {
+      continue;
+    }
+
+    kept.set(id, {
+      id,
+      scope: "locality",
+      countryCode: collection.countryCode,
+      countryLabel: collection.countryLabel,
+      localitySlug: collection.localitySlug,
+      localityName: collection.localityName,
+      earnedOn: collection.collectedOn,
+      derivedFromShopId: collection.shopId,
+      stamp: designSeal({
+        scope: "locality",
+        countryCode: collection.countryCode,
+        countryLabel: collection.countryLabel,
+        localitySlug: collection.localitySlug,
+        localityName: collection.localityName,
+        key: id,
+      }),
+    });
+  }
+
+  // Country seals: the stamp that reaches the requirement derives it.
+  const perCountry = new Map<CountryCode, StampCollection[]>();
+
+  for (const collection of ordered) {
+    perCountry.set(collection.countryCode, [
+      ...(perCountry.get(collection.countryCode) ?? []),
+      collection,
+    ]);
+  }
+
+  const countryProgress: CountrySealProgress[] = [];
+
+  for (const [countryCode, countryCollections] of perCountry) {
+    const coverageSet = coverageByCountry.get(countryCode);
+    const { required, fromCuratedSet } = countrySealRequirement(coverageSet);
+    const id = countrySealId(countryCode);
+    const countryLabel = countryCollections[0]?.countryLabel ?? countryCode;
+    const existing = kept.get(id);
+
+    if (!existing && countryCollections.length >= required) {
+      const deriving = countryCollections[required - 1] as StampCollection;
+
+      kept.set(id, {
+        id,
+        scope: "country",
+        countryCode,
+        countryLabel,
+        earnedOn: deriving.collectedOn,
+        derivedFromShopId: deriving.shopId,
+        ...(coverageSet ? { coverageSetVersion: coverageSet.version } : {}),
+        stamp: designSeal({
+          scope: "country",
+          countryCode,
+          countryLabel,
+          key: id,
+        }),
+      });
+    }
+
+    countryProgress.push({
+      countryCode,
+      countryLabel,
+      stampCount: countryCollections.length,
+      required,
+      coverageSetVersion: coverageSet?.version ?? null,
+      requirementFromCuratedSet: fromCuratedSet,
+      earned: kept.has(id),
+    });
+  }
+
+  // A country whose seal was carried over but which has no stamps in this
+  // session still reports progress, so the UI never loses an earned seal.
+  for (const seal of kept.values()) {
+    if (seal.scope !== "country") {
+      continue;
+    }
+
+    if (countryProgress.some((progress) => progress.countryCode === seal.countryCode)) {
+      continue;
+    }
+
+    const coverageSet = coverageByCountry.get(seal.countryCode);
+    const { required, fromCuratedSet } = countrySealRequirement(coverageSet);
+
+    countryProgress.push({
+      countryCode: seal.countryCode,
+      countryLabel: seal.countryLabel,
+      stampCount: 0,
+      required,
+      coverageSetVersion: seal.coverageSetVersion ?? coverageSet?.version ?? null,
+      requirementFromCuratedSet: fromCuratedSet,
+      earned: true,
+    });
+  }
+
+  countryProgress.sort((a, b) => a.countryLabel.localeCompare(b.countryLabel));
+
+  const seals = [...kept.values()].sort((a, b) => {
+    if (a.earnedOn !== b.earnedOn) {
+      return a.earnedOn < b.earnedOn ? -1 : 1;
+    }
+
+    return a.id.localeCompare(b.id);
+  });
+
+  return { seals, countryProgress };
+}
+
+export function localitySealFor(
+  seals: readonly EarnedSeal[],
+  countryCode: CountryCode,
+  localitySlug: string,
+): EarnedSeal | undefined {
+  return seals.find((seal) => seal.id === localitySealId(countryCode, localitySlug));
+}
+
+export function countrySealFor(
+  seals: readonly EarnedSeal[],
+  countryCode: CountryCode,
+): EarnedSeal | undefined {
+  return seals.find((seal) => seal.id === countrySealId(countryCode));
+}

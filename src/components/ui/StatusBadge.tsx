@@ -6,7 +6,7 @@ import { OPERATIONAL_STATUS_LABELS } from "@/src/domain/shop-detail";
 
 import styles from "./StatusBadge.module.css";
 
-type Tone = "visited" | "saved" | "unvisited" | "neutral" | "warning" | "demo";
+type Tone = "visited" | "saved" | "unvisited" | "neutral" | "warning" | "prototype";
 
 interface BadgeProps {
   readonly tone: Tone;
@@ -54,6 +54,15 @@ export function OperationalStatusBadge({
   );
 }
 
-export function DemoBadge({ children = "Demo data" }: { readonly children?: ReactNode }) {
-  return <Badge tone="demo">{children}</Badge>;
+/**
+ * The prototype-data notice. `BRAND.md` and the acceptance brief allow it at
+ * environment or page level only — never inside a search field, a status
+ * control, or a shop fact.
+ */
+export function PrototypeBadge({
+  children = "Prototype data",
+}: {
+  readonly children?: ReactNode;
+}) {
+  return <Badge tone="prototype">{children}</Badge>;
 }

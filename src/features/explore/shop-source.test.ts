@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createFixtureShopSource, AbortedError } from "@/src/features/explore/shop-source";
-import { demoShopSummaries } from "@/src/fixtures/demo-catalogue";
+import { prototypeShopSummaries } from "@/src/fixtures/prototype-catalogue";
 
 const japanBounds = { west: 128, south: 30, east: 146, north: 46 };
 
@@ -34,12 +34,12 @@ describe("fixture shop source", () => {
     const response = await source.fetchViewport({
       bounds: japanBounds,
       zoom: 6,
-      shopTypes: ["nib_repair_services"],
+      shopTypes: ["stationery_store"],
     });
 
     expect(response.shops.length).toBeGreaterThan(0);
     expect(
-      response.shops.every((shop) => shop.primaryType === "nib_repair_services"),
+      response.shops.every((shop) => shop.primaryType === "stationery_store"),
     ).toBe(true);
   });
 
@@ -55,7 +55,9 @@ describe("fixture shop source", () => {
   });
 
   it("does not truncate when everything fits", async () => {
-    const source = createFixtureShopSource({ resultCap: demoShopSummaries.length });
+    const source = createFixtureShopSource({
+      resultCap: prototypeShopSummaries.length,
+    });
     const response = await source.fetchViewport({
       bounds: { west: -180, south: -85, east: 180, north: 85 },
       zoom: 2,

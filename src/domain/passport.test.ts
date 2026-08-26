@@ -1,19 +1,29 @@
 import { describe, expect, it } from "vitest";
 
 import { buildPassport, findPassportCountry, findPassportLocality } from "@/src/domain/passport";
-import { demoSeedCollections } from "@/src/fixtures/demo-passport";
+import { prototypeSeedCollections } from "@/src/fixtures/prototype-passport";
 
 describe("buildPassport", () => {
-  const passport = buildPassport(demoSeedCollections);
+  const passport = buildPassport(prototypeSeedCollections);
 
   it("counts stamps, countries, and localities", () => {
-    expect(passport.stampCount).toBe(demoSeedCollections.length);
+    expect(passport.stampCount).toBe(prototypeSeedCollections.length);
     expect(passport.countryCount).toBe(3);
     expect(passport.localityCount).toBeGreaterThanOrEqual(3);
   });
 
-  it("orders recent impressions newest first", () => {
-    const dates = passport.recent.map((collection) => collection.collectedOn);
+  it("exposes no recent-impressions projection at all", () => {
+    // Recent Impressions is deferred, so the shape it would need is absent.
+    expect("recent" in passport).toBe(false);
+  });
+
+  it("orders a locality's impressions newest first", () => {
+    const locality = passport.countries
+      .flatMap((country) => country.localities)
+      .find((candidate) => candidate.collections.length > 1);
+    const dates = (locality?.collections ?? []).map(
+      (collection) => collection.collectedOn,
+    );
 
     expect([...dates].sort().reverse()).toEqual(dates);
   });

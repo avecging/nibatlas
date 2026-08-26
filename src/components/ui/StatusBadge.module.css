@@ -58,7 +58,7 @@
   color: var(--warning);
 }
 
-.demo {
+.prototype {
   border-color: var(--border-strong);
   background: var(--bg-surface-warm);
   color: var(--text-secondary);

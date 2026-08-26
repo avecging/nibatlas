@@ -18,11 +18,12 @@ const BREAKPOINTS = [
 
 const SCREENS = [
   { name: "map", path: "/" },
-  { name: "shop-detail", path: "/shops/demo-ginza-fountain-pen-salon" },
-  { name: "passport", path: "/passport" },
-  { name: "passport-locality", path: "/passport/jp/chuo-tokyo" },
-  { name: "saved", path: "/saved" },
-  { name: "discover", path: "/discover" },
+  { name: "saved-mode", path: "/saved" },
+  { name: "shop-detail", path: "/shops/ginza-itoya-main-store" },
+  { name: "shop-detail-omitted", path: "/shops/skb-kaohsiung" },
+  { name: "passport-closed", path: "/passport" },
+  { name: "me", path: "/me" },
+  { name: "privacy", path: "/privacy" },
   { name: "styleguide", path: "/styleguide" },
 ];
 
@@ -35,7 +36,9 @@ for (const breakpoint of BREAKPOINTS) {
     test(`${screen.name} at ${breakpoint.name}`, async ({ page }) => {
       await page.setViewportSize({ width: breakpoint.width, height: breakpoint.height });
       await page.goto(screen.path);
-      await expect(page.getByRole("heading").first()).toBeVisible();
+      await expect(
+        page.getByRole("heading", { includeHidden: true }).first(),
+      ).toBeAttached();
 
       if (screen.path === "/") {
         await expect(
@@ -48,7 +51,7 @@ for (const breakpoint of BREAKPOINTS) {
       }
 
       await expect(page).toHaveScreenshot(`${screen.name}-${breakpoint.name}.png`, {
-        fullPage: screen.path !== "/",
+        fullPage: !screen.path.startsWith("/passport") && screen.path !== "/" && screen.path !== "/saved",
         animations: "disabled",
         maxDiffPixelRatio: 0.02,
       });

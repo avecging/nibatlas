@@ -1,112 +1,58 @@
+/*
+ * One impression. `mix-blend-mode: multiply` is what makes the ink read as ink
+ * sitting in paper rather than a sticker placed on top of it.
+ */
 .stamp {
-  --ink: var(--state-visited);
-  position: relative;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  gap: var(--space-1);
+  display: block;
   width: 100%;
-  max-width: 11rem;
-  aspect-ratio: 1 / 1.06;
-  padding: var(--space-3) var(--space-2);
-  border: 2px solid var(--ink);
-  border-radius: var(--radius-stamp);
-  background: var(--bg-surface-warm);
-  color: var(--ink);
-  text-align: center;
-  overflow: hidden;
-  transform: rotate(-1.2deg);
-}
-
-.inkIndigo {
-  --ink: var(--indigo-700);
-}
-
-.inkTeal {
-  --ink: var(--teal-700);
-}
-
-.inkVermilion {
-  --ink: var(--state-visited);
-}
-
-/* Mild registration shift and pressure variation, not a paper texture. */
-.stamp::before {
-  content: "";
-  position: absolute;
-  inset: 3px;
-  border: 1px solid var(--ink);
-  border-radius: 3px;
-  opacity: 0.45;
-  transform: translate(0.6px, -0.5px);
-  pointer-events: none;
-}
-
-.stamp::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    120% 90% at 30% 25%,
-    var(--stamp-pressure-highlight),
-    var(--stamp-pressure-fade) 62%
-  );
-  pointer-events: none;
-}
-
-.motif {
-  display: grid;
-  place-items: center;
-  color: var(--ink);
-}
-
-.country {
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  opacity: 0.9;
-}
-
-.name {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  overflow: hidden;
-  font-family: var(--font-serif);
-  font-size: 0.75rem;
-  line-height: 1.25;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.locality {
-  font-size: 0.625rem;
-  line-height: 1.2;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  overflow-wrap: anywhere;
-}
-
-.footer {
-  display: grid;
-  gap: 1px;
-  border-top: 1px solid var(--ink);
-  padding-top: 3px;
-  font-size: 0.5625rem;
-  line-height: 1.25;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  opacity: 0.92;
+  max-width: 13rem;
 }
 
 .small {
   max-width: 7.5rem;
-  padding: var(--space-2) var(--space-1);
 }
 
-.small .name {
-  font-size: 0.6875rem;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+.canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  mix-blend-mode: multiply;
+}
+
+.tier {
+  font-family: var(--font-sans);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 4px;
+}
+
+.name {
+  font-family: var(--font-serif);
+  font-weight: 600;
+}
+
+.local {
+  font-family: var(--font-serif);
+  font-size: 26px;
+}
+
+.parent {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 2px;
+}
+
+.date {
+  font-family: var(--font-sans);
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: 2.4px;
+}
+
+.provenance {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
 }

@@ -10,6 +10,16 @@ import { defineConfig, devices } from "@playwright/test";
 const visualEnabled = Boolean(process.env.VISUAL);
 const stagingUrl = process.env.STAGING_URL?.trim();
 
+/**
+ * Escape hatch for environments that already ship a Chromium build but not the
+ * exact revision this Playwright version downloads. CI installs browsers
+ * normally and leaves this unset, so the default behaviour is unchanged.
+ */
+const chromiumExecutable = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE?.trim();
+const launchOptions = chromiumExecutable
+  ? { launchOptions: { executablePath: chromiumExecutable } }
+  : {};
+
 export default defineConfig({
   testDir: "./tests",
   fullyParallel: true,
@@ -19,6 +29,7 @@ export default defineConfig({
   use: {
     baseURL: stagingUrl || "http://127.0.0.1:3000",
     trace: "on-first-retry",
+    ...launchOptions,
   },
   // Journeys run against a production build so the results match what CI
   // deploys, and so dev-only HMR behaviour cannot affect assertions.

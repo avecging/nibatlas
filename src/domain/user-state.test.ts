@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { decorateResults, markerStateFor } from "@/src/domain/user-state";
-import { demoShopSummaries } from "@/src/fixtures/demo-catalogue";
+import { prototypeShopSummaries } from "@/src/fixtures/prototype-catalogue";
 
-const publicProjection = demoShopSummaries.map((shop) => ({
+const publicProjection = prototypeShopSummaries.map((shop) => ({
   ...shop,
   markerState: "unvisited" as const,
 }));

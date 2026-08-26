@@ -8,7 +8,7 @@ import {
   selectShopsInViewport,
   toggleShopType,
 } from "@/src/domain/filters";
-import { demoShopSummaries } from "@/src/fixtures/demo-catalogue";
+import { prototypeShopSummaries } from "@/src/fixtures/prototype-catalogue";
 
 const singaporeBounds = { west: 103.6, south: 1.21, east: 104.03, north: 1.47 };
 
@@ -43,7 +43,7 @@ describe("filters", () => {
   });
 
   it("matches on status and shop type together", () => {
-    const shop = demoShopSummaries[0];
+    const shop = prototypeShopSummaries[0];
     expect(shop).toBeDefined();
 
     expect(matchesFilters(shop!, EMPTY_FILTERS)).toBe(true);
@@ -54,7 +54,11 @@ describe("filters", () => {
   });
 
   it("selects only shops inside the viewport", () => {
-    const selected = selectShopsInViewport(demoShopSummaries, singaporeBounds, EMPTY_FILTERS);
+    const selected = selectShopsInViewport(
+      prototypeShopSummaries,
+      singaporeBounds,
+      EMPTY_FILTERS,
+    );
 
     expect(selected.length).toBeGreaterThan(0);
     expect(selected.every((shop) => shop.countryCode === "SG")).toBe(true);

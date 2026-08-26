@@ -1,0 +1,636 @@
+/*
+ * The Passport as an object on a desk.
+ *
+ * Geometry, in book coordinates, for the desktop spread mode:
+ *
+ *   0 ───────────── 340 ───────────── 680
+ *   │  left leaf     │  right leaf     │
+ *                  spine
+ *
+ * The box is always two leaves wide and the spine is always at its centre, so
+ * the cover and every turning leaf hinge on the same fixed line. Closed, only
+ * the right half is painted, and the whole object is shifted left by half a leaf
+ * so the closed passport reads as centred; opening removes that shift over the
+ * same duration and easing as the cover swing. The object translates as one
+ * rigid thing — the spine never moves relative to the page block, the shadow, or
+ * the pages — which is what keeps the cover rotating about its bound edge rather
+ * than appearing to slide off it.
+ */
+.field {
+  position: relative;
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  justify-items: center;
+  align-items: center;
+  min-height: 0;
+  height: 100%;
+  padding: var(--space-4) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom));
+  background: var(--passport-desk);
+  overflow: hidden;
+}
+
+/* A quiet field, not a spotlight: one soft lift in the middle, one soft fall
+   at the edges. */
+.field::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    120% 90% at 50% 40%,
+    rgba(255, 255, 255, 0.5),
+    rgba(16, 45, 70, 0.16) 88%
+  );
+  pointer-events: none;
+}
+
+.stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  perspective: 2400px;
+  perspective-origin: 50% 44%;
+}
+
+.book {
+  --leaf-width: 340px;
+  --leaf-height: 476px;
+  --book-shift: 0px;
+  --book-tilt-y: 0deg;
+  --book-tilt-x: 1.5deg;
+
+  position: relative;
+  width: calc(var(--leaf-width) * 2);
+  height: var(--leaf-height);
+  /*
+   * Perspective sits here rather than `transform-style: preserve-3d`, so the
+   * cover and the turning leaf each get their own 3D projection while the book
+   * itself stays a flat stacking context. That is what keeps `z-index` honest:
+   * in a shared 3D context the browser sorts by depth instead, and the opened
+   * cover — a hair in front of the spread — would paint over the left page.
+   */
+  perspective: 1700px;
+  transform-style: flat;
+  transform: scale(var(--book-scale, 1)) translateX(var(--book-shift))
+    rotateY(var(--book-tilt-y)) rotateX(var(--book-tilt-x));
+  transition:
+    transform var(--motion-cover-open) var(--ease-paper);
+  touch-action: pan-y;
+}
+
+.book[data-mode="single"] {
+  width: var(--leaf-width);
+}
+
+/* Closed: a restrained three-quarter angle, so the cover plane stays readable
+   while the fore-edge and a hint of the page block show. */
+.book[data-opened="false"] {
+  --book-shift: calc(var(--leaf-width) / -2);
+  --book-tilt-y: -21deg;
+  --book-tilt-x: 7deg;
+}
+
+.book[data-mode="single"][data-opened="false"] {
+  --book-shift: 0px;
+  --book-tilt-y: -14deg;
+  --book-tilt-x: 5deg;
+}
+
+/* The page block ---------------------------------------------------------- */
+
+/*
+ * Thin on purpose. The stacked shadows read as roughly two dozen leaves, not
+ * hundreds, and the count does not change as the collection grows.
+ */
+.block {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  border-radius: 3px 8px 8px 3px;
+  background: linear-gradient(var(--paper-100), #e9e1d0);
+  box-shadow:
+    0 22px 48px rgba(16, 45, 70, 0.26),
+    0 2px 0 var(--passport-edge),
+    0 4px 0 var(--passport-edge-deep),
+    0 6px 0 var(--passport-edge);
+  transition: left var(--motion-cover-open) var(--ease-paper);
+}
+
+.book[data-opened="false"] .block {
+  left: var(--leaf-width);
+  border-radius: 3px 9px 9px 3px;
+  box-shadow:
+    0 20px 44px rgba(16, 45, 70, 0.3),
+    2px 2px 0 var(--passport-edge),
+    4px 4px 0 var(--passport-edge-deep),
+    6px 6px 0 var(--passport-edge);
+}
+
+.book[data-mode="single"] .block {
+  left: 0;
+}
+
+/* The settled spread ------------------------------------------------------ */
+
+.spread {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: opacity var(--motion-panel) var(--ease-entrance);
+}
+
+.book[data-opened="false"] .spread {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.leafSlot {
+  position: relative;
+  width: var(--leaf-width);
+  flex: 0 0 var(--leaf-width);
+  height: 100%;
+  background: var(--passport-page);
+  font-size: 16px;
+  overflow: hidden;
+}
+
+/* The fore-edges of both stacks stay faintly visible, so progress through the
+   book is legible from the object itself. */
+.leafSlot[data-side="left"] {
+  border-radius: 8px 0 0 8px;
+  box-shadow: inset -24px 0 28px -24px rgba(16, 45, 70, 0.34);
+}
+
+.leafSlot[data-side="right"] {
+  border-radius: 0 8px 8px 0;
+  box-shadow: inset 24px 0 28px -24px rgba(16, 45, 70, 0.34);
+}
+
+.book[data-mode="single"] .leafSlot[data-side="left"] {
+  display: none;
+}
+
+.book[data-mode="single"] .leafSlot[data-side="right"] {
+  width: 100%;
+  flex: 1 1 auto;
+  border-radius: 8px;
+  box-shadow: inset 18px 0 24px -20px rgba(16, 45, 70, 0.3);
+}
+
+/* The gutter: fixed, continuous, and the same in every state. */
+.gutter {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 34px;
+  transform: translateX(-50%);
+  background: linear-gradient(
+    90deg,
+    rgba(16, 45, 70, 0) 0%,
+    rgba(16, 45, 70, 0.1) 42%,
+    rgba(16, 45, 70, 0.16) 50%,
+    rgba(16, 45, 70, 0.1) 58%,
+    rgba(16, 45, 70, 0) 100%
+  );
+  pointer-events: none;
+}
+
+.book[data-mode="single"] .gutter {
+  left: 0;
+  width: 18px;
+  transform: none;
+  background: linear-gradient(
+    90deg,
+    rgba(16, 45, 70, 0.16),
+    rgba(16, 45, 70, 0)
+  );
+}
+
+/* The turning leaf -------------------------------------------------------- */
+
+.turner {
+  --leaf-rotate: 0deg;
+  --leaf-bend: 0deg;
+  --leaf-progress: 0;
+
+  position: absolute;
+  top: 0;
+  z-index: 6;
+  width: var(--leaf-width);
+  height: var(--leaf-height);
+  transform-style: preserve-3d;
+  transform: rotateY(var(--leaf-rotate));
+  pointer-events: none;
+}
+
+/* Forward: hinged on the spine at the book's centre, sweeping left. */
+.turner[data-side="right"] {
+  left: var(--leaf-width);
+  transform-origin: left center;
+}
+
+/* Reverse: hinged on the same spine from the other side, sweeping right. */
+.turner[data-side="left"] {
+  left: 0;
+  transform-origin: right center;
+}
+
+.book[data-mode="single"] .turner {
+  left: 0;
+  transform-origin: left center;
+}
+
+/* One nested wrapper supplies the mild bend, so the sheet does not stay a rigid
+   rectangle through the whole arc. */
+.turnerBend {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: rotateY(var(--leaf-bend));
+}
+
+.turnerFace {
+  position: absolute;
+  inset: 0;
+  background: var(--passport-page);
+  font-size: 16px;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.turnerFace[data-face="front"] {
+  border-radius: 0 8px 8px 0;
+  box-shadow: -10px 0 26px rgba(16, 45, 70, 0.2);
+}
+
+/*
+ * The back face is pre-rotated, so it reads the right way round once the sheet
+ * has crossed edge-on and never shows through the front as mirrored text.
+ */
+.turnerFace[data-face="back"] {
+  transform: rotateY(180deg);
+  border-radius: 8px 0 0 8px;
+  box-shadow: 10px 0 26px rgba(16, 45, 70, 0.2);
+}
+
+.turner[data-side="left"] .turnerFace[data-face="front"] {
+  border-radius: 8px 0 0 8px;
+  box-shadow: 10px 0 26px rgba(16, 45, 70, 0.2);
+}
+
+.turner[data-side="left"] .turnerFace[data-face="back"] {
+  border-radius: 0 8px 8px 0;
+  box-shadow: -10px 0 26px rgba(16, 45, 70, 0.2);
+}
+
+/* Self-shadow along the bound edge, deepest when the sheet is edge-on. */
+.leafShade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(16, 45, 70, 0.28) 0%,
+    rgba(16, 45, 70, 0) 38%
+  );
+  opacity: calc(var(--leaf-progress) * 0.9);
+  pointer-events: none;
+}
+
+.turnerFace[data-face="back"] .leafShade {
+  background: linear-gradient(
+    270deg,
+    rgba(16, 45, 70, 0.24) 0%,
+    rgba(16, 45, 70, 0) 38%
+  );
+  opacity: calc((1 - var(--leaf-progress)) * 0.9);
+}
+
+/* The cover --------------------------------------------------------------- */
+
+.cover {
+  position: absolute;
+  top: 0;
+  left: var(--leaf-width);
+  z-index: 5;
+  width: var(--leaf-width);
+  height: var(--leaf-height);
+  /* The bound edge. Every degree of the opening arc pivots here. */
+  transform-origin: left center;
+  transform-style: preserve-3d;
+  transform: rotateY(0deg);
+  transition: transform var(--motion-cover-open) var(--ease-paper);
+}
+
+.book[data-mode="single"] .cover {
+  left: 0;
+}
+
+/*
+ * Portrait reading has no left half for the cover to lie on, so once it has
+ * swung open it fades out rather than hanging off the edge of the page.
+ */
+.book[data-mode="single"][data-opened="true"] .cover {
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--motion-cover-open) var(--ease-paper),
+    opacity var(--motion-panel) linear var(--motion-panel);
+}
+
+.book[data-opened="true"] .cover,
+.book[data-cover-animating="true"] .cover {
+  transform: rotateY(-178deg);
+}
+
+/* Once settled the cover is the inside front cover: it sits behind the pages
+   rather than over them. */
+.book[data-opened="true"] .cover {
+  z-index: 1;
+}
+
+.coverFace {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: hidden;
+}
+
+.coverFace[data-face="front"] {
+  display: grid;
+  place-items: center;
+  border-radius: 2px 10px 10px 2px;
+  background: radial-gradient(130% 100% at 30% 0%, #17395b, var(--passport-board) 52%, var(--passport-board-deep));
+  box-shadow: 6px 6px 26px rgba(16, 45, 70, 0.34);
+}
+
+.coverFace[data-face="inside"] {
+  display: grid;
+  align-content: end;
+  padding: var(--space-6);
+  transform: rotateY(180deg);
+  border-radius: 10px 2px 2px 10px;
+  background: linear-gradient(#f1e9d9, #e7ddc8);
+}
+
+.coverInsideText {
+  color: var(--sumi-700);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+/* Restrained grain: enough to read as covered board, not enough to become a
+   texture effect. */
+.coverGrain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.5;
+  background-image:
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(24deg, rgba(0, 0, 0, 0.05) 0 1px, transparent 1px 4px);
+  pointer-events: none;
+}
+
+.coverRuleOuter {
+  position: absolute;
+  inset: 14px;
+  border: 1.3px solid rgba(200, 160, 99, 0.5);
+  border-radius: 4px;
+}
+
+.coverRuleInner {
+  position: absolute;
+  inset: 20px;
+  border: 0.7px solid rgba(200, 160, 99, 0.26);
+  border-radius: 2px;
+}
+
+.coverInner {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* Debossed foil: a light top edge and a dark shadow below, so the mark reads as
+   pressed into the board rather than printed on it. */
+.coverMark {
+  color: var(--foil-bright);
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.45)) drop-shadow(0 -1px 0 rgba(255, 255, 255, 0.14));
+}
+
+.coverWordmark {
+  margin-top: var(--space-3);
+  color: var(--foil-bright);
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+}
+
+.coverDivider {
+  width: 4.4rem;
+  height: 1px;
+  margin: var(--space-4) 0;
+  background: rgba(200, 160, 99, 0.5);
+}
+
+.coverKind {
+  color: var(--foil-dim);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+}
+
+.coverFoot {
+  position: absolute;
+  bottom: var(--space-8);
+  left: 0;
+  right: 0;
+  z-index: 2;
+  text-align: center;
+  color: rgba(200, 160, 99, 0.6);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+}
+
+/* Board thickness: slightly greater than a leaf, visible along the free edge. */
+.coverEdge {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  right: -3px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: linear-gradient(var(--passport-board), var(--passport-board-deep));
+}
+
+/* Controls ---------------------------------------------------------------- */
+
+.openButton {
+  position: absolute;
+  z-index: 8;
+  bottom: calc(6.5rem + env(safe-area-inset-bottom));
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap-target);
+  padding: 0 var(--space-5);
+  border: 0;
+  border-radius: var(--radius-round);
+  background: var(--action-primary);
+  color: var(--text-on-dark);
+  font-size: var(--type-label-size);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.openButton:hover {
+  background: var(--action-primary-hover);
+}
+
+.pager {
+  position: relative;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-round);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 2px 12px rgba(16, 45, 70, 0.1);
+}
+
+.pagerCover {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap-target);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-round);
+  background: none;
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pagerDivider {
+  width: 1px;
+  height: 1.125rem;
+  background: var(--border-default);
+}
+
+.pagerButton {
+  display: grid;
+  place-items: center;
+  width: var(--tap-target);
+  height: var(--tap-target);
+  border: 0;
+  border-radius: var(--radius-round);
+  background: none;
+  color: var(--atlas-900);
+  cursor: pointer;
+}
+
+.pagerButton:disabled,
+.pagerCover:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.pagerLabel {
+  min-width: 8.5rem;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  font-weight: 600;
+}
+
+.hint {
+  position: relative;
+  z-index: 8;
+  margin-top: var(--space-2);
+  color: var(--sumi-700);
+  font-size: var(--type-caption-size);
+  font-weight: 600;
+}
+
+.announce {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Reduced motion ---------------------------------------------------------- */
+
+/*
+ * No perspective rotation, no parallax, no curl. The cover is simply not there
+ * once opened, and page content cross-fades in under 150 ms. Every control, the
+ * page announcement, and focus handling stay exactly as they are.
+ */
+.book[data-reduced-motion="true"] {
+  transition: none;
+  --book-tilt-y: 0deg;
+  --book-tilt-x: 0deg;
+}
+
+.book[data-reduced-motion="true"][data-opened="false"] {
+  --book-shift: calc(var(--leaf-width) / -2);
+}
+
+.book[data-reduced-motion="true"] .cover {
+  transition: opacity var(--motion-reduced-fade) linear;
+}
+
+.book[data-reduced-motion="true"][data-opened="true"] .cover {
+  opacity: 0;
+  transform: none;
+  pointer-events: none;
+}
+
+.book[data-reduced-motion="true"] .leafSlot > * {
+  animation: passportPageFade var(--motion-reduced-fade) linear;
+}
+
+@keyframes passportPageFade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .book,
+  .cover,
+  .block,
+  .spread {
+    transition: none;
+  }
+}

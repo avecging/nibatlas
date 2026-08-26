@@ -64,6 +64,49 @@
   --stamp-pressure-highlight: rgba(255, 255, 255, 0.42);
   --stamp-pressure-fade: rgba(255, 255, 255, 0);
 
+  /*
+   * Brand mark. The primary lockup puts the nib half in Atlas Navy and the
+   * atlas half in the teal exploratory accent; one-colour contexts collapse
+   * both onto `currentColor` instead.
+   */
+  --brand-mark-nib: var(--atlas-900);
+  --brand-mark-atlas: var(--teal-700);
+
+  /*
+   * Passport cover foil. `BRAND.md` reserves Brass for rare ceremonial accents
+   * and the Passport cover is that one place. Two steps are needed because foil
+   * reads as foil only when a brighter edge sits against a dimmer body; both are
+   * derived from Brass 600 and are used nowhere else.
+   */
+  --foil-bright: #c8a063;
+  --foil-dim: var(--brass-600);
+
+  /*
+   * Passport paper and board. Derived from the Paper ramp: the page stock sits
+   * one step warmer than `paper-50`, the board is Atlas Navy shaded for a
+   * cover, and the two edge tones build the visible page block.
+   */
+  --passport-desk: #efe8da;
+  --passport-page: #fcf8ef;
+  --passport-board: #143552;
+  --passport-board-deep: #0a1e31;
+  --passport-edge: #e4dcc9;
+  --passport-edge-deep: #d8ceb7;
+
+  /*
+   * The eight shared global stamp inks. This mirrors `STAMP_INK_HEX` in
+   * `src/domain/stamp-palette.ts`. A standard stamp uses exactly one of them,
+   * and no ink belongs to a country, locality, tier, rarity, or achievement.
+   */
+  --ink-vermilion: #c54b32;
+  --ink-navy: #102d46;
+  --ink-teal: #287a78;
+  --ink-indigo: #365e88;
+  --ink-plum: #6b3f63;
+  --ink-moss: #4f653f;
+  --ink-ochre: #846024;
+  --ink-brick: #8a4338;
+
   /* Typography */
   --font-serif: var(--font-source-serif), "Noto Serif JP", "Noto Serif TC", Georgia, serif;
   --font-sans: var(--font-inter), "Noto Sans JP", "Noto Sans TC", system-ui, sans-serif;
@@ -114,9 +157,19 @@
   /* Motion */
   --motion-micro: 150ms;
   --motion-panel: 260ms;
+  /* Stamp ceremony: 600-900 ms total, per BRAND.md. */
   --motion-ceremony: 780ms;
+  /* Passport cover open: 650-850 ms, per docs/passport-interaction-spec.md. */
+  --motion-cover-open: 760ms;
+  /* Programmatic page turn: 480-700 ms. */
+  --motion-page-turn: 560ms;
+  /* Drag settle, capped near 450 ms. */
+  --motion-page-settle: 420ms;
+  /* The one duration reduced motion is allowed: a cross-fade under 150 ms. */
+  --motion-reduced-fade: 140ms;
   --ease-entrance: cubic-bezier(0.16, 0.84, 0.44, 1);
   --ease-exit: cubic-bezier(0.5, 0, 0.75, 0);
+  --ease-paper: cubic-bezier(0.3, 0.02, 0.2, 1);
 
   /* Layout */
   --nav-height: 3.75rem;
@@ -252,6 +305,37 @@ button {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+/* Plain prose pages (Privacy) ------------------------------------------- */
+
+.privacy-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 40rem;
+  margin: 0 auto;
+  color: var(--text-secondary);
+}
+
+.privacy-page h1,
+.privacy-page h2 {
+  color: var(--text-primary);
+}
+
+.privacy-page h2 {
+  margin-top: var(--space-4);
+}
+
+.privacy-page strong {
+  color: var(--text-primary);
+}
+
+.privacy-page a {
+  color: var(--action-secondary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .visually-hidden {

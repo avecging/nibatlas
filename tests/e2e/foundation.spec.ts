@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test";
 
-test("renders the map shell with a visible demo marker", async ({ page }) => {
+test("renders the map shell with a visible prototype notice", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.getByTestId("map-canvas")).toBeVisible();
-  await expect(page.getByText("Demo data").first()).toBeVisible();
+  await expect(page.getByText("Prototype sample")).toBeVisible();
 });
 
 test("reports application health", async ({ request }) => {

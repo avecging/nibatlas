@@ -7,13 +7,11 @@ import { StampCeremony } from "@/src/components/stamps/StampCeremony";
 import { Button, ButtonLink } from "@/src/components/ui/Button";
 import { Icon } from "@/src/components/ui/Icon";
 import { MarkerStateBadge } from "@/src/components/ui/StatusBadge";
-import { countrySlug } from "@/src/domain/passport";
 import type { StampCollection } from "@/src/domain/passport";
 import type { ShopDetail } from "@/src/domain/shop-detail";
 import { markerStateFor } from "@/src/domain/user-state";
 import { useCollection } from "@/src/features/collection/collection-store";
 import { noopTelemetry } from "@/src/features/map/telemetry";
-import { demoLocalitySlugById } from "@/src/fixtures/demo-catalogue";
 
 import styles from "./ShopActions.module.css";
 
@@ -40,8 +38,7 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
 
   const saved = collection.isSaved(shop.id);
   const existing = collection.collectionForShop(shop.id);
-  const localitySlug = demoLocalitySlugById.get(shop.id) ?? shop.localityName.toLowerCase();
-  const passportHref = `/passport/${countrySlug(shop.countryCode)}/${localitySlug}`;
+  const officialLink = (shop.links ?? []).find((link) => link.isOfficial);
 
   function confirmCollection() {
     const alreadyCollected = existing !== undefined;
@@ -74,6 +71,13 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
           {saved ? "Saved" : "Save"}
         </Button>
 
+        {officialLink ? (
+          <ButtonLink href={officialLink.url} variant="quiet" external>
+            <Icon name="link" size={18} />
+            Official site
+          </ButtonLink>
+        ) : null}
+
         <ButtonLink
           href={externalMapUrl(shop)}
           variant="quiet"
@@ -83,7 +87,7 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
           }
         >
           <Icon name="directions" size={18} />
-          Open location externally
+          Directions
         </ButtonLink>
 
         <Button variant="stamp" onClick={() => setPreflightOpen(true)}>
@@ -96,7 +100,7 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
         <p className={styles.collected}>
           <span>
             <strong>Collected {existing.collectedOn}</strong> ({existing.shopTimezone},
-            simulated). This impression is in your demo Passport.
+            simulated). This impression is in your Passport.
           </span>
         </p>
       ) : null}
@@ -118,7 +122,7 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
               <p>
                 In the finished product, Nib Atlas asks for your location once, at the
                 shop, to confirm you are there. The position is checked and discarded;
-                it is never stored.
+                it is never stored, and it is never read in the background.
               </p>
               <p>
                 This prototype does not request your location and issues no real stamp.
@@ -142,7 +146,7 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
         <StampCeremony
           collection={ceremony}
           alreadyCollected={wasAlreadyCollected}
-          passportHref={passportHref}
+          passportHref="/passport"
           onClose={() => setCeremony(null)}
         />
       ) : null}

@@ -4,7 +4,7 @@ import type {
   ViewportShopRequest,
   ViewportShopResponse,
 } from "@/src/domain/shops";
-import { demoShopSummaries } from "@/src/fixtures/demo-catalogue";
+import { prototypeShopSummaries } from "@/src/fixtures/prototype-catalogue";
 
 /**
  * Milestone 1 data seam.
@@ -20,7 +20,7 @@ export interface ShopSource {
   ): Promise<ViewportShopResponse>;
 }
 
-export const DEMO_RESULT_CAP = 20;
+export const PROTOTYPE_RESULT_CAP = 20;
 
 export class AbortedError extends Error {
   constructor() {
@@ -49,9 +49,9 @@ function toPublicProjection(shop: ShopMapSummary): ShopMapSummary {
 export function createFixtureShopSource(
   options: FixtureShopSourceOptions = {},
 ): ShopSource {
-  const shops = options.shops ?? demoShopSummaries;
+  const shops = options.shops ?? prototypeShopSummaries;
   const latencyMs = options.latencyMs ?? 0;
-  const resultCap = options.resultCap ?? DEMO_RESULT_CAP;
+  const resultCap = options.resultCap ?? PROTOTYPE_RESULT_CAP;
 
   return {
     async fetchViewport(request, signal) {
