@@ -23,7 +23,7 @@ The map is the primary discovery surface. Passport is the durable personal archi
 | **Passport** | Personal book of shop impressions and derived geographic seals | Required |
 | **Me** | Profile, account, settings, privacy, help, export/delete, and sign out | Public shell; personal data requires authentication |
 
-This three-destination structure deliberately keeps Map central and Passport directly accessible. Saved places remain available through a complete cross-location Map mode rather than being duplicated inside Me. Countries and localities visited are expressed through Passport; profile geography and Recent Impressions are deferred unless beta or post-launch evidence shows users want them.
+This three-destination structure deliberately keeps Map central and Passport directly accessible. Saved places remain available through a complete cross-location Map mode rather than being duplicated inside Me. Countries and localities visited appear as concise profile geography in Me and as collection structure in Passport. Recent Impressions is deferred unless beta or post-launch evidence shows users want it.
 
 ### Route map
 
