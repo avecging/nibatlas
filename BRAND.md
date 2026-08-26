@@ -134,11 +134,11 @@ Use variable font files where practical and self-host production webfonts to red
 | `teal-100` | `#DCEBE7` | Saved-state surface |
 | `vermilion-700` | `#C54B32` | Collected/visited impression |
 | `vermilion-100` | `#F3DED4` | Collected-state surface |
-| `indigo-700` | `#365E88` | Regional stamp variation |
+| `indigo-700` | `#365E88` | Approved stamp-ink option |
 | `brass-600` | `#98723D` | Rare ceremonial accent only |
 | `white` | `#FFFFFF` | High-contrast surface where needed |
 
-The everyday interface is dominated by Paper, Sumi, and Atlas Navy. Teal marks intent/saving. Vermilion marks completed visits and the stamp ceremony. Indigo may vary regional stamp art. Brass is not a default button or status colour.
+The everyday interface is dominated by Paper, Sumi, and Atlas Navy. Teal marks intent/saving. Vermilion marks completed visits and the stamp ceremony. Stamp artwork may use approved palette inks independently of country or tier. Brass is not a default button or status colour.
 
 ### Semantic UI colours
 
