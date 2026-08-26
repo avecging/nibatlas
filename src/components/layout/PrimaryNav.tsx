@@ -27,7 +27,12 @@ interface NavItem {
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/", label: "Map", icon: "map", alsoOwns: ["/saved"] },
   { href: "/passport", label: "Passport", icon: "passport" },
-  { href: "/me", label: "Me", icon: "person", alsoOwns: ["/privacy", "/account"] },
+  {
+    href: "/me",
+    label: "Me",
+    icon: "person",
+    alsoOwns: ["/privacy", "/about", "/account"],
+  },
 ];
 
 export function isActive(pathname: string, item: NavItem): boolean {

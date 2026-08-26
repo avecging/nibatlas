@@ -8,6 +8,13 @@ import { defineConfig, devices } from "@playwright/test";
  * into with `VISUAL=1 pnpm test:e2e` and is not part of the default run.
  */
 const visualEnabled = Boolean(process.env.VISUAL);
+
+/**
+ * Review evidence, not an assertion suite: `EVIDENCE=1 pnpm test:e2e` writes the
+ * WP1 reviewer-mode comparison screenshots into `docs/evidence/`. Opted into for
+ * the same reason as the visual project — it produces files rather than verdicts.
+ */
+const evidenceEnabled = Boolean(process.env.EVIDENCE);
 const stagingUrl = process.env.STAGING_URL?.trim();
 
 /**
@@ -64,6 +71,15 @@ export default defineConfig({
           {
             name: "visual",
             testDir: "./tests/visual",
+            use: { ...devices["Desktop Chrome"] },
+          },
+        ]
+      : []),
+    ...(evidenceEnabled
+      ? [
+          {
+            name: "evidence",
+            testDir: "./tests/evidence",
             use: { ...devices["Desktop Chrome"] },
           },
         ]

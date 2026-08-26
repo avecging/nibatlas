@@ -1,14 +1,18 @@
 import { expect, test } from "@playwright/test";
 
+import { seedSampleCollection } from "../support/local-state";
+
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
+  // A clean device has an empty Passport, and an empty book has nothing to turn.
+  await seedSampleCollection(page);
 });
 
 test("the stamp ceremony has an instant reduced-motion treatment", async ({ page }) => {
   await page.goto("/shops/juspirit-banqiao");
 
-  await page.getByRole("button", { name: /collect stamp \(simulated\)/i }).click();
-  await page.getByRole("button", { name: /simulate: i am at this shop/i }).click();
+  await page.getByRole("button", { name: /^collect stamp$/i }).click();
+  await page.getByRole("button", { name: /^i am at this shop$/i }).click();
 
   const dialog = page.getByRole("dialog", { name: /impression collected/i });
   await expect(dialog).toBeVisible();

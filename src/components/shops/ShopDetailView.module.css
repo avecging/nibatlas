@@ -128,6 +128,26 @@
   color: var(--text-secondary);
 }
 
+/*
+ * The one provenance line a normal tester sees.
+ *
+ * Subordinate by design: caption size, muted, no card, no heading. It sits at
+ * the foot of the page as a fact about the record rather than as a section
+ * competing with the shop's own information.
+ */
+.provenanceLine {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-default);
+  /*
+   * Secondary, not muted. `--text-muted` clears AA at body size but not at
+   * caption size on the Paper canvas (4.1:1), and this line is caption size
+   * everywhere it appears.
+   */
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
 .provenance {
   display: grid;
   gap: var(--space-2);

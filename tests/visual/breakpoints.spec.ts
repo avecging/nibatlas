@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { seedSampleCollection } from "../support/local-state";
+
 /**
  * Visual baselines and responsive screenshot evidence.
  *
@@ -29,11 +31,15 @@ const SCREENS = [
   { name: "passport-closed", path: "/passport" },
   { name: "me", path: "/me" },
   { name: "privacy", path: "/privacy" },
+  { name: "about", path: "/about" },
   { name: "styleguide", path: "/styleguide" },
 ];
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
+  // Baselines are more useful with a populated Passport and Saved mode than with
+  // the empty states a clean device now starts in.
+  await seedSampleCollection(page);
 });
 
 for (const breakpoint of BREAKPOINTS) {

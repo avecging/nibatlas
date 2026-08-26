@@ -33,6 +33,22 @@ function usePassportPages() {
   );
 }
 
+/**
+ * The one frame before the device's collection has been read.
+ *
+ * Local state resolves in a mount effect, so the first paint knows nothing about
+ * the reader. Rendering the empty state then would tell someone with six stamps
+ * that their Passport is empty — briefly, but in the one place where that claim
+ * would alarm them. A quiet line costs a frame and says nothing untrue.
+ */
+function PassportSettling({ label }: { readonly label: string }) {
+  return (
+    <div className={styles.empty}>
+      <p role="status">{label}</p>
+    </div>
+  );
+}
+
 function PassportEmpty() {
   return (
     <div className={styles.empty}>
@@ -53,12 +69,16 @@ function PassportEmpty() {
 }
 
 export function PassportOverviewView() {
-  const { passport } = useCollection();
+  const { passport, hydrated } = useCollection();
   const pages = usePassportPages();
 
   useEffect(() => {
     noopTelemetry.record("passport_opened", { surface: "overview" });
   }, []);
+
+  if (!hydrated) {
+    return <PassportSettling label="Opening your Passport…" />;
+  }
 
   if (passport.stampCount === 0) {
     return <PassportEmpty />;
@@ -73,7 +93,7 @@ export function PassportOverviewView() {
 }
 
 export function PassportCountryView({ country }: { readonly country: string }) {
-  const { passport } = useCollection();
+  const { passport, hydrated } = useCollection();
   const pages = usePassportPages();
 
   const view = passport.countries.find(
@@ -85,6 +105,10 @@ export function PassportCountryView({ country }: { readonly country: string }) {
     view && firstLocality
       ? pageIndexForLocality(pages, view.countryCode, firstLocality.slug)
       : null;
+
+  if (!hydrated) {
+    return <PassportSettling label="Opening your Passport…" />;
+  }
 
   if (!view) {
     return (
@@ -113,7 +137,7 @@ export function PassportLocalityView({
   readonly country: string;
   readonly locality: string;
 }) {
-  const { passport } = useCollection();
+  const { passport, hydrated } = useCollection();
   const pages = usePassportPages();
 
   const countryView = passport.countries.find(
@@ -122,6 +146,10 @@ export function PassportLocalityView({
   const localityView = countryView?.localities.find(
     (candidate) => candidate.slug === locality.toLowerCase(),
   );
+
+  if (!hydrated) {
+    return <PassportSettling label="Opening your Passport…" />;
+  }
 
   if (!countryView || !localityView) {
     return (

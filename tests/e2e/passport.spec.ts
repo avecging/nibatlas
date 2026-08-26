@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { seedSampleCollection } from "../support/local-state";
+
 /**
  * The Passport book, exercised through its acceptance checks in
  * `docs/passport-interaction-spec.md`.
@@ -30,9 +32,31 @@ async function bookState(page: Page) {
   });
 }
 
-async function open(page: Page) {
-  await page.goto("/passport");
-  await page.getByRole("button", { name: /open passport/i }).click();
+/*
+ * A clean device now starts with an empty Passport, so these journeys arrange the
+ * collection they are about. The state goes into the ordinary normal-mode store:
+ * a tester who has actually collected things is exactly what is being tested.
+ */
+test.beforeEach(async ({ page }) => {
+  await seedSampleCollection(page);
+});
+
+async function open(page: Page, search = "") {
+  await page.goto(`/passport${search}`);
+
+  // The collection is read from device storage after mount, so the book does not
+  // exist on the first paint. Waiting for it here rather than probing the opener
+  // immediately is what stops a click landing on a page that is about to change.
+  await expect(page.locator("[data-mode]")).toBeAttached();
+
+  // The book remembers that it is open, so a second visit inside one test lands
+  // on the last spread with no cover to open.
+  const opener = page.getByRole("button", { name: /open passport/i });
+
+  if (await opener.isVisible().catch(() => false)) {
+    await opener.click();
+  }
+
   await expect(page.getByRole("button", { name: /previous page/i })).toBeVisible();
   await expect
     .poll(async () => (await bookState(page)).opened, { timeout: 5000 })
@@ -276,8 +300,9 @@ test("the Passport never shows Recent Impressions", async ({ page }) => {
   }
 });
 
-test("seal logic is shown against an explicit versioned set", async ({ page }) => {
-  await open(page);
+/** Brings the seals page onto the visible spread at any breakpoint. */
+async function openSeals(page: Page, search = "") {
+  await open(page, search);
 
   // The seals page is the second logical page, so it is on the opening spread on
   // desktop and one turn away on mobile.
@@ -287,11 +312,23 @@ test("seal logic is shown against an explicit versioned set", async ({ page }) =
   }
 
   await expect(page.getByText(/Geographic seals/i)).toBeVisible();
+}
+
+test("seal logic is shown against an explicit versioned set", async ({ page }) => {
+  await openSeals(page);
+
   // Singapore's curated set is smaller than five and complete, so "complete" is
-  // licensed. Japan and Taiwan show a plain count against a named set version.
+  // licensed. Japan and Taiwan show a plain count against the same curated set.
   await expect(page.getByText(/curated set of 2 complete/i)).toBeVisible();
-  await expect(page.getByText(/set sg-prototype-/)).toBeVisible();
   await expect(page.getByText(/2 of 4 curated shops/).first()).toBeVisible();
+
+  // The set's version identifier proves an earned seal is never revoked when the
+  // catalogue grows. That is a review concern, so it is reviewer-only — the
+  // denominator a reader sees is still licensed by the same versioned set.
+  await expect(page.getByText(/set sg-prototype-/)).toHaveCount(0);
+
+  await openSeals(page, "?review=1");
+  await expect(page.getByText(/set sg-prototype-/)).toBeVisible();
 });
 
 test("a new impression opens the Passport at its own locality page", async ({ page }) => {

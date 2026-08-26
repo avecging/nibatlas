@@ -4,8 +4,9 @@ import Link from "next/link";
 
 import { NibAtlasMark } from "@/src/components/brand/NibAtlasMark";
 import { Icon, type IconName } from "@/src/components/ui/Icon";
-import { PrototypeBadge } from "@/src/components/ui/StatusBadge";
 import { useCollection } from "@/src/features/collection/collection-store";
+import { ReviewerModeBadge } from "@/src/features/reviewer/ReviewerModeBadge";
+import { useReviewerMode } from "@/src/features/reviewer/ReviewerModeProvider";
 
 import styles from "./MeScreen.module.css";
 
@@ -14,15 +15,25 @@ interface RowProps {
   readonly title: string;
   readonly detail: string;
   readonly href?: string;
+  /** What a normal tester reads: why the row cannot be used yet, in plain terms. */
   readonly action?: string;
+  /** The same fact with its milestone number, for internal review. */
+  readonly reviewerAction?: string;
 }
 
 /**
  * Me is deliberately conventional. Every row either navigates somewhere real or
- * says plainly that the action arrives with a later milestone — nothing pretends
- * to work.
+ * says plainly that it cannot be used yet — nothing pretends to work.
+ *
+ * A row that is not ready says so without a milestone number. "Arrives in
+ * Milestone 8" tells a tester nothing they can act on and tells them a great
+ * deal about how the product is built; "Needs an account" is the same fact in
+ * their terms. The milestone wording stays available in reviewer mode, where it
+ * is the useful form.
  */
-function Row({ icon, title, detail, href, action }: RowProps) {
+function Row({ icon, title, detail, href, action, reviewerAction }: RowProps) {
+  const reviewer = useReviewerMode();
+  const pendingLabel = reviewer ? (reviewerAction ?? action) : action;
   const body = (
     <>
       <span className={styles.rowIcon} aria-hidden="true">
@@ -50,7 +61,7 @@ function Row({ icon, title, detail, href, action }: RowProps) {
     <li>
       <div className={styles.row} data-pending="true">
         {body}
-        {action ? <span className={styles.pending}>{action}</span> : null}
+        {pendingLabel ? <span className={styles.pending}>{pendingLabel}</span> : null}
       </div>
     </li>
   );
@@ -79,7 +90,9 @@ function Section({
 }
 
 export function MeScreen() {
-  const { passport, seals, countryProgress, resetPrototypeState } = useCollection();
+  const { passport, seals, countryProgress, hydrated, resetPrototypeState } =
+    useCollection();
+  const reviewer = useReviewerMode();
 
   const localitySeals = seals.filter((seal) => seal.scope === "locality");
   const countrySeals = seals.filter((seal) => seal.scope === "country");
@@ -105,20 +118,29 @@ export function MeScreen() {
             data.
           </p>
         </div>
-        <PrototypeBadge>Prototype</PrototypeBadge>
+        <ReviewerModeBadge />
       </header>
 
+      {/*
+        Nothing here needs an account today, so nothing here may say it does.
+        Saving a shop and keeping an impression both work anonymously and both
+        land in this browser's storage — the honest distinction is device-local
+        versus synced, not signed-out versus signed-in. The full signed-out /
+        signed-in structure is WP2; this is the copy telling the truth about what
+        WP1 actually does.
+      */}
       <Section
         id="me-profile"
         title="Profile"
-        description="Nib Atlas is anonymous until you choose to sign in. Exploring the map and opening shop pages never needs an account."
+        description="Nib Atlas is anonymous. Exploring the map, opening shop pages, saving a shop and keeping an impression all work without an account."
       >
         <ul className={styles.rows}>
           <Row
             icon="person"
             title="Not signed in"
-            detail="Saving shops and keeping a Passport need an account. Browsing does not."
-            action="Sign-in arrives in Milestone 4"
+            detail="Your saved shops and impressions are kept on this device. They do not sync to your other devices, and clearing this browser's data clears them."
+            action="Signing in will sync them later"
+            reviewerAction="Sign-in and sync arrive in Milestone 4"
           />
         </ul>
       </Section>
@@ -149,7 +171,12 @@ export function MeScreen() {
           </p>
         </div>
 
-        {visitedCountries.length === 0 ? (
+        {/*
+          "No visits yet" is a claim about the reader, and local state resolves a
+          frame after the first paint. Holding it until then keeps a returning
+          tester from being told, however briefly, that their record is gone.
+        */}
+        {!hydrated ? null : visitedCountries.length === 0 ? (
           <p className={styles.empty}>
             No visits yet. Collect a stamp at a shop and the country and locality
             appear here.
@@ -199,7 +226,7 @@ export function MeScreen() {
           </p>
         </div>
 
-        {countryProgress.length === 0 ? (
+        {!hydrated ? null : countryProgress.length === 0 ? (
           <p className={styles.empty}>
             Collect a stamp and its locality seal derives straight away.
           </p>
@@ -222,7 +249,7 @@ export function MeScreen() {
                     </span>
                   )}
                 </div>
-                {country.coverageSetVersion ? (
+                {reviewer && country.coverageSetVersion ? (
                   <p className={styles.geoVersion}>
                     Counted against curated set {country.coverageSetVersion}
                   </p>
@@ -250,31 +277,28 @@ export function MeScreen() {
         </ul>
       </Section>
 
-      <Section
-        id="me-location"
-        title="Location and check-in"
-        description="The one place Nib Atlas asks for your location, and what happens to it."
-      >
+      {/*
+        WP1 reduces the location explanation to one sentence and sends the reader
+        to Privacy for the rest. Four paragraphs in Me was the acceptance
+        checklist answering itself: nothing on this screen requests a position,
+        so there is nothing here for the reader to decide.
+      */}
+      <Section id="me-location" title="Location">
         <div className={styles.explainer}>
           <p>
-            <strong>Nib Atlas does not track where you go.</strong> There is no
-            background location, no location history, and no automatic visit
-            recording. Nothing about your position is collected while you browse the
-            map.
+            Nib Atlas never tracks where you go. Your location is used once, when
+            you collect a stamp at a shop, and then discarded.{" "}
+            <Link className={styles.inlineLink} href="/privacy">
+              How location is used
+            </Link>
+            .
           </p>
-          <p>
-            Location is requested once, in the foreground, at the moment you tap{" "}
-            <strong>Collect Stamp</strong> at a shop. The position is used to check
-            you are at that shop, then discarded. Raw coordinates are never stored.
-          </p>
-          <p>
-            You choose every time. If you decline, the map, shop pages, and search
-            keep working exactly as before — you simply do not collect that stamp.
-          </p>
-          <p className={styles.explainerNote}>
-            This prototype does not request your location at all. Collection is
-            simulated so the ceremony and Passport can be reviewed.
-          </p>
+          {reviewer ? (
+            <p className={styles.explainerNote}>
+              Reviewer note: this build does not request your location at all.
+              Collection is simulated so the ceremony and Passport can be reviewed.
+            </p>
+          ) : null}
         </div>
       </Section>
 
@@ -289,14 +313,16 @@ export function MeScreen() {
           <Row
             icon="download"
             title="Export my data"
-            detail="A machine-readable copy of your profile, saved shops, and collected stamps."
-            action="Arrives in Milestone 8"
+            detail="A machine-readable copy of your saved shops and collected impressions."
+            action="Not available yet"
+            reviewerAction="Arrives in Milestone 8"
           />
           <Row
             icon="alert"
             title="Delete my account"
             detail="Removes your profile, saves, and collected stamps. This cannot be undone."
-            action="Arrives in Milestone 8"
+            action="Needs an account"
+            reviewerAction="Arrives in Milestone 8"
           />
         </ul>
       </Section>
@@ -304,41 +330,67 @@ export function MeScreen() {
       <Section id="me-help" title="Help and account">
         <ul className={styles.rows}>
           <Row
+            icon="map"
+            title="About Nib Atlas"
+            detail="What the catalogue is, and the countries it covers today."
+            href="/about"
+          />
+          <Row
             icon="help"
             title="Help and contact"
             detail="Report incorrect shop information or ask for help with a failed collection."
-            action="Arrives in Milestone 6"
+            action="Not available yet"
+            reviewerAction="Arrives in Milestone 6"
           />
           <Row
             icon="logout"
             title="Sign out"
-            detail="Ends the session on this device. Your Passport stays on your account."
-            action="Needs an account first"
+            detail="Ends a signed-in session. Nothing on this device is signed in yet."
+            action="Nothing to sign out of"
           />
         </ul>
       </Section>
 
-      <Section id="me-prototype" title="Prototype controls">
-        <p className={styles.sectionNote}>
-          Milestone 1 keeps saves and simulated collections in this browser session
-          only. Nothing is sent anywhere.
-        </p>
-        <ul className={styles.rows}>
-          <li>
-            <button className={styles.row} type="button" onClick={resetPrototypeState}>
-              <span className={styles.rowIcon} aria-hidden="true">
-                <Icon name="clock" size={20} />
-              </span>
-              <span className={styles.rowText}>
-                <span className={styles.rowTitle}>Reset the prototype session</span>
-                <span className={styles.rowDetail}>
-                  Restores the seeded saves and simulated impressions.
+      {/*
+        Reviewer-only, and gated with a conditional rather than CSS so the reset
+        control is not merely invisible to a tester — it is not in their document
+        at all, and cannot be reached by keyboard or assistive technology.
+      */}
+      {reviewer ? (
+        <Section id="me-prototype" title="Prototype controls">
+          {/*
+            Reviewer-facing, so it names the storage. It also has to be accurate:
+            the store moved to mode-namespaced local storage, so this state now
+            survives a reload, a new tab and a closed browser — it is no longer a
+            session.
+          */}
+          <p className={styles.sectionNote}>
+            Saves and simulated collections are kept on this device only, in this
+            browser&rsquo;s local storage under a reviewer-only key. They survive a
+            reload and a new tab, they are separate from the normal-mode store, and
+            nothing is sent anywhere.
+          </p>
+          <ul className={styles.rows}>
+            <li>
+              <button
+                className={styles.row}
+                type="button"
+                onClick={resetPrototypeState}
+              >
+                <span className={styles.rowIcon} aria-hidden="true">
+                  <Icon name="clock" size={20} />
                 </span>
-              </span>
-            </button>
-          </li>
-        </ul>
-      </Section>
+                <span className={styles.rowText}>
+                  <span className={styles.rowTitle}>Reset the prototype session</span>
+                  <span className={styles.rowDetail}>
+                    Restores the seeded saves and simulated impressions.
+                  </span>
+                </span>
+              </button>
+            </li>
+          </ul>
+        </Section>
+      ) : null}
     </div>
   );
 }

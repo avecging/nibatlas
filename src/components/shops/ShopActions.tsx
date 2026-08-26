@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useState } from "react";
 
 import { useDialogFocus } from "@/src/components/hooks/useDialogFocus";
@@ -12,6 +13,7 @@ import type { ShopDetail } from "@/src/domain/shop-detail";
 import { markerStateFor } from "@/src/domain/user-state";
 import { useCollection } from "@/src/features/collection/collection-store";
 import { noopTelemetry } from "@/src/features/map/telemetry";
+import { useReviewerMode } from "@/src/features/reviewer/ReviewerModeProvider";
 import { prototypeLocalitySlugById } from "@/src/fixtures/prototype-catalogue";
 
 import styles from "./ShopActions.module.css";
@@ -30,6 +32,7 @@ function externalMapUrl(shop: ShopDetail): string {
 
 export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
   const collection = useCollection();
+  const reviewer = useReviewerMode();
   const [preflightOpen, setPreflightOpen] = useState(false);
   const [ceremony, setCeremony] = useState<StampCollection | null>(null);
   const [wasAlreadyCollected, setWasAlreadyCollected] = useState(false);
@@ -100,17 +103,27 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
           Directions
         </ButtonLink>
 
+        {/*
+          Collect Stamp stays visible in both modes, per accepted decision 2. Only
+          the label's diagnostic suffix is reviewer-only: a tester should read the
+          product's action, not the build's caveat, on the button itself.
+        */}
         <Button variant="stamp" onClick={() => setPreflightOpen(true)}>
           <Icon name="seal" size={18} />
-          {existing ? "View Atlas Stamp" : "Collect Stamp (simulated)"}
+          {existing
+            ? "View Atlas Stamp"
+            : reviewer
+              ? "Collect Stamp (simulated)"
+              : "Collect Stamp"}
         </Button>
       </div>
 
       {existing ? (
         <p className={styles.collected}>
           <span>
-            <strong>Collected {existing.collectedOn}</strong> ({existing.shopTimezone},
-            simulated). This impression is in your Passport.
+            <strong>Collected {existing.collectedOn}</strong>
+            {reviewer ? ` (${existing.shopTimezone}, simulated)` : ""}. This
+            impression is in your Passport.
           </span>
         </p>
       ) : null}
@@ -129,20 +142,52 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
               {existing ? "You already have this stamp" : "Before you collect"}
             </h2>
             <div className={styles.dialogBody}>
-              <p>
-                In the finished product, Nib Atlas asks for your location once, at the
-                shop, to confirm you are there. The position is checked and discarded;
-                it is never stored, and it is never read in the background.
-              </p>
-              <p>
-                This prototype does not request your location and issues no real stamp.
-                Confirming simulates the outcome so the ceremony and Passport can be
-                reviewed.
-              </p>
+              {/*
+                The location explanation is reduced to the minimum a person needs
+                at the moment it would be requested: one sentence on the one-time
+                foreground check, and one honest sentence that it is not running
+                yet. The full plain-language account lives on Privacy, which is
+                linked from here rather than reproduced.
+              */}
+              {existing ? null : (
+                <>
+                  <p>
+                    Nib Atlas asks for your location once, here at the shop, to
+                    confirm you are there. It is checked and discarded, never stored
+                    and never read in the background.{" "}
+                    <Link className={styles.dialogLink} href="/privacy">
+                      How location is used
+                    </Link>
+                    .
+                  </p>
+                  <p>
+                    <strong>That check is not running yet.</strong> Confirming keeps
+                    a preview impression on this device so you can see how the
+                    Passport works; it is not a verified visit.
+                  </p>
+                </>
+              )}
+              {existing ? (
+                <p>
+                  You collected this impression on {existing.collectedOn}. Opening it
+                  again does not issue a second stamp.
+                </p>
+              ) : null}
+              {reviewer ? (
+                <p className={styles.dialogDiagnostic}>
+                  Reviewer note: this build never calls the Geolocation API. The
+                  confirm action issues a simulated collection so the ceremony,
+                  seal derivation, and Passport can be reviewed.
+                </p>
+              ) : null}
             </div>
             <div className={styles.dialogActions}>
               <Button variant="stamp" fullWidth onClick={confirmCollection}>
-                {existing ? "Show the impression" : "Simulate: I am at this shop"}
+                {existing
+                  ? "Show the impression"
+                  : reviewer
+                    ? "Simulate: I am at this shop"
+                    : "I am at this shop"}
               </Button>
               <Button variant="quiet" fullWidth onClick={closePreflight}>
                 Cancel

@@ -6,7 +6,8 @@ import type { ReactNode } from "react";
 
 import { NibAtlasMark } from "@/src/components/brand/NibAtlasMark";
 import { PrimaryNav } from "@/src/components/layout/PrimaryNav";
-import { PrototypeBadge } from "@/src/components/ui/StatusBadge";
+import { ReviewerModeBadge } from "@/src/features/reviewer/ReviewerModeBadge";
+import { useReviewerMode } from "@/src/features/reviewer/ReviewerModeProvider";
 
 import styles from "./AppShell.module.css";
 
@@ -29,9 +30,14 @@ function variantFor(pathname: string): ShellVariant {
 export function AppShell({ children }: { readonly children: ReactNode }) {
   const pathname = usePathname() ?? "/";
   const variant = variantFor(pathname);
+  const reviewer = useReviewerMode();
 
   return (
-    <div className={styles.shell} data-shell-variant={variant}>
+    <div
+      className={styles.shell}
+      data-shell-variant={variant}
+      data-reviewer-mode={reviewer ? "on" : "off"}
+    >
       <a className="skip-link" href="#main-content">
         Skip to main content
       </a>
@@ -48,7 +54,13 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
           itemClassName={styles.desktopNavItem}
         />
         <span className={styles.headerSpacer} />
-        <PrototypeBadge>Prototype data</PrototypeBadge>
+        {/*
+          The only chrome the shell adds beyond navigation. In normal mode the
+          header carries the brand and the sections and nothing else; the
+          Milestone 1 "Prototype data" badge on every screen is now part of the
+          reviewer marker instead.
+        */}
+        <ReviewerModeBadge />
       </header>
 
       <main

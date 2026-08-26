@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { seedSampleCollection } from "../support/local-state";
+
 async function openMap(page: Page) {
   await page.goto("/");
   await expect(page.getByTestId("map-canvas")).toBeVisible();
@@ -250,8 +252,10 @@ test("filters apply only when the viewport query is committed", async ({ page })
 });
 
 test("global Saved mode reaches shops outside the current viewport", async ({ page }) => {
+  // A clean device saves nothing, so this journey arranges the saves it browses.
+  await seedSampleCollection(page);
   await openMap(page);
-  // Commit a viewport over Tainan, which holds neither seeded saved shop.
+  // Commit a viewport over Tainan, which holds neither saved shop.
   await searchDestination(page, "Tainan", /^Tainan/);
 
   await page.getByRole("link", { name: /^Saved \(/ }).click();
@@ -269,6 +273,7 @@ test("global Saved mode reaches shops outside the current viewport", async ({ pa
 });
 
 test("a saved shop returns to the map with that shop selected", async ({ page }) => {
+  await seedSampleCollection(page);
   await page.goto("/saved");
   await raiseSheet(page);
 
@@ -283,6 +288,9 @@ test("a saved shop returns to the map with that shop selected", async ({ page })
 });
 
 test("explore to simulated collection to Passport", async ({ page }) => {
+  // Pen House is already collected in the sample state, so this exercises the
+  // duplicate path into the Passport.
+  await seedSampleCollection(page);
   await openMap(page);
   await searchDestination(page, "Tainan", /^Tainan/);
 
@@ -313,8 +321,8 @@ test("explore to simulated collection to Passport", async ({ page }) => {
 test("collecting once updates Visited everywhere, and only once", async ({ page }) => {
   await page.goto("/shops/juspirit-banqiao");
 
-  await page.getByRole("button", { name: /collect stamp \(simulated\)/i }).click();
-  await page.getByRole("button", { name: /simulate: i am at this shop/i }).click();
+  await page.getByRole("button", { name: /^collect stamp$/i }).click();
+  await page.getByRole("button", { name: /^i am at this shop$/i }).click();
   await expect(page.getByRole("dialog", { name: /impression collected/i })).toBeVisible();
   await page.getByRole("button", { name: /back to shop/i }).click();
 
@@ -333,9 +341,13 @@ test("collecting once updates Visited everywhere, and only once", async ({ page 
   const card = page.getByRole("article", { name: "Juspirit" });
   await expect(card.getByText("Visited")).toBeVisible();
 
-  // Me counts it exactly once.
+  // Me counts it exactly once, and it is the only thing there: this device
+  // started clean and collected exactly one impression.
   await page.goto("/me");
   await expect(page.getByText("Banqiao, New Taipei")).toHaveCount(1);
+  await expect(
+    page.locator("p", { has: page.getByText("Shop stamps", { exact: true }) }),
+  ).toContainText("1");
 });
 
 test("saving a shop is consistent across card, shop page, and Saved mode", async ({
@@ -369,23 +381,44 @@ test("long Japanese and Traditional Chinese names render without overflow", asyn
   expect(overflowing).toBe(false);
 });
 
-test("a shop with no published hours shows none, and says so", async ({ page }) => {
+test("a shop with no published hours gives one caution, not an explanation", async ({
+  page,
+}) => {
   await page.goto("/shops/skb-kaohsiung");
 
-  await expect(page.getByText(/No opening hours are published/i)).toBeVisible();
+  // Unknown hours could disrupt a visit, so one concise caution stands.
+  await expect(
+    page.getByText(/Opening hours are not published by the shop/i),
+  ).toBeVisible();
+
   // No invented address, and no empty placeholder pretending to be one.
   await expect(page.getByText("Address", { exact: true })).toHaveCount(0);
+
+  // Coordinate precision is a note to field verification, not a fact a visitor
+  // can use, so it is reviewer-only now.
+  await expect(page.getByText(/Approximate, locality only/i)).toHaveCount(0);
+  await expect(page.getByText(/Map position/)).toHaveCount(0);
+
+  await page.goto("/shops/skb-kaohsiung?review=1");
   await expect(page.getByText(/Approximate, locality only/i)).toBeVisible();
 });
 
 test("every shop page says where its facts came from", async ({ page }) => {
+  // Normal mode: one subordinate sentence naming the source and the date it was
+  // read. The per-field breakdown moved behind reviewer mode.
   await page.goto("/shops/ginza-itoya-main-store");
 
-  const provenance = page.getByRole("region", { name: /where this came from/i }).or(
-    page.locator("section", { has: page.getByRole("heading", { name: /where this came from/i }) }),
-  );
+  await expect(
+    page.getByText(/Details from the shop's own website, checked \d+ \w+ \d{4}\./),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: /where this came from/i })).toHaveCount(0);
 
-  await expect(provenance.first()).toContainText("ito-ya.co.jp");
-  await expect(provenance.first()).toContainText(/confirms/i);
-  await expect(page.getByText(/not a complete or\s+continuously verified catalogue/i)).toBeVisible();
+  // Reviewer mode: the full list, with its retrieval dates and confirmed fields.
+  await page.goto("/shops/ginza-itoya-main-store?review=1");
+
+  const provenance = page.getByTestId("shop-provenance-detail");
+
+  await expect(provenance).toContainText("ito-ya.co.jp");
+  await expect(provenance).toContainText(/confirms/i);
+  await expect(provenance).toContainText(/not a complete or\s+continuously verified catalogue/i);
 });

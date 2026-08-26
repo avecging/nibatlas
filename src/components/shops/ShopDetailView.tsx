@@ -1,15 +1,14 @@
 import type { ReactNode } from "react";
 
 import { localeForCountry } from "@/src/components/shops/locale";
+import {
+  ShopPositionDiagnostic,
+  ShopProvenance,
+} from "@/src/components/shops/ShopReviewerDetails";
 import { Icon } from "@/src/components/ui/Icon";
+import { OperationalStatusBadge } from "@/src/components/ui/StatusBadge";
 import {
-  OperationalStatusBadge,
-  PrototypeBadge,
-} from "@/src/components/ui/StatusBadge";
-import {
-  POSITION_PRECISION_LABELS,
   SHOP_TYPE_LABELS,
-  SOURCE_KIND_LABELS,
   type OpeningHoursDay,
   type ShopDetail,
 } from "@/src/domain/shop-detail";
@@ -171,14 +170,7 @@ export function ShopDetailView({
                 </span>
               </p>
             ))}
-            <p className={styles.fact}>
-              <Icon name="map" size={18} />
-              <span>
-                <span className={styles.factLabel}>Map position</span>
-                {POSITION_PRECISION_LABELS[shop.positionPrecision]}. Not a surveyed
-                coordinate.
-              </span>
-            </p>
+            <ShopPositionDiagnostic shop={shop} />
           </div>
         </section>
 
@@ -186,10 +178,18 @@ export function ShopDetailView({
           <h2 className={styles.sectionTitle} id="hours">
             Opening hours
           </h2>
+          {/*
+            Ordinary unsupported fields are omitted silently, but unknown hours
+            are the case accepted decision 1 allows one caution for: turning up
+            to a closed shop is the failure this page exists to prevent.
+          */}
           {hours.length === 0 ? (
-            <p className={styles.plain}>
-              {shop.openingHoursNote ??
-                "No opening hours are recorded for this shop, so none are shown."}
+            <p className={styles.fact}>
+              <Icon name="alert" size={18} />
+              <span>
+                {shop.openingHoursNote ??
+                  "Opening hours are not confirmed. Check with the shop before travelling."}
+              </span>
             </p>
           ) : (
             <>
@@ -209,12 +209,12 @@ export function ShopDetailView({
               {shop.openingHoursNote ? (
                 <p className={styles.plain}>{shop.openingHoursNote}</p>
               ) : null}
+              <p className={styles.fact}>
+                <Icon name="alert" size={18} />
+                <span>Always confirm with the shop before travelling.</span>
+              </p>
             </>
           )}
-          <p className={styles.fact}>
-            <Icon name="alert" size={18} />
-            <span>Always confirm with the shop before travelling.</span>
-          </p>
         </section>
 
         {brands.length > 0 ? (
@@ -223,52 +223,14 @@ export function ShopDetailView({
               Brands seen at this shop
             </h2>
             <p className={styles.plain}>
-              Supporting information only, taken from the source below. Stock changes
-              without notice and Nib Atlas is not a product catalogue.
+              Stock changes without notice, and Nib Atlas is not a product
+              catalogue.
             </p>
             <TagList items={brands} label="Brands" />
           </section>
         ) : null}
 
-        <section
-          className={`${styles.provenance} ${styles.wide}`}
-          aria-labelledby="provenance"
-        >
-          <h2 className="type-h3" id="provenance">
-            Where this came from
-          </h2>
-          <p>
-            Nib Atlas shows only what a source supports. Anything a source did not
-            confirm is left off this page rather than filled in.
-          </p>
-          <ul className={styles.sourceList}>
-            {shop.sources.map((source) => (
-              <li className={styles.sourceRow} key={`${source.label}-${source.retrievedOn}`}>
-                <span className={styles.sourceKind}>{SOURCE_KIND_LABELS[source.kind]}</span>
-                <p className={styles.sourceLabel}>
-                  {source.url ? (
-                    <a href={source.url} rel="noreferrer noopener" target="_blank">
-                      {source.label}
-                    </a>
-                  ) : (
-                    source.label
-                  )}
-                </p>
-                <span className={styles.sourceMeta}>
-                  Read {source.retrievedOn} · confirms {source.confirms.join(", ")}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <div className={styles.provenanceFooter}>
-            <PrototypeBadge>Prototype catalogue</PrototypeBadge>
-            <span>
-              This is a small sourced sample for review, not a complete or
-              continuously verified catalogue. Reporting incorrect information
-              arrives with the founder administration milestone.
-            </span>
-          </div>
-        </section>
+        <ShopProvenance shop={shop} />
       </div>
     </div>
   );
