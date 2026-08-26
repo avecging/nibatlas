@@ -90,7 +90,8 @@ function Section({
 }
 
 export function MeScreen() {
-  const { passport, seals, countryProgress, resetPrototypeState } = useCollection();
+  const { passport, seals, countryProgress, hydrated, resetPrototypeState } =
+    useCollection();
   const reviewer = useReviewerMode();
 
   const localitySeals = seals.filter((seal) => seal.scope === "locality");
@@ -120,18 +121,26 @@ export function MeScreen() {
         <ReviewerModeBadge />
       </header>
 
+      {/*
+        Nothing here needs an account today, so nothing here may say it does.
+        Saving a shop and keeping an impression both work anonymously and both
+        land in this browser's storage — the honest distinction is device-local
+        versus synced, not signed-out versus signed-in. The full signed-out /
+        signed-in structure is WP2; this is the copy telling the truth about what
+        WP1 actually does.
+      */}
       <Section
         id="me-profile"
         title="Profile"
-        description="Nib Atlas is anonymous until you choose to sign in. Exploring the map and opening shop pages never needs an account."
+        description="Nib Atlas is anonymous. Exploring the map, opening shop pages, saving a shop and keeping an impression all work without an account."
       >
         <ul className={styles.rows}>
           <Row
             icon="person"
             title="Not signed in"
-            detail="Saving shops and keeping a Passport need an account. Browsing does not."
-            action="Sign-in not available yet"
-            reviewerAction="Sign-in arrives in Milestone 4"
+            detail="Your saved shops and impressions are kept on this device. They do not sync to your other devices, and clearing this browser's data clears them."
+            action="Signing in will sync them later"
+            reviewerAction="Sign-in and sync arrive in Milestone 4"
           />
         </ul>
       </Section>
@@ -162,7 +171,12 @@ export function MeScreen() {
           </p>
         </div>
 
-        {visitedCountries.length === 0 ? (
+        {/*
+          "No visits yet" is a claim about the reader, and local state resolves a
+          frame after the first paint. Holding it until then keeps a returning
+          tester from being told, however briefly, that their record is gone.
+        */}
+        {!hydrated ? null : visitedCountries.length === 0 ? (
           <p className={styles.empty}>
             No visits yet. Collect a stamp at a shop and the country and locality
             appear here.
@@ -212,7 +226,7 @@ export function MeScreen() {
           </p>
         </div>
 
-        {countryProgress.length === 0 ? (
+        {!hydrated ? null : countryProgress.length === 0 ? (
           <p className={styles.empty}>
             Collect a stamp and its locality seal derives straight away.
           </p>
@@ -299,8 +313,8 @@ export function MeScreen() {
           <Row
             icon="download"
             title="Export my data"
-            detail="A machine-readable copy of your profile, saved shops, and collected stamps."
-            action="Needs an account"
+            detail="A machine-readable copy of your saved shops and collected impressions."
+            action="Not available yet"
             reviewerAction="Arrives in Milestone 8"
           />
           <Row
@@ -331,8 +345,8 @@ export function MeScreen() {
           <Row
             icon="logout"
             title="Sign out"
-            detail="Ends the session on this device. Your Passport stays on your account."
-            action="Needs an account first"
+            detail="Ends a signed-in session. Nothing on this device is signed in yet."
+            action="Nothing to sign out of"
           />
         </ul>
       </Section>

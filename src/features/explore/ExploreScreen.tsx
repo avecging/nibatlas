@@ -440,9 +440,19 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
           it is. Selecting one moves the map to it.
         </span>
       </p>
-      {savedGroups.length === 0 ? (
+      {/*
+        Same rule as Passport: "Nothing saved yet" is a claim about the reader, and
+        local state resolves a frame after the first paint.
+      */}
+      {!collection.hydrated ? null : savedGroups.length === 0 ? (
         <div className={styles.savedEmpty}>
-          <p className="type-h3">Nothing saved yet</p>
+          {/*
+            A real heading, not a paragraph styled like one. With a clean device
+            now starting with nothing saved, this is the whole content of the
+            screen, and it was leaving the page with no heading at all for a
+            screen reader to land on.
+          */}
+          <h3 className="type-h3">Nothing saved yet</h3>
           <p>
             Save a shop from a marker, a card, or a shop page and it appears here —
             in any country.

@@ -12,6 +12,7 @@ import {
 
 import {
   REVIEWER_STORAGE_KEY,
+  hrefWithoutReviewerParam,
   parseStoredReviewerChoice,
   resolveReviewerMode,
   reviewerParamFromSearch,
@@ -51,6 +52,28 @@ function writeStoredChoice(enabled: boolean): void {
     window.localStorage.setItem(REVIEWER_STORAGE_KEY, serializeReviewerChoice(enabled));
   } catch {
     // Best effort. The flag still applies for this page view.
+  }
+}
+
+/**
+ * Takes `review` out of the address bar after an in-app choice.
+ *
+ * Without this the exit control is not durable: the parameter outranks the
+ * remembered choice, so reloading the very page the reviewer exited from would
+ * turn reviewer mode back on. `replaceState` is used rather than a router
+ * navigation because nothing is being navigated to — the same page simply stops
+ * carrying the flag — and the existing history state is passed through so the
+ * router's own back/forward bookkeeping survives.
+ */
+function clearReviewerParamFromUrl(): void {
+  try {
+    const stripped = hrefWithoutReviewerParam(window.location.href);
+
+    if (stripped !== null) {
+      window.history.replaceState(window.history.state, "", stripped);
+    }
+  } catch {
+    // A blocked History API must not break the mode change itself.
   }
 }
 
@@ -100,6 +123,7 @@ export function ReviewerModeProvider({ children }: { readonly children: ReactNod
   const setReviewer = useCallback((next: boolean) => {
     writeStoredChoice(next);
     setReviewerState(next);
+    clearReviewerParamFromUrl();
   }, []);
 
   const value = useMemo<ReviewerModeStore>(

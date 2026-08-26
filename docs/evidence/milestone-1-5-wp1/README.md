@@ -35,6 +35,22 @@ so the captures are deterministic.
 | `about` | `/about` | The WP1 destination. Product-facing only — there is no reviewer-only content beyond one note |
 | `collect-preflight` | `/shops/nagasawa-penstyle-den` | The collection dialog: two short honest sentences plus a Privacy link, versus the same plus the diagnostic note |
 
+Both sides of every pair carry the same arranged collection, so the difference
+shown is the copy and visibility pass rather than a difference in state.
+
+## The clean device
+
+Three unpaired captures, added with the first review's revisions:
+
+| Capture | Route | What it shows |
+| --- | --- | --- |
+| `clean-passport` | `/passport` | An empty Passport. Milestone 1 opened every device on six seeded stamps, which Me and Passport then presented as the tester's own history |
+| `clean-me` | `/me` | Zeroes throughout, and the corrected copy: saves and impressions are device-local, not account-gated |
+| `clean-saved` | `/saved` | Nothing saved |
+
+This is what a tester who has just been handed the link actually sees. The seeded
+demonstration collection is now reviewer-only.
+
 ## Scope
 
 **The 1440 × 900 captures are evidence of the copy and visibility pass only.**

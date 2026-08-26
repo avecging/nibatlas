@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { ShopActions, ShopStatusBadges } from "@/src/components/shops/ShopActions";
 import { ShopBackLink } from "@/src/components/shops/ShopBackLink";
 import { ShopDetailView } from "@/src/components/shops/ShopDetailView";
+import { shopMetaDescription } from "@/src/components/shops/shop-metadata";
 import detailStyles from "@/src/components/shops/ShopDetailView.module.css";
 import {
   findPrototypeShop,
@@ -29,11 +30,10 @@ export async function generateMetadata({
 
   return {
     title: shop.name,
-    // Shared and indexed, so this is product copy rather than a build note. The
-    // catalogue's limits belong on About, not in every shop's meta description.
-    description:
-      shop.shortDescription ??
-      `${shop.name} in ${shop.localityName}. Address, hours, and what you can do there, on Nib Atlas.`,
+    // Shared and indexed, so this is product copy rather than a build note, and
+    // it is built only from fields the record actually carries — a preview must
+    // never advertise an address or hours the page omits.
+    description: shopMetaDescription(shop),
   };
 }
 

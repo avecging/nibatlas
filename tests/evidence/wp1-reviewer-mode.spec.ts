@@ -4,6 +4,7 @@ import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 
 import { REVIEWER_STORAGE_KEY } from "../../src/features/reviewer/reviewer-mode";
+import { seedSampleCollection } from "../support/local-state";
 
 /**
  * WP1 review evidence: the same pages with reviewer mode off and on.
@@ -59,6 +60,14 @@ test.beforeAll(async () => {
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
+  /*
+   * The pairs are about copy and visibility, so both sides carry the same
+   * collection. A clean device now starts empty in normal mode, and comparing an
+   * empty Passport against a seeded one would show that difference instead of
+   * the one under review; the clean-start behaviour has its own capture below.
+   */
+  await seedSampleCollection(page);
+  await seedSampleCollection(page, "reviewer");
 });
 
 for (const breakpoint of BREAKPOINTS) {
@@ -117,6 +126,46 @@ for (const breakpoint of BREAKPOINTS) {
           OUT_DIR,
           `${breakpoint.name}-collect-preflight-reviewer-${mode}.png`,
         ),
+        animations: "disabled",
+      });
+    });
+  }
+}
+
+/**
+ * The clean-device state, which is the change reviewer mode is *not* about.
+ *
+ * A tester who has just been handed the link starts with an empty Passport and
+ * nothing saved. Captured on its own so the founder can see the first-run
+ * experience separately from the copy pass.
+ */
+for (const breakpoint of BREAKPOINTS) {
+  for (const screen of [
+    { name: "clean-passport", path: "/passport" },
+    { name: "clean-me", path: "/me" },
+    { name: "clean-saved", path: "/saved" },
+  ] as const) {
+    test(`${screen.name} ${breakpoint.name}`, async ({ page }) => {
+      // Overrides the shared arrangement: this is the untouched device.
+      await page.addInitScript(() => {
+        try {
+          window.localStorage.clear();
+          window.sessionStorage.clear();
+        } catch {
+          // Nothing to clear.
+        }
+      });
+      await page.setViewportSize({ width: breakpoint.width, height: breakpoint.height });
+      await page.goto(screen.path);
+
+      await expect(page.locator("[data-reviewer-mode]")).toHaveAttribute(
+        "data-reviewer-mode",
+        "off",
+      );
+
+      await page.screenshot({
+        path: path.join(OUT_DIR, `${breakpoint.name}-${screen.name}.png`),
+        fullPage: screen.path === "/me",
         animations: "disabled",
       });
     });

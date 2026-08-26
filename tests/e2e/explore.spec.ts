@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { seedSampleCollection } from "../support/local-state";
+
 async function openMap(page: Page) {
   await page.goto("/");
   await expect(page.getByTestId("map-canvas")).toBeVisible();
@@ -250,8 +252,10 @@ test("filters apply only when the viewport query is committed", async ({ page })
 });
 
 test("global Saved mode reaches shops outside the current viewport", async ({ page }) => {
+  // A clean device saves nothing, so this journey arranges the saves it browses.
+  await seedSampleCollection(page);
   await openMap(page);
-  // Commit a viewport over Tainan, which holds neither seeded saved shop.
+  // Commit a viewport over Tainan, which holds neither saved shop.
   await searchDestination(page, "Tainan", /^Tainan/);
 
   await page.getByRole("link", { name: /^Saved \(/ }).click();
@@ -269,6 +273,7 @@ test("global Saved mode reaches shops outside the current viewport", async ({ pa
 });
 
 test("a saved shop returns to the map with that shop selected", async ({ page }) => {
+  await seedSampleCollection(page);
   await page.goto("/saved");
   await raiseSheet(page);
 
@@ -283,6 +288,9 @@ test("a saved shop returns to the map with that shop selected", async ({ page })
 });
 
 test("explore to simulated collection to Passport", async ({ page }) => {
+  // Pen House is already collected in the sample state, so this exercises the
+  // duplicate path into the Passport.
+  await seedSampleCollection(page);
   await openMap(page);
   await searchDestination(page, "Tainan", /^Tainan/);
 
@@ -333,9 +341,13 @@ test("collecting once updates Visited everywhere, and only once", async ({ page 
   const card = page.getByRole("article", { name: "Juspirit" });
   await expect(card.getByText("Visited")).toBeVisible();
 
-  // Me counts it exactly once.
+  // Me counts it exactly once, and it is the only thing there: this device
+  // started clean and collected exactly one impression.
   await page.goto("/me");
   await expect(page.getByText("Banqiao, New Taipei")).toHaveCount(1);
+  await expect(
+    page.locator("p", { has: page.getByText("Shop stamps", { exact: true }) }),
+  ).toContainText("1");
 });
 
 test("saving a shop is consistent across card, shop page, and Saved mode", async ({

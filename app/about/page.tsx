@@ -73,9 +73,15 @@ export default function AboutPage() {
 
       <h2 className="type-h2">What the catalogue is</h2>
       <p>
-        Every shop in Nib Atlas is a real place someone can walk into, entered by
-        hand from a source we can point to — usually the shop&rsquo;s own website.
-        Each listing carries the date its details were last checked.
+        Every entry in Nib Atlas is a real business, entered by hand from a source
+        we can point to — usually the shop&rsquo;s own website. Each listing names
+        where its details came from and when they were last checked.
+      </p>
+      <p>
+        <strong>Most are shops you can walk into.</strong> A few are makers or
+        suppliers whose own sources do not confirm a public shopfront, and those
+        pages say so rather than assuming one — a detour is too far to travel on an
+        assumption.
       </p>
       <p>
         Where something is not confirmed, Nib Atlas leaves it out rather than

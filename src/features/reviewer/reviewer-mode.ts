@@ -94,3 +94,36 @@ export function reviewerParamFromSearch(search: string): boolean | null {
 
   return parseReviewerParam(new URLSearchParams(query).get(REVIEWER_QUERY_PARAM));
 }
+
+/**
+ * Strips `review` from a URL, leaving everything else alone.
+ *
+ * Remembering the choice is not enough to make the exit control durable: an
+ * explicit parameter outranks the remembered choice, so a reviewer who exits
+ * while still on `/me?review=1` and then reloads is put straight back into
+ * reviewer mode by their own address bar. The parameter has to leave the URL
+ * too.
+ *
+ * Every other parameter survives — `?destination=ginza` is the user's, not this
+ * mechanism's — as does the hash. Returns `null` when there was nothing to
+ * remove, so the caller can skip a pointless history write.
+ */
+export function hrefWithoutReviewerParam(href: string): string | null {
+  let url: URL;
+
+  try {
+    url = new URL(href);
+  } catch {
+    return null;
+  }
+
+  if (!url.searchParams.has(REVIEWER_QUERY_PARAM)) {
+    return null;
+  }
+
+  // `delete` removes every occurrence, so `?review=1&review=0` cannot leave one
+  // behind. An emptied search drops its own `?`.
+  url.searchParams.delete(REVIEWER_QUERY_PARAM);
+
+  return url.toString();
+}

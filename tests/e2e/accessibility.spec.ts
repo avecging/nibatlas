@@ -1,6 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
+import { seedSampleCollection } from "../support/local-state";
+
 const ROUTES = [
   { path: "/", name: "map" },
   { path: "/saved", name: "saved mode" },
@@ -13,6 +15,16 @@ const ROUTES = [
   { path: "/shops/skb-kaohsiung", name: "shop detail with omitted fields" },
   { path: "/styleguide", name: "styleguide" },
 ];
+
+/*
+ * Every route is audited with a collection present. An empty Passport is a
+ * simpler page than a full one, so auditing the populated state is the stronger
+ * check; the clean-device state is covered by its own assertions in
+ * `reviewer-mode.spec.ts`.
+ */
+test.beforeEach(async ({ page }) => {
+  await seedSampleCollection(page);
+});
 
 async function analyze(page: Page) {
   return new AxeBuilder({ page })

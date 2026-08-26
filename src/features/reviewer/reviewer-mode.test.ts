@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  hrefWithoutReviewerParam,
   parseReviewerParam,
   resolveReviewerMode,
   reviewerParamFromSearch,
@@ -57,5 +58,32 @@ describe("reviewer mode resolution", () => {
     for (const enabled of [true, false]) {
       expect(parseReviewerParam(serializeReviewerChoice(enabled))).toBe(enabled);
     }
+  });
+});
+
+describe("stripping the parameter from a URL", () => {
+  it("removes review and keeps every other parameter and the hash", () => {
+    expect(
+      hrefWithoutReviewerParam("https://beta.example/?destination=ginza&review=1#top"),
+    ).toBe("https://beta.example/?destination=ginza#top");
+  });
+
+  it("drops the question mark when review was the only parameter", () => {
+    expect(hrefWithoutReviewerParam("https://beta.example/me?review=1")).toBe(
+      "https://beta.example/me",
+    );
+  });
+
+  it("removes every occurrence so none can win on reload", () => {
+    expect(hrefWithoutReviewerParam("https://beta.example/me?review=0&review=1")).toBe(
+      "https://beta.example/me",
+    );
+  });
+
+  it("reports nothing to do when the parameter is absent", () => {
+    // The caller skips a pointless history write on this.
+    expect(hrefWithoutReviewerParam("https://beta.example/me?destination=kobe")).toBeNull();
+    expect(hrefWithoutReviewerParam("https://beta.example/me")).toBeNull();
+    expect(hrefWithoutReviewerParam("not a url")).toBeNull();
   });
 });

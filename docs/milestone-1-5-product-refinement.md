@@ -386,18 +386,29 @@ functions; `ReviewerModeProvider` owns the URL and the storage.
 
 **Resolution is client-side and post-mount, deliberately.** The server render and
 the first client paint are always the product, so the two renders agree and there
-is no hydration mismatch, and reviewer material never enters the HTML or the RSC
-payload a normal tester's browser receives. The cost is paid on the reviewer's
-side: they see production copy for one frame before the instrumentation appears.
+is no hydration mismatch, and no reviewer material is ever *rendered* for a
+normal tester — there is nothing to flash and nothing in the readable document.
+The cost is paid on the reviewer's side: they see production copy for one frame
+before the instrumentation appears.
 
-Two consequences worth naming:
+**What that does and does not mean for the payload.** Corrected after the first
+Codex review, which found the original claim here overstated. Reviewer-only
+material is not rendered in normal mode, but some of the *data* behind it is
+still serialised:
 
-- Reviewer-only *prose* on server-rendered pages lives inside client components
-  (`src/features/reviewer/ReviewerNotes.tsx`), not as children passed into a
-  reviewer gate. Wrapping server children would have serialised the text into
-  every visitor's payload — hidden in the interface, present in the document.
-  The copy is still in the client JS bundle; that is inherent to any client-side
-  gate and is not the exposure the requirement is about.
+- `ShopProvenance` and `ShopPositionDiagnostic` are client components that
+  receive the whole `shop` object as a prop, so `shop.sources` — labels, URLs,
+  retrieval dates, `confirms` lists — and `positionPrecision` are in the RSC
+  payload of every shop page regardless of mode. None of it is displayed, and
+  none of it is sensitive: it is public provenance about public businesses. It is
+  recorded here so nobody reads the mechanism as a data boundary. Narrowing the
+  props would be a reasonable tidy-up; it is not a correctness fix and was not
+  made inside a copy pass.
+- Reviewer-only *prose* on server-rendered pages does stay out of the payload,
+  because it is authored inside client components
+  (`src/features/reviewer/ReviewerNotes.tsx`) rather than passed in as children.
+  It lives in the client JS bundle instead, which is inherent to any client-side
+  gate.
 - No route became dynamically rendered. `useSearchParams` would have forced that
   or a Suspense boundary around the shell, so the provider reads
   `window.location.search` directly. The parameter always arrives with a document
@@ -414,6 +425,12 @@ would put the control in front of testers.
   the map variant, and the results sheet's summary row is too tight at 360 px to
   hold a badge and a control without clipping one. The strip in the map overlay
   also carries the basemap diagnostic.
+- **Exit removes `review` from the address bar**, via `history.replaceState`, and
+  keeps every other parameter and the hash. Remembering the choice is not
+  sufficient: an explicit parameter outranks the remembered one, so a reviewer
+  who exited while still on `/me?review=1` was put back into reviewer mode by
+  their own next reload. `hrefWithoutReviewerParam` is pure and unit-tested;
+  the reload-the-same-page journey is covered end to end.
 
 ### What moved behind the flag
 
@@ -443,29 +460,35 @@ These are implementation choices inside WP1's remit, recorded so they are not
 mistaken for product decisions:
 
 1. **The provenance sentence is derived, not authored.**
-   `src/components/shops/provenance.ts` picks the strongest source — the shop's
-   own website over a dealer listing over a community list — and formats its
-   retrieval date, producing *"Details from the shop's own website, checked 26
+   `src/components/shops/provenance.ts` names every distinct source kind a record
+   rests on, strongest first, with the oldest retrieval date among them —
+   *"Details from the shop's own website and a community shop list, checked 26
    August 2026."* A record with **no** source gets no line at all rather than a
-   vague one.
+   vague one. *(Revised after the first Codex review; see revision 3 below for
+   why naming only the strongest source was wrong.)*
 2. **Unknown opening hours keep one caution.** Ordinary unknowns stay omitted,
    but arriving at a closed shop is the failure the page exists to prevent, so
    *"Opening hours are not confirmed. Check with the shop before travelling."*
    stands as the one concise caution accepted decision 1 allows. The duplicate
    "Always confirm" line now appears only where hours *are* listed.
 3. **Milestone chips became reasons, not silence.** A row that cannot be used
-   still says why — "Needs an account", "Not available yet", "Sign-in not
-   available yet" — because hiding the label would leave a row that looks
-   tappable. The milestone numbering is the reviewer form of the same fact.
+   still says why — "Not available yet", "Signing in will sync them later",
+   "Nothing to sign out of" — because hiding the label would leave a row that
+   looks tappable. The milestone numbering is the reviewer form of the same fact.
+   *(Wording revised after the first Codex review: the earlier "Needs an account"
+   labels were untrue for saving and collecting, which work locally.)*
 4. **Legally required attribution is not gated.** `MapStyleProvider` now
    separates `attribution` (a licence obligation, always shown) from
    `diagnosticAttribution` (which supplier resolved, reviewer-only). The offline
    style draws only a graticule generated in this repository, so its line carries
    no licence and is reviewer-only; MapTiler's own style sources carry theirs and
    are untouched.
-5. **The shop-page meta description became product copy.** It previously read
-   "Prototype catalogue record — a small sourced sample, not a complete listing",
-   which is shared and indexed. The catalogue's limits are stated on About.
+5. **The shop-page meta description became product copy**, built from the
+   fields the record actually carries (`src/components/shops/shop-metadata.ts`).
+   It previously read "Prototype catalogue record — a small sourced sample, not a
+   complete listing", which is shared and indexed. The catalogue's limits are
+   stated on About. *(The generated fallback was revised after the first Codex
+   review; see revision 4 below.)*
 6. **About coverage is counted from the catalogue at build time**, not written as
    prose, so the page cannot drift. It reports plain counts with no denominator,
    per the `PRODUCT.md` invariant.
@@ -475,7 +498,120 @@ mistaken for product decisions:
 8. **Me was shortened, not restructured.** The signed-out/signed-in split,
    Places Visited deep links, local-data controls, the Contribute group and the
    Danger group are WP2 and were not built. **About Nib Atlas** was added as a Me
-   row because WP1 owns that destination.
+   row because WP1 owns that destination. Its account copy was corrected after
+   the first Codex review; see revision 5 below.
+9. **Local collection state is namespaced by mode**, in `localStorage`. See
+   revision 1 below for the reasoning and the keys.
+
+### WP1 revisions after the first Codex review
+
+Recorded 26 August 2026, after review submission `5030605734`. Six defects, one
+approved clarification, and one documentation correction. None of them reopened
+an accepted decision.
+
+#### 1. Normal mode starts empty (`collection-store.tsx`)
+
+The defect: a clean device opened on `prototypeSeedCollections` — six stamps
+across three countries, two saved shops — before the tester had done anything.
+On a reviewer's screen that is a demonstration fixture. On a tester's screen Me
+and Passport present it as *their* history, which reads as though something had
+been following them around. This was the most serious finding in the review and
+it was not on a changed line.
+
+**Two stores, one per audience**, keyed separately:
+
+| Scope | Key | Baseline |
+| --- | --- | --- |
+| normal | `nib-atlas.collection.v3` | empty |
+| reviewer | `nib-atlas.collection.reviewer.v3` | the seeded demonstration collection |
+
+Distinct namespaces rather than one key plus a flag, because the requirement is
+not only "start empty" but "switching modes must not overwrite or misrepresent a
+tester's real local state". With separate keys that property is structural: a
+tester's saves survive a trip through reviewer mode untouched, and the seed can
+never be mistaken for them. The provider waits for reviewer mode to resolve
+before hydrating, and refuses to persist into a scope it did not load from, so a
+mode change cannot write one audience's collection into the other's store.
+
+**Legacy key.** Milestone 1's `nib-atlas.prototype-collection.v2` (session
+storage) only ever held seeded state, so it belongs to reviewer mode. It is moved
+there once — never overwriting an existing reviewer store, never promoting an
+unparseable blob — and removed. That is what stops a staging session opened
+before this change from carrying the seed into normal mode.
+
+**`localStorage`, not `sessionStorage`.** Me and Privacy now tell the reader
+their saves stay on the device until they clear browser data, and session storage
+would have made that false the moment they closed the tab.
+
+**Test arrangement.** Journeys that browse a populated Passport now *arrange* the
+collection in the ordinary normal-mode store (`tests/support/local-state.ts`) — a
+tester who has genuinely collected things is what those journeys are about. The
+defect was creating that state silently, not its existence.
+
+#### 2. About no longer certifies every entry as a walk-in shop
+
+SKB's own source confirms a company base and a dealer directory but not a public
+retail shopfront, and its page says so. About claimed every record was "a real
+place someone can walk into", which was false for exactly that record. It now
+says most are shops you can walk into and that the ones whose sources do not
+confirm a shopfront say so — the claim a catalogue of ten can actually support.
+
+#### 3. Provenance credits every source kind (`provenance.ts`)
+
+The first implementation named only the highest-ranked source. For TY Lee that
+produced "Details from the shop's own website" when the website confirms nothing
+but the local-script name and the name, address and district come from a
+community list — official backing claimed for facts that do not have it, with the
+detailed breakdown hidden outside reviewer mode.
+
+The sentence now names **every distinct source kind**, strongest first: *"Details
+from the shop's own website and a community shop list, checked 26 August 2026."*
+Kinds, not labels — that is what keeps it a sentence rather than the source dump
+reviewer mode already provides.
+
+The date is the **oldest** retrieval among those sources, because a page is only
+as current as its stalest fact. Pen House's website was read in August but its
+district came from a March visit note; claiming August would present the whole
+record as five months fresher than part of it is.
+
+#### 4. Link previews name only present fields (`shop-metadata.ts`)
+
+The fallback meta description promised "Address, hours, and what you can do
+there" on every record. NAGASAWA PenStyle DEN has neither an address nor hours,
+and TY Lee and Juspirit have no published hours, so the indexed preview
+advertised precisely the fields those pages omit. Every clause is now derived
+from a field the record carries; a record with none says less instead.
+
+#### 5. Me and Privacy describe device storage, not an account
+
+Both claimed saving a shop and keeping a Passport need an account. Neither does —
+they are local and always have been, and the approved direction keeps them that
+way. The honest distinction is device-local versus synced, so that is what the
+copy says: saves and impressions stay in this browser, do not sync, and go when
+browser data is cleared; an account will later carry them between devices. This
+is copy only. The signed-out/signed-in structure remains WP2.
+
+#### 6. Exit reviewer mode is durable
+
+See **The way out** above.
+
+#### 7. `AGENTS.md` data-honesty invariant clarified
+
+The automated review read the `prototype*` module namespace as evidence that the
+catalogue holds invented businesses, and asked for a fixture badge back on every
+normal-mode page. The founder declined that and approved a clarification instead,
+now written into `AGENTS.md`: invented businesses and invented facts about real
+businesses must be labelled, while a **real** business with unsupported fields
+omitted satisfies the invariant through one accurate subordinate provenance line.
+An implementation namespace is not evidence of invention. The same clarification
+adds the rule the other two defects broke: product copy must not generalise
+across records in a way that is false for one of them.
+
+#### 8. One incidental fix
+
+`/saved` at mobile widths had no heading element at all once the empty state
+became reachable — the "Nothing saved yet" title was a paragraph styled as one.
+It is now an `h3`.
 
 ### Deliberately not done in WP1
 
@@ -505,6 +641,24 @@ mistaken for product decisions:
   routes at all three breakpoints.
 - `tests/evidence/wp1-reviewer-mode.spec.ts` — the paired screenshots, opted into
   with `EVIDENCE=1`. Output in `docs/evidence/milestone-1-5-wp1/`.
+
+Added with the review revisions:
+
+- `src/features/collection/collection-store.test.tsx` — the empty normal
+  baseline, the seeded reviewer baseline, per-scope keys, a mode round trip that
+  leaves a tester's save intact, and the legacy-key migration including its
+  refusal to overwrite or to promote a corrupt blob.
+- `src/components/shops/shop-metadata.test.ts` — no generated preview names a
+  field its record omits, checked across the whole catalogue.
+- `src/components/shops/provenance.test.ts` — every source kind credited, oldest
+  date claimed, TY Lee named explicitly.
+- `src/features/reviewer/reviewer-mode.test.ts` and
+  `ReviewerModeProvider.test.tsx` — parameter stripping, and exit followed by a
+  reload of the same URL.
+- `tests/e2e/reviewer-mode.spec.ts` — a clean device across Me, Passport and
+  Saved; seeded reviewer state; a mode round trip preserving a real save; the
+  legacy session; and one test per copy fix.
+- `tests/support/local-state.ts` — the shared arrangement helper.
 
 ## Open items still needing founder input
 

@@ -1,5 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import {
+  seedLegacyPrototypeSession,
+  seedSampleCollection,
+} from "../support/local-state";
+
 /**
  * WP1 acceptance: reviewer mode, and the production-like default.
  *
@@ -52,6 +57,13 @@ async function expectMode(page: Page, expected: "on" | "off") {
     "data-reviewer-mode",
     expected,
   );
+}
+
+/** Clicks whichever exit control is visible at this breakpoint. */
+async function exitReviewerMode(page: Page) {
+  const control = page.getByRole("button", { name: /exit/i }).filter({ visible: true });
+
+  await control.first().click();
 }
 
 async function visibleText(page: Page): Promise<string> {
@@ -107,14 +119,37 @@ test.describe("reviewer mode flag", () => {
     await page.goto("/me?review=1");
     await expectMode(page, "on");
 
-    await page
-      .getByRole("button", { name: /exit reviewer mode/i })
-      .first()
-      .click();
-
+    await exitReviewerMode(page);
     await expectMode(page, "off");
 
     // The choice persists: a later visit with no parameter stays off.
+    await page.goto("/me");
+    await expectMode(page, "off");
+  });
+
+  test("exiting takes review out of the URL, so reloading that page stays off", async ({
+    page,
+  }) => {
+    // Remembering the choice is not enough. An explicit parameter outranks the
+    // remembered one, so leaving `?review=1` in the address bar means the very
+    // next reload undoes the exit.
+    await page.goto("/?destination=ginza&review=1");
+    await expectMode(page, "on");
+
+    await exitReviewerMode(page);
+    await expectMode(page, "off");
+
+    // Unrelated parameters are the user's and survive.
+    expect(new URL(page.url()).searchParams.get("review")).toBeNull();
+    expect(new URL(page.url()).searchParams.get("destination")).toBe("ginza");
+
+    await page.reload();
+    await expectMode(page, "off");
+    await expect(reviewerBadge(page)).toHaveCount(0);
+
+    // And so does a second reload, and a navigation away and back.
+    await page.reload();
+    await expectMode(page, "off");
     await page.goto("/me");
     await expectMode(page, "off");
   });
@@ -174,7 +209,7 @@ test.describe("reviewer mode keeps the diagnostics", () => {
     await page.goto("/me?review=1");
     await expectMode(page, "on");
 
-    await expect(page.getByText("Sign-in arrives in Milestone 4")).toBeVisible();
+    await expect(page.getByText("Sign-in and sync arrive in Milestone 4")).toBeVisible();
     await expect(
       page.getByText(/Counted against curated set [a-z]{2}-/i).first(),
     ).toBeVisible();
@@ -317,5 +352,207 @@ test.describe("product-facing destinations", () => {
     await expect(
       page.getByRole("navigation").first().getByRole("link", { name: "Me" }),
     ).toHaveAttribute("aria-current", "page");
+  });
+});
+
+/**
+ * A clean device holds nothing.
+ *
+ * Milestone 1 opened every device on the seeded demonstration collection: six
+ * stamps across three countries and two saved shops. On a tester's screen Me and
+ * Passport present that as their own history, which reads as though something
+ * had been following them around. Normal mode now starts empty; the seed is a
+ * reviewer facility.
+ */
+test.describe("a clean normal-mode device starts empty", () => {
+  test("Me reports no visits and no seals", async ({ page }) => {
+    await page.goto("/me");
+    await expectMode(page, "off");
+
+    const visited = page.getByRole("region", { name: /places visited/i });
+    const seals = page.getByRole("region", { name: /seal progress/i });
+
+    for (const label of ["Shop stamps", "Countries visited", "Localities visited"]) {
+      await expect(
+        visited.locator("p", { has: page.getByText(label, { exact: true }) }),
+      ).toContainText("0");
+    }
+
+    await expect(visited.getByText(/No visits yet/i)).toBeVisible();
+    await expect(
+      seals.locator("p", { has: page.getByText("Country seals", { exact: true }) }),
+    ).toContainText("0");
+
+    // No invented geography anywhere on the page.
+    const text = await visibleText(page);
+    for (const locality of ["Chūō, Tokyo", "Naka, Yokohama", "East District, Tainan"]) {
+      expect(text, `Me names ${locality} on a clean device`).not.toContain(locality);
+    }
+  });
+
+  test("Passport is empty and says how to fill it", async ({ page }) => {
+    await page.goto("/passport");
+    await expectMode(page, "off");
+
+    const text = await visibleText(page);
+
+    for (const shop of ["Ginza Itoya", "Aesthetic Bay", "Fook Hing"]) {
+      expect(text, `Passport shows a collected ${shop} on a clean device`).not.toContain(
+        shop,
+      );
+    }
+  });
+
+  test("Saved mode holds nothing", async ({ page }) => {
+    await page.goto("/saved");
+    await expectMode(page, "off");
+
+    await expect(page.getByRole("link", { name: /^Saved \(0\)/ })).toBeVisible();
+    await expect(page.getByRole("article", { name: "TY Lee Pen Shop" })).toHaveCount(0);
+  });
+
+  test("reviewer mode keeps the seeded demonstration collection", async ({ page }) => {
+    await page.goto("/me?review=1");
+    await expectMode(page, "on");
+
+    const visited = page.getByRole("region", { name: /places visited/i });
+
+    await expect(
+      visited.locator("p", { has: page.getByText("Countries visited", { exact: true }) }),
+    ).toContainText("3");
+    await expect(visited.getByText(/Chūō, Tokyo/)).toBeVisible();
+  });
+
+  test("switching modes never overwrites a tester's own local state", async ({ page }) => {
+    await page.goto("/shops/juspirit-banqiao");
+    await expectMode(page, "off");
+
+    // A real save, made by the person using the device.
+    await page.getByRole("button", { name: /^save$/i }).click();
+    await expect(page.getByRole("button", { name: /^saved$/i })).toBeVisible();
+
+    // Into reviewer mode: the demonstration collection appears, and it is not
+    // theirs — this shop is not saved in it.
+    await page.goto("/shops/juspirit-banqiao?review=1");
+    await expectMode(page, "on");
+    await expect(page.getByRole("button", { name: /^save$/i })).toBeVisible();
+
+    // Back out, and their save is exactly where they left it.
+    await exitReviewerMode(page);
+    await expectMode(page, "off");
+    await expect(page.getByRole("button", { name: /^saved$/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /^Saved \(1\)/ })).toHaveCount(0);
+
+    await page.goto("/saved");
+    await expect(page.getByRole("article", { name: "Juspirit" })).toBeVisible();
+    await expect(page.getByRole("article", { name: "TY Lee Pen Shop" })).toHaveCount(0);
+  });
+
+  test("a Milestone 1 staging session cannot keep posing as personal history", async ({
+    page,
+  }) => {
+    // The old single session key held seeded state on every device that opened
+    // staging before this change.
+    await seedLegacyPrototypeSession(page);
+    await page.goto("/me");
+    await expectMode(page, "off");
+
+    await expect(
+      page
+        .getByRole("region", { name: /places visited/i })
+        .locator("p", { has: page.getByText("Countries visited", { exact: true }) }),
+    ).toContainText("0");
+
+    // It is not discarded, though: it was reviewer state, so that is where it
+    // now lives.
+    await page.goto("/me?review=1");
+    await expectMode(page, "on");
+    await expect(
+      page
+        .getByRole("region", { name: /places visited/i })
+        .locator("p", { has: page.getByText("Countries visited", { exact: true }) }),
+    ).toContainText("3");
+  });
+});
+
+/** The truthfulness fixes from the first Codex review. */
+test.describe("copy that has to be true of every record", () => {
+  test("About does not certify every entry as a walk-in shop", async ({ page }) => {
+    await page.goto("/about");
+    await expectMode(page, "off");
+
+    const text = await visibleText(page);
+
+    // SKB's own source does not confirm a public shopfront, so no blanket claim.
+    expect(text).not.toMatch(/every shop in nib atlas is a real place someone can walk/i);
+    expect(text).toMatch(/most are shops you can walk into/i);
+    expect(text).toMatch(/do not confirm a public shopfront/i);
+  });
+
+  test("the unconfirmed record says so on its own page", async ({ page }) => {
+    await page.goto("/shops/skb-kaohsiung");
+    await expectMode(page, "off");
+
+    await expect(page.getByText(/does not confirm a retail shopfront/i)).toBeVisible();
+  });
+
+  test("a mixed-source record credits every source kind it rests on", async ({ page }) => {
+    // TY Lee's own website confirms only its local-script name; the name,
+    // address and district come from a community list.
+    await page.goto("/shops/ty-lee-pen-shop");
+    await expectMode(page, "off");
+
+    await expect(
+      page.getByText(
+        /Details from the shop's own website and a community shop list, checked \d+ \w+ \d{4}\./,
+      ),
+    ).toBeVisible();
+  });
+
+  test("a link preview never advertises a field the page omits", async ({ page }) => {
+    // NAGASAWA PenStyle DEN publishes neither an address nor hours.
+    await page.goto("/shops/nagasawa-penstyle-den");
+
+    const description = await page
+      .locator('head meta[name="description"]')
+      .getAttribute("content");
+
+    expect(description).toBeTruthy();
+    expect(description?.toLowerCase()).not.toContain("address");
+    expect(description?.toLowerCase()).not.toContain("hour");
+  });
+
+  test("Privacy and Me describe local storage, not an account requirement", async ({
+    page,
+  }) => {
+    await page.goto("/privacy");
+    await expectMode(page, "off");
+
+    await expect(page.getByText(/What you save stays on this device/i)).toBeVisible();
+    await expect(page.getByText(/does not appear on\s+your other devices/i)).toBeVisible();
+    // Saving works anonymously, so Privacy may not say it needs an account.
+    expect(await visibleText(page)).not.toMatch(
+      /An account\s+is needed only to keep things that must persist/i,
+    );
+
+    await page.goto("/me");
+    await expect(
+      page.getByText(/Your saved shops and impressions are kept on this device/i),
+    ).toBeVisible();
+  });
+});
+
+/** The populated journeys still work when the state is genuinely the user's. */
+test.describe("an arranged collection behaves as before", () => {
+  test("Passport and Me read a seeded normal-mode collection", async ({ page }) => {
+    await seedSampleCollection(page);
+    await page.goto("/me");
+    await expectMode(page, "off");
+
+    await expect(
+      page
+        .getByRole("region", { name: /places visited/i })
+        .locator("p", { has: page.getByText("Countries visited", { exact: true }) }),
+    ).toContainText("3");
   });
 });

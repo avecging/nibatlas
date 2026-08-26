@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { seedSampleCollection } from "../support/local-state";
+
 /**
  * The Passport book, exercised through its acceptance checks in
  * `docs/passport-interaction-spec.md`.
@@ -30,8 +32,22 @@ async function bookState(page: Page) {
   });
 }
 
+/*
+ * A clean device now starts with an empty Passport, so these journeys arrange the
+ * collection they are about. The state goes into the ordinary normal-mode store:
+ * a tester who has actually collected things is exactly what is being tested.
+ */
+test.beforeEach(async ({ page }) => {
+  await seedSampleCollection(page);
+});
+
 async function open(page: Page, search = "") {
   await page.goto(`/passport${search}`);
+
+  // The collection is read from device storage after mount, so the book does not
+  // exist on the first paint. Waiting for it here rather than probing the opener
+  // immediately is what stops a click landing on a page that is about to change.
+  await expect(page.locator("[data-mode]")).toBeAttached();
 
   // The book remembers that it is open, so a second visit inside one test lands
   // on the last spread with no cover to open.

@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { seedSampleCollection, useReviewerMode } from "../support/local-state";
+
 /**
  * Me, checked against the two properties the Milestone 1 review found broken:
  * visited geography must come from stamps rather than from seals, and the
@@ -8,6 +10,7 @@ import { expect, test } from "@playwright/test";
 test("reports countries and localities visited, separately from seals", async ({
   page,
 }) => {
+  await seedSampleCollection(page);
   await page.goto("/me");
 
   const visited = page.getByRole("region", { name: /places visited/i });
@@ -60,11 +63,9 @@ test("the profile row keeps its text readable at 360 px", async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 });
   await page.goto("/me");
 
-  const detail = page.getByText(
-    /Saving shops and keeping a Passport need an account/i,
-  );
+  const detail = page.getByText(/Your saved shops and impressions are kept on this device/i);
   // Normal mode states the same fact without the milestone number.
-  const badge = page.getByText("Sign-in not available yet");
+  const badge = page.getByText("Signing in will sync them later");
 
   const detailBox = await detail.boundingBox();
   const badgeBox = await badge.boundingBox();
@@ -76,4 +77,25 @@ test("the profile row keeps its text readable at 360 px", async ({ page }) => {
   // full column width.
   expect(badgeBox!.y).toBeGreaterThanOrEqual(detailBox!.y + detailBox!.height - 1);
   expect(detailBox!.width).toBeGreaterThan(240);
+});
+
+test("a clean device is told its data is local, not that it needs an account", async ({
+  page,
+}) => {
+  await page.goto("/me");
+
+  // Saving and collecting both work anonymously, so nothing here may claim an
+  // account is required for them.
+  const profile = page.getByRole("region", { name: /^profile$/i });
+
+  await expect(profile).toContainText(/kept on this device/i);
+  await expect(profile).toContainText(/do not sync/i);
+  await expect(profile.getByText(/need an account/i)).toHaveCount(0);
+});
+
+test("reviewer mode keeps the milestone wording on the same row", async ({ page }) => {
+  await useReviewerMode(page);
+  await page.goto("/me");
+
+  await expect(page.getByText("Sign-in and sync arrive in Milestone 4")).toBeVisible();
 });

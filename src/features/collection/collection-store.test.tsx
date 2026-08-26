@@ -1,92 +1,220 @@
 import { act, renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
+import type { ReactNode } from "react";
 
 import {
+  COLLECTION_STORAGE_KEYS,
   CollectionProvider,
+  LEGACY_COLLECTION_SESSION_KEY,
   localCollectionDate,
   useCollection,
 } from "@/src/features/collection/collection-store";
 import {
+  ReviewerModeProvider,
+  useReviewerModeStore,
+} from "@/src/features/reviewer/ReviewerModeProvider";
+import {
   findPrototypeShop,
   prototypeShopDetails,
 } from "@/src/fixtures/prototype-catalogue";
+import { seedReviewerMode } from "@/src/test/reviewer";
 
-function renderStore() {
-  return renderHook(() => useCollection(), { wrapper: CollectionProvider });
+function Providers({ children }: { readonly children: ReactNode }) {
+  return (
+    <ReviewerModeProvider>
+      <CollectionProvider>{children}</CollectionProvider>
+    </ReviewerModeProvider>
+  );
+}
+
+/**
+ * The collection store reads reviewer mode, so every test states which audience
+ * it is standing in. `reviewer: false` is what a tester gets.
+ */
+function renderStore(reviewer = false) {
+  seedReviewerMode(reviewer);
+
+  return renderHook(
+    () => ({ collection: useCollection(), mode: useReviewerModeStore() }),
+    { wrapper: Providers },
+  );
 }
 
 /** Neither seeded as collected nor seeded as saved, so it starts clean. */
 const unvisited = findPrototypeShop("juspirit-banqiao")!;
 
+describe("collection scopes", () => {
+  it("starts a normal device with nothing at all", () => {
+    // The defect this guards: Milestone 1 opened every device on six stamps and
+    // two saved shops, which Me and Passport then presented as the tester's own
+    // history.
+    const { result } = renderStore(false);
+
+    expect(result.current.collection.scope).toBe("normal");
+    expect(result.current.collection.savedShopIds.size).toBe(0);
+    expect(result.current.collection.collections).toEqual([]);
+    expect(result.current.collection.passport.stampCount).toBe(0);
+    expect(result.current.collection.passport.countryCount).toBe(0);
+    expect(result.current.collection.seals).toEqual([]);
+  });
+
+  it("starts reviewer mode from the seeded demonstration collection", () => {
+    const { result } = renderStore(true);
+
+    expect(result.current.collection.scope).toBe("reviewer");
+    expect(result.current.collection.savedShopIds.size).toBeGreaterThan(0);
+    expect(result.current.collection.passport.countryCount).toBe(3);
+    expect(result.current.collection.isSaved(unvisited.id)).toBe(false);
+    expect(result.current.collection.isVisited(unvisited.id)).toBe(false);
+  });
+
+  it("writes each mode to its own key", () => {
+    const { result } = renderStore(false);
+
+    act(() => {
+      result.current.collection.toggleSaved(unvisited.id);
+    });
+
+    const normal = window.localStorage.getItem(COLLECTION_STORAGE_KEYS.normal);
+
+    expect(normal).toContain(unvisited.id);
+    expect(window.localStorage.getItem(COLLECTION_STORAGE_KEYS.reviewer)).toBeNull();
+  });
+
+  it("does not let a trip through reviewer mode touch a tester's own saves", () => {
+    const { result } = renderStore(false);
+
+    act(() => {
+      result.current.collection.toggleSaved(unvisited.id);
+    });
+    expect(result.current.collection.isSaved(unvisited.id)).toBe(true);
+
+    // Into reviewer mode: the seeded collection appears, and it is not the
+    // tester's.
+    act(() => {
+      result.current.mode.setReviewer(true);
+    });
+    expect(result.current.collection.scope).toBe("reviewer");
+    expect(result.current.collection.passport.countryCount).toBe(3);
+    expect(result.current.collection.isSaved(unvisited.id)).toBe(false);
+
+    // Back out: their own save is exactly as they left it, and no seeded stamp
+    // followed them.
+    act(() => {
+      result.current.mode.setReviewer(false);
+    });
+    expect(result.current.collection.scope).toBe("normal");
+    expect(result.current.collection.isSaved(unvisited.id)).toBe(true);
+    expect(result.current.collection.passport.stampCount).toBe(0);
+  });
+
+  it("moves a Milestone 1 session into reviewer mode and out of normal mode", () => {
+    const legacy = JSON.stringify({
+      savedShopIds: [unvisited.id],
+      collections: [],
+      seals: [],
+    });
+
+    window.sessionStorage.setItem(LEGACY_COLLECTION_SESSION_KEY, legacy);
+
+    const { result } = renderStore(false);
+
+    // A staging session opened before this change must not keep showing its
+    // seeded state as the tester's history.
+    expect(result.current.collection.savedShopIds.size).toBe(0);
+    expect(window.sessionStorage.getItem(LEGACY_COLLECTION_SESSION_KEY)).toBeNull();
+
+    // It is not thrown away either: it was reviewer state, so that is where it
+    // now lives.
+    expect(window.localStorage.getItem(COLLECTION_STORAGE_KEYS.reviewer)).toBe(legacy);
+
+    act(() => {
+      result.current.mode.setReviewer(true);
+    });
+    expect(result.current.collection.isSaved(unvisited.id)).toBe(true);
+  });
+
+  it("never overwrites an existing reviewer store during migration", () => {
+    const existing = JSON.stringify({ savedShopIds: [], collections: [], seals: [] });
+
+    window.localStorage.setItem(COLLECTION_STORAGE_KEYS.reviewer, existing);
+    window.sessionStorage.setItem(
+      LEGACY_COLLECTION_SESSION_KEY,
+      JSON.stringify({ savedShopIds: [unvisited.id], collections: [] }),
+    );
+
+    renderStore(false);
+
+    expect(window.localStorage.getItem(COLLECTION_STORAGE_KEYS.reviewer)).toBe(existing);
+    expect(window.sessionStorage.getItem(LEGACY_COLLECTION_SESSION_KEY)).toBeNull();
+  });
+
+  it("ignores a corrupt legacy blob rather than promoting it", () => {
+    window.sessionStorage.setItem(LEGACY_COLLECTION_SESSION_KEY, "not json");
+
+    renderStore(false);
+
+    expect(window.sessionStorage.getItem(LEGACY_COLLECTION_SESSION_KEY)).toBeNull();
+    expect(window.localStorage.getItem(COLLECTION_STORAGE_KEYS.reviewer)).toBeNull();
+  });
+});
+
 describe("collection store", () => {
-  beforeEach(() => {
-    window.sessionStorage.clear();
-  });
-
-  it("seeds saved and visited state from the prototype fixtures", () => {
-    const { result } = renderStore();
-
-    expect(result.current.savedShopIds.size).toBeGreaterThan(0);
-    expect(result.current.passport.countryCount).toBe(3);
-    expect(result.current.isSaved(unvisited.id)).toBe(false);
-    expect(result.current.isVisited(unvisited.id)).toBe(false);
-  });
-
-  it("derives seals from the seeded collection", () => {
-    const { result } = renderStore();
+  it("derives seals from the seeded reviewer collection", () => {
+    const { result } = renderStore(true);
 
     // Singapore's curated set holds two shops and both are seeded, so its
     // country seal is earned by completing a set smaller than five.
-    expect(result.current.countrySeal("SG")).toBeDefined();
-    expect(result.current.countrySeal("JP")).toBeUndefined();
-    expect(result.current.localitySeal("TW", "east-tainan")).toBeDefined();
+    expect(result.current.collection.countrySeal("SG")).toBeDefined();
+    expect(result.current.collection.countrySeal("JP")).toBeUndefined();
+    expect(result.current.collection.localitySeal("TW", "east-tainan")).toBeDefined();
   });
 
   it("keeps a seal earned in an earlier session", () => {
-    const { result, unmount } = renderStore();
+    const { result, unmount } = renderStore(true);
 
-    expect(result.current.countrySeal("SG")).toBeDefined();
+    expect(result.current.collection.countrySeal("SG")).toBeDefined();
     unmount();
 
-    // A fresh provider rehydrates from the same session storage.
-    const second = renderStore();
+    // A fresh provider rehydrates from the same reviewer store.
+    const second = renderStore(true);
 
-    expect(second.result.current.countrySeal("SG")).toBeDefined();
+    expect(second.result.current.collection.countrySeal("SG")).toBeDefined();
   });
 
   it("toggles saving in both directions", () => {
     const { result } = renderStore();
 
-    expect(result.current.isSaved(unvisited.id)).toBe(false);
+    expect(result.current.collection.isSaved(unvisited.id)).toBe(false);
 
     act(() => {
-      result.current.toggleSaved(unvisited.id);
+      result.current.collection.toggleSaved(unvisited.id);
     });
-    expect(result.current.isSaved(unvisited.id)).toBe(true);
+    expect(result.current.collection.isSaved(unvisited.id)).toBe(true);
 
     act(() => {
-      result.current.toggleSaved(unvisited.id);
+      result.current.collection.toggleSaved(unvisited.id);
     });
-    expect(result.current.isSaved(unvisited.id)).toBe(false);
+    expect(result.current.collection.isSaved(unvisited.id)).toBe(false);
   });
 
   it("issues exactly one impression per shop", () => {
     const { result } = renderStore();
-    const before = result.current.passport.stampCount;
+    const before = result.current.collection.passport.stampCount;
 
     act(() => {
-      result.current.collectStamp(unvisited, new Date("2026-08-18T02:00:00Z"));
+      result.current.collection.collectStamp(unvisited, new Date("2026-08-18T02:00:00Z"));
     });
 
-    const afterFirst = result.current.passport.stampCount;
+    const afterFirst = result.current.collection.passport.stampCount;
     expect(afterFirst).toBe(before + 1);
-    expect(result.current.isVisited(unvisited.id)).toBe(true);
+    expect(result.current.collection.isVisited(unvisited.id)).toBe(true);
 
     act(() => {
-      result.current.collectStamp(unvisited, new Date("2026-08-19T02:00:00Z"));
+      result.current.collection.collectStamp(unvisited, new Date("2026-08-19T02:00:00Z"));
     });
 
-    expect(result.current.passport.stampCount).toBe(afterFirst);
+    expect(result.current.collection.passport.stampCount).toBe(afterFirst);
   });
 
   it("returns the existing impression when collecting twice", () => {
@@ -94,14 +222,18 @@ describe("collection store", () => {
 
     let first = "";
     act(() => {
-      first = result.current.collectStamp(unvisited, new Date("2026-08-18T02:00:00Z"))
-        .collectedOn;
+      first = result.current.collection.collectStamp(
+        unvisited,
+        new Date("2026-08-18T02:00:00Z"),
+      ).collectedOn;
     });
 
     let second = "";
     act(() => {
-      second = result.current.collectStamp(unvisited, new Date("2026-12-01T02:00:00Z"))
-        .collectedOn;
+      second = result.current.collection.collectStamp(
+        unvisited,
+        new Date("2026-12-01T02:00:00Z"),
+      ).collectedOn;
     });
 
     expect(second).toBe(first);
@@ -112,10 +244,10 @@ describe("collection store", () => {
     const shop = findPrototypeShop("ty-lee-pen-shop")!;
 
     act(() => {
-      result.current.collectStamp(shop, new Date("2026-08-18T02:00:00Z"));
+      result.current.collection.collectStamp(shop, new Date("2026-08-18T02:00:00Z"));
     });
 
-    const taiwan = result.current.passport.countries.find(
+    const taiwan = result.current.collection.passport.countries.find(
       (country) => country.slug === "tw",
     );
     const locality = taiwan?.localities.find(
@@ -129,28 +261,45 @@ describe("collection store", () => {
     const { result } = renderStore();
     const shop = findPrototypeShop("ty-lee-pen-shop")!;
 
-    expect(result.current.localitySeal("TW", "daan-taipei")).toBeUndefined();
+    expect(result.current.collection.localitySeal("TW", "daan-taipei")).toBeUndefined();
 
     act(() => {
-      result.current.collectStamp(shop, new Date("2026-08-18T02:00:00Z"));
+      result.current.collection.collectStamp(shop, new Date("2026-08-18T02:00:00Z"));
     });
 
-    expect(result.current.localitySeal("TW", "daan-taipei")).toBeDefined();
+    expect(result.current.collection.localitySeal("TW", "daan-taipei")).toBeDefined();
   });
 
-  it("restores the seeded prototype state on reset", () => {
-    const { result } = renderStore();
-    const seeded = result.current.passport.stampCount;
+  it("restores the reviewer baseline on reset", () => {
+    const { result } = renderStore(true);
+    const seeded = result.current.collection.passport.stampCount;
 
     act(() => {
-      result.current.collectStamp(unvisited, new Date("2026-08-18T02:00:00Z"));
+      result.current.collection.collectStamp(unvisited, new Date("2026-08-18T02:00:00Z"));
     });
-    expect(result.current.passport.stampCount).toBe(seeded + 1);
+    expect(result.current.collection.passport.stampCount).toBe(seeded + 1);
 
     act(() => {
-      result.current.resetPrototypeState();
+      result.current.collection.resetPrototypeState();
     });
-    expect(result.current.passport.stampCount).toBe(seeded);
+    expect(result.current.collection.passport.stampCount).toBe(seeded);
+  });
+
+  it("resets a normal device back to empty, not to the seed", () => {
+    // The reset control is reviewer-only in the interface, but the store must
+    // never hand a tester the demonstration collection.
+    const { result } = renderStore(false);
+
+    act(() => {
+      result.current.collection.collectStamp(unvisited, new Date("2026-08-18T02:00:00Z"));
+    });
+    expect(result.current.collection.passport.stampCount).toBe(1);
+
+    act(() => {
+      result.current.collection.resetPrototypeState();
+    });
+    expect(result.current.collection.passport.stampCount).toBe(0);
+    expect(result.current.collection.savedShopIds.size).toBe(0);
   });
 });
 

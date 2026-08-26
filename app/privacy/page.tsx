@@ -55,11 +55,17 @@ export default function PrivacyPage() {
         and shop pages continue to work exactly as before.
       </p>
 
-      <h2 className="type-h2">Browsing without an account</h2>
+      <h2 className="type-h2">Browsing and saving without an account</h2>
       <p>
-        The map, search, and every shop page are available anonymously. An account
-        is needed only to keep things that must persist: saved shops and your
-        Passport.
+        The map, search, and every shop page are available anonymously — and so is
+        saving a shop or keeping an impression. Neither needs an account.
+      </p>
+      <p>
+        <strong>What you save stays on this device.</strong> It is held in this
+        browser&rsquo;s storage, it is not sent to Nib Atlas, it does not appear on
+        your other devices, and clearing this browser&rsquo;s data clears it. An
+        account will later carry saved shops and verified visits between your
+        devices; nothing needs one today.
       </p>
 
       <h2 className="type-h2">Your Passport is private</h2>
@@ -67,6 +73,10 @@ export default function PrivacyPage() {
         Collected stamps are private by default. There are no public profiles, no
         followers, no leaderboards, and no feed. Nothing you collect is shown to
         anyone else.
+      </p>
+      <p>
+        Nib Atlas also starts you with nothing. A Passport is empty until you put
+        something in it — no sample visits, no places you did not choose.
       </p>
 
       <h2 className="type-h2">Your data, your call</h2>
@@ -82,7 +92,7 @@ export default function PrivacyPage() {
         The location check described above is not running in this build. Collecting
         a stamp keeps a preview impression on this device so you can see how the
         Passport works; nothing about your position is requested, checked, or sent
-        anywhere. Saved shops are held on this device too.
+        anywhere.
       </p>
 
       <p className="type-body-sm">

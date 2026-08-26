@@ -6,8 +6,15 @@ import type { ShopSourceRef } from "@/src/domain/shop-detail";
  * `docs/milestone-1-5-product-refinement.md` accepted decision 1 keeps exactly
  * one subordinate provenance sentence on the shop page and moves the per-field
  * source list, its `confirms` breakdown, and its retrieval dates into reviewer
- * mode. The sentence names where the facts came from and when they were read,
- * which is what a visitor can actually use; the rest is review instrumentation.
+ * mode.
+ *
+ * The first WP1 attempt named only the highest-ranked source, which was wrong
+ * for mixed records: TY Lee's own website confirms nothing but its local-script
+ * name, while the name, address and district come from a community list, so
+ * "Details from the shop's own website" claimed official backing for facts that
+ * do not have it. The sentence therefore names **every** source kind the record
+ * rests on. Kinds, not labels — that is what keeps it a sentence rather than the
+ * source dump reviewer mode already provides.
  */
 const SOURCE_PHRASES: Record<ShopSourceRef["kind"], string> = {
   official: "the shop's own website",
@@ -17,19 +24,18 @@ const SOURCE_PHRASES: Record<ShopSourceRef["kind"], string> = {
 };
 
 /**
- * Which source speaks for the record.
+ * Reading order for the sentence: strongest backing first.
  *
  * A shop's own website outranks a dealer listing, which outranks a community
- * list. A founder visit is last not because it is weak but because naming it in
- * product copy would describe how Nib Atlas is run rather than where the facts
- * came from.
+ * list. A founder visit is last not because it is weak but because it describes
+ * how Nib Atlas works rather than where a published fact came from.
  */
-const SOURCE_RANK: Record<ShopSourceRef["kind"], number> = {
-  official: 0,
-  brand_dealer_list: 1,
-  community_list: 2,
-  founder_visit: 3,
-};
+const SOURCE_ORDER: readonly ShopSourceRef["kind"][] = [
+  "official",
+  "brand_dealer_list",
+  "community_list",
+  "founder_visit",
+];
 
 /** Formats an ISO date as the plain English the copy uses: `26 August 2026`. */
 export function formatCheckedOn(retrievedOn: string): string | null {
@@ -46,6 +52,12 @@ export function formatCheckedOn(retrievedOn: string): string | null {
     return null;
   }
 
+  // `Date` accepts 2026-02-31 and rolls it into March, which would print a date
+  // no source was read on. Round-tripping catches that.
+  if (parsed.toISOString().slice(0, 10) !== `${year}-${month}-${day}`) {
+    return null;
+  }
+
   return new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: "long",
@@ -54,15 +66,43 @@ export function formatCheckedOn(retrievedOn: string): string | null {
   }).format(parsed);
 }
 
-export function primarySource(
+/** The distinct source kinds a record rests on, strongest first. */
+export function sourceKindsInOrder(
   sources: readonly ShopSourceRef[],
-): ShopSourceRef | undefined {
-  return [...sources].sort((a, b) => {
-    const rank = SOURCE_RANK[a.kind] - SOURCE_RANK[b.kind];
+): readonly ShopSourceRef["kind"][] {
+  const present = new Set(sources.map((source) => source.kind));
 
-    // Same kind: the most recently read source is the one worth naming.
-    return rank !== 0 ? rank : b.retrievedOn.localeCompare(a.retrievedOn);
-  })[0];
+  return SOURCE_ORDER.filter((kind) => present.has(kind));
+}
+
+/**
+ * The date the record can honestly claim.
+ *
+ * The **oldest** retrieval among the named sources, because a page is only as
+ * current as its stalest fact. Pen House's website was read in August but its
+ * district came from a March visit note, so claiming August would present the
+ * whole record as five months fresher than part of it is.
+ */
+export function oldestRetrievedOn(
+  sources: readonly ShopSourceRef[],
+): string | undefined {
+  return sources
+    .map((source) => source.retrievedOn)
+    .filter((date) => formatCheckedOn(date) !== null)
+    .sort((a, b) => a.localeCompare(b))[0];
+}
+
+/** `A`, `A and B`, `A, B, and C`. */
+function sentenceList(items: readonly string[]): string {
+  if (items.length <= 1) {
+    return items[0] ?? "";
+  }
+
+  if (items.length === 2) {
+    return `${items[0]} and ${items[1]}`;
+  }
+
+  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
 }
 
 /**
@@ -72,14 +112,15 @@ export function primarySource(
  * provenance is worse than omitting it.
  */
 export function provenanceSentence(sources: readonly ShopSourceRef[]): string | null {
-  const source = primarySource(sources);
+  const kinds = sourceKindsInOrder(sources);
 
-  if (!source) {
+  if (kinds.length === 0) {
     return null;
   }
 
-  const phrase = SOURCE_PHRASES[source.kind];
-  const checkedOn = formatCheckedOn(source.retrievedOn);
+  const phrase = sentenceList(kinds.map((kind) => SOURCE_PHRASES[kind]));
+  const oldest = oldestRetrievedOn(sources);
+  const checkedOn = oldest === undefined ? null : formatCheckedOn(oldest);
 
   return checkedOn
     ? `Details from ${phrase}, checked ${checkedOn}.`

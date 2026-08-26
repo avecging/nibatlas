@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { REVIEWER_STORAGE_KEY } from "@/src/features/reviewer/reviewer-mode";
@@ -81,6 +81,35 @@ describe("ReviewerModeProvider", () => {
     expect(mode()).toBe("off");
     expect(stored()).toBe("0");
     expect(screen.queryByTestId("reviewer-mode-badge")).not.toBeInTheDocument();
+  });
+
+  it("takes review out of the address bar on exit, so a reload stays out", () => {
+    // Remembering the choice is not enough: the parameter outranks it, so
+    // reloading the page the reviewer exited from would put them straight back.
+    renderAt("/me?destination=ginza&review=1");
+    expect(mode()).toBe("on");
+
+    fireEvent.click(screen.getByRole("button", { name: /exit reviewer mode/i }));
+
+    expect(window.location.search).not.toContain("review");
+    expect(window.location.search).toContain("destination=ginza");
+
+    // Re-mounting at the URL the browser now holds is the reload.
+    cleanup();
+    renderAt(`${window.location.pathname}${window.location.search}`);
+    expect(mode()).toBe("off");
+  });
+
+  it("leaves an unrelated URL alone when exiting without the parameter", () => {
+    window.localStorage.setItem(REVIEWER_STORAGE_KEY, "1");
+    renderAt("/about?destination=kobe");
+    expect(mode()).toBe("on");
+
+    fireEvent.click(screen.getByRole("button", { name: /exit reviewer mode/i }));
+
+    expect(mode()).toBe("off");
+    expect(window.location.pathname).toBe("/about");
+    expect(window.location.search).toBe("?destination=kobe");
   });
 
   it("survives storage being unavailable", () => {
