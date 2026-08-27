@@ -120,7 +120,42 @@ describe("Me, signed out", () => {
     expect(
       within(contribute).queryByText(/report incorrect information/i),
     ).not.toBeInTheDocument();
-    expect(within(contribute).queryByText(/not open yet/i)).not.toBeInTheDocument();
+  });
+
+  /*
+   * The end of that reasoning: no row anywhere in Me carries "Not open yet".
+   * Both rows that did are gone, and WP7 owns what replaces them.
+   *
+   * "Not available yet" is a different claim and stays — Sign in and Export
+   * account data describe an account that will exist, which is product
+   * information rather than a control that cannot be pressed.
+   */
+  it("carries no unusable controls at all", () => {
+    renderMe({ collection: "seeded" });
+
+    expect(screen.queryByText(/not open yet/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/help and contact/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: /help and about/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  /** The three destinations that do work are untouched by the removals. */
+  it("keeps every route that works", () => {
+    renderMe();
+
+    expect(screen.getByRole("link", { name: /privacy policy/i })).toHaveAttribute(
+      "href",
+      "/privacy",
+    );
+    expect(screen.getByRole("link", { name: /about nib atlas/i })).toHaveAttribute(
+      "href",
+      "/about",
+    );
+    expect(screen.getByRole("link", { name: /suggest a pen shop/i })).toHaveAttribute(
+      "href",
+      "mailto:hello@nibatlas.com?subject=%5BSuggest%20shop%5D",
+    );
   });
 
   /*

@@ -79,7 +79,44 @@ test.describe("signed out", () => {
      * mail can name the shop.
      */
     await expect(contribute.getByText(/report incorrect information/i)).toHaveCount(0);
-    await expect(contribute.getByText(/not open yet/i)).toHaveCount(0);
+  });
+
+  /*
+   * The end of that reasoning: no row anywhere in Me carries "Not open yet".
+   * Both rows that did are gone, and WP7 owns what replaces them.
+   *
+   * "Not available yet" is a different claim and stays — Sign in describes an
+   * account that will exist, which is product information rather than a control
+   * that cannot be pressed.
+   */
+  test("carries no unusable controls at all", async ({ page }) => {
+    await seedSampleCollection(page);
+    await page.goto("/me");
+
+    await expect(page.getByText(/not open yet/i)).toHaveCount(0);
+    await expect(page.getByText(/help and contact/i)).toHaveCount(0);
+    await expect(page.getByRole("region", { name: /help and about/i })).toHaveCount(0);
+  });
+
+  /** The three destinations that do work are untouched by the removals. */
+  test("keeps every route that works", async ({ page }) => {
+    await page.goto("/me");
+
+    await expect(page.getByRole("link", { name: /privacy policy/i })).toHaveAttribute(
+      "href",
+      "/privacy",
+    );
+    await expect(page.getByRole("link", { name: /about nib atlas/i })).toHaveAttribute(
+      "href",
+      "/about",
+    );
+    await expect(
+      page.getByRole("link", { name: /suggest a pen shop/i }),
+    ).toHaveAttribute("href", "mailto:hello@nibatlas.com?subject=%5BSuggest%20shop%5D");
+
+    // And they still arrive.
+    await page.getByRole("link", { name: /about nib atlas/i }).click();
+    await expect(page).toHaveURL(/\/about$/);
   });
 
   /*

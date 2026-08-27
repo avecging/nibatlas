@@ -748,7 +748,17 @@ export function MeScreen() {
 
       <Contribute />
 
-      <Section id="me-help" title="Help and about">
+      {/*
+        No help row.
+
+        It was the last entry in Me carrying *Not open yet*, and the founder's
+        staging review removed it for the same reason as the correction row: a
+        visible control that cannot be used is prototype scaffolding. The
+        section is renamed with it — a group called "Help and about" that offers
+        no help is the same inaccuracy one level up. WP7 owns the help route and
+        will decide where it belongs.
+      */}
+      <Section id="me-about" title="About">
         <ul className={styles.rows}>
           {/*
             Privacy is its own group once signed in, where the account controls
@@ -763,13 +773,6 @@ export function MeScreen() {
               title="Privacy policy"
             />
           )}
-          <Row
-            action="Not open yet"
-            detail="Ask for help with a shop page or a collection that did not work."
-            icon="help"
-            reviewerAction="Routing arrives in WP7"
-            title="Help and contact"
-          />
           <Row
             detail="What the catalogue is, and the countries it covers today."
             href="/about"

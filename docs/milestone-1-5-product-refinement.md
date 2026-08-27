@@ -182,6 +182,14 @@ Its copy is approved as natural product language rather than an instruction:
 
 WP7 attaches the `[Shop correction]` route to that, carrying the shop name.
 
+**Help and contact is also WP7's, and is deliberately not specified here.**
+Recorded 27 August 2026, with the same amendment. It was the last row in Me
+carrying *Not open yet* and was removed for the same reason as the correction
+row. Its destination, subject line and copy are open questions — an address may
+not be the right answer at all, and unlike the two contribution routes above,
+this decision has never been made. WP7 owns making it. Nothing in WP2 invents
+it.
+
 ### 9. Scope
 
 WP1–WP7 below are Milestone 1.5. PR #5 must not grow indefinitely.
@@ -276,12 +284,12 @@ visited, if local stamps exist, linked into Passport · Preferences and
 accessibility · **On this device** (what is stored locally, that it does not sync
 and is lost if browser data is cleared or the PWA is removed, Download local
 data, Clear data on this device) · **Contribute** (Suggest a pen shop) ·
-Privacy · Help · About Nib Atlas.
+Privacy · About Nib Atlas.
 
 **Signed in** — optional display name and account identity · **Places visited**,
 compact and clickable, where a country entry opens that country's Passport
 section or filtered List view · Privacy and your data (export, download) ·
-Contribute · Help · About · Sign out · then a separated **Danger** group with
+Contribute · About · Sign out · then a separated **Danger** group with
 **Delete account** in `--error`, behind a confirmation.
 
 *Amended 27 August 2026:* **Preferences and accessibility** is not part of either
@@ -370,7 +378,7 @@ that feedback exists.
 | **WP4** | Shop value layer: the data-model extension, sourced content, reordered page, native directions, contextual report | WP1, sourcing | Not started |
 | **WP5** | Visual fidelity: shop identity system, interim hero, paper and cover texture, stamp at large size, ceremony material pass | WP3, WP4 | Not started |
 | **WP6** | Filter drawer: segment plus drawer, active count, one-tap clear | WP1 | Not started |
-| **WP7** | Contribution flows: `mailto` routing now, `/suggest-shop` page later | WP2 | Not started |
+| **WP7** | Contact and contribution routes: the contextual shop-page correction, help and contact, and the `/suggest-shop` page later. *Suggest a pen shop* is routed in WP2 | WP2 | Not started |
 | **WP-D** | **Required desktop audit** across all of the above | Founder desktop feedback | Not started |
 
 WP1 is the smallest package with the largest effect on testability: it is what
@@ -956,18 +964,47 @@ deletes the preview. Every consumer keeps the same shape.
     interaction already demonstrates, not that it should say less about what it
     is doing to the reader's data.
 
+22. **Help and contact leaves Me, and the section is renamed with it.** The
+    founder settled the item revision 19 raised: it was the last row carrying
+    *Not open yet*, and the reasoning that removed *Report incorrect
+    information* applies to it unchanged. A visible control that cannot be used
+    is prototype scaffolding whether or not it is the only one left.
+
+    The group it sat in was called **Help and about**. With no help in it, that
+    heading is the same inaccuracy one level up, so the section is now **About**
+    — holding Privacy policy and About Nib Atlas signed out, and About Nib Atlas
+    and Sign out signed in. Its anchor moved from `#me-help` to `#me-about`;
+    nothing linked to the old one.
+
+    Its routing is recorded under WP7 and deliberately **not** specified here:
+    destination, subject line and copy are all open, an address may not be the
+    right answer, and unlike the two contribution routes that decision has never
+    been made. See the amendment to accepted decision 8.
+
+    **Nothing that works was touched.** *Suggest a pen shop* keeps its route and
+    subject tag, *Privacy policy* still reaches `/privacy`, and *About Nib
+    Atlas* still reaches `/about` — asserted together in one test, in both the
+    component suite and the journeys, so a future removal cannot take one of
+    them with it.
+
+    Me now carries no unusable control at all. *Not available yet* on **Sign in**
+    and **Export account data** is a different claim and stays: it describes an
+    account that will exist, which is product information rather than a control
+    that cannot be pressed. A test asserts the count of *Not open yet* across the
+    whole page is zero.
+
 ### WP2 revisions after the founder's staging review
 
 Recorded 27 August 2026, after the founder read WP2 on staging as an ordinary
-user. Three refinements, all copy or structure, no behaviour change: revisions 19
-to 21 above.
+user, and one follow-up settled straight after it. Four refinements, all copy or
+structure, no behaviour change: revisions 19 to 22 above.
 
 The reviewer-mode organisation was reviewed and kept as it stands.
 
-One item is raised rather than settled: **Help and contact** is now the only row
-in Me carrying *Not open yet*. The reasoning that removed *Report incorrect
-information* applies to it word for word, but it is the last support route a
-tester has, and removing it leaves none. It is left in place pending a decision.
+One item was raised rather than settled in that pass — **Help and contact**, then
+the only remaining row carrying *Not open yet* — and the founder settled it
+immediately after: remove it, on the same reasoning. Recorded as revision 22
+below.
 
 ### WP2 revisions after the Codex review
 
