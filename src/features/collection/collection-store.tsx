@@ -124,6 +124,16 @@ export interface CollectionStore {
   collectStamp(shop: ShopDetail, today?: Date): StampCollection;
   /** Restores the current scope's baseline. Reviewer-only in the interface. */
   resetPrototypeState(): void;
+  /**
+   * Empties this device's store and removes its key.
+   *
+   * Distinct from {@link CollectionStore.resetPrototypeState}, which restores a
+   * baseline — on a reviewer device that baseline is the seeded demonstration
+   * collection, so reset *adds* six stamps back. **Clear data on this device**
+   * in Me promises removal, so it has to remove: no saves, no impressions, no
+   * carried seals, and no leftover key for the next visit to read.
+   */
+  clearLocalData(): void;
 }
 
 const CollectionContext = createContext<CollectionStore | null>(null);
@@ -326,6 +336,31 @@ export function CollectionProvider({ children }: { readonly children: ReactNode 
     setCarriedSeals([]);
   }, [scope]);
 
+  const clearLocalData = useCallback(() => {
+    setSavedShopIds([]);
+    setCollections([]);
+    setCarriedSeals([]);
+
+    // Written here rather than left to the persistence effect, which only runs
+    // when the state actually changes. On a reviewer device that already holds
+    // an empty store, clearing again would change nothing, write nothing, and —
+    // if this removed the key instead — leave *absent*, whose baseline is the
+    // seeded collection. Clearing must leave an empty store behind, never an
+    // absent one that reseeds on the next visit.
+    try {
+      window.localStorage.setItem(
+        STORAGE_KEYS[scope],
+        JSON.stringify({
+          savedShopIds: [],
+          collections: [],
+          seals: [],
+        } satisfies PersistedState),
+      );
+    } catch {
+      // Storage is best effort; the in-memory state is already empty.
+    }
+  }, [scope]);
+
   const value = useMemo<CollectionStore>(() => {
     const userShopState: UserShopState = {
       savedShopIds: savedSet,
@@ -352,8 +387,10 @@ export function CollectionProvider({ children }: { readonly children: ReactNode 
         countrySealFor(derived.seals, countryCode),
       collectStamp,
       resetPrototypeState,
+      clearLocalData,
     };
   }, [
+    clearLocalData,
     collectStamp,
     collections,
     derived.countryProgress,

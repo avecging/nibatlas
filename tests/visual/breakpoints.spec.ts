@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { seedSampleCollection } from "../support/local-state";
+import { seedSampleCollection, seedSignedInPreview } from "../support/local-state";
 
 /**
  * Visual baselines and responsive screenshot evidence.
@@ -68,4 +68,25 @@ for (const breakpoint of BREAKPOINTS) {
       });
     });
   }
+}
+
+/*
+ * Me's signed-in state is a different screen, not the same screen with extra
+ * rows, so it gets its own baseline. It is reachable only through the reviewer
+ * preview until Milestone 4 builds authentication, and the reviewer badge and
+ * prototype controls are part of what the baseline records.
+ */
+for (const breakpoint of BREAKPOINTS) {
+  test(`me-signed-in at ${breakpoint.name}`, async ({ page }) => {
+    await seedSignedInPreview(page, "Ada Lovelace");
+    await page.setViewportSize({ width: breakpoint.width, height: breakpoint.height });
+    await page.goto("/me");
+    await expect(page.getByLabel(/display name/i)).toBeVisible();
+
+    await expect(page).toHaveScreenshot(`me-signed-in-${breakpoint.name}.png`, {
+      fullPage: true,
+      animations: "disabled",
+      maxDiffPixelRatio: 0.02,
+    });
+  });
 }

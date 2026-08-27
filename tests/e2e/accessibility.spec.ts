@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
-import { seedSampleCollection } from "../support/local-state";
+import { seedSampleCollection, seedSignedInPreview } from "../support/local-state";
 
 const ROUTES = [
   { path: "/", name: "map" },
@@ -47,6 +47,26 @@ for (const route of ROUTES) {
     ).toEqual([]);
   });
 }
+
+/*
+ * Me's signed-in state carries a form and a destructive confirmation, neither of
+ * which exists in the signed-out audit above. It is reachable only through the
+ * reviewer preview, so that is how it is audited.
+ */
+test("me in its signed-in form is accessible, confirmation included", async ({
+  page,
+}) => {
+  await seedSignedInPreview(page, "Ada Lovelace");
+  await page.goto("/me");
+
+  await expect(page.getByLabel(/display name/i)).toBeVisible();
+  expect((await analyze(page)).violations).toEqual([]);
+
+  await page.getByRole("button", { name: /delete account/i }).click();
+  await expect(page.getByText(/delete your nib atlas account\?/i)).toBeVisible();
+
+  expect((await analyze(page)).violations).toEqual([]);
+});
 
 test("the collection dialogs are accessible", async ({ page }) => {
   await page.goto("/shops/juspirit-banqiao");

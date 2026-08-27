@@ -1,6 +1,7 @@
 # Milestone 1.5 — Production-like product refinement
 
-**Status:** Founder-approved direction. **WP1 implemented**; WP2–WP7 and WP-D not started.
+**Status:** Founder-approved direction. **WP1 and WP2 implemented**; WP3–WP7 and
+WP-D not started.
 **Recorded:** 26 August 2026
 **Owner:** Claude Code (frontend), with founder and Codex on sourcing
 **Depends on:** Milestone 1 (PR #5) landing as the corrected technical foundation
@@ -347,7 +348,7 @@ that feedback exists.
 | --- | --- | --- | --- |
 | **WP0** | The five PR #5 review findings. **Milestone 1, not 1.5.** | — | Landed in PR #5 |
 | **WP1** | Reviewer mode plus the copy pass: the flag, migrating every badge and milestone label behind it, production copy for location and collection, About Nib Atlas | WP0 | **Implemented** |
-| **WP2** | Me restructure: signed-out/signed-in split, compact Places Visited linked into Passport, local-data controls, Contribute entries, Danger group | WP1 | Not started |
+| **WP2** | Me restructure: signed-out/signed-in split, compact Places Visited linked into Passport, local-data controls, Contribute entries, Danger group | WP1 | **Implemented** |
 | **WP3** | Passport IA: List/Book toggle, opening spread on content, country/locality index and linked routes, stamp detail overlay, first-run-only cover, cover redesign, display name on the identity page | WP1 | Not started |
 | **WP4** | Shop value layer: the data-model extension, sourced content, reordered page, native directions, contextual report | WP1, sourcing | Not started |
 | **WP5** | Visual fidelity: shop identity system, interim hero, paper and cover texture, stamp at large size, ceremony material pass | WP3, WP4 | Not started |
@@ -706,6 +707,147 @@ Added with the review revisions:
   Saved; seeded reviewer state; a mode round trip preserving a real save; the
   legacy session; and one test per copy fix.
 - `tests/support/local-state.ts` — the shared arrangement helper.
+
+## WP2 implementation record
+
+Recorded 27 August 2026. WP2 is the *Revised Me structure* above, built as
+written: two distinct states, four named groups, a compact Places Visited that
+links into the Passport, working local-data controls, the Contribute entries, and
+a separated Danger group.
+
+### The problem it solves
+
+Milestone 1's Me was one undifferentiated list that mixed four unrelated things —
+a profile that was not a profile, geography, settings, and data controls — and
+told the reader about each of them at length. WP1 shortened the copy but left the
+shape alone, and explicitly deferred the restructure here.
+
+The shape matters more than the wording did. A reader arrives at Me for one of
+three reasons: to find out what is being kept about them, to get back to
+somewhere they have been, or to change something. The restructure gives each of
+those its own group, in that order, and removes the sections that existed only to
+narrate compliance.
+
+### Two states, not one screen with extra rows
+
+Authentication is Milestone 4, so the signed-in state cannot be real yet. The
+options were to build only the signed-out half, or to build the seam the real
+thing will plug into and make the signed-in half reviewable behind the flag WP1
+already established. The second was taken, because the approved structure is a
+*pair* and half of it cannot be reviewed on its own.
+
+`src/features/account/account-session.ts` is that seam. Its rules:
+
+- **Normal mode is always signed out.** No parameter, no storage entry and no
+  control can move a tester's device into the signed-in state. The check is in
+  `resolveAccountSession` itself, not only in the interface, so a preview key
+  left behind by an earlier reviewer session is ignored outright rather than
+  merely unreachable. `tests/e2e/me.spec.ts` asserts exactly that.
+- **Reviewer mode may preview it,** from a reviewer-namespaced key, and the
+  preview says so where it renders rather than only where it is switched on.
+
+Milestone 4 replaces `resolveAccountSession` with a real session lookup and
+deletes the preview. Every consumer keeps the same shape.
+
+### Precise implementation decisions
+
+1. **Places visited is omitted, not zeroed, on a clean device.** Milestone 1
+   rendered three zero stat cards and a "No visits yet" line. A section whose
+   only content is a report that it has no content is the acceptance checklist
+   answering itself again. It appears on the first stamp.
+2. **Seal progress is folded into the country row, and stays a separate fact.**
+   The Milestone 1 review found seals standing in for visits, which hid two of
+   three countries the reader had genuinely been to. The row now states the visit
+   from the stamps and the seal threshold beneath it, and the earned case shows a
+   seal chip instead of a progress line. The separate *Seal progress* section is
+   gone; it was a second rendering of the same data.
+3. **Country and locality are separate links, not nested.** A link inside a link
+   is invalid, and a reader who wants Chūō should not have to go through Japan.
+   The country heading links to `/passport/[country]`; the localities beneath it
+   are chips linking to `/passport/[country]/[locality]`. Those two routes existed
+   and were orphaned; WP2 gives them their first product entry point. WP3 owns
+   what they render.
+4. **Download local data works, and says what it is.** There is no server, so
+   this is not "export my account" — it is a copy of what this device holds,
+   written as it is stored, `simulated: true` carried through and the store it
+   came from named in the file. A reviewer's export can never later be read as a
+   record of real visits. The payload builder is pure (`src/features/me/local-data.ts`);
+   the browser half is a thin wrapper that reports failure rather than appearing
+   to succeed when a browser blocks object URLs.
+5. **Clear data writes an empty store rather than removing the key.** This is not
+   cosmetic: on a reviewer device the *key absent* baseline is the seeded
+   demonstration collection, so removing the key would reseed six stamps on the
+   next visit. Clearing twice would have done it even where clearing once did
+   not, because an unchanged state writes nothing. Pinned in
+   `collection-store.test.tsx`.
+6. **Destructive controls ask with an inline panel, never `window.confirm`.** The
+   native dialog cannot be styled, cannot be screenshotted for review evidence,
+   is suppressible by the browser, and reads out of context to assistive
+   technology. The panel takes focus when it opens and returns it to the row when
+   it closes.
+7. **A confirm button never repeats its row's label.** A row's accessible name is
+   its title and detail together, so *Clear data on this device* and *Clear this
+   device* are two addressable controls where two identical labels would have
+   been one ambiguous one.
+8. **Standing text is not a live region.** The Danger row's preview note is
+   present from first paint, so it is plain text; only the result of using a
+   control is `role="status"`. Two permanent status regions on one screen is
+   noise to a screen reader, not information.
+9. **Me's Location section was removed.** The approved structure does not carry
+   one, and the sentence belongs where the position would actually be requested —
+   the collect preflight, which WP1 already built — with the full account on
+   Privacy. Privacy remains one tap away and its row now names location, so the
+   route to the explanation is unchanged. The reviewer note moved with it, and is
+   asserted at the preflight.
+10. **Privacy's data paragraph was corrected.** It promised an export and a
+    deletion in the future tense. Both act on this device today, so it names them
+    and links to the group that holds them; the account-scoped versions are
+    described separately, still in the future tense, which is where they belong.
+11. **`/account` redirects to `#me-account`.** The old `#me-profile` anchor no
+    longer exists.
+12. **Contribute entries are placed; their routing is not.** WP7 owns `mailto`
+    routing and the later `/suggest-shop` page. The entries say *Not open yet*
+    rather than opening a link that goes nowhere, and the work-package number
+    stays in reviewer mode. This is the one part of the approved Me structure
+    that is present without being usable, and it is deliberate: the alternative
+    was to leave a group-shaped hole that WP7 would have to design into.
+
+### Deliberately not done in WP2
+
+- **No authentication.** The signed-in state is a labelled preview. Nothing
+  signs in, nothing syncs, and no account can be created or deleted.
+- **Merging local saves on account creation** is named in the approved structure
+  as something to offer *on* account creation. There is no account creation, so
+  there is nothing to offer it at.
+- **Desktop layout was not touched.** The 1440 × 900 evidence shows the
+  restructure on the existing Milestone 1 desktop treatment and is not desktop
+  sign-off; WP-D still awaits founder feedback.
+- **Passport's own information architecture** is WP3. Me links into the routes
+  that exist; it does not change what they render.
+
+### Coverage
+
+- `src/features/account/account-session.test.ts` — the resolution rules,
+  including a stored preview being ignored in normal mode; display-name
+  normalisation and bounds; persisted-record parsing.
+- `src/features/me/local-data.test.ts` — the export payload shape, deterministic
+  ordering, the carried `simulated` marker and the named store, and the filename.
+- `src/features/collection/collection-store.test.tsx` — clearing empties the
+  store, leaves it present rather than absent, survives being done twice, is not
+  the reviewer reset, and does not touch the other mode's store.
+- `src/features/me/MeScreen.test.tsx` — both states as structure: the groups each
+  one has, the Danger group's absence when signed out, the confirmations, the
+  download's success and failure paths, and the display name surviving a Save
+  pressed without typing.
+- `tests/e2e/me.spec.ts` — the journeys: the signed-out groups, Places Visited's
+  counts and deep links, clearing with and without confirmation (asserted against
+  storage, since the arranged state is an init script and a reload would re-seed
+  it), a real download parsed back, and the signed-in preview end to end.
+- `tests/e2e/accessibility.spec.ts` — an axe audit of the signed-in state and of
+  the destructive confirmation open, neither of which exists in the signed-out
+  audit.
+- `tests/evidence/wp2-me.spec.ts` and `docs/evidence/milestone-1-5-wp2/` — every
+  state at both breakpoints.
 
 ## Open items still needing founder input
 

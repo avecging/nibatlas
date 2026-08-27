@@ -303,6 +303,99 @@ describe("collection store", () => {
   });
 });
 
+describe("clearing local data", () => {
+  it("removes saves and impressions from a normal device", () => {
+    const { result } = renderStore(false);
+
+    act(() => {
+      result.current.collection.toggleSaved(unvisited.id);
+      result.current.collection.collectStamp(unvisited);
+    });
+
+    expect(result.current.collection.passport.stampCount).toBe(1);
+
+    act(() => {
+      result.current.collection.clearLocalData();
+    });
+
+    expect(result.current.collection.savedShopIds.size).toBe(0);
+    expect(result.current.collection.collections).toEqual([]);
+    expect(result.current.collection.seals).toEqual([]);
+    expect(result.current.collection.passport.stampCount).toBe(0);
+  });
+
+  /*
+   * The failure this guards is specific to reviewer mode, whose *key absent*
+   * baseline is the seeded demonstration collection. Clearing has to leave an
+   * empty store on disk, not an absent one that reseeds six stamps on the next
+   * visit — and it has to keep doing so when the reader clears twice.
+   */
+  it("leaves an empty store on disk rather than an absent one", () => {
+    const { result } = renderStore(true);
+
+    expect(result.current.collection.passport.stampCount).toBeGreaterThan(0);
+
+    act(() => {
+      result.current.collection.clearLocalData();
+    });
+
+    const afterFirst = window.localStorage.getItem(COLLECTION_STORAGE_KEYS.reviewer);
+
+    expect(afterFirst).not.toBeNull();
+    expect(JSON.parse(afterFirst!)).toMatchObject({
+      savedShopIds: [],
+      collections: [],
+    });
+
+    // Clearing an already-empty store changes no state, so nothing would be
+    // written by the persistence effect. The key must still be there.
+    act(() => {
+      result.current.collection.clearLocalData();
+    });
+
+    expect(
+      window.localStorage.getItem(COLLECTION_STORAGE_KEYS.reviewer),
+    ).not.toBeNull();
+  });
+
+  it("is not the reviewer reset, which restores the seed", () => {
+    const { result } = renderStore(true);
+
+    act(() => {
+      result.current.collection.clearLocalData();
+    });
+
+    expect(result.current.collection.passport.stampCount).toBe(0);
+
+    act(() => {
+      result.current.collection.resetPrototypeState();
+    });
+
+    expect(result.current.collection.passport.stampCount).toBeGreaterThan(0);
+  });
+
+  it("does not touch the other mode's store", () => {
+    const { result } = renderStore(false);
+
+    act(() => {
+      result.current.collection.toggleSaved(unvisited.id);
+    });
+
+    window.localStorage.setItem(
+      COLLECTION_STORAGE_KEYS.reviewer,
+      JSON.stringify({ savedShopIds: ["kept"], collections: [] }),
+    );
+
+    act(() => {
+      result.current.collection.clearLocalData();
+    });
+
+    expect(window.localStorage.getItem(COLLECTION_STORAGE_KEYS.reviewer)).toContain(
+      "kept",
+    );
+  });
+});
+
 describe("prototype catalogue in the store", () => {
   it("exposes every prototype shop for the global Saved mode", () => {
     expect(prototypeShopDetails.length).toBeGreaterThan(0);

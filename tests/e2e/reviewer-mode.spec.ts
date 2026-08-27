@@ -219,7 +219,22 @@ test.describe("reviewer mode keeps the diagnostics", () => {
       page.getByText(/Counted against curated set [a-z]{2}-/i).first(),
     ).toBeVisible();
     await expect(page.getByRole("button", { name: /reset the prototype/i })).toBeVisible();
-    await expect(page.getByText(/does not request your location at all/i)).toBeVisible();
+  });
+
+  /*
+   * WP2 removes Me's standing Location section, which the approved structure
+   * does not carry. The reviewer note about geolocation belongs at the moment
+   * the position would be requested, and that is where it is now asserted.
+   */
+  test("the location reviewer note lives at the point of request", async ({ page }) => {
+    await page.goto("/shops/juspirit-banqiao?review=1");
+    await expectMode(page, "on");
+
+    await page.getByRole("button", { name: /collect stamp/i }).click();
+
+    await expect(
+      page.getByText(/this build never calls the Geolocation API/i),
+    ).toBeVisible();
   });
 
   test("a shop page restores the coordinate row and the per-field source list", async ({
@@ -374,23 +389,14 @@ test.describe("product-facing destinations", () => {
  * reviewer facility.
  */
 test.describe("a clean normal-mode device starts empty", () => {
-  test("Me reports no visits and no seals", async ({ page }) => {
+  test("Me shows no geography at all", async ({ page }) => {
     await page.goto("/me");
     await expectMode(page, "off");
 
-    const visited = page.getByRole("region", { name: /places visited/i });
-    const seals = page.getByRole("region", { name: /seal progress/i });
-
-    for (const label of ["Shop stamps", "Countries visited", "Localities visited"]) {
-      await expect(
-        visited.locator("p", { has: page.getByText(label, { exact: true }) }),
-      ).toContainText("0");
-    }
-
-    await expect(visited.getByText(/No visits yet/i)).toBeVisible();
-    await expect(
-      seals.locator("p", { has: page.getByText("Country seals", { exact: true }) }),
-    ).toContainText("0");
+    // WP2 omits Places visited outright rather than rendering it as three
+    // zeroes: a section that exists only to report nothing is the acceptance
+    // checklist answering itself.
+    await expect(page.getByRole("region", { name: /places visited/i })).toHaveCount(0);
 
     // No invented geography anywhere on the page.
     const text = await visibleText(page);
@@ -427,7 +433,7 @@ test.describe("a clean normal-mode device starts empty", () => {
     const visited = page.getByRole("region", { name: /places visited/i });
 
     await expect(
-      visited.locator("p", { has: page.getByText("Countries visited", { exact: true }) }),
+      visited.locator("p", { has: page.getByText("Countries", { exact: true }) }),
     ).toContainText("3");
     await expect(visited.getByText(/Chūō, Tokyo/)).toBeVisible();
   });
@@ -466,11 +472,7 @@ test.describe("a clean normal-mode device starts empty", () => {
     await page.goto("/me");
     await expectMode(page, "off");
 
-    await expect(
-      page
-        .getByRole("region", { name: /places visited/i })
-        .locator("p", { has: page.getByText("Countries visited", { exact: true }) }),
-    ).toContainText("0");
+    await expect(page.getByRole("region", { name: /places visited/i })).toHaveCount(0);
 
     // It is not discarded, though: it was reviewer state, so that is where it
     // now lives.
@@ -479,7 +481,7 @@ test.describe("a clean normal-mode device starts empty", () => {
     await expect(
       page
         .getByRole("region", { name: /places visited/i })
-        .locator("p", { has: page.getByText("Countries visited", { exact: true }) }),
+        .locator("p", { has: page.getByText("Countries", { exact: true }) }),
     ).toContainText("3");
   });
 });
@@ -563,9 +565,10 @@ test.describe("copy that has to be true of every record", () => {
     );
 
     await page.goto("/me");
-    await expect(
-      page.getByText(/Your saved shops and impressions are kept on this device/i),
-    ).toBeVisible();
+    const device = page.getByRole("region", { name: /on this device/i });
+
+    await expect(device).toContainText(/stored in this browser, on this device/i);
+    await expect(device).toContainText(/do not sync/i);
   });
 });
 
@@ -579,7 +582,7 @@ test.describe("an arranged collection behaves as before", () => {
     await expect(
       page
         .getByRole("region", { name: /places visited/i })
-        .locator("p", { has: page.getByText("Countries visited", { exact: true }) }),
+        .locator("p", { has: page.getByText("Countries", { exact: true }) }),
     ).toContainText("3");
   });
 });
