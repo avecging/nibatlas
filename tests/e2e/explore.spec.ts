@@ -311,10 +311,11 @@ test("explore to simulated collection to Passport", async ({ page }) => {
   await ceremony.getByRole("link", { name: /open in passport/i }).click();
 
   // The ceremony opens the Passport at the impression that was just pressed, so
-  // it lands on that locality's own page already open — not on the cover.
+  // it lands on that locality's own content — not on the overview and not on a
+  // cover.
   await expect(page).toHaveURL(/\/passport\/tw\/east-tainan$/);
   await expect(
-    page.getByRole("heading", { level: 3, name: /East District, Tainan/ }).first(),
+    page.getByRole("heading", { level: 1, name: /East District, Tainan/ }),
   ).toBeVisible();
 });
 

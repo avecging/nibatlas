@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { PassportOverviewView } from "@/src/components/passport/PassportViews";
+import { PassportScreen } from "@/src/components/passport/PassportScreen";
 
 export const metadata: Metadata = {
   title: "Passport",
@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function PassportPage() {
-  return <PassportOverviewView />;
+  return <PassportScreen target={{ kind: "all" }} />;
 }

@@ -1,0 +1,94 @@
+/*
+ * The Passport screen: one toolbar, then whichever mode is showing.
+ *
+ * The two modes want opposite layouts. Book mode is an object in a fixed field
+ * that must not scroll, so its row is constrained and the field fills it. List
+ * mode is a document, so it flows and the page scrolls as usual. Both are the
+ * same component with the same toolbar above them.
+ */
+.screen {
+  min-width: 0;
+  min-height: 0;
+}
+
+.screen[data-passport-mode="book"] {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-surface);
+}
+
+/* In List mode the toolbar stays reachable down a long record. */
+.screen[data-passport-mode="list"] .toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.toggle {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-round);
+  background: var(--bg-surface-warm);
+}
+
+.toggleButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: calc(var(--tap-target) - 6px);
+  min-width: 6rem;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-round);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--type-label-size);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toggleButton[aria-pressed="true"] {
+  background: var(--bg-surface);
+  color: var(--atlas-900);
+  box-shadow: 0 1px 3px rgba(16, 45, 70, 0.16);
+}
+
+/* Notices ---------------------------------------------------------------- */
+
+.settling,
+.notice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-5) var(--space-10);
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.noticeTitle {
+  font-family: var(--font-serif);
+  font-size: var(--type-h1-size);
+  line-height: var(--type-h1-line);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.noticeLine {
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+}

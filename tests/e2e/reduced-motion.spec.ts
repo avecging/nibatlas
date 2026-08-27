@@ -34,7 +34,13 @@ test("the stamp ceremony has an instant reduced-motion treatment", async ({ page
 });
 
 test("the Passport changes pages without spatial animation", async ({ page }) => {
+  // Normal mode now opens in List, which has no spatial animation to remove.
+  // Book mode is the one under test, so it is chosen explicitly.
   await page.goto("/passport");
+  await page
+    .getByRole("group", { name: "Passport view" })
+    .getByRole("button", { name: "Book", exact: true })
+    .click();
   await page.getByRole("button", { name: /open passport/i }).click();
 
   const state = async () =>
@@ -65,7 +71,7 @@ test("the Passport changes pages without spatial animation", async ({ page }) =>
 
   // Controls and the announcement survive.
   await expect(page.getByRole("button", { name: /previous page/i })).toBeEnabled();
-  await expect(page.getByText(/use the page buttons or the arrow keys/i)).toBeVisible();
+  await expect(page.getByText(/arrow keys turn pages/i)).toBeVisible();
 });
 
 test("map interaction still works with reduced motion", async ({ page }) => {

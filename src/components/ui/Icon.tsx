@@ -26,9 +26,19 @@ export type IconName =
   | "login"
   | "mail"
   | "trash"
-  | "pen";
+  | "pen"
+  | "list"
+  | "book";
 
 const PATHS: Record<IconName, readonly string[]> = {
+  /* The two Passport modes. The list is rules and rows; the book is a spread
+     with a spine, so the pair reads as one choice rather than two features. */
+  list: ["M4.5 7h15", "M4.5 12h15", "M4.5 17h10"],
+  book: [
+    "M12 6.4v13.2",
+    "M12 6.4C10.4 5.1 7.9 4.6 4.5 5v13c3.4-.4 5.9.1 7.5 1.4",
+    "M12 6.4c1.6-1.3 4.1-1.8 7.5-1.4v13c-3.4-.4-5.9.1-7.5 1.4",
+  ],
   map: ["M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z", "M9 4v14", "M15 6v14"],
   passport: [
     "M5 3.5h12.5a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H5Z",

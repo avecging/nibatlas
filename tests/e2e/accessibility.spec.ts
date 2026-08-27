@@ -68,6 +68,34 @@ test("me in its signed-in form is accessible, confirmation included", async ({
   expect((await analyze(page)).violations).toEqual([]);
 });
 
+/*
+ * Both Passport modes, and the overlay that sits over either of them. The route
+ * audit above covers List, which is what a normal device lands in; Book mode and
+ * the enlarged impression are separate surfaces reached by a control.
+ */
+test("both Passport modes and the enlarged stamp are accessible", async ({ page }) => {
+  await page.goto("/passport");
+
+  await page.getByRole("button").filter({ hasText: /2026-03-14/ }).first().click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  expect((await analyze(page)).violations).toEqual([]);
+
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+
+  await page
+    .getByRole("group", { name: "Passport view" })
+    .getByRole("button", { name: "Book", exact: true })
+    .click();
+  await page.getByRole("button", { name: /open passport/i }).click();
+  await expect(page.getByRole("button", { name: /previous page/i })).toBeVisible();
+  expect((await analyze(page)).violations).toEqual([]);
+
+  await page.getByRole("button", { name: /^contents$/i }).click();
+  await expect(page.getByRole("heading", { name: "Contents" })).toBeVisible();
+  expect((await analyze(page)).violations).toEqual([]);
+});
+
 test("the collection dialogs are accessible", async ({ page }) => {
   await page.goto("/shops/juspirit-banqiao");
   await page.getByRole("button", { name: /^collect stamp$/i }).click();
@@ -131,6 +159,15 @@ test("the stamp ceremony returns focus to the shop page", async ({ page }) => {
 
 test("the Passport book is reachable and operable from the keyboard", async ({ page }) => {
   await page.goto("/passport");
+
+  // The toggle is the first thing on the screen, and it is operable by keyboard
+  // in both directions.
+  const bookToggle = page
+    .getByRole("group", { name: "Passport view" })
+    .getByRole("button", { name: "Book", exact: true });
+  await bookToggle.focus();
+  await expect(bookToggle).toBeFocused();
+  await page.keyboard.press("Enter");
 
   const openButton = page.getByRole("button", { name: /open passport/i });
   await openButton.focus();

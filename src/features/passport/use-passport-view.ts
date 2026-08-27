@@ -1,0 +1,175 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { useCollection } from "@/src/features/collection/collection-store";
+import { useReviewerModeStore } from "@/src/features/reviewer/ReviewerModeProvider";
+import {
+  EMPTY_PASSPORT_VIEW,
+  parsePassportView,
+  passportViewStorageKey,
+  resolvePassportMode,
+  serializePassportView,
+  type PassportMode,
+  type PassportPlace,
+  type PassportViewRecord,
+} from "@/src/features/passport/passport-view-state";
+
+export interface PassportViewStore {
+  /** The mode to render: the reader's choice, or the audience default. */
+  readonly mode: PassportMode;
+  /** True once the device's own record has been read. */
+  readonly hydrated: boolean;
+  /** Whether this device has already opened the cover once. */
+  readonly coverSeen: boolean;
+  /** The last spread read, or `null` before the book has been opened. */
+  readonly place: PassportPlace | null;
+  readonly listScrollTop: number;
+  /** Records an explicit toggle. The only thing that writes `mode`. */
+  chooseMode(mode: PassportMode): void;
+  markCoverSeen(): void;
+  rememberPlace(place: PassportPlace | null): void;
+  rememberListScrollTop(offset: number): void;
+}
+
+/**
+ * The Passport's remembered view state, for one device and one audience.
+ *
+ * Held as a hook rather than a provider because exactly one screen needs it and
+ * a second reader would mean two copies of the same storage. It resolves after
+ * mount for the same reason the collection store does: local storage cannot be
+ * read during the server render, and reviewer mode has not settled on the first
+ * client paint.
+ *
+ * Nothing is written on mount. A device that has never used the toggle keeps
+ * `mode: null` on disk, so the audience default stays a default rather than
+ * becoming a choice the reader never made.
+ */
+export function usePassportView(): PassportViewStore {
+  const { reviewer, resolved } = useReviewerModeStore();
+  const { scope } = useCollection();
+
+  const [record, setRecord] = useState<PassportViewRecord>(EMPTY_PASSPORT_VIEW);
+  const [hydratedFor, setHydratedFor] = useState<string | null>(null);
+  /**
+   * The record as last written, for the callbacks.
+   *
+   * Kept in step at both places the record changes — hydration below and
+   * `commit` — rather than during render, so a second update in the same tick
+   * still reads what the first one wrote.
+   */
+  const recordRef = useRef(record);
+
+  useEffect(() => {
+    if (!resolved || hydratedFor === scope) {
+      return;
+    }
+
+    let stored = EMPTY_PASSPORT_VIEW;
+
+    try {
+      stored = parsePassportView(
+        window.localStorage.getItem(passportViewStorageKey(scope)),
+      );
+    } catch {
+      // Blocked site data. A device that cannot remember has not chosen, which
+      // is the safe direction: the audience default applies.
+    }
+
+    /* eslint-disable react-hooks/set-state-in-effect --
+       Local storage is an external system that can only be read after mount;
+       this is the documented "subscribe to an external store" case. */
+    recordRef.current = stored;
+    setRecord(stored);
+    setHydratedFor(scope);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [hydratedFor, resolved, scope]);
+
+  const commit = useCallback(
+    (patch: Partial<PassportViewRecord>) => {
+      const next: PassportViewRecord = { ...recordRef.current, ...patch };
+
+      recordRef.current = next;
+      setRecord(next);
+
+      try {
+        window.localStorage.setItem(
+          passportViewStorageKey(scope),
+          serializePassportView(next),
+        );
+      } catch {
+        // Best effort: the choice still applies for this page view.
+      }
+    },
+    [scope],
+  );
+
+  const chooseMode = useCallback(
+    (mode: PassportMode) => commit({ mode }),
+    [commit],
+  );
+
+  const markCoverSeen = useCallback(() => {
+    if (recordRef.current.coverSeen) {
+      return;
+    }
+
+    commit({ coverSeen: true });
+  }, [commit]);
+
+  const rememberPlace = useCallback(
+    (place: PassportPlace | null) => {
+      const current = recordRef.current.place;
+
+      // Skip a write that changes nothing, so paging back and forth over the
+      // same spread does not hammer storage.
+      if (JSON.stringify(current) === JSON.stringify(place)) {
+        return;
+      }
+
+      commit({ place });
+    },
+    [commit],
+  );
+
+  const rememberListScrollTop = useCallback(
+    (offset: number) => {
+      const rounded = Math.max(0, Math.round(offset));
+
+      if (recordRef.current.listScrollTop === rounded) {
+        return;
+      }
+
+      commit({ listScrollTop: rounded });
+    },
+    [commit],
+  );
+
+  const hydrated = hydratedFor === scope;
+
+  return useMemo<PassportViewStore>(
+    () => ({
+      mode: resolvePassportMode({ stored: record.mode, reviewer }),
+      hydrated,
+      coverSeen: record.coverSeen,
+      place: record.place,
+      listScrollTop: record.listScrollTop,
+      chooseMode,
+      markCoverSeen,
+      rememberPlace,
+      rememberListScrollTop,
+    }),
+    [
+      chooseMode,
+      hydrated,
+      markCoverSeen,
+      record.coverSeen,
+      record.listScrollTop,
+      record.mode,
+      record.place,
+      rememberListScrollTop,
+      rememberPlace,
+      reviewer,
+    ],
+  );
+}

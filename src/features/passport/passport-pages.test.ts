@@ -6,12 +6,19 @@ import { designSeal, prototypeCoverageSets } from "@/src/fixtures/prototype-cata
 import { prototypeSeedCollections } from "@/src/fixtures/prototype-passport";
 import {
   buildPassportPages,
+  IDENTITY_PAGE_INDEX,
+  INDEX_PAGE_INDEX,
+  OPENING_PAGE_INDEX,
+  pageIndexForCountry,
   pageIndexForLocality,
+  pageIndexForPlace,
   pageIndexForShop,
+  placeForPage,
+  SEALS_PAGE_INDEX,
   STAMPS_PER_PAGE,
 } from "@/src/features/passport/passport-pages";
 
-function build() {
+function build(displayName: string | null = null) {
   const passport = buildPassport(prototypeSeedCollections);
   const { seals, countryProgress } = deriveSeals({
     collections: prototypeSeedCollections,
@@ -19,15 +26,85 @@ function build() {
     designSeal,
   });
 
-  return buildPassportPages({ passport, seals, countryProgress });
+  return buildPassportPages({ passport, seals, countryProgress, displayName });
 }
 
 describe("buildPassportPages", () => {
   const pages = build();
 
-  it("opens on the identity page and follows it with the seals page", () => {
-    expect(pages[0]?.kind).toBe("identity");
-    expect(pages[1]?.kind).toBe("seals");
+  it("keeps identity and contents as front matter, not as the opening spread", () => {
+    expect(pages[IDENTITY_PAGE_INDEX]?.kind).toBe("identity");
+    expect(pages[INDEX_PAGE_INDEX]?.kind).toBe("index");
+  });
+
+  it("opens on country seals facing the most recently collected locality", () => {
+    // The seed's newest impression is Fook Hing Trading in Singapore on
+    // 2026-06-03, so Singapore's locality is the right-hand page.
+    expect(pages[SEALS_PAGE_INDEX]?.kind).toBe("seals");
+
+    const opening = pages[OPENING_PAGE_INDEX];
+
+    expect(opening?.kind).toBe("locality");
+    expect(opening?.kind === "locality" ? opening.countryCode : null).toBe("SG");
+    expect(
+      opening?.kind === "locality"
+        ? opening.collections[0]?.shopSlug
+        : null,
+    ).toBe("fook-hing-trading");
+  });
+
+  it("orders locality pages newest first, the way a passport fills up", () => {
+    const dates = pages
+      .filter((page) => page.kind === "locality")
+      .map((page) =>
+        page.kind === "locality" ? (page.collections[0]?.collectedOn ?? "") : "",
+      );
+
+    expect([...dates].sort().reverse()).toEqual(dates);
+  });
+
+  it("shows the reader's display name, and Your Passport without one", () => {
+    const named = build("Ada Lovelace")[IDENTITY_PAGE_INDEX];
+    const anonymous = pages[IDENTITY_PAGE_INDEX];
+
+    expect(named?.kind === "identity" ? named.displayName : "").toBe("Ada Lovelace");
+    expect(anonymous?.kind === "identity" ? anonymous.displayName : "x").toBeNull();
+  });
+
+  it("indexes every collected country and locality with its own page", () => {
+    const index = pages[INDEX_PAGE_INDEX];
+
+    expect(index?.kind).toBe("index");
+
+    if (index?.kind !== "index") {
+      return;
+    }
+
+    expect(index.countries).toHaveLength(3);
+
+    for (const country of index.countries) {
+      expect(pages[country.pageIndex]?.kind).toBe("locality");
+
+      for (const locality of country.localities) {
+        const page = pages[locality.pageIndex];
+
+        expect(page?.kind).toBe("locality");
+        expect(page?.kind === "locality" ? page.localitySlug : null).toBe(
+          locality.slug,
+        );
+      }
+    }
+  });
+
+  it("counts the country seal separately from the countries it indexes", () => {
+    const index = pages[INDEX_PAGE_INDEX];
+    const earned =
+      index?.kind === "index"
+        ? index.countries.filter((country) => country.sealEarned)
+        : [];
+
+    // Three countries are visited; only Singapore's curated set is complete.
+    expect(earned.map((country) => country.countryCode)).toEqual(["SG"]);
   });
 
   it("keeps an even page count so no spread is left half-open", () => {
@@ -121,6 +198,18 @@ describe("buildPassportPages", () => {
     expect(pageIndexForLocality(pages, "JP", "nowhere")).toBeNull();
   });
 
+  it("locates a country's first page", () => {
+    const index = pageIndexForCountry(pages, "JP");
+
+    expect(index).not.toBeNull();
+    expect(pages[index as number]?.kind).toBe("locality");
+    expect(
+      pages[index as number]?.kind === "locality"
+        ? (pages[index as number] as { readonly countryCode: string }).countryCode
+        : null,
+    ).toBe("JP");
+  });
+
   it("still produces a readable book with nothing collected", () => {
     const empty = buildPassportPages({
       passport: buildPassport([]),
@@ -129,7 +218,50 @@ describe("buildPassportPages", () => {
     });
 
     expect(empty.length % 2).toBe(0);
-    expect(empty[0]?.kind).toBe("identity");
+    expect(empty[IDENTITY_PAGE_INDEX]?.kind).toBe("identity");
     expect(empty.some((page) => page.kind === "locality")).toBe(false);
+  });
+});
+
+describe("remembering a place in the book", () => {
+  const pages = build();
+
+  it("describes a page as content rather than as a page number", () => {
+    expect(placeForPage(pages[SEALS_PAGE_INDEX])).toEqual({ kind: "seals" });
+    expect(placeForPage(pages[IDENTITY_PAGE_INDEX])).toEqual({ kind: "front" });
+    expect(placeForPage(pages[INDEX_PAGE_INDEX])).toEqual({ kind: "front" });
+    expect(placeForPage(pages[OPENING_PAGE_INDEX])).toMatchObject({
+      kind: "locality",
+      countryCode: "SG",
+    });
+  });
+
+  it("has no place for the blank end page or for nothing", () => {
+    expect(placeForPage(pages[pages.length - 1])).toBeNull();
+    expect(placeForPage(undefined)).toBeNull();
+  });
+
+  it("resolves a remembered locality back to its page", () => {
+    const place = placeForPage(pages[OPENING_PAGE_INDEX]);
+
+    expect(pageIndexForPlace(pages, place)).toBe(OPENING_PAGE_INDEX);
+  });
+
+  it("resolves the front matter and the seals page by kind", () => {
+    expect(pageIndexForPlace(pages, { kind: "front" })).toBe(INDEX_PAGE_INDEX);
+    expect(pageIndexForPlace(pages, { kind: "seals" })).toBe(SEALS_PAGE_INDEX);
+  });
+
+  it("returns nothing for a locality the collection no longer holds", () => {
+    // The case that matters: a record written before the reader cleared their
+    // data, or one carried over from the other mode's collection.
+    expect(
+      pageIndexForPlace(pages, {
+        kind: "locality",
+        countryCode: "JP",
+        localitySlug: "nowhere",
+      }),
+    ).toBeNull();
+    expect(pageIndexForPlace(pages, null)).toBeNull();
   });
 });

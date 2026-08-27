@@ -1,6 +1,12 @@
 import type { CountryCode } from "@/src/domain/geo";
-import type { PassportOverview, StampCollection } from "@/src/domain/passport";
+import {
+  countriesByRecency,
+  localitiesByRecency,
+  type PassportOverview,
+  type StampCollection,
+} from "@/src/domain/passport";
 import type { CountrySealProgress, EarnedSeal } from "@/src/domain/seals";
+import type { PassportPlace } from "@/src/features/passport/passport-view-state";
 
 /**
  * The Passport's logical pages.
@@ -10,10 +16,61 @@ import type { CountrySealProgress, EarnedSeal } from "@/src/domain/seals";
  * currently on screen. A reader with 3D transforms unavailable, reduced motion
  * on, or a screen reader gets the same pages in the same order.
  *
+ * ## Order, and why it changed in WP3
+ *
+ * Milestone 1 opened on identity and seals, so a reader with six stamps opened
+ * their Passport and saw no stamps at all. The approved order puts content
+ * first:
+ *
+ * ```
+ *   0  identity   inside front cover — who the volume belongs to
+ *   1  contents   the country / locality index
+ *   2  seals      country seals
+ *   3  locality   the most recently collected locality   ← opening spread
+ *   4… locality   the rest, newest locality first
+ *   n  blank      room for the next impression
+ * ```
+ *
+ * {@link OPENING_PAGE_INDEX} is 3, so the opening spread is pages 2 and 3 —
+ * country seals on the left, the most recent locality on the right — and the
+ * front matter is one turn back, where a passport keeps it. Portrait reading
+ * opens on page 3 as well, which is the same promise in one page: the reader's
+ * newest impressions.
+ *
+ * Locality pages are ordered by recency rather than alphabetically, because a
+ * passport fills up in the order it was stamped. List mode keeps the
+ * alphabetical grouping `buildPassport` produces, which is also what Me shows.
+ *
  * One Passport, one volume. The multiple-volume Library in
  * `docs/future/passport-library.md` is deliberately absent.
  */
 export const STAMPS_PER_PAGE = 4;
+
+/** Page indices of the fixed front matter. */
+export const IDENTITY_PAGE_INDEX = 0;
+export const INDEX_PAGE_INDEX = 1;
+export const SEALS_PAGE_INDEX = 2;
+/** First locality page, and the routine landing page. */
+export const OPENING_PAGE_INDEX = 3;
+
+export interface PassportIndexLocality {
+  readonly slug: string;
+  readonly name: string;
+  readonly stampCount: number;
+  /** Where the book has to open to show it. */
+  readonly pageIndex: number;
+  readonly sealEarned: boolean;
+}
+
+export interface PassportIndexCountry {
+  readonly countryCode: CountryCode;
+  readonly countryLabel: string;
+  readonly slug: string;
+  readonly stampCount: number;
+  readonly sealEarned: boolean;
+  readonly pageIndex: number;
+  readonly localities: readonly PassportIndexLocality[];
+}
 
 export type PassportPage =
   | {
@@ -22,10 +79,20 @@ export type PassportPage =
       readonly number: number;
       readonly runningHead: string;
       readonly runningFoot: string;
+      /** The reader's chosen name, or `null` for the Your Passport fallback. */
+      readonly displayName: string | null;
       readonly stampCount: number;
       readonly countryCount: number;
       readonly localityCount: number;
       readonly paletteVersion: number | null;
+    }
+  | {
+      readonly kind: "index";
+      readonly id: string;
+      readonly number: number;
+      readonly runningHead: string;
+      readonly runningFoot: string;
+      readonly countries: readonly PassportIndexCountry[];
     }
   | {
       readonly kind: "seals";
@@ -63,6 +130,8 @@ export interface BuildPassportPagesOptions {
   readonly passport: PassportOverview;
   readonly seals: readonly EarnedSeal[];
   readonly countryProgress: readonly CountrySealProgress[];
+  /** From the account seam. `null` renders the Your Passport fallback. */
+  readonly displayName?: string | null;
 }
 
 function chunk<T>(items: readonly T[], size: number): readonly (readonly T[])[] {
@@ -83,50 +152,38 @@ export function buildPassportPages({
   passport,
   seals,
   countryProgress,
+  displayName = null,
 }: BuildPassportPagesOptions): readonly PassportPage[] {
-  const pages: PassportPage[] = [];
   const localitySeals = seals.filter((seal) => seal.scope === "locality");
   const countrySeals = seals.filter((seal) => seal.scope === "country");
+  const earnedCountries = new Set(countrySeals.map((seal) => seal.countryCode));
 
-  const nextNumber = () => pages.length + 1;
+  /*
+   * Locality pages are built first because the contents page has to name the
+   * page each locality starts on, and page numbers only exist once the order
+   * is fixed. The front matter is a constant three pages, so the first locality
+   * page is always OPENING_PAGE_INDEX.
+   */
+  const localityPages: PassportPage[] = [];
+  const indexCountries: PassportIndexCountry[] = [];
 
-  pages.push({
-    kind: "identity",
-    id: "page-identity",
-    number: nextNumber(),
-    runningHead: "Nib Atlas",
-    runningFoot: "PASSPORT OF IMPRESSIONS",
-    stampCount: passport.stampCount,
-    countryCount: passport.countryCount,
-    localityCount: passport.localityCount,
-    paletteVersion:
-      passport.countries[0]?.localities[0]?.collections[0]?.stamp.paletteVersion ??
-      null,
-  });
+  for (const country of countriesByRecency(passport)) {
+    const countryFirstPage = OPENING_PAGE_INDEX + localityPages.length;
+    const indexLocalities: PassportIndexLocality[] = [];
 
-  pages.push({
-    kind: "seals",
-    id: "page-seals",
-    number: nextNumber(),
-    runningHead: "Seals",
-    runningFoot: "DERIVED FROM VERIFIED VISITS",
-    countries: countryProgress,
-    countrySeals,
-  });
-
-  for (const country of passport.countries) {
-    for (const locality of country.localities) {
+    for (const locality of localitiesByRecency(country)) {
       const seal = localitySeals.find(
         (candidate) =>
           candidate.countryCode === country.countryCode &&
           candidate.localitySlug === locality.slug,
       );
+      const localityFirstPage = OPENING_PAGE_INDEX + localityPages.length;
 
       chunk(locality.collections, STAMPS_PER_PAGE).forEach((group, groupIndex) => {
-        pages.push({
+        localityPages.push({
           kind: "locality",
           id: `page-${country.slug}-${locality.slug}-${groupIndex}`,
-          number: nextNumber(),
+          number: 0,
           runningHead: locality.name,
           runningFoot: country.countryLabel.toUpperCase(),
           countryCode: country.countryCode,
@@ -138,18 +195,70 @@ export function buildPassportPages({
           continued: groupIndex > 0,
         });
       });
+
+      indexLocalities.push({
+        slug: locality.slug,
+        name: locality.name,
+        stampCount: locality.collections.length,
+        pageIndex: localityFirstPage,
+        sealEarned: seal !== undefined,
+      });
     }
+
+    indexCountries.push({
+      countryCode: country.countryCode,
+      countryLabel: country.countryLabel,
+      slug: country.slug,
+      stampCount: country.stampCount,
+      sealEarned: earnedCountries.has(country.countryCode),
+      pageIndex: countryFirstPage,
+      localities: indexLocalities,
+    });
   }
 
-  // A book always ends on a fresh page: the next impression has somewhere to go,
-  // and the spread never shows a dangling single leaf.
-  pages.push({
-    kind: "blank",
-    id: "page-blank-end",
-    number: nextNumber(),
-    runningHead: "",
-    runningFoot: "",
-  });
+  const pages: PassportPage[] = [
+    {
+      kind: "identity",
+      id: "page-identity",
+      number: 0,
+      runningHead: "Nib Atlas",
+      runningFoot: "VOLUME I",
+      displayName,
+      stampCount: passport.stampCount,
+      countryCount: passport.countryCount,
+      localityCount: passport.localityCount,
+      paletteVersion:
+        passport.countries[0]?.localities[0]?.collections[0]?.stamp.paletteVersion ??
+        null,
+    },
+    {
+      kind: "index",
+      id: "page-index",
+      number: 0,
+      runningHead: "Contents",
+      runningFoot: "VOLUME I",
+      countries: indexCountries,
+    },
+    {
+      kind: "seals",
+      id: "page-seals",
+      number: 0,
+      runningHead: "Seals",
+      runningFoot: "DERIVED FROM VERIFIED VISITS",
+      countries: countryProgress,
+      countrySeals,
+    },
+    ...localityPages,
+    // A book always ends on a fresh page: the next impression has somewhere to
+    // go, and the spread never shows a dangling single leaf.
+    {
+      kind: "blank",
+      id: "page-blank-end",
+      number: 0,
+      runningHead: "",
+      runningFoot: "",
+    },
+  ];
 
   // Spreads pair pages two at a time, so an even count keeps the final spread
   // complete rather than leaving a half-open book.
@@ -157,13 +266,15 @@ export function buildPassportPages({
     pages.push({
       kind: "blank",
       id: "page-blank-pad",
-      number: nextNumber(),
+      number: 0,
       runningHead: "",
       runningFoot: "",
     });
   }
 
-  return pages;
+  // Numbered last and in one place, so an inserted page can never leave the
+  // printed numbers disagreeing with the order.
+  return pages.map((page, index) => ({ ...page, number: index + 1 }));
 }
 
 /**
@@ -196,4 +307,71 @@ export function pageIndexForLocality(
   );
 
   return index === -1 ? null : index;
+}
+
+export function pageIndexForCountry(
+  pages: readonly PassportPage[],
+  countryCode: CountryCode,
+): number | null {
+  const index = pages.findIndex(
+    (page) => page.kind === "locality" && page.countryCode === countryCode,
+  );
+
+  return index === -1 ? null : index;
+}
+
+/** What a page means, for remembering where the reader was. */
+export function placeForPage(page: PassportPage | undefined): PassportPlace | null {
+  if (!page) {
+    return null;
+  }
+
+  if (page.kind === "locality") {
+    return {
+      kind: "locality",
+      countryCode: page.countryCode,
+      localitySlug: page.localitySlug,
+    };
+  }
+
+  if (page.kind === "seals") {
+    return { kind: "seals" };
+  }
+
+  if (page.kind === "identity" || page.kind === "index") {
+    return { kind: "front" };
+  }
+
+  // A blank end page is not a place worth returning to.
+  return null;
+}
+
+/**
+ * Turns a remembered place back into a page index.
+ *
+ * Returns `null` when the place no longer exists — a locality whose stamps were
+ * cleared, or a record written against a different collection — so the caller
+ * lands the reader on the opening spread instead of on a page that is not there.
+ */
+export function pageIndexForPlace(
+  pages: readonly PassportPage[],
+  place: PassportPlace | null,
+): number | null {
+  if (!place) {
+    return null;
+  }
+
+  if (place.kind === "front") {
+    return INDEX_PAGE_INDEX;
+  }
+
+  if (place.kind === "seals") {
+    return SEALS_PAGE_INDEX;
+  }
+
+  return pageIndexForLocality(
+    pages,
+    place.countryCode as CountryCode,
+    place.localitySlug,
+  );
 }

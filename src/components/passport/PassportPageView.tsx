@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
-
 import { NibAtlasMark } from "@/src/components/brand/NibAtlasMark";
 import { StampArt } from "@/src/components/stamps/StampArt";
-import { STAMP_INKS } from "@/src/domain/stamp-palette";
+import { Icon } from "@/src/components/ui/Icon";
+import type { StampCollection } from "@/src/domain/passport";
 import { useReviewerMode } from "@/src/features/reviewer/ReviewerModeProvider";
 import type { PassportPage } from "@/src/features/passport/passport-pages";
 
@@ -23,9 +22,15 @@ const SLOTS = [
 export function PassportPageView({
   page,
   headingId,
+  onSelectStamp,
+  onJumpToPage,
 }: {
   readonly page: PassportPage;
   readonly headingId: string;
+  /** Enlarges an impression. The same overlay List mode opens. */
+  readonly onSelectStamp: (collection: StampCollection) => void;
+  /** Turns to a page from the contents index, without paging there by hand. */
+  readonly onJumpToPage: (pageIndex: number) => void;
 }) {
   const reviewer = useReviewerMode();
 
@@ -42,12 +47,16 @@ export function PassportPageView({
         {page.kind === "identity" ? (
           <div className={styles.identity}>
             <NibAtlasMark size={56} />
+            {/*
+              The name the reader chose, or the volume itself. Never anything
+              derived from an address: an account is identified by its address
+              and that is not a name, so `account-session.ts` keeps the two
+              apart and this page shows only the display name.
+            */}
             <h3 className={styles.identityTitle} id={headingId} tabIndex={-1}>
-              Passport of impressions
+              {page.displayName ?? "Your Passport"}
             </h3>
-            <p className={styles.identityLine}>
-              A private record of shops visited and the ink each visit left behind.
-            </p>
+            <p className={styles.identityLine}>Passport of impressions</p>
             <dl className={styles.identityFacts}>
               <div>
                 <dt>Shop stamps</dt>
@@ -62,12 +71,68 @@ export function PassportPageView({
                 <dd>{page.localityCount}</dd>
               </div>
             </dl>
-            <p className={styles.identityNote}>
-              Volume I · {STAMP_INKS.length} shared inks
-              {page.paletteVersion === null
-                ? ""
-                : ` · palette v${page.paletteVersion}`}
-            </p>
+            {/*
+              The palette version proves an impression regenerates identically
+              later, which is a review concern rather than something a keepsake
+              should carry.
+            */}
+            {reviewer && page.paletteVersion !== null ? (
+              <p className={styles.identityNote}>palette v{page.paletteVersion}</p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {page.kind === "index" ? (
+          <div className={styles.index}>
+            <h3 className={styles.pageTitle} id={headingId} tabIndex={-1}>
+              Contents
+            </h3>
+            {page.countries.length === 0 ? (
+              <p className={styles.pageNote}>Nothing collected yet.</p>
+            ) : (
+              <ul className={styles.indexList} data-no-drag="true">
+                {page.countries.map((country) => (
+                  <li className={styles.indexCountry} key={country.countryCode}>
+                    <button
+                      className={styles.indexCountryButton}
+                      type="button"
+                      onClick={() => onJumpToPage(country.pageIndex)}
+                    >
+                      <span className={styles.indexName}>{country.countryLabel}</span>
+                      {country.sealEarned ? (
+                        <span className={styles.indexSeal}>
+                          <Icon name="seal" size={13} />
+                          <span className="visually-hidden">Country seal earned</span>
+                        </span>
+                      ) : null}
+                      <span className={styles.indexLeader} aria-hidden="true" />
+                      <span className={styles.indexPage}>{country.pageIndex + 1}</span>
+                    </button>
+
+                    <ul className={styles.indexLocalities}>
+                      {country.localities.map((locality) => (
+                        <li key={locality.slug}>
+                          <button
+                            className={styles.indexLocalityButton}
+                            type="button"
+                            onClick={() => onJumpToPage(locality.pageIndex)}
+                          >
+                            <span className={styles.indexName}>{locality.name}</span>
+                            <span className={styles.indexCount}>
+                              {locality.stampCount}
+                            </span>
+                            <span className={styles.indexLeader} aria-hidden="true" />
+                            <span className={styles.indexPage}>
+                              {locality.pageIndex + 1}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         ) : null}
 
@@ -141,6 +206,11 @@ export function PassportPageView({
                   </li>
                 );
               })}
+              {page.countries.length === 0 ? (
+                <li className={styles.pageNote}>
+                  A seal derives from the first stamp you collect.
+                </li>
+              ) : null}
             </ul>
           </div>
         ) : null}
@@ -163,9 +233,15 @@ export function PassportPageView({
                   key={collection.id}
                   style={{ "--slot-rotate": `${SLOTS[index % SLOTS.length]?.rotate ?? 0}deg` } as React.CSSProperties}
                 >
-                  <Link
-                    className={styles.stampLink}
-                    href={`/shops/${collection.shopSlug}?from=passport`}
+                  {/*
+                    A button, not a link: tapping an impression enlarges it. The
+                    shop is one step further on, from inside the overlay, so a
+                    reader can look at the stamp without leaving the Passport.
+                  */}
+                  <button
+                    className={styles.stampButton}
+                    type="button"
+                    onClick={() => onSelectStamp(collection)}
                   >
                     <StampArt
                       stamp={collection.stamp}
@@ -177,7 +253,7 @@ export function PassportPageView({
                       {collection.shopNameSnapshot}
                       <span>{collection.collectedOn}</span>
                     </span>
-                  </Link>
+                  </button>
                 </li>
               ))}
               {page.collections.length === 0 ? (
@@ -192,9 +268,6 @@ export function PassportPageView({
             <h3 className={styles.pageTitle} id={headingId} tabIndex={-1}>
               Room for the next visit
             </h3>
-            <p className={styles.pageNote}>
-              The next impression you collect is pressed here.
-            </p>
           </div>
         ) : null}
       </div>
