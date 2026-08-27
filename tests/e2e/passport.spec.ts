@@ -1,8 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
+  COLLECTION_STORAGE_KEYS,
+  PAGED_LOCALITY,
   PASSPORT_VIEW_STORAGE_KEYS,
+  pagedLocalityCollections,
+  REVIEWER_STORAGE_KEY,
   seedEmptyCollection,
+  seedPagedLocality,
   seedPassportView,
   seedSampleCollection,
   seedSignedInPreview,
@@ -277,6 +282,78 @@ test.describe("List mode", () => {
     );
   });
 
+  /** Scrolls the overview and returns the offset the Passport recorded. */
+  async function scrollAndRemember(page: Page, top: number) {
+    await expect(page.getByText("Shop stamps")).toBeVisible();
+    await page.evaluate((offset) => window.scrollTo({ top: offset }), top);
+
+    await expect
+      .poll(async () => (await storedView(page))?.listScrollTop ?? 0, { timeout: 5000 })
+      .toBeGreaterThan(0);
+
+    return ((await storedView(page))?.listScrollTop ?? 0) as number;
+  }
+
+  test("comes back to the same place after a trip through Book mode", async ({
+    page,
+  }) => {
+    await page.goto("/passport");
+
+    const remembered = await scrollAndRemember(page, 300);
+
+    // Book's document is shorter, so the browser clamps the scroll on the way
+    // out. A restoration latch that was only ever set would leave the reader at
+    // whatever the clamp left behind.
+    await modeButton(page, "Book").click();
+    await expect(page.getByTestId("passport-pager")).toBeVisible();
+
+    await modeButton(page, "List").click();
+    await expect(page.getByText("Shop stamps")).toBeVisible();
+
+    await expect
+      .poll(async () => page.evaluate(() => Math.round(window.scrollY)), {
+        timeout: 5000,
+      })
+      .toBeGreaterThan(remembered - 10);
+  });
+
+  test("comes back to the same place after a trip through a country route", async ({
+    page,
+  }) => {
+    await page.goto("/passport");
+
+    const remembered = await scrollAndRemember(page, 300);
+
+    await page.getByRole("link", { name: "Japan" }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "Japan" })).toBeVisible();
+
+    // The crumb, not the bottom navigation: both are called Passport.
+    await page
+      .getByRole("navigation", { name: "Passport" })
+      .getByRole("link", { name: "Passport" })
+      .click();
+    await expect(page.getByText("Shop stamps")).toBeVisible();
+
+    await expect
+      .poll(async () => page.evaluate(() => Math.round(window.scrollY)), {
+        timeout: 5000,
+      })
+      .toBeGreaterThan(remembered - 10);
+  });
+
+  test("does not carry the overview offset onto a locality route", async ({ page }) => {
+    await page.goto("/passport");
+    await scrollAndRemember(page, 300);
+
+    await page.goto("/passport/jp/chuo-tokyo");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Chūō, Tokyo" }),
+    ).toBeVisible();
+
+    // A locality is its own destination and starts at its own top.
+    expect(await page.evaluate(() => Math.round(window.scrollY))).toBeLessThan(40);
+  });
+
   test("remembers where the reader had scrolled to", async ({ page }) => {
     await page.goto("/passport");
     await expect(page.getByText("Shop stamps")).toBeVisible();
@@ -483,6 +560,326 @@ test.describe("Book mode", () => {
       .poll(async () => (await bookState(page)).pages.join(" "), { timeout: 5000 })
       .toContain("Singapore");
   });
+});
+
+/* ---------------------------------------------------------------------- */
+/* A locality that spans more than one page                               */
+/* ---------------------------------------------------------------------- */
+
+/**
+ * The case country plus locality cannot describe.
+ *
+ * Past `STAMPS_PER_PAGE` a locality has a continuation page, and a remembered
+ * place that names only the locality resolves every one of them back to its
+ * first page. The fixture puts six impressions in one locality: four on its
+ * first page, two on its second.
+ */
+test.describe("a locality across two pages", () => {
+  const LOCALITY_ROUTE = `/passport/${PAGED_LOCALITY.countryCode.toLowerCase()}/${PAGED_LOCALITY.slug}`;
+  /** On the locality's second page, newest first. */
+  const CONTINUED_DATE = "2026-05-02";
+  /** On its first page. */
+  const FIRST_PAGE_DATE = "2026-05-06";
+
+  test.beforeEach(async ({ page }) => {
+    await useNormalMode(page);
+    await seedPagedLocality(page);
+    await seedPassportView(page, { mode: "book", coverSeen: true });
+  });
+
+  function continuedHeading(page: Page) {
+    return page.getByRole("heading", { name: /\(continued\)/ });
+  }
+
+  /**
+   * The impression collected on a given date.
+   *
+   * By role rather than by text: the date is printed inside the artwork as well
+   * as in the caption, and both sit inside the one button.
+   */
+  function stampOn(page: Page, date: string) {
+    return page.getByRole("button", { name: new RegExp(date) }).first();
+  }
+
+  /** Turns forward until the locality's continuation page is on screen. */
+  async function readContinuationPage(page: Page, path = "/passport") {
+    await openBook(page, path);
+
+    for (let turn = 0; turn < 4; turn += 1) {
+      if (await continuedHeading(page).isVisible().catch(() => false)) {
+        return;
+      }
+
+      await page.getByRole("button", { name: /next page/i }).click();
+      await expect
+        .poll(async () => (await bookState(page)).turner, { timeout: 5000 })
+        .toBeNull();
+    }
+
+    await expect(continuedHeading(page)).toBeVisible();
+  }
+
+  test("the fixture really does span two pages", async ({ page }) => {
+    await openBook(page);
+
+    // The first page carries four impressions and the second the rest, so the
+    // rest of this describe is testing the case it means to.
+    expect(pagedLocalityCollections).toHaveLength(6);
+    await expect(stampOn(page, FIRST_PAGE_DATE)).toBeVisible();
+    await expect(continuedHeading(page)).toHaveCount(0);
+  });
+
+  test("a reload resumes the continuation page", async ({ page }) => {
+    await readContinuationPage(page);
+
+    // The remembered place carries an impression from this page, not just the
+    // locality.
+    await expect
+      .poll(async () => (await storedView(page))?.place, { timeout: 5000 })
+      .toMatchObject({
+        kind: "locality",
+        localitySlug: PAGED_LOCALITY.slug,
+      });
+    expect(
+      ((await storedView(page))?.place as { collectionId?: string } | undefined)
+        ?.collectionId,
+    ).toBeTruthy();
+
+    await page.reload();
+
+    await expect
+      .poll(async () => (await bookState(page)).opened, { timeout: 5000 })
+      .toBe(true);
+    await expect(continuedHeading(page)).toBeVisible();
+    await expect(stampOn(page, CONTINUED_DATE)).toBeVisible();
+  });
+
+  test("a reload resumes it on the locality route too", async ({ page }) => {
+    await readContinuationPage(page, LOCALITY_ROUTE);
+    await page.reload();
+
+    await expect
+      .poll(async () => (await bookState(page)).opened, { timeout: 5000 })
+      .toBe(true);
+    await expect(continuedHeading(page)).toBeVisible();
+  });
+
+  test("a stamp opened from the continuation page returns to it", async ({ page }) => {
+    await readContinuationPage(page);
+
+    await stampOn(page, CONTINUED_DATE).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+
+    const openShop = page.getByRole("link", { name: /open shop/i });
+    // The route the reader is on, plus the page inside it.
+    expect(decodeURIComponent((await openShop.getAttribute("href")) ?? "")).toContain(
+      "back=/passport?stamp=",
+    );
+    await openShop.click();
+
+    const back = page.getByRole("link", { name: /back to passport/i });
+    await expect(back).toHaveAttribute("href", /^\/passport\?stamp=/);
+    await back.click();
+
+    await expect
+      .poll(async () => (await bookState(page)).opened, { timeout: 5000 })
+      .toBe(true);
+    await expect(continuedHeading(page)).toBeVisible();
+    await expect(stampOn(page, CONTINUED_DATE)).toBeVisible();
+  });
+
+  test("and returns to it from the locality route", async ({ page }) => {
+    await readContinuationPage(page, LOCALITY_ROUTE);
+
+    await stampOn(page, CONTINUED_DATE).click();
+    await page.getByRole("link", { name: /open shop/i }).click();
+
+    const back = page.getByRole("link", { name: /back to passport/i });
+    await expect(back).toHaveAttribute(
+      "href",
+      new RegExp(`^${LOCALITY_ROUTE}\\?stamp=`),
+    );
+    await back.click();
+
+    await expect(page).toHaveURL(new RegExp(`${LOCALITY_ROUTE}\\?stamp=`));
+    await expect(continuedHeading(page)).toBeVisible();
+  });
+
+  test("browser Back from that shop lands on the same page", async ({ page }) => {
+    await readContinuationPage(page);
+
+    await stampOn(page, CONTINUED_DATE).click();
+    await page.getByRole("link", { name: /open shop/i }).click();
+    await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
+
+    await page.goBack();
+
+    await expect
+      .poll(async () => (await bookState(page)).opened, { timeout: 5000 })
+      .toBe(true);
+    await expect(continuedHeading(page)).toBeVisible();
+  });
+
+  test("a stale anchor falls back to the locality rather than erroring", async ({
+    page,
+  }) => {
+    await page.goto(`${LOCALITY_ROUTE}?stamp=collection-that-was-cleared`);
+
+    await expect
+      .poll(async () => (await bookState(page)).opened, { timeout: 5000 })
+      .toBe(true);
+    // The locality's own first page, not an error and not a blank book.
+    await expect(stampOn(page, FIRST_PAGE_DATE)).toBeVisible();
+    await expect(continuedHeading(page)).toHaveCount(0);
+  });
+
+  test("an anchor from another locality is ignored", async ({ page }) => {
+    // The impression exists, but not in the locality the route asked for.
+    await seedSampleCollection(page);
+    await page.goto("/passport/sg/singapore?stamp=collection-ginza-itoya-main-store");
+
+    await expect
+      .poll(async () => (await bookState(page)).pages.join(" "), { timeout: 5000 })
+      .toContain("Singapore");
+  });
+
+});
+
+/*
+ * Outside the describe above, because its `beforeEach` already arranges Book mode
+ * and `seedPassportView` writes only when the key is absent.
+ */
+test("List mode shows every impression of a locality, on one page or six", async ({
+  page,
+}) => {
+  await useNormalMode(page);
+  await seedPagedLocality(page);
+  await seedPassportView(page, { mode: "list" });
+  await page.goto(
+    `/passport/${PAGED_LOCALITY.countryCode.toLowerCase()}/${PAGED_LOCALITY.slug}`,
+  );
+
+  await expect(
+    page.getByRole("heading", { level: 1, name: PAGED_LOCALITY.name }),
+  ).toBeVisible();
+
+  // List has no pages, so a locality that spans two of them in the book is
+  // still one section here.
+  for (const collection of pagedLocalityCollections) {
+    await expect(
+      page.getByRole("button", { name: new RegExp(collection.collectedOn) }).first(),
+    ).toBeVisible();
+  }
+});
+
+/* ---------------------------------------------------------------------- */
+/* Two tabs on one record                                                 */
+/* ---------------------------------------------------------------------- */
+
+test("a stale tab cannot erase what another tab recorded", async ({ page }) => {
+  await useNormalMode(page);
+  await seedSampleCollection(page);
+  await page.goto("/passport");
+  await expect(toggle(page)).toBeVisible();
+
+  /*
+   * Another tab opens the cover and records a scroll offset. Written straight
+   * into storage because a tab never receives its own `storage` event — which is
+   * exactly the state a tab that missed the notification is in. Neither field is
+   * one the click below owns.
+   */
+  await page.evaluate(
+    ([key, value]) => window.localStorage.setItem(key as string, value as string),
+    [
+      PASSPORT_VIEW_STORAGE_KEYS.normal,
+      JSON.stringify({
+        mode: null,
+        coverSeen: true,
+        place: null,
+        listScrollTop: 750,
+      }),
+    ],
+  );
+
+  // Now this tab records something else entirely.
+  await modeButton(page, "Book").click();
+  await expect
+    .poll(async () => (await storedView(page))?.mode, { timeout: 5000 })
+    .toBe("book");
+
+  const after = await storedView(page);
+
+  expect(after?.coverSeen).toBe(true);
+  expect(after?.listScrollTop).toBe(750);
+});
+
+test("two tabs keep one record between them", async ({ page }) => {
+  const context = page.context();
+
+  // Seeded on the context, so both tabs open with the same device state.
+  await context.addInitScript(
+    ([reviewerKey, collectionKey, collectionValue]) => {
+      try {
+        window.localStorage.setItem(reviewerKey as string, "0");
+        window.localStorage.setItem(collectionKey as string, collectionValue as string);
+      } catch {
+        // A browser with storage blocked still runs the journey.
+      }
+    },
+    [
+      REVIEWER_STORAGE_KEY,
+      COLLECTION_STORAGE_KEYS.normal,
+      JSON.stringify({ savedShopIds: [], collections: pagedLocalityCollections }),
+    ],
+  );
+
+  const tabA = await context.newPage();
+  const tabB = await context.newPage();
+
+  await tabA.goto("/passport");
+  await tabB.goto("/passport");
+  await expect(toggle(tabA)).toBeVisible();
+  await expect(toggle(tabB)).toBeVisible();
+
+  // Both start in List, because neither has chosen.
+  expect(await selectedMode(tabA)).toBe("List");
+  expect(await selectedMode(tabB)).toBe("List");
+
+  // Tab B records a scroll offset.
+  await tabB.evaluate(() => window.scrollTo({ top: 300 }));
+  await expect
+    .poll(async () => (await storedView(tabB))?.listScrollTop ?? 0, { timeout: 5000 })
+    .toBeGreaterThan(0);
+
+  const offset = ((await storedView(tabB))?.listScrollTop ?? 0) as number;
+
+  // Tab A chooses Book. Tab B adopts it without being reloaded.
+  await modeButton(tabA, "Book").click();
+  await expect
+    .poll(async () => selectedMode(tabB), { timeout: 5000 })
+    .toBe("Book");
+
+  // Tab B opens the cover. That is a durable fact about the device.
+  await tabB.getByRole("button", { name: /open passport/i }).click();
+  await expect
+    .poll(async () => (await storedView(tabB))?.coverSeen, { timeout: 5000 })
+    .toBe(true);
+
+  // Nothing either tab did erased the other's work.
+  const record = await storedView(tabA);
+
+  expect(record?.mode).toBe("book");
+  expect(record?.coverSeen).toBe(true);
+  expect(record?.listScrollTop).toBe(offset);
+
+  // And tab A, reloaded, is in Book mode with the cover behind it.
+  await tabA.reload();
+  await expect(toggle(tabA)).toBeVisible();
+  expect(await selectedMode(tabA)).toBe("Book");
+  await expect(tabA.getByRole("button", { name: /open passport/i })).toHaveCount(0);
+
+  await tabA.close();
+  await tabB.close();
 });
 
 /* ---------------------------------------------------------------------- */
@@ -795,7 +1192,11 @@ test.describe("the enlarged stamp", () => {
     await expect(page).toHaveURL(/\/shops\/ginza-itoya-main-store/);
 
     const back = page.getByRole("link", { name: /back to passport/i });
-    await expect(back).toHaveAttribute("href", "/passport/jp/chuo-tokyo");
+    // The route, plus the page inside it that the impression sits on.
+    await expect(back).toHaveAttribute(
+      "href",
+      "/passport/jp/chuo-tokyo?stamp=collection-ginza-itoya-main-store",
+    );
     await back.click();
 
     await expect(
@@ -853,7 +1254,11 @@ test("a new impression still lands on its own locality", async ({ page }) => {
   await page.getByRole("button", { name: /i am at this shop/i }).click();
   await page.getByRole("link", { name: /open in passport/i }).click();
 
-  await expect(page).toHaveURL(/\/passport\/tw\/daan-taipei$/);
+  // The locality route, carrying the impression that was just pressed so a
+  // locality already spanning several pages opens on the right one.
+  await expect(page).toHaveURL(
+    /\/passport\/tw\/daan-taipei\?stamp=collection-ty-lee-pen-shop$/,
+  );
   await expect(
     page.getByRole("heading", { level: 1, name: "Da'an, Taipei" }),
   ).toBeVisible();

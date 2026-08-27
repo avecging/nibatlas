@@ -4,6 +4,7 @@ import { useCallback, useId } from "react";
 
 import { useDialogFocus } from "@/src/components/hooks/useDialogFocus";
 import { localeForCountry } from "@/src/components/shops/locale";
+import { passportHrefWithAnchor } from "@/src/components/shops/ShopBackLink";
 import { StampArt } from "@/src/components/stamps/StampArt";
 import { ButtonLink } from "@/src/components/ui/Button";
 import { Icon } from "@/src/components/ui/Icon";
@@ -23,10 +24,11 @@ export interface StampDetailOverlayProps {
   /**
    * The Passport route the reader is on.
    *
-   * Carried to the shop page so its one back control returns *here* — the
-   * locality route, not the overview — and the Passport then reopens in the mode
-   * and at the spread the reader left. Browser Back does the same thing on its
-   * own; this is for the control.
+   * Carried to the shop page, with this impression's id appended, so its one
+   * back control returns *here* — the locality route, and the exact page inside
+   * it — and the Passport then reopens in the mode the reader chose. Browser Back
+   * restores the route on its own; this is for the control, and for the page the
+   * route alone cannot name.
    */
   readonly returnHref?: string | undefined;
 }
@@ -128,7 +130,11 @@ export function StampDetailOverlay({
         </dl>
 
         <ButtonLink
-          href={`/shops/${collection.shopSlug}?from=passport&back=${encodeURIComponent(returnHref)}`}
+          href={`/shops/${collection.shopSlug}?from=passport&back=${encodeURIComponent(
+            // The anchor, not just the route: a stamp opened from a locality's
+            // second page has to come back to that page.
+            passportHrefWithAnchor(returnHref, collection.id),
+          )}`}
           variant="primary"
           fullWidth
         >

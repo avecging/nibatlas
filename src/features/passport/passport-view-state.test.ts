@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   defaultPassportMode,
   EMPTY_PASSPORT_VIEW,
+  mergePassportView,
   parsePassportView,
   passportViewStorageKey,
   resolvePassportMode,
@@ -74,6 +75,82 @@ describe("parsePassportView", () => {
     });
   });
 
+  it("reads the page anchor, and leaves it off when there is none", () => {
+    const anchored = parsePassportView(
+      JSON.stringify({
+        place: {
+          kind: "locality",
+          countryCode: "JP",
+          localitySlug: "chuo-tokyo",
+          collectionId: "collection-ginza-itoya-main-store",
+        },
+      }),
+    );
+
+    expect(anchored.place).toEqual({
+      kind: "locality",
+      countryCode: "JP",
+      localitySlug: "chuo-tokyo",
+      collectionId: "collection-ginza-itoya-main-store",
+    });
+
+    // A record written before the anchor existed. It must stay readable, and it
+    // must not gain a `collectionId: undefined` key that would change its bytes.
+    const legacy = parsePassportView(
+      JSON.stringify({
+        place: { kind: "locality", countryCode: "JP", localitySlug: "chuo-tokyo" },
+      }),
+    );
+
+    expect(legacy.place).toEqual({
+      kind: "locality",
+      countryCode: "JP",
+      localitySlug: "chuo-tokyo",
+    });
+    expect(Object.keys(legacy.place ?? {})).not.toContain("collectionId");
+  });
+
+  it("discards an anchor that is not a usable string", () => {
+    for (const collectionId of [null, 42, "", {}, []]) {
+      const record = parsePassportView(
+        JSON.stringify({
+          place: {
+            kind: "locality",
+            countryCode: "JP",
+            localitySlug: "chuo-tokyo",
+            collectionId,
+          },
+        }),
+      );
+
+      expect(record.place).toEqual({
+        kind: "locality",
+        countryCode: "JP",
+        localitySlug: "chuo-tokyo",
+      });
+    }
+  });
+
+  it("does not case-fold the anchor, which is an opaque identifier", () => {
+    const record = parsePassportView(
+      JSON.stringify({
+        place: {
+          kind: "locality",
+          countryCode: "jp",
+          localitySlug: "Chuo-Tokyo",
+          collectionId: "Collection-ABC",
+        },
+      }),
+    );
+
+    expect(record.place).toEqual({
+      kind: "locality",
+      countryCode: "JP",
+      localitySlug: "chuo-tokyo",
+      collectionId: "Collection-ABC",
+    });
+  });
+
   it("discards an unparseable or hostile value rather than throwing", () => {
     for (const raw of [
       "not json",
@@ -138,5 +215,64 @@ describe("serializePassportView", () => {
     expect(parsePassportView(written).mode).toBeNull();
     expect(resolvePassportMode({ stored: parsePassportView(written).mode, reviewer: true }))
       .toBe("book");
+  });
+});
+
+describe("mergePassportView", () => {
+  const stored = {
+    mode: "book" as const,
+    coverSeen: true,
+    place: { kind: "seals" as const },
+    listScrollTop: 400,
+  };
+
+  it("keeps every field the patch does not name", () => {
+    // The defect this exists for: a tab that has been open since before the
+    // reader chose Book writes a scroll offset, and its stale `mode: null` goes
+    // with it.
+    expect(mergePassportView(stored, { listScrollTop: 20 })).toEqual({
+      ...stored,
+      listScrollTop: 20,
+    });
+  });
+
+  it("applies what the patch does name", () => {
+    expect(mergePassportView(stored, { mode: "list" }).mode).toBe("list");
+    expect(
+      mergePassportView(stored, { place: null }).place,
+    ).toBeNull();
+  });
+
+  it("treats an opened cover as durable", () => {
+    // Once a device has opened the cover it has opened it. A patch carrying a
+    // stale `false` must not bring the first-run ceremony back.
+    expect(mergePassportView(stored, { coverSeen: false }).coverSeen).toBe(true);
+    expect(
+      mergePassportView({ ...stored, coverSeen: false }, { coverSeen: true })
+        .coverSeen,
+    ).toBe(true);
+    expect(
+      mergePassportView({ ...stored, coverSeen: false }, { listScrollTop: 1 })
+        .coverSeen,
+    ).toBe(false);
+  });
+
+  it("never invents a mode", () => {
+    const chosenNothing = { ...EMPTY_PASSPORT_VIEW };
+
+    expect(mergePassportView(chosenNothing, { listScrollTop: 30 }).mode).toBeNull();
+    expect(mergePassportView(chosenNothing, { coverSeen: true }).mode).toBeNull();
+  });
+
+  it("round-trips through storage without losing the anchor", () => {
+    const place = {
+      kind: "locality" as const,
+      countryCode: "JP",
+      localitySlug: "chuo-tokyo",
+      collectionId: "paged-4",
+    };
+    const merged = mergePassportView(EMPTY_PASSPORT_VIEW, { place });
+
+    expect(parsePassportView(serializePassportView(merged)).place).toEqual(place);
   });
 });

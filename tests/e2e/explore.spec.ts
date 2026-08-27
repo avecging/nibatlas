@@ -313,7 +313,11 @@ test("explore to simulated collection to Passport", async ({ page }) => {
   // The ceremony opens the Passport at the impression that was just pressed, so
   // it lands on that locality's own content — not on the overview and not on a
   // cover.
-  await expect(page).toHaveURL(/\/passport\/tw\/east-tainan$/);
+  // The locality route, carrying the impression that was just pressed so a
+  // locality already spanning several pages opens on the right one.
+  await expect(page).toHaveURL(
+    /\/passport\/tw\/east-tainan\?stamp=collection-pen-house-tainan$/,
+  );
   await expect(
     page.getByRole("heading", { level: 1, name: /East District, Tainan/ }),
   ).toBeVisible();

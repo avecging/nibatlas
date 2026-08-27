@@ -16,8 +16,15 @@
  *   may default to Book, so the two cannot share one record without one
  *   audience's default leaking into the other's choice.
  * - **Stable identifiers, never display strings.** The remembered place is a
- *   country code and a locality slug, not a page number and not "Ginza, Tokyo".
- *   Page numbers move as the collection grows, and a label can be re-worded.
+ *   country code, a locality slug and — where a locality spans several pages —
+ *   the id of an impression on the exact page. Never a page number and never
+ *   "Ginza, Tokyo": page numbers move as the collection grows, and a label can
+ *   be re-worded.
+ * - **Patched against what is stored, never against what this tab remembers.**
+ *   Two tabs share one record. A tab that writes its whole in-memory snapshot
+ *   would erase whatever the other tab had changed since — an explicit mode, the
+ *   opened cover, the exact place. {@link mergePassportView} is the one place
+ *   that combines them.
  * - **Anything unparseable is nothing.** A hand-edited value, a record written
  *   by a future version, or a locality that has since been cleared all resolve
  *   to "no memory", which lands the reader on the opening spread rather than on
@@ -47,6 +54,20 @@ export type PassportPlace =
       readonly kind: "locality";
       readonly countryCode: string;
       readonly localitySlug: string;
+      /**
+       * An impression on the exact page, when one is known.
+       *
+       * A locality with more than `STAMPS_PER_PAGE` impressions spans several
+       * pages, and country plus locality alone cannot tell them apart — every
+       * continuation page would resolve back to the locality's first page. The
+       * id of an impression *on that page* is the stable content identifier
+       * that distinguishes them; a page number would drift as the collection
+       * grows, and a shop name is a display string.
+       *
+       * Optional, so a record written before this existed stays readable and
+       * falls back to the locality's first page.
+       */
+      readonly collectionId?: string;
     };
 
 export interface PassportViewRecord {
@@ -119,12 +140,21 @@ function parsePlace(value: unknown): PassportPlace | null {
     typeof candidate.localitySlug === "string" &&
     candidate.localitySlug.length > 0
   ) {
+    const collectionId =
+      typeof candidate.collectionId === "string" && candidate.collectionId.length > 0
+        ? candidate.collectionId
+        : undefined;
+
     return {
       kind: "locality",
       // Upper-cased and lower-cased to the canonical forms the domain uses, so
       // a record written by hand still matches.
       countryCode: candidate.countryCode.toUpperCase(),
       localitySlug: candidate.localitySlug.toLowerCase(),
+      // Left off entirely rather than set to `undefined`, so a record with no
+      // anchor serialises the same way it arrived. Collection ids are opaque
+      // and are not case-folded.
+      ...(collectionId === undefined ? {} : { collectionId }),
     };
   }
 
@@ -180,6 +210,29 @@ export function serializePassportView(record: PassportViewRecord): string {
     place: record.place,
     listScrollTop: record.listScrollTop,
   } satisfies PassportViewRecord);
+}
+
+/**
+ * Combines a stored record with the fields one tab is changing.
+ *
+ * The caller re-reads storage immediately before this, so "stored" is the newest
+ * record any tab has written. Everything the patch does not name survives,
+ * which is what stops a tab that has been open for an hour from undoing a choice
+ * made in another tab a second ago.
+ *
+ * `coverSeen` is stickier than the rest: it is a durable fact about the device
+ * rather than a current state, so once any tab has opened the cover no later
+ * patch may unsay it.
+ */
+export function mergePassportView(
+  stored: PassportViewRecord,
+  patch: Partial<PassportViewRecord>,
+): PassportViewRecord {
+  return {
+    ...stored,
+    ...patch,
+    coverSeen: stored.coverSeen || patch.coverSeen === true,
+  };
 }
 
 export const PASSPORT_VIEW_STORAGE_KEYS = STORAGE_KEYS;

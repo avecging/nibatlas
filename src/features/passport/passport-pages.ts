@@ -309,6 +309,27 @@ export function pageIndexForLocality(
   return index === -1 ? null : index;
 }
 
+/**
+ * Locates the page an impression sits on, by its collection id.
+ *
+ * The anchor that distinguishes a locality's continuation pages from each other.
+ * `pageIndexForShop` answers the same question from a shop slug and is kept for
+ * the return-from-shop path; this one takes the identifier the remembered place
+ * actually stores.
+ */
+export function pageIndexForCollection(
+  pages: readonly PassportPage[],
+  collectionId: string,
+): number | null {
+  const index = pages.findIndex(
+    (page) =>
+      page.kind === "locality" &&
+      page.collections.some((collection) => collection.id === collectionId),
+  );
+
+  return index === -1 ? null : index;
+}
+
 export function pageIndexForCountry(
   pages: readonly PassportPage[],
   countryCode: CountryCode,
@@ -327,10 +348,23 @@ export function placeForPage(page: PassportPage | undefined): PassportPlace | nu
   }
 
   if (page.kind === "locality") {
+    /*
+     * The first impression on the page anchors it.
+     *
+     * Country and locality alone cannot tell a locality's continuation pages
+     * apart, so a reader on page two of Ginza would be returned to page one.
+     * Every page holds a different set of impressions, so any one of them
+     * identifies the page — the first is simply the stable choice. A page with
+     * no impressions on it has nothing to anchor to and falls back to the
+     * locality.
+     */
+    const anchor = page.collections[0]?.id;
+
     return {
       kind: "locality",
       countryCode: page.countryCode,
       localitySlug: page.localitySlug,
+      ...(anchor === undefined ? {} : { collectionId: anchor }),
     };
   }
 
@@ -369,9 +403,35 @@ export function pageIndexForPlace(
     return SEALS_PAGE_INDEX;
   }
 
-  return pageIndexForLocality(
+  const localityIndex = pageIndexForLocality(
     pages,
     place.countryCode as CountryCode,
     place.localitySlug,
   );
+
+  if (place.collectionId === undefined) {
+    // A record written before the anchor existed. The locality's first page is
+    // the honest answer, not an error.
+    return localityIndex;
+  }
+
+  const anchored = pageIndexForCollection(pages, place.collectionId);
+  const anchoredPage = anchored === null ? undefined : pages[anchored];
+
+  /*
+   * The anchor has to agree with the locality it was recorded under. An
+   * impression that has been re-collected, or a record carried across from the
+   * other audience's collection, could otherwise send the reader to an
+   * unrelated page. When it does not agree, the locality still does.
+   */
+  if (
+    anchored !== null &&
+    anchoredPage?.kind === "locality" &&
+    anchoredPage.countryCode === place.countryCode &&
+    anchoredPage.localitySlug === place.localitySlug
+  ) {
+    return anchored;
+  }
+
+  return localityIndex;
 }

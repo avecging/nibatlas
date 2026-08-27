@@ -93,6 +93,18 @@ function seed({
   }
 }
 
+function Passport({ target = { kind: "all" } }: { readonly target?: PassportTarget }) {
+  return (
+    <WithReviewerMode>
+      <AccountSessionProvider>
+        <CollectionProvider>
+          <PassportScreen target={target} />
+        </CollectionProvider>
+      </AccountSessionProvider>
+    </WithReviewerMode>
+  );
+}
+
 async function renderPassport(target: PassportTarget = { kind: "all" }) {
   render(
     <WithReviewerMode>
@@ -425,6 +437,152 @@ describe("the enlarged stamp", () => {
 
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(document.activeElement).toBe(opener);
+  });
+});
+
+/**
+ * Another tab writing to the same record.
+ *
+ * `localStorage` is shared, and a `storage` event is what a browser sends to the
+ * tabs that did *not* make the change. jsdom fires no such event of its own, so
+ * the two halves are separated deliberately here: `writeElsewhere` is a change
+ * this tab has not been told about, and `announceElsewhere` is the notification.
+ */
+function writeElsewhere(
+  record: Partial<PassportViewRecord>,
+  scope: "normal" | "reviewer" = "normal",
+) {
+  window.localStorage.setItem(
+    PASSPORT_VIEW_STORAGE_KEYS[scope],
+    serializePassportView({
+      mode: null,
+      coverSeen: false,
+      place: null,
+      listScrollTop: 0,
+      ...record,
+    }),
+  );
+}
+
+function announceElsewhere(scope: "normal" | "reviewer" = "normal") {
+  const key = PASSPORT_VIEW_STORAGE_KEYS[scope];
+
+  window.dispatchEvent(
+    new StorageEvent("storage", {
+      key,
+      newValue: window.localStorage.getItem(key),
+      storageArea: window.localStorage,
+    }),
+  );
+}
+
+describe("two tabs on one record", () => {
+  it("adopts a mode chosen in another tab", async () => {
+    seed({ collection: "seeded" });
+    await renderPassport();
+
+    expect(pressed()).toEqual(["List"]);
+
+    writeElsewhere({ mode: "book" });
+    announceElsewhere();
+
+    await waitFor(() => expect(pressed()).toEqual(["Book"]));
+  });
+
+  it("adopts an opened cover without springing the book open", async () => {
+    seed({ collection: "seeded", view: { mode: "book" } });
+    const first = render(<Passport />);
+
+    await waitFor(() => expect(toggle()).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /open passport/i })).toBeInTheDocument(),
+    );
+
+    writeElsewhere({ mode: "book", coverSeen: true });
+    announceElsewhere();
+
+    // The cover stays put. Another tab opening its own book is not a reason for
+    // this page to move under the reader.
+    await waitFor(() => expect(storedView().coverSeen).toBe(true));
+    expect(
+      screen.getByRole("button", { name: /open passport/i }),
+    ).toBeInTheDocument();
+
+    // But the fact was adopted, so the next visit does not ask again.
+    first.unmount();
+    render(<Passport />);
+
+    await waitFor(() => expect(toggle()).toBeInTheDocument());
+    expect(
+      screen.queryByRole("button", { name: /open passport/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("ignores the other audience's key", async () => {
+    seed({ collection: "seeded" });
+    await renderPassport();
+
+    writeElsewhere({ mode: "book" }, "reviewer");
+    announceElsewhere("reviewer");
+
+    // Still this device's own default, and its own record is still untouched.
+    await waitFor(() => expect(pressed()).toEqual(["List"]));
+    expect(window.localStorage.getItem(PASSPORT_VIEW_STORAGE_KEYS.normal)).toBeNull();
+  });
+
+  it("does not erase a field it was never told about", async () => {
+    seed({ collection: "seeded", view: { mode: "book" } });
+    await renderPassport();
+
+    // Another tab records a scroll offset and a place. This tab is deliberately
+    // not told, so its in-memory record is now stale — the exact state in which
+    // Milestone 1.5's first WP3 implementation clobbered the other tab's work.
+    writeElsewhere({
+      mode: "book",
+      listScrollTop: 999,
+      place: { kind: "seals" },
+    });
+
+    // Now this tab writes something unrelated.
+    fireEvent.click(screen.getByRole("button", { name: /open passport/i }));
+
+    await waitFor(() => expect(storedView().coverSeen).toBe(true));
+
+    const after = storedView();
+
+    expect(after.listScrollTop).toBe(999);
+    expect(after.mode).toBe("book");
+    // `place` is the one field the book itself owns, so it is allowed to move —
+    // but only to a real page, never back to null.
+    expect(after.place).not.toBeNull();
+  });
+
+  it("keeps an opened cover opened when a stale tab writes", async () => {
+    seed({ collection: "seeded", view: { mode: "book", coverSeen: true } });
+    await renderPassport();
+
+    // A tab that still believes the cover is closed writes a scroll offset.
+    writeElsewhere({ mode: "book", coverSeen: false, listScrollTop: 120 });
+
+    fireEvent.click(within(toggle()).getByRole("button", { name: "List" }));
+
+    await waitFor(() => expect(storedView().mode).toBe("list"));
+    expect(storedView().coverSeen).toBe(true);
+  });
+
+  it("resolves a cleared storage area to nothing remembered", async () => {
+    seed({ collection: "seeded", view: { mode: "book" } });
+    await renderPassport();
+
+    expect(pressed()).toEqual(["Book"]);
+
+    window.localStorage.clear();
+    window.dispatchEvent(
+      new StorageEvent("storage", { key: null, storageArea: window.localStorage }),
+    );
+
+    // Back to the audience default, not to an error.
+    await waitFor(() => expect(pressed()).toEqual(["List"]));
   });
 });
 

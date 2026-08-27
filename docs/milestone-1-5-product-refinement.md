@@ -1129,8 +1129,9 @@ seals on the left, the most recent locality on the right, exactly as approved.
 Portrait reading opens on page 3 as well, which is the same promise in one page:
 the reader's newest impressions rather than the front matter.
 
-**The judgment call.** The approved wording is *"identity content on the inside
-front cover, not as the routine opening spread."* The committed geometry cannot
+**The judgment call, confirmed in review on 27 August 2026.** The approved wording
+is *"identity content on the inside front cover, not as the routine opening
+spread."* The committed geometry cannot
 carry durable content on the cover's back face: once the cover has swung open it
 lies behind the left page on desktop (`z-index: 1`) and fades out entirely in
 portrait mode, so anything printed there is visible only mid-animation. Rather
@@ -1140,7 +1141,9 @@ facing the contents page as a front-matter spread one turn behind the opening
 spread. That satisfies both halves of the requirement: identity is where a
 passport keeps it, and it is not what the reader lands on. The cover's own inside
 face is now plain endpaper, and the sentence WP1's copy pass would have removed
-from it ("This passport records visits you chose to make…") is gone.
+from it ("This passport records visits you chose to make…") is gone. Accepted in
+review as the reading of the approved direction; the committed cover and leaf
+geometry stays as it is.
 
 **The contents index** sits at page 1 rather than at the back, and is reached by
 a labelled **Contents** control in the pager next to **Cover**, so a reader
@@ -1369,24 +1372,161 @@ case the direction leaves room for.
   package's suite, the WP3 README now names the spec file in its regenerate
   command rather than running the project unfiltered.
 
-### Conflicts found in the documentation
+### Conflicts found in the documentation, and how they were settled
 
-Recorded rather than resolved silently.
+Raised in the WP3 pull request and settled in review on 27 August 2026. All three
+are corrections to stale documents rather than new product decisions.
 
-1. **`UX.md` still describes the Passport overview as "the Passport book"** and
-   gives one hierarchy (overview → country → locality → stamp). WP3's approved
-   direction adds List as a peer mode and makes it the normal-mode default, so the
-   overview is now either presentation. The implementation follows
-   `docs/milestone-1-5-product-refinement.md`; `UX.md` was left alone because
-   editing accepted product documentation is not this work package's to do.
-2. **`docs/passport-interaction-spec.md` state model says "Persist the user's
-   current logical page for the session."** WP3's approved returning behaviour is
-   per device and durable, not per session, so the record moved from
-   `sessionStorage` to `localStorage` and from a page index to a place. The
-   spec's acceptance checks are all still met.
-3. **The inside front cover.** Recorded above under *the one judgment call*: the
-   approved wording and the committed geometry cannot both be honoured literally,
-   and preserving the geometry was ranked higher per accepted decision 10.
+1. **`UX.md` described the Passport overview as "the Passport book".** Corrected.
+   `UX.md` now states that List and Book are peer presentations of one collection,
+   that the overview is whichever one the reader last chose, that production-like
+   mode defaults to List and reviewer mode may default to Book, and that the
+   hierarchy holds in both. Its Browse Passport journey now names the three routes
+   into a locality and the enlarged impression.
+2. **`docs/passport-interaction-spec.md` said "Persist the user's current logical
+   page for the session."** Corrected: the remembered page is durable per device,
+   not per session, and is remembered as content the page holds rather than as a
+   page number. Two acceptance checks were added there — the exact page inside a
+   locality that spans more than one, and a remembered page surviving a new
+   browser session.
+3. **The inside front cover as page 0 — confirmed.** The identity page, tinted as
+   endpaper and facing Contents one turn behind the opening spread, is the accepted
+   reading of *"identity content on the inside front cover, not as the routine
+   opening spread"*. The committed cover and leaf geometry stays as it is.
+
+### WP3 revisions after the Codex review
+
+Three defects, all in remembered state, all found by review on commit
+`a498eb4`. CI was green and the structure was accepted; these are the corrections.
+
+#### 1. A locality that spans pages remembered only the locality
+
+`STAMPS_PER_PAGE` is four, so a locality with five or six impressions has a
+continuation page — and a remembered place naming only the country and locality
+resolved every one of them back to the locality's first page. A reader on the
+second page who opened a stamp, visited its shop and came back landed on the
+first page.
+
+The remembered place gained an optional `collectionId`: the id of an impression
+*on that page*. It is a stable content identifier, which a page number is not —
+page indices move as the collection grows — and it is not a display string.
+
+- `placeForPage` anchors a locality page to its first impression, so the two pages
+  of one locality no longer describe themselves identically.
+- `pageIndexForPlace` resolves the anchor, and checks that the page it lands on is
+  in the locality the record named. A record written before the anchor existed, an
+  impression that has since been cleared, and an anchor carried across from the
+  other audience's collection all fall back to the locality's first page rather
+  than erroring.
+- The **deep-linked locality route** needed more than the record, because the
+  route asks for a locality and cannot name a page inside it. Two things fixed
+  it. `?stamp=<collection id>` is now carried by the overlay's **Open shop** link
+  and by the ceremony's **Open in Passport** link, kept internal to Passport
+  routes and whitelisted by name in `passportReturnHref` — which was rewritten to
+  parse the whole href, reject anything that resolves off-origin or outside
+  `/passport`, and re-encode only that one parameter. And at mount, a remembered
+  place *inside* the locality the route asked for now outranks the locality's
+  first page: a reload while reading page two asks for the locality, and the
+  record is the same destination only more precise.
+- The anchor is read from the URL at mount rather than through `useSearchParams`,
+  which would take the statically prerendered `/passport` route out of static
+  rendering for a parameter that only ever arrives on a client navigation.
+- Route-driven requests and the mount-time resume are kept apart, as they already
+  were: the watched prop stays free of the remembered place, so turning a page
+  past the end of a locality cannot recompute a target and drag the reader back.
+- One adjacent defect surfaced while testing this. On a desktop spread the
+  remembered place came from the right-hand page, which on the final spread is the
+  blank page a book always ends on — so a reader on the last real page was
+  remembered as being nowhere. The right page still names the spread; when it has
+  nothing to name, the left page does.
+
+#### 2. One tab could erase another tab's record
+
+`usePassportView` wrote its whole in-memory snapshot and never listened for
+`storage`. A tab open since before the reader chose Book would write `mode: null`
+back over that choice on its next scroll, and the same race could reset
+`coverSeen` or the remembered place.
+
+Both halves are now in place, mirroring `collection-store.tsx`:
+
+- **Every write is a patch against what is stored**, re-read immediately
+  beforehand. `mergePassportView` is the one place that combines them, so a field
+  the patch does not name always survives.
+- **Changes made elsewhere are adopted**, through a `storage` listener scoped to
+  this audience's key. `lastWrittenRef` absorbs the echo, so two tabs cannot
+  answer each other indefinitely. `localStorage.clear()` resolves to "nothing
+  remembered", which is what a device that has never chosen holds.
+- `coverSeen` is treated as a durable fact rather than a current state: no patch,
+  and no rewritten storage, can bring the first-run ceremony back once a device
+  has opened the cover.
+- Adopting a mode or an opened cover does **not** move the page under the reader.
+  A tab sitting on the closed cover stays there; it simply does not ask again next
+  visit.
+- The audiences stay isolated: the listener ignores the other key, and a default
+  is still never written down as a choice.
+
+#### 3. List scroll restoration was armed once per mount
+
+The latch was set on the first List render and never reset, so a reader who
+scrolled down, switched to Book — whose shorter document clamps `window.scrollY` —
+and switched back was left wherever the clamp had put them.
+
+- The latch is now re-armed whenever the overview list is left, for Book mode or
+  for a country or locality route. It is a per-visit guard, not a per-mount one.
+- The offset is re-applied for a short fixed frame budget rather than once,
+  because the list is not yet tall enough on the frame a mode change commits and
+  because the App Router scrolls a new route to the top *after* the render
+  commits. Genuine input — wheel, touch, a key — cancels the rest of the budget,
+  so it can never be mistaken for the page moving under the reader.
+- A second defect fell out of testing this, and it is the one that made route
+  navigation fail rather than merely clamp. The router scrolls to the top as it
+  *begins* a navigation, before the URL changes and before this component
+  unmounts, so the still-attached listener recorded 0 over the reader's real
+  position. Recording now stops the moment a navigation starts — a click on a
+  link, or Back — and re-arms on the next visit.
+- The overview's offset is still never applied to a country or locality route,
+  which is its own destination and starts at its own top.
+
+#### Coverage added
+
+- `src/features/passport/passport-view-state.test.ts` — the anchor's parsing,
+  including a legacy record that must not gain a `collectionId` key, four
+  unusable anchor values, and that the anchor is not case-folded; and
+  `mergePassportView` in full: fields the patch does not name, fields it does,
+  the durability of `coverSeen` in both directions, and that it never invents a
+  mode.
+- `src/features/passport/passport-pages.test.ts` — a synthesised locality of six
+  impressions: that it really splits into two pages, that the two pages anchor
+  differently, that a continuation page resolves back to itself, that every
+  impression resolves to its own page, and the three fallbacks (no anchor, a
+  cleared impression, an anchor from another locality).
+- `src/components/shops/ShopBackLink.test.ts` — `passportReturnHref` against
+  absolute, protocol-relative, `javascript:`, prefix-lookalike and traversal
+  inputs; that only the anchor parameter survives; and that what
+  `passportHrefWithAnchor` writes reads back unchanged.
+- `src/components/passport/PassportScreen.test.tsx` — the two-tab rules as
+  structure: adopting a mode chosen elsewhere, adopting an opened cover *without*
+  springing the book open, ignoring the other audience's key, not erasing a field
+  it was never told about, keeping an opened cover against a stale write, and
+  resolving a cleared storage area to nothing remembered.
+- `tests/e2e/passport.spec.ts` — the journeys. A locality across two pages:
+  reload from `/passport` and from the locality route, a stamp opened from the
+  continuation page returning to it by the back control and by browser Back, a
+  stale anchor, an anchor from another locality, and List mode showing all six
+  impressions regardless. Two tabs: a real second page adopting a mode choice
+  without a reload, an opened cover, and neither tab erasing the other's work;
+  plus a stale tab that missed the notification failing to erase anything. Scroll:
+  List → Book → List, List → country route → List, and the overview's offset not
+  reaching a locality route.
+- `tests/support/local-state.ts` — `seedPagedLocality` and the fixture behind it.
+  Six catalogue shops gathered into one locality with descending dates, so the
+  page split is the same every run.
+
+All three revisions are to remembered state rather than to what the Passport
+looks like, so the WP3 evidence captures and the visual baselines were regenerated
+and came back byte-identical. `pnpm verify`, `pnpm test:e2e`,
+`pnpm build:cloudflare`, the visual suite and the WP3 evidence suite are all green
+on the revised commit.
 
 ## Open items still needing founder input
 

@@ -6,6 +6,7 @@ import { useCollection } from "@/src/features/collection/collection-store";
 import { useReviewerModeStore } from "@/src/features/reviewer/ReviewerModeProvider";
 import {
   EMPTY_PASSPORT_VIEW,
+  mergePassportView,
   parsePassportView,
   passportViewStorageKey,
   resolvePassportMode,
@@ -44,6 +45,26 @@ export interface PassportViewStore {
  * Nothing is written on mount. A device that has never used the toggle keeps
  * `mode: null` on disk, so the audience default stays a default rather than
  * becoming a choice the reader never made.
+ *
+ * ## Two tabs, one record
+ *
+ * `localStorage` is shared, so a second tab is not a hypothetical. Two rules
+ * keep them honest, and both are needed:
+ *
+ * - **Every write is a patch against what is stored**, re-read immediately
+ *   beforehand. A tab that wrote its whole in-memory snapshot would undo
+ *   whatever another tab had changed since it last looked — the classic case is
+ *   a tab that has been open since before the reader chose Book, whose next
+ *   scroll would write `mode: null` back over that choice.
+ * - **Changes made elsewhere are adopted.** Without this the *stale* tab wins
+ *   the moment the reader touches it: it would keep rendering List after the
+ *   other tab chose Book, and show the cover again after the other tab opened
+ *   it. `storage` fires only in the tabs that did not make the change, so this
+ *   never runs against its own write, and `lastWrittenRef` absorbs the echo
+ *   that comes back when the other tab persists what it adopted.
+ *
+ * The reviewer and normal records live under different keys, so neither rule
+ * can carry one audience's state into the other's.
  */
 export function usePassportView(): PassportViewStore {
   const { reviewer, resolved } = useReviewerModeStore();
@@ -54,11 +75,19 @@ export function usePassportView(): PassportViewStore {
   /**
    * The record as last written, for the callbacks.
    *
-   * Kept in step at both places the record changes — hydration below and
-   * `commit` — rather than during render, so a second update in the same tick
-   * still reads what the first one wrote.
+   * Kept in step at every place the record changes — hydration, `commit`, and an
+   * adopted change from another tab — rather than during render, so a second
+   * update in the same tick still reads what the first one wrote.
    */
   const recordRef = useRef(record);
+  /**
+   * The exact bytes this tab last wrote.
+   *
+   * Writing to `localStorage` notifies every *other* tab, and each of those will
+   * write the adopted value back. Without this the two would answer each other
+   * indefinitely; with it, a tab ignores a value it already holds.
+   */
+  const lastWrittenRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!resolved || hydratedFor === scope) {
@@ -87,22 +116,95 @@ export function usePassportView(): PassportViewStore {
 
   const commit = useCallback(
     (patch: Partial<PassportViewRecord>) => {
-      const next: PassportViewRecord = { ...recordRef.current, ...patch };
+      const key = passportViewStorageKey(scope);
+      let stored = recordRef.current;
+
+      try {
+        // Re-read rather than trusting this tab's copy: another tab may have
+        // changed a field this patch does not name.
+        stored = parsePassportView(window.localStorage.getItem(key));
+      } catch {
+        // Storage is unreadable; the in-memory record is the best base there is.
+      }
+
+      const next = mergePassportView(stored, {
+        ...patch,
+        /*
+         * An opened cover is durable in both directions.
+         *
+         * `mergePassportView` keeps a stored `true` against a patch that says
+         * otherwise; this keeps it against *storage* that says otherwise. The
+         * application itself cannot produce that state — every write merges —
+         * but a rewritten or partially restored record can, and showing the
+         * first-run ceremony a second time is the one outcome worth ruling out.
+         */
+        ...(recordRef.current.coverSeen ? { coverSeen: true } : {}),
+      });
+      const serialized = serializePassportView(next);
 
       recordRef.current = next;
       setRecord(next);
 
       try {
-        window.localStorage.setItem(
-          passportViewStorageKey(scope),
-          serializePassportView(next),
-        );
+        window.localStorage.setItem(key, serialized);
+        lastWrittenRef.current = serialized;
       } catch {
         // Best effort: the choice still applies for this page view.
       }
     },
     [scope],
   );
+
+  /**
+   * Adopt what another tab did to this record.
+   *
+   * Scoped to this audience's key. A `null` key is `localStorage.clear()` — the
+   * whole area went, this record with it — and resolves to "nothing remembered",
+   * which is the same as a device that has never chosen.
+   */
+  useEffect(() => {
+    if (hydratedFor !== scope || typeof window === "undefined") {
+      return;
+    }
+
+    const key = passportViewStorageKey(scope);
+
+    function onStorage(event: StorageEvent) {
+      if (event.key !== null && event.key !== key) {
+        return;
+      }
+
+      if (event.storageArea && event.storageArea !== window.localStorage) {
+        return;
+      }
+
+      let next = EMPTY_PASSPORT_VIEW;
+
+      try {
+        next = parsePassportView(window.localStorage.getItem(key));
+      } catch {
+        // Unreadable storage resolves to nothing remembered.
+      }
+
+      const serialized = serializePassportView(next);
+
+      // Already held — usually the echo of a value this tab wrote, or of one it
+      // has already adopted. Writing it back would bounce the event home.
+      if (serialized === lastWrittenRef.current) {
+        return;
+      }
+
+      lastWrittenRef.current = serialized;
+      recordRef.current = next;
+      setRecord(next);
+    }
+
+    window.addEventListener("storage", onStorage);
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+    };
+  }, [hydratedFor, scope]);
 
   const chooseMode = useCallback(
     (mode: PassportMode) => commit({ mode }),

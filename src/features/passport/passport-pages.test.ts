@@ -4,11 +4,13 @@ import { buildPassport } from "@/src/domain/passport";
 import { deriveSeals } from "@/src/domain/seals";
 import { designSeal, prototypeCoverageSets } from "@/src/fixtures/prototype-catalogue";
 import { prototypeSeedCollections } from "@/src/fixtures/prototype-passport";
+import type { StampCollection } from "@/src/domain/passport";
 import {
   buildPassportPages,
   IDENTITY_PAGE_INDEX,
   INDEX_PAGE_INDEX,
   OPENING_PAGE_INDEX,
+  pageIndexForCollection,
   pageIndexForCountry,
   pageIndexForLocality,
   pageIndexForPlace,
@@ -263,5 +265,150 @@ describe("remembering a place in the book", () => {
       }),
     ).toBeNull();
     expect(pageIndexForPlace(pages, null)).toBeNull();
+  });
+});
+
+/**
+ * A locality that spans more than one page.
+ *
+ * The catalogue has no locality with more than two shops, and the behaviour under
+ * test only exists past `STAMPS_PER_PAGE`. Six seeded impressions are gathered
+ * into one locality, with descending dates so the newest-first order — and
+ * therefore the page split — is fixed.
+ */
+const PAGED_COUNTRY = "JP" as const;
+const PAGED_SLUG = "one-locality";
+
+function pagedCollections(): readonly StampCollection[] {
+  return prototypeSeedCollections
+    .concat(prototypeSeedCollections)
+    .slice(0, STAMPS_PER_PAGE + 2)
+    .map((collection, index) => ({
+      ...collection,
+      id: `paged-${index}`,
+      shopId: `paged-shop-${index}`,
+      shopSlug: `paged-shop-${index}`,
+      collectedOn: `2026-05-0${6 - index}`,
+      countryCode: PAGED_COUNTRY,
+      countryLabel: "Japan",
+      localityName: "One Locality",
+      localitySlug: PAGED_SLUG,
+    }));
+}
+
+function pagedPages() {
+  const collections = pagedCollections();
+  const passport = buildPassport(collections);
+  const { seals, countryProgress } = deriveSeals({
+    collections,
+    coverageSets: prototypeCoverageSets,
+    designSeal,
+  });
+
+  return buildPassportPages({ passport, seals, countryProgress });
+}
+
+describe("a locality that spans more than one page", () => {
+  const pages = pagedPages();
+  const localityPages = pages.filter((page) => page.kind === "locality");
+
+  it("splits into a first page and a continuation page", () => {
+    expect(localityPages).toHaveLength(2);
+    expect(
+      localityPages[0]?.kind === "locality" ? localityPages[0].continued : true,
+    ).toBe(false);
+    expect(
+      localityPages[1]?.kind === "locality" ? localityPages[1].continued : false,
+    ).toBe(true);
+  });
+
+  it("anchors each page to an impression that is on it", () => {
+    for (const page of localityPages) {
+      if (page.kind !== "locality") {
+        continue;
+      }
+
+      const place = placeForPage(page);
+
+      expect(place).toMatchObject({
+        kind: "locality",
+        countryCode: PAGED_COUNTRY,
+        localitySlug: PAGED_SLUG,
+        collectionId: page.collections[0]?.id,
+      });
+    }
+
+    // And the two anchors differ, which is the whole point.
+    const first = placeForPage(localityPages[0]);
+    const second = placeForPage(localityPages[1]);
+
+    expect(first).not.toEqual(second);
+  });
+
+  it("resolves a continuation page back to itself, not to the first page", () => {
+    const continuationIndex = pages.findIndex(
+      (page) => page.kind === "locality" && page.continued,
+    );
+    const place = placeForPage(pages[continuationIndex]);
+
+    expect(pageIndexForPlace(pages, place)).toBe(continuationIndex);
+  });
+
+  it("resolves an anchor to whichever page holds that impression", () => {
+    for (const page of localityPages) {
+      if (page.kind !== "locality") {
+        continue;
+      }
+
+      for (const collection of page.collections) {
+        expect(pages[pageIndexForCollection(pages, collection.id) as number]).toBe(
+          page,
+        );
+      }
+    }
+  });
+
+  it("falls back to the first page for a record written without an anchor", () => {
+    // Every WP3 record stored before the anchor existed looks like this.
+    const legacy = pageIndexForPlace(pages, {
+      kind: "locality",
+      countryCode: PAGED_COUNTRY,
+      localitySlug: PAGED_SLUG,
+    });
+
+    expect(legacy).toBe(pageIndexForLocality(pages, PAGED_COUNTRY, PAGED_SLUG));
+    expect(
+      pages[legacy as number]?.kind === "locality"
+        ? (pages[legacy as number] as { readonly continued: boolean }).continued
+        : true,
+    ).toBe(false);
+  });
+
+  it("falls back to the first page when the impression no longer exists", () => {
+    expect(
+      pageIndexForPlace(pages, {
+        kind: "locality",
+        countryCode: PAGED_COUNTRY,
+        localitySlug: PAGED_SLUG,
+        collectionId: "collection-that-was-cleared",
+      }),
+    ).toBe(pageIndexForLocality(pages, PAGED_COUNTRY, PAGED_SLUG));
+  });
+
+  it("refuses an anchor that belongs to a different locality", () => {
+    // A record carried across from the other audience's collection, or a
+    // hand-edited one. The locality it was recorded under still decides.
+    expect(
+      pageIndexForPlace(pages, {
+        kind: "locality",
+        countryCode: PAGED_COUNTRY,
+        localitySlug: "somewhere-else",
+        collectionId: "paged-0",
+      }),
+    ).toBeNull();
+  });
+
+  it("returns nothing for an anchor with no locality at all", () => {
+    expect(pageIndexForCollection(pages, "not-a-collection")).toBeNull();
   });
 });

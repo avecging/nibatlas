@@ -185,11 +185,19 @@ export function PassportBook({
   /*
    * Report the settled spread upwards.
    *
-   * Reported as content — a country and a locality — rather than as a page
-   * number, so a collection that grows by one impression does not silently move
-   * every remembered position along by a page.
+   * Reported as content — a country, a locality, and an impression on the exact
+   * page — rather than as a page number, so a collection that grows by one
+   * impression does not silently move every remembered position along by a page.
+   *
+   * The right-hand page names the spread, because that is the page the reader
+   * turned to. When it has nothing to name — the blank page a book always ends
+   * on — the left page does, so a reader on the final spread is remembered as
+   * being on its last real page rather than as being nowhere.
    */
-  const settledPlace = opened ? placeForPage(pages[position]) : null;
+  const settledPlace = opened
+    ? (placeForPage(pages[position]) ??
+      (mode === "spread" ? placeForPage(pages[position - 1]) : null))
+    : null;
   const placeKey = settledPlace === null ? "" : JSON.stringify(settledPlace);
 
   useEffect(() => {
@@ -199,6 +207,7 @@ export function PassportBook({
 
     onPlaceChange?.(JSON.parse(placeKey) as PassportPlace);
   }, [onPlaceChange, opened, placeKey]);
+
 
   // Fit the book to the field. The object should read as an object, so it keeps
   // generous negative space rather than filling the panel.
