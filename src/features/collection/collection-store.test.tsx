@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
 import {
@@ -17,6 +17,7 @@ import {
   findPrototypeShop,
   prototypeShopDetails,
 } from "@/src/fixtures/prototype-catalogue";
+import { prototypeSeedCollections } from "@/src/fixtures/prototype-passport";
 import { seedReviewerMode } from "@/src/test/reviewer";
 
 function Providers({ children }: { readonly children: ReactNode }) {
@@ -300,6 +301,226 @@ describe("collection store", () => {
     });
     expect(result.current.collection.passport.stampCount).toBe(0);
     expect(result.current.collection.savedShopIds.size).toBe(0);
+  });
+});
+
+describe("clearing local data", () => {
+  it("removes saves and impressions from a normal device", () => {
+    const { result } = renderStore(false);
+
+    act(() => {
+      result.current.collection.toggleSaved(unvisited.id);
+      result.current.collection.collectStamp(unvisited);
+    });
+
+    expect(result.current.collection.passport.stampCount).toBe(1);
+
+    act(() => {
+      result.current.collection.clearLocalData();
+    });
+
+    expect(result.current.collection.savedShopIds.size).toBe(0);
+    expect(result.current.collection.collections).toEqual([]);
+    expect(result.current.collection.seals).toEqual([]);
+    expect(result.current.collection.passport.stampCount).toBe(0);
+  });
+
+  /*
+   * The failure this guards is specific to reviewer mode, whose *key absent*
+   * baseline is the seeded demonstration collection. Clearing has to leave an
+   * empty store on disk, not an absent one that reseeds six stamps on the next
+   * visit — and it has to keep doing so when the reader clears twice.
+   */
+  it("leaves an empty store on disk rather than an absent one", () => {
+    const { result } = renderStore(true);
+
+    expect(result.current.collection.passport.stampCount).toBeGreaterThan(0);
+
+    act(() => {
+      result.current.collection.clearLocalData();
+    });
+
+    const afterFirst = window.localStorage.getItem(COLLECTION_STORAGE_KEYS.reviewer);
+
+    expect(afterFirst).not.toBeNull();
+    expect(JSON.parse(afterFirst!)).toMatchObject({
+      savedShopIds: [],
+      collections: [],
+    });
+
+    // Clearing an already-empty store changes no state, so nothing would be
+    // written by the persistence effect. The key must still be there.
+    act(() => {
+      result.current.collection.clearLocalData();
+    });
+
+    expect(
+      window.localStorage.getItem(COLLECTION_STORAGE_KEYS.reviewer),
+    ).not.toBeNull();
+  });
+
+  it("is not the reviewer reset, which restores the seed", () => {
+    const { result } = renderStore(true);
+
+    act(() => {
+      result.current.collection.clearLocalData();
+    });
+
+    expect(result.current.collection.passport.stampCount).toBe(0);
+
+    act(() => {
+      result.current.collection.resetPrototypeState();
+    });
+
+    expect(result.current.collection.passport.stampCount).toBeGreaterThan(0);
+  });
+
+  it("does not touch the other mode's store", () => {
+    const { result } = renderStore(false);
+
+    act(() => {
+      result.current.collection.toggleSaved(unvisited.id);
+    });
+
+    window.localStorage.setItem(
+      COLLECTION_STORAGE_KEYS.reviewer,
+      JSON.stringify({ savedShopIds: ["kept"], collections: [] }),
+    );
+
+    act(() => {
+      result.current.collection.clearLocalData();
+    });
+
+    expect(window.localStorage.getItem(COLLECTION_STORAGE_KEYS.reviewer)).toContain(
+      "kept",
+    );
+  });
+});
+
+describe("another tab changing this store", () => {
+  /**
+   * Simulates a second tab writing to the same key.
+   *
+   * `storage` fires only in tabs that did *not* make the change, so dispatching
+   * it by hand is exactly what a real second tab produces here.
+   */
+  function writeFromAnotherTab(scope: "normal" | "reviewer", state: unknown) {
+    const key = COLLECTION_STORAGE_KEYS[scope];
+    const newValue = JSON.stringify(state);
+
+    window.localStorage.setItem(key, newValue);
+    window.dispatchEvent(
+      new StorageEvent("storage", {
+        key,
+        newValue,
+        storageArea: window.localStorage,
+      }),
+    );
+  }
+
+  /*
+   * The defect this guards is a promise being broken. Tab A clears and is told
+   * the removal cannot be undone; tab B still holds the old arrays in React
+   * state, and its persistence effect writes them straight back the next time
+   * anything changes there. The collection returns, and the confirmation was a
+   * lie.
+   */
+  it("does not resurrect a collection cleared in another tab", () => {
+    const { result } = renderStore(false);
+
+    act(() => {
+      result.current.collection.toggleSaved(unvisited.id);
+      result.current.collection.collectStamp(unvisited);
+    });
+
+    expect(result.current.collection.passport.stampCount).toBe(1);
+
+    act(() => {
+      writeFromAnotherTab("normal", {
+        savedShopIds: [],
+        collections: [],
+        seals: [],
+      });
+    });
+
+    expect(result.current.collection.collections).toEqual([]);
+    expect(result.current.collection.savedShopIds.size).toBe(0);
+
+    // The point of the test: a later change in this tab writes the *cleared*
+    // state forward, not the state it was holding before.
+    act(() => {
+      result.current.collection.toggleSaved(unvisited.id);
+    });
+
+    const stored = JSON.parse(
+      window.localStorage.getItem(COLLECTION_STORAGE_KEYS.normal)!,
+    );
+
+    expect(stored.collections).toEqual([]);
+    expect(stored.savedShopIds).toEqual([unvisited.id]);
+  });
+
+  it("picks up a save made in another tab", () => {
+    const { result } = renderStore(false);
+
+    expect(result.current.collection.isSaved(unvisited.id)).toBe(false);
+
+    act(() => {
+      writeFromAnotherTab("normal", {
+        savedShopIds: [unvisited.id],
+        collections: [],
+        seals: [],
+      });
+    });
+
+    expect(result.current.collection.isSaved(unvisited.id)).toBe(true);
+  });
+
+  it("ignores the other mode's key", () => {
+    const { result } = renderStore(false);
+
+    act(() => {
+      writeFromAnotherTab("reviewer", {
+        savedShopIds: [unvisited.id],
+        collections: prototypeSeedCollections,
+        seals: [],
+      });
+    });
+
+    expect(result.current.collection.savedShopIds.size).toBe(0);
+    expect(result.current.collection.collections).toEqual([]);
+  });
+
+  /*
+   * Every tab writes back what it adopts, which notifies every other tab in
+   * turn. Without a guard on "we already hold this", two tabs would answer each
+   * other indefinitely.
+   */
+  it("does not write back a value it just adopted", () => {
+    const { result } = renderStore(false);
+
+    act(() => {
+      result.current.collection.toggleSaved(unvisited.id);
+    });
+
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+
+    act(() => {
+      writeFromAnotherTab("normal", {
+        savedShopIds: [],
+        collections: [],
+        seals: [],
+      });
+    });
+
+    // One write: the simulated other tab's own. Nothing echoed back.
+    expect(
+      setItem.mock.calls.filter(
+        ([key]) => key === COLLECTION_STORAGE_KEYS.normal,
+      ),
+    ).toHaveLength(1);
+
+    setItem.mockRestore();
   });
 });
 

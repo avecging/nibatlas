@@ -1,6 +1,7 @@
 # Milestone 1.5 — Production-like product refinement
 
-**Status:** Founder-approved direction. **WP1 implemented**; WP2–WP7 and WP-D not started.
+**Status:** Founder-approved direction. **WP1 and WP2 implemented**; WP3–WP7 and
+WP-D not started.
 **Recorded:** 26 August 2026
 **Owner:** Claude Code (frontend), with founder and Codex on sourcing
 **Depends on:** Milestone 1 (PR #5) landing as the corrected technical foundation
@@ -168,6 +169,27 @@ Until Milestone 6:
 
 The dedicated `/suggest-shop` form is a later implementation.
 
+**Amended 27 August 2026, after the founder's staging review of WP2.** *Report
+incorrect information* is not a row in Me. A global control cannot name the shop
+the reader is looking at, which is the part of this decision that makes the mail
+useful, and as an unrouted row it was prototype scaffolding rather than a feature
+preview. It belongs on the shop page, and WP7 owns it there.
+
+Its copy is approved as natural product language rather than an instruction:
+
+> Found something wrong with this listing? Let us know and we&rsquo;ll look into it
+> as soon as possible.
+
+WP7 attaches the `[Shop correction]` route to that, carrying the shop name.
+
+**Help and contact is also WP7's, and is deliberately not specified here.**
+Recorded 27 August 2026, with the same amendment. It was the last row in Me
+carrying *Not open yet* and was removed for the same reason as the correction
+row. Its destination, subject line and copy are open questions — an address may
+not be the right answer at all, and unlike the two contribution routes above,
+this decision has never been made. WP7 owns making it. Nothing in WP2 invents
+it.
+
 ### 9. Scope
 
 WP1–WP7 below are Milestone 1.5. PR #5 must not grow indefinitely.
@@ -261,14 +283,18 @@ from a shop lands on that stamp's page in either mode.
 visited, if local stamps exist, linked into Passport · Preferences and
 accessibility · **On this device** (what is stored locally, that it does not sync
 and is lost if browser data is cleared or the PWA is removed, Download local
-data, Clear data on this device) · **Contribute** (Suggest a pen shop, Report
-incorrect information) · Privacy · Help · About Nib Atlas.
+data, Clear data on this device) · **Contribute** (Suggest a pen shop) ·
+Privacy · About Nib Atlas.
 
 **Signed in** — optional display name and account identity · **Places visited**,
 compact and clickable, where a country entry opens that country's Passport
-section or filtered List view · Preferences and accessibility · Privacy and your
-data (export, download) · Contribute · Help · About · Sign out · then a separated
-**Danger** group with **Delete account** in `--error`, behind a confirmation.
+section or filtered List view · Privacy and your data (export, download) ·
+Contribute · About · Sign out · then a separated **Danger** group with
+**Delete account** in `--error`, behind a confirmation.
+
+*Amended 27 August 2026:* **Preferences and accessibility** is not part of either
+state. See the staging-review record below — it returns when there is something
+to set.
 
 Anonymous users may save shops and preferences locally on that browser or device,
 with a clear explanation that local data does not sync and can be lost. On
@@ -347,12 +373,12 @@ that feedback exists.
 | --- | --- | --- | --- |
 | **WP0** | The five PR #5 review findings. **Milestone 1, not 1.5.** | — | Landed in PR #5 |
 | **WP1** | Reviewer mode plus the copy pass: the flag, migrating every badge and milestone label behind it, production copy for location and collection, About Nib Atlas | WP0 | **Implemented** |
-| **WP2** | Me restructure: signed-out/signed-in split, compact Places Visited linked into Passport, local-data controls, Contribute entries, Danger group | WP1 | Not started |
+| **WP2** | Me restructure: signed-out/signed-in split, compact Places Visited linked into Passport, local-data controls, Contribute entries, Danger group | WP1 | **Implemented** |
 | **WP3** | Passport IA: List/Book toggle, opening spread on content, country/locality index and linked routes, stamp detail overlay, first-run-only cover, cover redesign, display name on the identity page | WP1 | Not started |
 | **WP4** | Shop value layer: the data-model extension, sourced content, reordered page, native directions, contextual report | WP1, sourcing | Not started |
 | **WP5** | Visual fidelity: shop identity system, interim hero, paper and cover texture, stamp at large size, ceremony material pass | WP3, WP4 | Not started |
 | **WP6** | Filter drawer: segment plus drawer, active count, one-tap clear | WP1 | Not started |
-| **WP7** | Contribution flows: `mailto` routing now, `/suggest-shop` page later | WP2 | Not started |
+| **WP7** | Contact and contribution routes: the contextual shop-page correction, help and contact, and the `/suggest-shop` page later. *Suggest a pen shop* is routed in WP2 | WP2 | Not started |
 | **WP-D** | **Required desktop audit** across all of the above | Founder desktop feedback | Not started |
 
 WP1 is the smallest package with the largest effect on testability: it is what
@@ -706,6 +732,336 @@ Added with the review revisions:
   Saved; seeded reviewer state; a mode round trip preserving a real save; the
   legacy session; and one test per copy fix.
 - `tests/support/local-state.ts` — the shared arrangement helper.
+
+## WP2 implementation record
+
+Recorded 27 August 2026. WP2 is the *Revised Me structure* above, built as
+written: two distinct states, four named groups, a compact Places Visited that
+links into the Passport, working local-data controls, the Contribute entries, and
+a separated Danger group.
+
+### The problem it solves
+
+Milestone 1's Me was one undifferentiated list that mixed four unrelated things —
+a profile that was not a profile, geography, settings, and data controls — and
+told the reader about each of them at length. WP1 shortened the copy but left the
+shape alone, and explicitly deferred the restructure here.
+
+The shape matters more than the wording did. A reader arrives at Me for one of
+three reasons: to find out what is being kept about them, to get back to
+somewhere they have been, or to change something. The restructure gives each of
+those its own group, in that order, and removes the sections that existed only to
+narrate compliance.
+
+### Two states, not one screen with extra rows
+
+Authentication is Milestone 4, so the signed-in state cannot be real yet. The
+options were to build only the signed-out half, or to build the seam the real
+thing will plug into and make the signed-in half reviewable behind the flag WP1
+already established. The second was taken, because the approved structure is a
+*pair* and half of it cannot be reviewed on its own.
+
+`src/features/account/account-session.ts` is that seam. Its rules:
+
+- **Normal mode is always signed out.** No parameter, no storage entry and no
+  control can move a tester's device into the signed-in state. The check is in
+  `resolveAccountSession` itself, not only in the interface, so a preview key
+  left behind by an earlier reviewer session is ignored outright rather than
+  merely unreachable. `tests/e2e/me.spec.ts` asserts exactly that.
+- **Reviewer mode may preview it,** from a reviewer-namespaced key, and the
+  preview says so where it renders rather than only where it is switched on.
+
+Milestone 4 replaces `resolveAccountSession` with a real session lookup and
+deletes the preview. Every consumer keeps the same shape.
+
+### Precise implementation decisions
+
+1. **Places visited is omitted, not zeroed, on a clean device.** Milestone 1
+   rendered three zero stat cards and a "No visits yet" line. A section whose
+   only content is a report that it has no content is the acceptance checklist
+   answering itself again. It appears on the first stamp.
+2. **Seal progress is folded into the country row, and stays a separate fact.**
+   The Milestone 1 review found seals standing in for visits, which hid two of
+   three countries the reader had genuinely been to. The row now states the visit
+   from the stamps and the seal threshold beneath it, and the earned case shows a
+   seal chip instead of a progress line. The separate *Seal progress* section is
+   gone; it was a second rendering of the same data.
+3. **Country and locality are separate links, not nested.** A link inside a link
+   is invalid, and a reader who wants Chūō should not have to go through Japan.
+   The country heading links to `/passport/[country]`; the localities beneath it
+   are chips linking to `/passport/[country]/[locality]`. Those two routes existed
+   and were orphaned; WP2 gives them their first product entry point. WP3 owns
+   what they render.
+4. **Download local data works, and says what it is.** There is no server, so
+   this is not "export my account" — it is a copy of what this device holds,
+   written as it is stored, `simulated: true` carried through and the store it
+   came from named in the file. A reviewer's export can never later be read as a
+   record of real visits. The payload builder is pure (`src/features/me/local-data.ts`);
+   the browser half is a thin wrapper that reports failure rather than appearing
+   to succeed when a browser blocks object URLs.
+5. **Clear data writes an empty store rather than removing the key.** This is not
+   cosmetic: on a reviewer device the *key absent* baseline is the seeded
+   demonstration collection, so removing the key would reseed six stamps on the
+   next visit. Clearing twice would have done it even where clearing once did
+   not, because an unchanged state writes nothing. Pinned in
+   `collection-store.test.tsx`.
+6. **Destructive controls ask with an inline panel, never `window.confirm`.** The
+   native dialog cannot be styled, cannot be screenshotted for review evidence,
+   is suppressible by the browser, and reads out of context to assistive
+   technology. The panel takes focus when it opens and returns it to the row when
+   it closes.
+7. **A confirm button never repeats its row's label.** A row's accessible name is
+   its title and detail together, so *Clear data on this device* and *Clear this
+   device* are two addressable controls where two identical labels would have
+   been one ambiguous one.
+8. **Standing text is not a live region.** The Danger row's preview note is
+   present from first paint, so it is plain text; only the result of using a
+   control is `role="status"`. Two permanent status regions on one screen is
+   noise to a screen reader, not information.
+9. **Me's Location section was removed.** The approved structure does not carry
+   one, and the sentence belongs where the position would actually be requested —
+   the collect preflight, which WP1 already built — with the full account on
+   Privacy. Privacy remains one tap away and its row now names location, so the
+   route to the explanation is unchanged. The reviewer note moved with it, and is
+   asserted at the preflight.
+10. **Privacy's data paragraph was corrected.** It promised an export and a
+    deletion in the future tense. Both act on this device today, so it names them
+    and links to the group that holds them; the account-scoped versions are
+    described separately, still in the future tense, which is where they belong.
+11. **`/account` redirects to `#me-account`.** The old `#me-profile` anchor no
+    longer exists.
+12. **Suggest a pen shop is routed; the correction is not.** Revised after the
+    Codex review, which read the WP2 brief as requiring the route now — correctly:
+    accepted decision 8 already fixes the address and the subject tag, so
+    deferring it was deferring nothing but the wiring. It is a `mailto` to
+    `hello@nibatlas.com` with subject `[Suggest shop]`, built in
+    `src/features/contribute/contribute-links.ts` so the address and both tags
+    exist once and can be asserted exactly, encoded and decoded.
+
+    **Report incorrect information** stays with WP7, and after the founder's
+    staging review it is not in Me at all — see revision 19 below. Decision 8
+    says that mail should name the relevant shop, and that context lives on the
+    shop page, not in a global Me row.
+
+13. **Preferences and accessibility is copy, not rows** — and then, after the
+    founder's staging review, is not on the page at all. See revision 20 below.
+    Recorded here because the intermediate step is the useful part of the
+    reasoning: Milestone 1 rendered reduced motion and accessibility as list
+    items with a pending badge (*No in-app override*, *Reference only*), the
+    Codex review replaced them with two sentences of copy, and the staging review
+    then asked the question neither pass had — whether the content belongs on
+    this page at all.
+14. **Local-data copy says what the controls do, and no more.** Also from the
+    Codex review, and the most substantive of its copy findings. Clearing acts on
+    this scope's store alone, so:
+    - the result no longer reads *"Nothing from Nib Atlas is stored on this
+      device now"* — the reviewer choice, the account preview and whatever else
+      the browser holds are untouched — but names the two things it removed;
+    - the question asks about *"your saved shops and collected impressions"*
+      rather than *"everything Nib Atlas has stored"*;
+    - **preferences** are no longer listed as stored or cleared, because neither
+      control touches them and Nib Atlas stores none of its own;
+    - removing the app from a home screen is no longer stated as deleting its
+      data: whether it does depends on the platform, and on several it does not.
+      Privacy names the browser's own site-data control instead, which is the
+      thing that really removes everything;
+    - `clearLocalData`'s interface documentation said it removed the storage key.
+      It deliberately writes an empty one — an absent key is a scope's cue to
+      reseed — and the comment now says so, along with the scope limit that the
+      copy above depends on.
+
+    Each claim is pinned by an assertion, in `MeScreen.test.tsx`, `me.spec.ts`
+    and `reviewer-mode.spec.ts`, so none of them can come back unnoticed.
+15. **Download and Clear are held until the store has been read.** From the Codex
+    review, and a real defect rather than a copy one. The collection store reads
+    `localStorage` in an effect, so between the first paint and that effect a
+    returning reader's store is the *empty baseline*. A fast interaction in that
+    window would have exported an empty file that looks exactly like a successful
+    export of nothing, or cleared the baseline over their real collection.
+
+    The guard lives in `exportLocalData`, which owns the whole action, so a
+    second caller cannot forget it; the rows also carry `disabled` for the same
+    interval. It is one frame, so the treatment is deliberately understated — a
+    heavier one would read as a permanently unavailable control, which these are
+    not. `local-data.test.ts` proves a seeded collection cannot be exported
+    before hydration, and a static render of Me — which *is* the first paint,
+    since effects have not run — proves both controls are inoperable in it.
+16. **A destructive confirmation opens on Cancel.** From the Codex review.
+    Opening the panel and confirming it were otherwise one keystroke apart:
+    pressing Enter twice, an ordinary way to work down a list of buttons, would
+    have destroyed a collection whose question was never read. Focus now lands on
+    **Cancel** for destructive panels, the destructive button is one Tab away,
+    and focus returns to the originating row on both cancel and completion.
+    Covered from the keyboard in `me.spec.ts` and by focus assertions in
+    `MeScreen.test.tsx`.
+
+17. **A row's result is a sibling of its button, not a descendant.** From the
+    Codex review of the pull request. A native button's descendants are
+    flattened into its accessible name, so a `role="status"` nested inside one is
+    never exposed as a live region — the announcement simply does not happen. It
+    hid the only feedback in the case that has no other: a download the browser
+    blocked. Each result is now its own named region beside the row, present in
+    the document even when empty (a live region has to exist before its text
+    arrives) and collapsed with padding rather than `display: none`, which would
+    take it back out of the accessibility tree.
+18. **A clear in one tab is not undone by another.** Also from the pull-request
+    review, and the more serious of the two: a broken promise rather than a
+    missed announcement. With Nib Atlas open twice, tab A clears and is told the
+    removal cannot be undone; tab B still holds the old arrays in React state,
+    and its persistence effect writes them straight back the next time anything
+    changes there. The collection returns.
+
+    `CollectionProvider` now listens for `storage` and adopts what another tab
+    did to its own scope — which also fixes the quieter half, a save made in one
+    tab going missing in another. `storage` fires only in tabs that did not make
+    the change, and a `lastWrittenRef` stops the echo that comes back when the
+    other tab persists what it adopted, so two tabs cannot answer each other
+    indefinitely. Covered in the store's own tests and by a two-tab journey; both
+    were confirmed to fail with the listener removed.
+
+19. **Report incorrect information leaves Me.** From the founder's staging
+    review. It was a row carrying *Not open yet*, and the objection is the one
+    this milestone was opened over: a visible control that cannot be used is
+    prototype scaffolding, not a feature preview. Removing it is not a deferral —
+    the correction route is WP7's and always was, and decision 8 is amended above
+    with the founder's approved copy for it on the shop page, where the mail can
+    name the shop the reader is looking at.
+
+    **Suggest a pen shop** keeps its working route and subject tag, with shorter
+    copy: *"Tell us about a fountain pen shop that isn't on the map."* The
+    trailing *"Opens an email."* is gone — a link that opens a mail client
+    announces itself by opening one.
+20. **Preferences and accessibility leaves Me entirely.** Also from the staging
+    review, and the more interesting of the two.
+
+    Both earlier passes argued about *presentation* — rows with a badge, then two
+    sentences of copy — and neither asked whether the content belonged on the
+    page. It does not. Me is where a person changes their own settings, and there
+    is nothing here to change; general statements about reduced motion, keyboard
+    behaviour and colour use are a description of how the product works, and
+    putting that on a personal-settings page makes it read as a specification of
+    itself.
+
+    Nothing about the behaviour changed, and its technical documentation stays in
+    the repository. It was **not** moved into Terms of Use. A user-facing
+    accessibility or help destination may be worth having later, if it earns its
+    place.
+
+    The section returns when there is something to set — *Light / Dark / Follow
+    system*, a text-size adjustment, colour-vision options, a motion override.
+    None of those are built here.
+21. **Copy that narrates the interface is gone.** The founder's general
+    direction, applied across Me: a download result no longer says the file was
+    *prepared and* downloaded, the export no longer promises the data *exactly as
+    it is stored here*, signing out no longer explains what stays behind, and the
+    clear row no longer pre-announces the consequence its own confirmation panel
+    exists to state.
+
+    Truthfulness, consequences and privacy explanations are untouched — the
+    device-storage paragraph, the clear result naming what it removed, the
+    blocked-download message and the confirmation panels all read exactly as
+    before. The rule is that the interface should not describe mechanics the
+    interaction already demonstrates, not that it should say less about what it
+    is doing to the reader's data.
+
+22. **Help and contact leaves Me, and the section is renamed with it.** The
+    founder settled the item revision 19 raised: it was the last row carrying
+    *Not open yet*, and the reasoning that removed *Report incorrect
+    information* applies to it unchanged. A visible control that cannot be used
+    is prototype scaffolding whether or not it is the only one left.
+
+    The group it sat in was called **Help and about**. With no help in it, that
+    heading is the same inaccuracy one level up, so the section is now **About**
+    — holding Privacy policy and About Nib Atlas signed out, and About Nib Atlas
+    and Sign out signed in. Its anchor moved from `#me-help` to `#me-about`;
+    nothing linked to the old one.
+
+    Its routing is recorded under WP7 and deliberately **not** specified here:
+    destination, subject line and copy are all open, an address may not be the
+    right answer, and unlike the two contribution routes that decision has never
+    been made. See the amendment to accepted decision 8.
+
+    **Nothing that works was touched.** *Suggest a pen shop* keeps its route and
+    subject tag, *Privacy policy* still reaches `/privacy`, and *About Nib
+    Atlas* still reaches `/about` — asserted together in one test, in both the
+    component suite and the journeys, so a future removal cannot take one of
+    them with it.
+
+    Me now carries no unusable control at all. *Not available yet* on **Sign in**
+    and **Export account data** is a different claim and stays: it describes an
+    account that will exist, which is product information rather than a control
+    that cannot be pressed. A test asserts the count of *Not open yet* across the
+    whole page is zero.
+
+### WP2 revisions after the founder's staging review
+
+Recorded 27 August 2026, after the founder read WP2 on staging as an ordinary
+user, and one follow-up settled straight after it. Four refinements, all copy or
+structure, no behaviour change: revisions 19 to 22 above.
+
+The reviewer-mode organisation was reviewed and kept as it stands.
+
+One item was raised rather than settled in that pass — **Help and contact**, then
+the only remaining row carrying *Not open yet* — and the founder settled it
+immediately after: remove it, on the same reasoning. Recorded as revision 22
+below.
+
+### WP2 revisions after the Codex review
+
+Recorded 27 August 2026. Six required fixes, all accepted and all implemented;
+five accepted decisions were confirmed unchanged — the reviewer-only account
+seam, normal mode being structurally forced signed out, omitting Places visited
+on a clean device, folding seal status into each country while keeping it
+distinct from the visit, and writing an empty reviewer collection store rather
+than deleting its key.
+
+The fixes are recorded above as decisions 12 to 16, plus the tablet breakpoint
+added to the WP2 evidence suite: `IMPLEMENTATION-PLAN.md` names three review
+breakpoints and the first pass captured two.
+
+A second Codex pass, on the pull request itself, raised two P2 findings. Both
+were real defects in code this work package added, both were small and local,
+and both are recorded above as decisions 17 and 18.
+
+### Deliberately not done in WP2
+
+- **No authentication.** The signed-in state is a labelled preview. Nothing
+  signs in, nothing syncs, and no account can be created or deleted.
+- **Merging local saves on account creation** is named in the approved structure
+  as something to offer *on* account creation. There is no account creation, so
+  there is nothing to offer it at.
+- **Desktop layout was not touched.** The 1440 × 900 evidence shows the
+  restructure on the existing Milestone 1 desktop treatment and is not desktop
+  sign-off; WP-D still awaits founder feedback.
+- **Passport's own information architecture** is WP3. Me links into the routes
+  that exist; it does not change what they render.
+
+### Coverage
+
+- `src/features/account/account-session.test.ts` — the resolution rules,
+  including a stored preview being ignored in normal mode; display-name
+  normalisation and bounds; persisted-record parsing.
+- `src/features/me/local-data.test.ts` — the export payload shape, deterministic
+  ordering, the carried `simulated` marker and the named store, and the filename.
+- `src/features/collection/collection-store.test.tsx` — clearing empties the
+  store, leaves it present rather than absent, survives being done twice, is not
+  the reviewer reset, and does not touch the other mode's store.
+- `src/features/me/MeScreen.test.tsx` — both states as structure: the groups each
+  one has, the Danger group's absence when signed out, the confirmations, the
+  download's success and failure paths, and the display name surviving a Save
+  pressed without typing.
+- `tests/e2e/me.spec.ts` — the journeys: the signed-out groups, Places Visited's
+  counts and deep links, clearing with and without confirmation (asserted against
+  storage, since the arranged state is an init script and a reload would re-seed
+  it), a real download parsed back, and the signed-in preview end to end.
+- `tests/e2e/accessibility.spec.ts` — an axe audit of the signed-in state and of
+  the destructive confirmation open, neither of which exists in the signed-out
+  audit.
+- `src/features/contribute/contribute-links.test.ts` — the mailbox, both subject
+  tags, and the encoding, asserted as the exact href and as the decoded subject.
+- `tests/evidence/wp2-me.spec.ts` and `docs/evidence/milestone-1-5-wp2/` — every
+  state at 360 × 800, 768 × 1024 and 1440 × 900. WP1's evidence set is a record
+  of that review and is deliberately not regenerated here.
 
 ## Open items still needing founder input
 

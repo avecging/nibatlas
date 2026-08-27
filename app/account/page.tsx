@@ -5,5 +5,5 @@ import { redirect } from "next/navigation";
  * separate destination, so this redirects to the relevant section.
  */
 export default function AccountPage() {
-  redirect("/me#me-profile");
+  redirect("/me#me-account");
 }

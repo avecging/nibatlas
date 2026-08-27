@@ -1,71 +1,519 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-import { seedSampleCollection, useReviewerMode } from "../support/local-state";
+import {
+  ACCOUNT_PREVIEW_STORAGE_KEY,
+  COLLECTION_STORAGE_KEYS,
+  seedOrphanedSignedInPreview,
+  seedSampleCollection,
+  seedSignedInPreview,
+  useReviewerMode,
+} from "../support/local-state";
 
 /**
- * Me, checked against the two properties the Milestone 1 review found broken:
- * visited geography must come from stamps rather than from seals, and the
- * pending-action badge must not squeeze the row text at 360 px.
+ * Me after the WP2 restructure.
+ *
+ * The journeys are about structure and consequence: which groups a reader gets,
+ * where Places visited takes them, what the local-data controls actually do, and
+ * the one property the account seam exists for — that a normal-mode device can
+ * never be put into the signed-in state.
  */
-test("reports countries and localities visited, separately from seals", async ({
-  page,
-}) => {
-  await seedSampleCollection(page);
-  await page.goto("/me");
+/**
+ * Each row's result is its own named live region, and a sibling of the button
+ * rather than a descendant — a live region nested in a button is flattened into
+ * that button's accessible name and never announced.
+ */
+function clearResult(page: Page) {
+  return page.getByRole("status", { name: /clear data on this device result/i });
+}
 
-  const visited = page.getByRole("region", { name: /places visited/i });
-  const seals = page.getByRole("region", { name: /seal progress/i });
+function downloadResult(page: Page) {
+  return page.getByRole("status", { name: /download local data result/i });
+}
 
-  // Seeded state: six stamps across three countries and five localities, but
-  // only Singapore's country seal is earned. If seals stood in for visits, this
-  // would read 1.
-  await expect(visited.getByText("Countries visited")).toBeVisible();
-  await expect(visited.getByText("Localities visited")).toBeVisible();
-  await expect(
-    visited.locator("p", { has: page.getByText("Countries visited") }),
-  ).toContainText("3");
-  await expect(
-    visited.locator("p", { has: page.getByText("Localities visited") }),
-  ).toContainText("5");
+test.describe("signed out", () => {
+  test("offers an account, and locates the reader's data on the device", async ({
+    page,
+  }) => {
+    await page.goto("/me");
 
-  // Every visited country is named, with its localities. Singapore is both a
-  // country and its own locality here, so the country heading is matched by role.
-  for (const country of ["Japan", "Singapore", "Taiwan"]) {
+    const account = page.getByRole("region", { name: /^account$/i });
+    const device = page.getByRole("region", { name: /on this device/i });
+
+    // Saving and collecting both work anonymously, so nothing here may claim an
+    // account is required for them.
+    await expect(account.getByText("Sign in")).toBeVisible();
+    await expect(account.getByText(/need an account/i)).toHaveCount(0);
+
+    await expect(device).toContainText(/do not sync/i);
+    await expect(device).toContainText(/clearing this browser's data clears them/i);
     await expect(
-      visited.getByText(country, { exact: true }).first(),
+      device.getByRole("button", { name: /download local data/i }),
     ).toBeVisible();
-  }
-  await expect(visited.getByText(/Chūō, Tokyo/)).toBeVisible();
-  await expect(visited.getByText(/Naka, Yokohama/)).toBeVisible();
 
-  // Seals are their own section, and count only what is actually earned.
-  await expect(seals.getByText("Country seals")).toBeVisible();
-  await expect(
-    seals.locator("p", { has: page.getByText("Country seals") }),
-  ).toContainText("1");
-  await expect(seals.getByText(/Country seal earned/)).toBeVisible();
-  await expect(
-    seals.getByText(/2 of 4 curated shops collected/).first(),
-  ).toBeVisible();
+    // Signed out there is no account to delete and no session to end.
+    await expect(page.getByRole("region", { name: /^danger$/i })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /sign out/i })).toHaveCount(0);
+  });
 
-  // The coverage-set version behind that denominator is reviewer instrumentation
-  // and must not appear in the product surface.
-  await expect(seals.getByText(/curated set [a-z]{2}-/i)).toHaveCount(0);
+  test("routes Suggest a pen shop to the contribution mailbox", async ({ page }) => {
+    await page.goto("/me");
 
-  // Places visited points into the Passport itself.
-  await expect(visited.getByRole("link", { name: /open passport/i })).toHaveAttribute(
-    "href",
-    "/passport",
-  );
+    const contribute = page.getByRole("region", { name: /contribute/i });
+    const suggest = contribute.getByRole("link", { name: /suggest a pen shop/i });
+
+    await expect(suggest).toHaveAttribute(
+      "href",
+      "mailto:hello@nibatlas.com?subject=%5BSuggest%20shop%5D",
+    );
+
+    // The subject tag has to arrive at the mailbox exactly as accepted decision
+    // 8 writes it, so it is asserted decoded as well as encoded.
+    const href = await suggest.getAttribute("href");
+
+    expect(new URL(href!).searchParams.get("subject")).toBe("[Suggest shop]");
+
+    /*
+     * One entry, and it works. The founder's staging review removed the
+     * correction row — a visible control carrying "Not open yet" is prototype
+     * scaffolding — and WP7 gives it its real home on the shop page, where the
+     * mail can name the shop.
+     */
+    await expect(contribute.getByText(/report incorrect information/i)).toHaveCount(0);
+  });
+
+  /*
+   * The end of that reasoning: no row anywhere in Me carries "Not open yet".
+   * Both rows that did are gone, and WP7 owns what replaces them.
+   *
+   * "Not available yet" is a different claim and stays — Sign in describes an
+   * account that will exist, which is product information rather than a control
+   * that cannot be pressed.
+   */
+  test("carries no unusable controls at all", async ({ page }) => {
+    await seedSampleCollection(page);
+    await page.goto("/me");
+
+    await expect(page.getByText(/not open yet/i)).toHaveCount(0);
+    await expect(page.getByText(/help and contact/i)).toHaveCount(0);
+    await expect(page.getByRole("region", { name: /help and about/i })).toHaveCount(0);
+  });
+
+  /** The three destinations that do work are untouched by the removals. */
+  test("keeps every route that works", async ({ page }) => {
+    await page.goto("/me");
+
+    await expect(page.getByRole("link", { name: /privacy policy/i })).toHaveAttribute(
+      "href",
+      "/privacy",
+    );
+    await expect(page.getByRole("link", { name: /about nib atlas/i })).toHaveAttribute(
+      "href",
+      "/about",
+    );
+    await expect(
+      page.getByRole("link", { name: /suggest a pen shop/i }),
+    ).toHaveAttribute("href", "mailto:hello@nibatlas.com?subject=%5BSuggest%20shop%5D");
+
+    // And they still arrive.
+    await page.getByRole("link", { name: /about nib atlas/i }).click();
+    await expect(page).toHaveURL(/\/about$/);
+  });
+
+  /*
+   * Me is where a person changes their own settings, and there is nothing here
+   * to change. The section returns when real controls exist — a theme choice, a
+   * text size, a colour-vision option, a motion override — and not before.
+   */
+  test("has no Preferences and accessibility section", async ({ page }) => {
+    await page.goto("/me");
+
+    await expect(
+      page.getByRole("region", { name: /preferences and accessibility/i }),
+    ).toHaveCount(0);
+    await expect(page.getByText(/reduced-motion setting/i)).toHaveCount(0);
+    await expect(page.getByText(/no in-app override|reference only/i)).toHaveCount(0);
+  });
+
+  /*
+   * The founder's copy direction: the interface already says a link opens, a
+   * button acts, a file downloads. Saying it again is noise.
+   */
+  test("does not narrate its own interaction mechanics", async ({ page }) => {
+    await seedSampleCollection(page);
+    await page.goto("/me");
+
+    await expect(page.getByText(/opens an email/i)).toHaveCount(0);
+    await expect(page.getByText(/exactly as they are stored here/i)).toHaveCount(0);
+  });
+
+  /*
+   * The copy corrections from the Codex review, asserted so they cannot come
+   * back: clearing removes two named things, it does not leave the device free
+   * of Nib Atlas, it does not touch preferences, and removing the app from a
+   * home screen is not stated as deleting data.
+   */
+  test("never overstates what the local-data controls cover", async ({ page }) => {
+    await seedSampleCollection(page);
+    await page.goto("/me");
+
+    const device = page.getByRole("region", { name: /on this device/i });
+
+    await expect(device).toContainText(/saved shops and collected impressions/i);
+    await expect(device.getByText(/home screen/i)).toHaveCount(0);
+    await expect(device.getByText(/preferences are stored/i)).toHaveCount(0);
+
+    await page.getByRole("button", { name: /clear data on this device/i }).click();
+    await expect(
+      page.getByText(/clear your saved shops and collected impressions/i),
+    ).toBeVisible();
+    await page.getByRole("button", { name: /^clear this device$/i }).click();
+
+    await expect(clearResult(page)).toContainText(/removed from this browser/i);
+    await expect(page.getByText(/nothing from nib atlas/i)).toHaveCount(0);
+  });
+
+  test("omits Places visited on a device with no stamps", async ({ page }) => {
+    await page.goto("/me");
+
+    await expect(page.getByRole("region", { name: /places visited/i })).toHaveCount(0);
+  });
 });
 
-test("the profile row keeps its text readable at 360 px", async ({ page }) => {
+test.describe("places visited", () => {
+  test("counts visits from stamps and links into the Passport", async ({ page }) => {
+    await seedSampleCollection(page);
+    await page.goto("/me");
+
+    const places = page.getByRole("region", { name: /places visited/i });
+
+    // Seeded state: six stamps across three countries and five localities, but
+    // only Singapore's country seal is earned. If seals stood in for visits,
+    // this would read 1.
+    await expect(places.locator("p", { hasText: "Countries" })).toContainText("3");
+    await expect(places.locator("p", { hasText: "Localities" })).toContainText("5");
+    // Exact, or "country seal" in the progress lines would match too.
+    await expect(places.getByText("Seal", { exact: true })).toHaveCount(1);
+    await expect(
+      places.getByText(/2 of 4 curated shops collected towards the country seal/i),
+    ).toHaveCount(2);
+
+    // The coverage-set version behind that denominator is reviewer
+    // instrumentation and must not appear in the product surface.
+    await expect(places.getByText(/curated set [a-z]{2}-/i)).toHaveCount(0);
+
+    await expect(places.getByRole("link", { name: /japan/i })).toHaveAttribute(
+      "href",
+      "/passport/jp",
+    );
+    await expect(places.getByRole("link", { name: /chūō, tokyo/i })).toHaveAttribute(
+      "href",
+      "/passport/jp/chuo-tokyo",
+    );
+  });
+
+  test("a locality link opens that locality in the Passport", async ({ page }) => {
+    await seedSampleCollection(page);
+    await page.goto("/me");
+
+    await page
+      .getByRole("region", { name: /places visited/i })
+      .getByRole("link", { name: /chūō, tokyo/i })
+      .click();
+
+    await expect(page).toHaveURL(/\/passport\/jp\/chuo-tokyo$/);
+  });
+});
+
+test.describe("local data controls", () => {
+  test("asks before clearing, and clears only when confirmed", async ({ page }) => {
+    await seedSampleCollection(page);
+    await page.goto("/me");
+
+    const places = page.getByRole("region", { name: /places visited/i });
+
+    await expect(places).toBeVisible();
+
+    // A row button's accessible name is its title and detail together, so the
+    // confirm button inside the panel carries a distinct label and each control
+    // can be addressed by name.
+    const trigger = page.getByRole("button", { name: /clear data on this device/i });
+
+    await trigger.click();
+    await expect(page.getByText(/cannot be undone/i)).toBeVisible();
+    await page.getByRole("button", { name: /^cancel$/i }).click();
+    await expect(places).toBeVisible();
+
+    await trigger.click();
+    await page.getByRole("button", { name: /^clear this device$/i }).click();
+
+    await expect(clearResult(page)).toContainText(/cleared/i);
+    await expect(page.getByRole("region", { name: /places visited/i })).toHaveCount(0);
+
+    /*
+     * And it stays cleared. Asserted against storage rather than by reloading:
+     * the arranged state is an init script, so a reload would re-seed the very
+     * collection this just removed. What matters on disk is that the store is
+     * present and empty — an *absent* key is a reviewer device's cue to reseed.
+     */
+    const stored = await page.evaluate(
+      (key) => window.localStorage.getItem(key),
+      COLLECTION_STORAGE_KEYS.normal,
+    );
+
+    expect(stored).not.toBeNull();
+    expect(JSON.parse(stored!)).toMatchObject({ savedShopIds: [], collections: [] });
+  });
+
+  /*
+   * The reason Cancel takes focus: opening the panel and confirming it would
+   * otherwise be two presses of the same key, with the question never read.
+   */
+  test("a destructive confirmation opens on Cancel and survives a second Enter", async ({
+    page,
+  }) => {
+    await seedSampleCollection(page);
+    await page.goto("/me");
+
+    await page.getByRole("button", { name: /clear data on this device/i }).focus();
+    await page.keyboard.press("Enter");
+
+    await expect(page.getByRole("button", { name: /^cancel$/i })).toBeFocused();
+
+    await page.keyboard.press("Enter");
+
+    // Focus is back on the row, the panel is closed, and nothing was cleared.
+    await expect(
+      page.getByRole("button", { name: /clear data on this device/i }),
+    ).toBeFocused();
+    await expect(page.getByRole("region", { name: /places visited/i })).toBeVisible();
+    await expect(page.getByText(/cannot be undone/i)).toHaveCount(0);
+  });
+
+  test("the destructive button is still reachable, one tab away", async ({ page }) => {
+    await seedSampleCollection(page);
+    await page.goto("/me");
+
+    await page.getByRole("button", { name: /clear data on this device/i }).focus();
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Shift+Tab");
+
+    await expect(page.getByRole("button", { name: /^clear this device$/i })).toBeFocused();
+
+    await page.keyboard.press("Enter");
+
+    await expect(clearResult(page)).toContainText(/removed from this browser/i);
+    await expect(
+      page.getByRole("button", { name: /clear data on this device/i }),
+    ).toBeFocused();
+  });
+
+  test("announces each result outside the button that produced it", async ({
+    page,
+  }) => {
+    await seedSampleCollection(page);
+    await page.goto("/me");
+
+    // The regions exist before they have anything to say: several screen
+    // readers miss an update to a live region inserted at the same moment.
+    await expect(clearResult(page)).toBeAttached();
+    await expect(downloadResult(page)).toBeAttached();
+
+    for (const result of [clearResult(page), downloadResult(page)]) {
+      expect(
+        await result.evaluate((node) => node.closest("button") !== null),
+      ).toBe(false);
+    }
+  });
+
+  /*
+   * Two tabs, one clear. Tab B is holding the old collection in React state,
+   * and its next write must carry the cleared state forward rather than the
+   * state it was holding — otherwise the collection comes back and the
+   * confirmation ("this cannot be undone") was a lie.
+   */
+  test("a clear in one tab is not undone by another tab", async ({ context }) => {
+    const first = await context.newPage();
+    const second = await context.newPage();
+
+    // Seeded on the first page only, then the second navigates — the two share
+    // the context's `localStorage`, which is the whole point of the test.
+    await seedSampleCollection(first);
+    await first.goto("/me");
+    await second.goto("/me");
+
+    await expect(first.getByRole("region", { name: /places visited/i })).toBeVisible();
+    await expect(second.getByRole("region", { name: /places visited/i })).toBeVisible();
+
+    await first.getByRole("button", { name: /clear data on this device/i }).click();
+    await first.getByRole("button", { name: /^clear this device$/i }).click();
+    await expect(clearResult(first)).toContainText(/removed from this browser/i);
+
+    // The second tab adopts it rather than sitting on a stale collection.
+    await expect(
+      second.getByRole("region", { name: /places visited/i }),
+    ).toHaveCount(0);
+
+    // And a save made there afterwards does not write the old arrays back.
+    await second.goto("/shops/juspirit-banqiao");
+    await second.getByRole("button", { name: /^save$/i }).click();
+    await expect(second.getByRole("button", { name: /^saved$/i })).toBeVisible();
+
+    /*
+     * Checked live in the first tab and against storage, not by reloading: the
+     * arranged collection is an init script on that page, so a reload would
+     * re-seed the very state under test.
+     */
+    await expect(first.getByRole("region", { name: /places visited/i })).toHaveCount(0);
+
+    const stored = await first.evaluate(
+      (key) => window.localStorage.getItem(key),
+      COLLECTION_STORAGE_KEYS.normal,
+    );
+
+    expect(JSON.parse(stored!).collections).toEqual([]);
+
+    await first.close();
+    await second.close();
+  });
+
+  test("downloads a machine-readable copy of the device's own data", async ({
+    page,
+  }) => {
+    await seedSampleCollection(page);
+    await page.goto("/me");
+
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByRole("button", { name: /download local data/i }).click(),
+    ]);
+
+    expect(download.suggestedFilename()).toMatch(
+      /^nib-atlas-data-\d{4}-\d{2}-\d{2}\.json$/,
+    );
+
+    const stream = await download.createReadStream();
+    const chunks: Buffer[] = [];
+
+    for await (const chunk of stream) {
+      chunks.push(Buffer.from(chunk));
+    }
+
+    const payload = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+
+    expect(payload.schema).toBe("nib-atlas.local-data/1");
+    expect(payload.store).toBe("normal");
+    expect(payload.collections).toHaveLength(6);
+    // Simulated impressions have to keep saying so once they leave the app.
+    expect(
+      payload.collections.every((collection: { simulated: boolean }) => collection.simulated),
+    ).toBe(true);
+  });
+});
+
+test.describe("the signed-in structure", () => {
+  /*
+   * The property the account seam exists for. Authentication is Milestone 4, so
+   * a tester must never be shown copy that says they have an account — whatever
+   * a previous reviewer session left in storage.
+   */
+  test("a normal device ignores a stored signed-in preview", async ({ page }) => {
+    await seedOrphanedSignedInPreview(page);
+    await page.goto("/me");
+
+    await expect(page.getByText("Sign in")).toBeVisible();
+    await expect(page.getByRole("region", { name: /^danger$/i })).toHaveCount(0);
+    await expect(page.getByText("Ada")).toHaveCount(0);
+  });
+
+  test("reviewer mode can preview it, labelled as a preview", async ({ page }) => {
+    await seedSignedInPreview(page);
+    await page.goto("/me");
+
+    const account = page.getByRole("region", { name: /^account$/i });
+
+    await expect(account.getByText(/reviewer preview/i)).toBeVisible();
+    await expect(account.getByText("reviewer@nibatlas.example").first()).toBeVisible();
+    await expect(page.getByLabel(/display name/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: /sign out/i })).toBeVisible();
+
+    const danger = page.getByRole("region", { name: /^danger$/i });
+
+    await expect(danger.getByText("Delete account")).toBeVisible();
+  });
+
+  test("a display name replaces the account address", async ({ page }) => {
+    await seedSignedInPreview(page);
+    await page.goto("/me");
+
+    await page.getByLabel(/display name/i).fill("Ada Lovelace");
+    await page.getByRole("button", { name: /^save$/i }).click();
+
+    await expect(
+      page.getByRole("region", { name: /^account$/i }).getByRole("status"),
+    ).toContainText(/display name saved/i);
+    await expect(
+      page.getByRole("region", { name: /^account$/i }).getByText("Ada Lovelace"),
+    ).toBeVisible();
+
+    // Persisted on the device, checked in storage for the same reason as above.
+    const stored = await page.evaluate(
+      (key) => window.localStorage.getItem(key),
+      ACCOUNT_PREVIEW_STORAGE_KEY,
+    );
+
+    expect(JSON.parse(stored!)).toMatchObject({
+      signedIn: true,
+      displayName: "Ada Lovelace",
+    });
+  });
+
+  test("deleting the account asks first", async ({ page }) => {
+    await seedSignedInPreview(page);
+    await page.goto("/me");
+
+    await page.getByRole("button", { name: /delete account/i }).click();
+
+    await expect(page.getByText(/delete your nib atlas account\?/i)).toBeVisible();
+    await expect(page.getByText(/removed permanently/i)).toBeVisible();
+
+    await page.getByRole("button", { name: /^cancel$/i }).click();
+
+    await expect(page.getByRole("region", { name: /^danger$/i })).toBeVisible();
+  });
+
+  test("signing out returns the reviewer to the signed-out structure", async ({
+    page,
+  }) => {
+    await seedSignedInPreview(page);
+    await page.goto("/me");
+
+    await page.getByRole("button", { name: /sign out/i }).click();
+
+    await expect(page.getByText("Sign in")).toBeVisible();
+    await expect(page.getByRole("region", { name: /^danger$/i })).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: /preview the signed-in account/i }),
+    ).toBeVisible();
+  });
+});
+
+test("reviewer mode keeps the milestone wording on the sign-in row", async ({
+  page,
+}) => {
+  await useReviewerMode(page);
+  await page.goto("/me");
+
+  await expect(page.getByText("Sign-in and sync arrive in Milestone 4")).toBeVisible();
+});
+
+test("the pending badge keeps the row text readable at 360 px", async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 });
   await page.goto("/me");
 
-  const detail = page.getByText(/Your saved shops and impressions are kept on this device/i);
-  // Normal mode states the same fact without the milestone number.
-  const badge = page.getByText("Signing in will sync them later");
+  const detail = page.getByText(
+    /An account carries your saved shops and collected impressions between devices/i,
+  );
+  const badge = page.getByText("Not available yet").first();
 
   const detailBox = await detail.boundingBox();
   const badgeBox = await badge.boundingBox();
@@ -77,25 +525,4 @@ test("the profile row keeps its text readable at 360 px", async ({ page }) => {
   // full column width.
   expect(badgeBox!.y).toBeGreaterThanOrEqual(detailBox!.y + detailBox!.height - 1);
   expect(detailBox!.width).toBeGreaterThan(240);
-});
-
-test("a clean device is told its data is local, not that it needs an account", async ({
-  page,
-}) => {
-  await page.goto("/me");
-
-  // Saving and collecting both work anonymously, so nothing here may claim an
-  // account is required for them.
-  const profile = page.getByRole("region", { name: /^profile$/i });
-
-  await expect(profile).toContainText(/kept on this device/i);
-  await expect(profile).toContainText(/do not sync/i);
-  await expect(profile.getByText(/need an account/i)).toHaveCount(0);
-});
-
-test("reviewer mode keeps the milestone wording on the same row", async ({ page }) => {
-  await useReviewerMode(page);
-  await page.goto("/me");
-
-  await expect(page.getByText("Sign-in and sync arrive in Milestone 4")).toBeVisible();
 });

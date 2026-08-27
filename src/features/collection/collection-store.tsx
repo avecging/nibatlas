@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -88,6 +89,21 @@ interface PersistedState {
   readonly seals?: readonly EarnedSeal[];
 }
 
+/**
+ * One canonical serialisation, used by every write and every comparison.
+ *
+ * The cross-tab listener below decides whether to adopt an incoming value by
+ * comparing strings, so "the same state" has to produce the same bytes wherever
+ * it is written from — key order included.
+ */
+function serializeState(state: PersistedState): string {
+  return JSON.stringify({
+    savedShopIds: state.savedShopIds,
+    collections: state.collections,
+    seals: state.seals ?? [],
+  } satisfies PersistedState);
+}
+
 /** What a scope holds before anyone has touched it. */
 function baselineFor(scope: CollectionScope): PersistedState {
   return scope === "reviewer"
@@ -124,6 +140,24 @@ export interface CollectionStore {
   collectStamp(shop: ShopDetail, today?: Date): StampCollection;
   /** Restores the current scope's baseline. Reviewer-only in the interface. */
   resetPrototypeState(): void;
+  /**
+   * Empties this device's store, in place.
+   *
+   * The key is *written as empty*, not removed: an absent key is a scope's cue
+   * to fall back to its baseline, and on a reviewer device that baseline is the
+   * seeded demonstration collection. Removing it would reseed six stamps on the
+   * next visit.
+   *
+   * Distinct from {@link CollectionStore.resetPrototypeState}, which restores
+   * that baseline deliberately. Clearing removes: no saves, no impressions, no
+   * carried seals.
+   *
+   * Scoped to this store alone. It is not a device wipe — the reviewer-mode
+   * choice, the account preview and anything else the browser holds are
+   * untouched — so copy describing it must name the two things it removes
+   * rather than claim the device is now clean.
+   */
+  clearLocalData(): void;
 }
 
 const CollectionContext = createContext<CollectionStore | null>(null);
@@ -217,6 +251,14 @@ export function CollectionProvider({ children }: { readonly children: ReactNode 
   const [collections, setCollections] = useState<readonly StampCollection[]>([]);
   const [carriedSeals, setCarriedSeals] = useState<readonly EarnedSeal[]>([]);
   const [hydratedFor, setHydratedFor] = useState<CollectionScope | null>(null);
+  /**
+   * The last value this tab wrote, verbatim.
+   *
+   * Writing to `localStorage` notifies every *other* tab, and each of those
+   * will write the adopted value back. Without this the two would answer each
+   * other indefinitely; with it, a tab ignores a value it already holds.
+   */
+  const lastWrittenRef = useRef<string | null>(null);
 
   useEffect(() => {
     // Reviewer mode resolves after mount, so loading before it settles would
@@ -264,19 +306,75 @@ export function CollectionProvider({ children }: { readonly children: ReactNode 
       return;
     }
 
+    const serialized = serializeState({
+      savedShopIds,
+      collections,
+      seals: derived.seals,
+    });
+
+    // Nothing changed — usually because this state was just adopted from
+    // another tab. Writing it back would bounce the event straight home.
+    if (serialized === lastWrittenRef.current) {
+      return;
+    }
+
     try {
-      window.localStorage.setItem(
-        STORAGE_KEYS[scope],
-        JSON.stringify({
-          savedShopIds,
-          collections,
-          seals: derived.seals,
-        } satisfies PersistedState),
-      );
+      window.localStorage.setItem(STORAGE_KEYS[scope], serialized);
+      lastWrittenRef.current = serialized;
     } catch {
       // Storage is best-effort; the collection still works for this page view.
     }
   }, [collections, derived.seals, hydratedFor, savedShopIds, scope]);
+
+  /**
+   * Adopt what another tab did to this store.
+   *
+   * Without this, two open tabs drift apart and the *stale* one wins. Clear
+   * data on this device is the case that matters: tab A clears and is told the
+   * removal cannot be undone, tab B still holds the old arrays in React state,
+   * and the next save or collection in tab B writes them straight back — the
+   * collection returns, and the confirmation was a lie. A save made in one tab
+   * going missing in another is the same defect, quieter.
+   *
+   * `storage` fires only in the tabs that did *not* make the change, so this
+   * never runs against its own write; `lastWrittenRef` covers the echo that
+   * comes back once the other tab persists what it adopted.
+   */
+  useEffect(() => {
+    if (hydratedFor !== scope || typeof window === "undefined") {
+      return;
+    }
+
+    function onStorage(event: StorageEvent) {
+      // A null key is `localStorage.clear()` — the whole area went, this
+      // store with it.
+      if (event.key !== null && event.key !== STORAGE_KEYS[scope]) {
+        return;
+      }
+
+      if (event.storageArea && event.storageArea !== window.localStorage) {
+        return;
+      }
+
+      const next = readScope(scope) ?? baselineFor(scope);
+      const serialized = serializeState(next);
+
+      if (serialized === lastWrittenRef.current) {
+        return;
+      }
+
+      lastWrittenRef.current = serialized;
+      setSavedShopIds(next.savedShopIds);
+      setCollections(next.collections);
+      setCarriedSeals(next.seals ?? []);
+    }
+
+    window.addEventListener("storage", onStorage);
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+    };
+  }, [hydratedFor, scope]);
 
   const toggleSaved = useCallback((shopId: string) => {
     let nextSaved = false;
@@ -326,6 +424,31 @@ export function CollectionProvider({ children }: { readonly children: ReactNode 
     setCarriedSeals([]);
   }, [scope]);
 
+  const clearLocalData = useCallback(() => {
+    setSavedShopIds([]);
+    setCollections([]);
+    setCarriedSeals([]);
+
+    // Written here rather than left to the persistence effect, which only runs
+    // when the state actually changes. On a reviewer device that already holds
+    // an empty store, clearing again would change nothing, write nothing, and —
+    // if this removed the key instead — leave *absent*, whose baseline is the
+    // seeded collection. Clearing must leave an empty store behind, never an
+    // absent one that reseeds on the next visit.
+    const serialized = serializeState({
+      savedShopIds: [],
+      collections: [],
+      seals: [],
+    });
+
+    try {
+      window.localStorage.setItem(STORAGE_KEYS[scope], serialized);
+      lastWrittenRef.current = serialized;
+    } catch {
+      // Storage is best effort; the in-memory state is already empty.
+    }
+  }, [scope]);
+
   const value = useMemo<CollectionStore>(() => {
     const userShopState: UserShopState = {
       savedShopIds: savedSet,
@@ -352,8 +475,10 @@ export function CollectionProvider({ children }: { readonly children: ReactNode 
         countrySealFor(derived.seals, countryCode),
       collectStamp,
       resetPrototypeState,
+      clearLocalData,
     };
   }, [
+    clearLocalData,
     collectStamp,
     collections,
     derived.countryProgress,

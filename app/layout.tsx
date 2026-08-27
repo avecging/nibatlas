@@ -3,6 +3,7 @@ import { Inter, Source_Serif_4 } from "next/font/google";
 import type { ReactNode } from "react";
 
 import { AppShell } from "@/src/components/layout/AppShell";
+import { AccountSessionProvider } from "@/src/features/account/AccountSessionProvider";
 import { CollectionProvider } from "@/src/features/collection/collection-store";
 import { ReviewerModeProvider } from "@/src/features/reviewer/ReviewerModeProvider";
 
@@ -40,9 +41,11 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
     <html lang="en" className={`${inter.variable} ${sourceSerif.variable}`}>
       <body>
         <ReviewerModeProvider>
-          <CollectionProvider>
-            <AppShell>{children}</AppShell>
-          </CollectionProvider>
+          <AccountSessionProvider>
+            <CollectionProvider>
+              <AppShell>{children}</AppShell>
+            </CollectionProvider>
+          </AccountSessionProvider>
         </ReviewerModeProvider>
       </body>
     </html>
