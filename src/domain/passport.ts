@@ -29,6 +29,14 @@ export interface PassportLocality {
   readonly name: string;
   readonly countryCode: CountryCode;
   readonly collections: readonly StampCollection[];
+  /**
+   * Local date of the newest impression here.
+   *
+   * The book fills up the way a passport does — the most recent locality first —
+   * so page order needs a recency key that does not depend on the grouping
+   * order below.
+   */
+  readonly mostRecentOn: string;
 }
 
 export interface PassportCountry {
@@ -37,6 +45,8 @@ export interface PassportCountry {
   readonly slug: string;
   readonly localities: readonly PassportLocality[];
   readonly stampCount: number;
+  /** Local date of the newest impression anywhere in the country. */
+  readonly mostRecentOn: string;
 }
 
 export interface PassportOverview {
@@ -92,6 +102,9 @@ export function buildPassport(collections: readonly StampCollection[]): Passport
           name: localityCollections[0]?.localityName ?? slug,
           countryCode,
           collections: localityCollections,
+          // `countryCollections` is already newest-first, and bucketing
+          // preserves that, so the first entry is the newest.
+          mostRecentOn: localityCollections[0]?.collectedOn ?? "",
         }))
         .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -101,6 +114,7 @@ export function buildPassport(collections: readonly StampCollection[]): Passport
         slug: countrySlug(countryCode),
         localities: localityViews,
         stampCount: countryCollections.length,
+        mostRecentOn: countryCollections[0]?.collectedOn ?? "",
       };
     },
   );
@@ -116,6 +130,47 @@ export function buildPassport(collections: readonly StampCollection[]): Passport
     ),
     countries: countryViews,
   };
+}
+
+/**
+ * Recency ordering, for the presentations that read chronologically.
+ *
+ * `buildPassport` groups alphabetically, which is what Me and List mode show
+ * and what keeps those surfaces stable as the collection grows. The book is the
+ * other case: a passport fills up in the order it was stamped, and WP3 requires
+ * the most recently collected locality to be the opening spread's right-hand
+ * page. Sorting a copy here keeps both true without either surface reordering
+ * the other.
+ *
+ * The label tiebreak makes it total: two localities collected on the same date
+ * always come out in the same order.
+ */
+export function byMostRecent<
+  T extends { readonly mostRecentOn: string },
+>(key: (value: T) => string) {
+  return (a: T, b: T): number => {
+    if (a.mostRecentOn !== b.mostRecentOn) {
+      return a.mostRecentOn < b.mostRecentOn ? 1 : -1;
+    }
+
+    return key(a).localeCompare(key(b));
+  };
+}
+
+export function countriesByRecency(
+  passport: PassportOverview,
+): readonly PassportCountry[] {
+  return [...passport.countries].sort(
+    byMostRecent<PassportCountry>((country) => country.countryLabel),
+  );
+}
+
+export function localitiesByRecency(
+  country: PassportCountry,
+): readonly PassportLocality[] {
+  return [...country.localities].sort(
+    byMostRecent<PassportLocality>((locality) => locality.name),
+  );
 }
 
 export function findPassportCountry(

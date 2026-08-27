@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { PassportCountryView } from "@/src/components/passport/PassportViews";
+import { PassportScreen } from "@/src/components/passport/PassportScreen";
 
 export const metadata: Metadata = {
   title: "Passport country",
@@ -13,5 +13,5 @@ export default async function PassportCountryPage({
 }) {
   const { country } = await params;
 
-  return <PassportCountryView country={country} />;
+  return <PassportScreen target={{ kind: "country", country }} />;
 }

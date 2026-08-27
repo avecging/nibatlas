@@ -14,6 +14,8 @@ import { NibAtlasMark } from "@/src/components/brand/NibAtlasMark";
 import { useMediaQuery } from "@/src/components/hooks/useMediaQuery";
 import { PassportPageView } from "@/src/components/passport/PassportPageView";
 import { Icon } from "@/src/components/ui/Icon";
+import type { StampCollection } from "@/src/domain/passport";
+import type { EarnedSeal } from "@/src/domain/seals";
 import {
   canTurn,
   firstPosition,
@@ -30,7 +32,12 @@ import {
   type TurnDirection,
   type TurnLayers,
 } from "@/src/features/passport/book-controller";
-import type { PassportPage } from "@/src/features/passport/passport-pages";
+import {
+  INDEX_PAGE_INDEX,
+  placeForPage,
+  type PassportPage,
+} from "@/src/features/passport/passport-pages";
+import type { PassportPlace } from "@/src/features/passport/passport-view-state";
 
 import styles from "./PassportBook.module.css";
 
@@ -41,33 +48,6 @@ const COVER_OPEN_MS = 760;
 const PAGE_TURN_MS = 560;
 const DRAG_INTENT_PX = 12;
 
-const POSITION_STORAGE_KEY = "nib-atlas.passport-position.v1";
-
-interface PersistedPosition {
-  readonly pageIndex: number;
-  readonly opened: boolean;
-}
-
-function readPersistedPosition(): PersistedPosition | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  try {
-    const raw = window.sessionStorage.getItem(POSITION_STORAGE_KEY);
-
-    if (!raw) {
-      return null;
-    }
-
-    const parsed = JSON.parse(raw) as PersistedPosition;
-
-    return typeof parsed?.pageIndex === "number" ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
 interface ActiveTurn {
   readonly direction: TurnDirection;
   readonly layers: TurnLayers;
@@ -76,8 +56,41 @@ interface ActiveTurn {
 
 interface PassportBookProps {
   readonly pages: readonly PassportPage[];
-  /** Page to open at, e.g. after returning from a shop reached from a stamp. */
+  /**
+   * Page to open at on mount: a deep-linked locality, the spread the reader
+   * left, or the opening spread. Resolved by the screen, which owns the device's
+   * memory — the book itself no longer persists anything.
+   *
+   * Read once. Later changes are ignored, because the screen derives it partly
+   * from the *remembered* spread, and this component is what updates that
+   * memory: honouring every change would make turning a page recompute a target
+   * and turn again.
+   */
   readonly initialPageIndex?: number | null;
+  /**
+   * A page the route is asking for, as opposed to one the reader was last on.
+   *
+   * Watched rather than read once, because it can arrive late: the collection
+   * resolves from device storage after mount, so a Passport opened at a freshly
+   * collected impression renders once before that locality exists.
+   */
+  readonly requestedPageIndex?: number | null;
+  /**
+   * Whether to skip the cover.
+   *
+   * False only on a first-ever Book visit with nothing specific requested,
+   * which is the one time the cover opening plays. A deep link is always true:
+   * a reader who asked for Ginza is not made to open a cover first.
+   */
+  readonly startOpen: boolean;
+  /** Called once, the first time this device opens the cover. */
+  readonly onCoverOpened?: (() => void) | undefined;
+  /** Called with the settled spread, so the screen can remember it. */
+  readonly onPlaceChange?: ((place: PassportPlace | null) => void) | undefined;
+  /** Enlarges an impression. Same overlay as List mode. */
+  readonly onSelectStamp: (collection: StampCollection) => void;
+  /** Enlarges a derived seal, in that same overlay. */
+  readonly onSelectSeal: (seal: EarnedSeal) => void;
 }
 
 /**
@@ -95,7 +108,16 @@ interface PassportBookProps {
  * `turnRef` holds the transition in flight, and every entry point refuses while
  * it is set, so repeated input cannot interleave two turns or corrupt page order.
  */
-export function PassportBook({ pages, initialPageIndex = null }: PassportBookProps) {
+export function PassportBook({
+  pages,
+  initialPageIndex = null,
+  requestedPageIndex = null,
+  startOpen,
+  onCoverOpened,
+  onPlaceChange,
+  onSelectStamp,
+  onSelectSeal,
+}: PassportBookProps) {
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const mode: BookMode = isDesktop ? "spread" : "single";
@@ -119,7 +141,7 @@ export function PassportBook({ pages, initialPageIndex = null }: PassportBookPro
   const pendingFocus = useRef<number | null>(null);
 
   const [pageIndex, setPageIndex] = useState(() => initialPageIndex ?? 0);
-  const [opened, setOpened] = useState(false);
+  const [opened, setOpened] = useState(startOpen);
   const [coverAnimating, setCoverAnimating] = useState(false);
   const [turn, setTurn] = useState<ActiveTurn | null>(null);
   const [scale, setScale] = useState(1);
@@ -143,60 +165,53 @@ export function PassportBook({ pages, initialPageIndex = null }: PassportBookPro
     [],
   );
 
-  // Session context: the Passport reopens where the reader left it, so coming
-  // back from a shop does not dump them at the cover.
-  useEffect(() => {
-    /* eslint-disable react-hooks/set-state-in-effect --
-       Session storage is an external store, and reading it during render would
-       make the server and client markup disagree. This is the documented
-       "subscribe to an external system after mount" case. */
-    if (initialPageIndex !== null) {
-      setOpened(true);
-      return;
-    }
-
-    const persisted = readPersistedPosition();
-
-    if (persisted) {
-      setPageIndex(persisted.pageIndex);
-      setOpened(persisted.opened);
-    }
-    /* eslint-enable react-hooks/set-state-in-effect */
-    // Mount only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   /*
-   * A requested page can arrive late. The collection store hydrates from session
+   * A requested page can arrive late. The collection store hydrates from device
    * storage after mount, so a Passport opened at a freshly collected impression
-   * renders once with the seeded pages — where that locality may not exist yet —
-   * and only then learns the real target. Without this the reader would be left
-   * on whatever page the first render chose.
+   * renders once with a collection where that locality may not exist yet, and
+   * only then learns the real target. Without this the reader would be left on
+   * whatever page the first render chose.
    */
-  const requestedPage = useRef<number | null>(initialPageIndex);
+  const requestedPage = useRef<number | null>(requestedPageIndex);
 
   useEffect(() => {
-    if (initialPageIndex === null || initialPageIndex === requestedPage.current) {
+    if (requestedPageIndex === null || requestedPageIndex === requestedPage.current) {
       return;
     }
 
-    requestedPage.current = initialPageIndex;
-    pendingFocus.current = normalizePosition(geometry, initialPageIndex);
+    requestedPage.current = requestedPageIndex;
+    pendingFocus.current = normalizePosition(geometry, requestedPageIndex);
     // Synchronising to a prop that resolves asynchronously upstream.
     setOpened(true);
-    setPageIndex(initialPageIndex);
-  }, [geometry, initialPageIndex]);
+    setPageIndex(requestedPageIndex);
+  }, [geometry, requestedPageIndex]);
+
+  /*
+   * Report the settled spread upwards.
+   *
+   * Reported as content — a country, a locality, and an impression on the exact
+   * page — rather than as a page number, so a collection that grows by one
+   * impression does not silently move every remembered position along by a page.
+   *
+   * The right-hand page names the spread, because that is the page the reader
+   * turned to. When it has nothing to name — the blank page a book always ends
+   * on — the left page does, so a reader on the final spread is remembered as
+   * being on its last real page rather than as being nowhere.
+   */
+  const settledPlace = opened
+    ? (placeForPage(pages[position]) ??
+      (mode === "spread" ? placeForPage(pages[position - 1]) : null))
+    : null;
+  const placeKey = settledPlace === null ? "" : JSON.stringify(settledPlace);
 
   useEffect(() => {
-    try {
-      window.sessionStorage.setItem(
-        POSITION_STORAGE_KEY,
-        JSON.stringify({ pageIndex, opened } satisfies PersistedPosition),
-      );
-    } catch {
-      // Best effort.
+    if (!opened || placeKey === "") {
+      return;
     }
-  }, [opened, pageIndex]);
+
+    onPlaceChange?.(JSON.parse(placeKey) as PassportPlace);
+  }, [onPlaceChange, opened, placeKey]);
+
 
   // Fit the book to the field. The object should read as an object, so it keeps
   // generous negative space rather than filling the panel.
@@ -310,6 +325,10 @@ export function PassportBook({ pages, initialPageIndex = null }: PassportBookPro
       return;
     }
 
+    // Recorded on the first activation rather than when the swing finishes, so
+    // a reader who navigates away mid-animation is not shown the cover again.
+    onCoverOpened?.();
+
     if (coverAnimating) {
       setCoverAnimating(false);
       setOpened(true);
@@ -329,7 +348,15 @@ export function PassportBook({ pages, initialPageIndex = null }: PassportBookPro
       setOpened(true);
       pendingFocus.current = normalizePosition(geometry, pageIndex);
     }, COVER_OPEN_MS);
-  }, [coverAnimating, geometry, opened, pageIndex, reducedMotion, schedule]);
+  }, [
+    coverAnimating,
+    geometry,
+    onCoverOpened,
+    opened,
+    pageIndex,
+    reducedMotion,
+    schedule,
+  ]);
 
   /**
    * The single transition controller. Buttons, keyboard, and the end of a drag
@@ -409,12 +436,19 @@ export function PassportBook({ pages, initialPageIndex = null }: PassportBookPro
         return;
       }
 
+      // Contents is reachable from the cover, and using it is entering the book
+      // just as much as opening the cover is — so it spends the first-run moment
+      // rather than leaving the cover to reappear on the next visit.
+      if (!opened) {
+        onCoverOpened?.();
+      }
+
       const next = normalizePosition(geometry, index);
       pendingFocus.current = next;
       setOpened(true);
       setPageIndex(next);
     },
-    [coverAnimating, geometry],
+    [coverAnimating, geometry, onCoverOpened, opened],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -560,6 +594,9 @@ export function PassportBook({ pages, initialPageIndex = null }: PassportBookPro
         key={page.id}
         page={page}
         headingId={`${headingPrefix}-page-${index}`}
+        onSelectStamp={onSelectStamp}
+        onSelectSeal={onSelectSeal}
+        onJumpToPage={jumpTo}
       />
     );
   };
@@ -603,7 +640,18 @@ export function PassportBook({ pages, initialPageIndex = null }: PassportBookPro
           {/* The page block: thin, with a visible fore-edge and stacked leaves. */}
           <div className={styles.block} aria-hidden="true" />
 
-          <div className={styles.spread} aria-hidden={opened ? undefined : true}>
+          {/*
+            `inert` as well as `aria-hidden` while the book is closed.
+            The opening spread now carries real controls — every impression on it
+            is a button — and an `aria-hidden` subtree that is still focusable is
+            a genuine trap: Tab would move focus onto a stamp the reader cannot
+            see and no screen reader will announce.
+          */}
+          <div
+            className={styles.spread}
+            aria-hidden={opened ? undefined : true}
+            inert={opened ? undefined : true}
+          >
             <div className={styles.leafSlot} data-side="left">
               {mode === "spread" ? renderPage(leftPage) : null}
             </div>
@@ -619,6 +667,8 @@ export function PassportBook({ pages, initialPageIndex = null }: PassportBookPro
               className={styles.turner}
               data-side={layers.leafSide}
               aria-hidden="true"
+              // A leaf in flight is a picture of a page, for the same reason.
+              inert
             >
               <div className={styles.turnerBend}>
                 <div className={styles.turnerFace} data-face="front">
@@ -637,79 +687,114 @@ export function PassportBook({ pages, initialPageIndex = null }: PassportBookPro
             The cover. Its transform origin is the bound left edge, which is the
             spine, so opening rotates it around that edge in an arc: it never
             scales through zero, mirrors, dissolves, or spins about its centre.
+
+            Structured the way a contemporary passport is: the issuing line at
+            the top, the mark in the middle, PASSPORT below it, and the volume at
+            the foot. WP3 removed the two decorative foil rules — "passports do
+            not have borders" — and put textured stock and a debossed emboss in
+            their place. No handwriting anywhere; the face is the same strong
+            serif the rest of the Passport uses.
           */}
           <div className={styles.cover} aria-hidden="true">
             <div className={styles.coverFace} data-face="front">
-              <span className={styles.coverGrain} />
-              <span className={styles.coverRuleOuter} />
-              <span className={styles.coverRuleInner} />
+              <span className={styles.coverStock} />
+              <span className={styles.coverIssuer}>Nib Atlas</span>
               <span className={styles.coverInner}>
-                <NibAtlasMark size={84} tone="single" className={styles.coverMark} />
-                <span className={styles.coverWordmark}>NIB ATLAS</span>
-                <span className={styles.coverDivider} />
-                <span className={styles.coverKind}>Passport of impressions</span>
+                <NibAtlasMark size={92} tone="single" className={styles.coverMark} />
+                <span className={styles.coverTitle}>Passport</span>
               </span>
               <span className={styles.coverFoot}>Volume I</span>
             </div>
-            <div className={styles.coverFace} data-face="inside">
-              <span className={styles.coverInsideText}>
-                This passport records visits you chose to make. It is private, and
-                nothing in it is collected automatically.
-              </span>
-            </div>
+            <div className={styles.coverFace} data-face="inside" />
             <span className={styles.coverEdge} aria-hidden="true" />
           </div>
         </div>
       </div>
 
-      {!opened ? (
-        <button className={styles.openButton} type="button" onClick={openCover}>
-          <Icon name="passport" size={18} />
-          Open Passport
-        </button>
-      ) : null}
-
-      <div className={styles.pager}>
-        <button
-          className={styles.pagerCover}
-          type="button"
-          onClick={closeToCover}
-          disabled={!opened || coverAnimating}
-        >
-          <Icon name="passport" size={16} />
-          Cover
-        </button>
+      {/*
+        Two groups — where to jump, and how to turn — in one control strip. They
+        wrap onto two rows at narrow widths rather than pushing the pager wider
+        than a 360 px screen.
+      */}
+      <div
+        aria-label="Passport pages"
+        className={styles.pager}
+        role="group"
+      >
+        <div className={styles.pagerGroup}>
+          {/*
+            One control, two states.
+            
+            It used to be two: a floating **Open Passport** button over the field
+            and a **Cover** button in the pager, and at 360 px the floating one
+            sat partly behind the pill. They are the same idea — the way between
+            the cover and the pages — so they are now the same control in the same
+            place. The accessible name stays *Open Passport* while the visible
+            label is the shorter *Open*, which is the same word: enough room in
+            the strip, and no ambiguity for a screen reader.
+          */}
+          <button
+            aria-label={opened ? undefined : "Open Passport"}
+            className={styles.pagerCover}
+            type="button"
+            onClick={opened ? closeToCover : openCover}
+            disabled={coverAnimating}
+          >
+            <Icon name="passport" size={16} />
+            {opened ? "Cover" : "Open"}
+          </button>
+          {/*
+            The contents spread is one turn behind the opening spread, which is
+            where a passport keeps its front matter. A labelled control means a
+            reader looking for a country does not have to know that.
+          */}
+          <button
+            className={styles.pagerCover}
+            type="button"
+            onClick={() => jumpTo(INDEX_PAGE_INDEX)}
+            disabled={coverAnimating}
+          >
+            <Icon name="list" size={16} />
+            Contents
+          </button>
+        </div>
         <span className={styles.pagerDivider} aria-hidden="true" />
-        <button
-          className={styles.pagerButton}
-          type="button"
-          aria-label="Previous page"
-          onClick={() => requestTurn(-1)}
-          disabled={!opened || position <= first}
-        >
-          <Icon name="chevron-left" size={16} />
-        </button>
-        <span className={styles.pagerLabel} data-testid="passport-pager">
-          {opened ? pageLabel : "Cover"}
-        </span>
-        <button
-          className={styles.pagerButton}
-          type="button"
-          aria-label="Next page"
-          onClick={() => requestTurn(1)}
-          disabled={opened && position >= last}
-        >
-          <Icon name="chevron-right" size={16} />
-        </button>
+        <div className={styles.pagerGroup}>
+          <button
+            className={styles.pagerButton}
+            type="button"
+            aria-label="Previous page"
+            onClick={() => requestTurn(-1)}
+            disabled={!opened || position <= first}
+          >
+            <Icon name="chevron-left" size={16} />
+          </button>
+          <span className={styles.pagerLabel} data-testid="passport-pager">
+            {opened ? pageLabel : "Cover"}
+          </span>
+          <button
+            className={styles.pagerButton}
+            type="button"
+            aria-label="Next page"
+            onClick={() => requestTurn(1)}
+            disabled={opened && position >= last}
+          >
+            <Icon name="chevron-right" size={16} />
+          </button>
+        </div>
       </div>
 
-      <p className={styles.hint}>
-        {opened
-          ? reducedMotion
-            ? "Use the page buttons or the arrow keys."
-            : "Drag a page, use the buttons, or press the arrow keys."
-          : "Open the cover to read your impressions."}
-      </p>
+      {/*
+        The keyboard route is the one thing here that is not visible in the
+        interface, so it is the only thing the line says.
+      */}
+      {opened ? (
+        <p className={styles.hint}>
+          {reducedMotion
+            ? "Arrow keys turn pages."
+            : "Drag a page, or use the arrow keys."}
+        </p>
+      ) : null}
 
       {/* Politely announced so a turn is reported without interrupting. */}
       <p className={styles.announce} aria-live="polite">

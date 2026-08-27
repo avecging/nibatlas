@@ -41,7 +41,9 @@ Passport has four presentation states:
 
 Opening and turning are distinct transitions. The implementation must not reuse a generic card flip with different labels.
 
-Persist the user's current logical page for the session. Returning from a shop opens the Passport at the previously selected stamp unless the user explicitly chooses the cover.
+Persist the user's current logical page **durably, per device** — not for one browser session. Returning from a shop opens the Passport at the page the reader left, and a later visit resumes the last spread read, unless the user explicitly chooses the cover. Remember it as content the page holds rather than as a page number: page numbers move as the collection grows.
+
+Book mode is one of two peer presentations of the same collection; `UX.md` covers the List mode this specification does not describe.
 
 ## Desktop composition
 
@@ -204,4 +206,5 @@ If 3D transforms or pointer events are unavailable, show the same semantic pages
 9. Vertical scrolling and horizontal page gestures do not fight.
 10. Keyboard and labelled controls complete the same journey.
 11. Reduced motion removes spatial animation without removing content.
-12. Returning from a stamp's shop restores the prior Passport context.
+12. Returning from a stamp's shop restores the prior Passport context, including the exact page when a locality spans more than one.
+13. A remembered page survives a reload and a new browser session on the same device.

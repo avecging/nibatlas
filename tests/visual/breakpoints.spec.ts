@@ -1,6 +1,10 @@
 import { expect, test } from "@playwright/test";
 
-import { seedSampleCollection, seedSignedInPreview } from "../support/local-state";
+import {
+  seedPassportView,
+  seedSampleCollection,
+  seedSignedInPreview,
+} from "../support/local-state";
 
 /**
  * Visual baselines and responsive screenshot evidence.
@@ -28,7 +32,8 @@ const SCREENS = [
   { name: "saved-mode", path: "/saved" },
   { name: "shop-detail", path: "/shops/ginza-itoya-main-store" },
   { name: "shop-detail-omitted", path: "/shops/skb-kaohsiung" },
-  { name: "passport-closed", path: "/passport" },
+  // List is what a normal device lands in, so it is the Passport baseline.
+  { name: "passport-list", path: "/passport" },
   { name: "me", path: "/me" },
   { name: "privacy", path: "/privacy" },
   { name: "about", path: "/about" },
@@ -62,12 +67,32 @@ for (const breakpoint of BREAKPOINTS) {
       }
 
       await expect(page).toHaveScreenshot(`${screen.name}-${breakpoint.name}.png`, {
-        fullPage: !screen.path.startsWith("/passport") && screen.path !== "/" && screen.path !== "/saved",
+        fullPage: screen.path !== "/" && screen.path !== "/saved",
         animations: "disabled",
         maxDiffPixelRatio: 0.02,
       });
     });
   }
+}
+
+/*
+ * Book mode's closed cover is the other Passport surface, and it is the one WP3
+ * redesigned: textured stock, an issuing line, the mark, PASSPORT and VOLUME I,
+ * with the two foil rules removed. It needs its own baseline because it is
+ * reached by a choice rather than by a route.
+ */
+for (const breakpoint of BREAKPOINTS) {
+  test(`passport-book-closed at ${breakpoint.name}`, async ({ page }) => {
+    await seedPassportView(page, { mode: "book" });
+    await page.setViewportSize({ width: breakpoint.width, height: breakpoint.height });
+    await page.goto("/passport");
+    await expect(page.getByRole("button", { name: /open passport/i })).toBeVisible();
+
+    await expect(page).toHaveScreenshot(
+      `passport-book-closed-${breakpoint.name}.png`,
+      { animations: "disabled", maxDiffPixelRatio: 0.02 },
+    );
+  });
 }
 
 /*

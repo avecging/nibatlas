@@ -26,6 +26,27 @@ test.beforeEach(async ({ page }) => {
   await seedSampleCollection(page);
 });
 
+/**
+ * Waits for a surface's entry animation to finish before auditing it.
+ *
+ * An overlay is "visible" to Playwright as soon as it has a box, which is while
+ * it is still fading in — and a contrast audit taken then reads the half-faded
+ * colours rather than the ones the reader sees. Auditing the settled surface is
+ * both the honest check and the deterministic one.
+ */
+async function settled(page: Page, selector: string) {
+  await page
+    .locator(selector)
+    .first()
+    .evaluate(async (node) => {
+      await Promise.all(
+        node
+          .getAnimations({ subtree: true })
+          .map((animation) => animation.finished.catch(() => undefined)),
+      );
+    });
+}
+
 async function analyze(page: Page) {
   return new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
@@ -65,6 +86,47 @@ test("me in its signed-in form is accessible, confirmation included", async ({
   await page.getByRole("button", { name: /delete account/i }).click();
   await expect(page.getByText(/delete your nib atlas account\?/i)).toBeVisible();
 
+  expect((await analyze(page)).violations).toEqual([]);
+});
+
+/*
+ * Both Passport modes, and the overlay that sits over either of them. The route
+ * audit above covers List, which is what a normal device lands in; Book mode and
+ * the enlarged impression are separate surfaces reached by a control.
+ */
+test("both Passport modes, the enlarged stamp and a seal are accessible", async ({
+  page,
+}) => {
+  await page.goto("/passport");
+
+  await page.getByRole("button", { name: /Ginza Itoya Main Store/ }).first().click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await settled(page, '[role="dialog"]');
+  expect((await analyze(page)).violations).toEqual([]);
+
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+
+  // A derived seal opens the same overlay with different content, so it is its
+  // own audit.
+  await page.getByRole("button", { name: /^Country seal,/ }).first().click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await settled(page, '[role="dialog"]');
+  expect((await analyze(page)).violations).toEqual([]);
+
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+
+  await page
+    .getByRole("group", { name: "Passport view" })
+    .getByRole("button", { name: "Book", exact: true })
+    .click();
+  await page.getByRole("button", { name: /open passport/i }).click();
+  await expect(page.getByRole("button", { name: /previous page/i })).toBeVisible();
+  expect((await analyze(page)).violations).toEqual([]);
+
+  await page.getByRole("button", { name: /^contents$/i }).click();
+  await expect(page.getByRole("heading", { name: "Contents" })).toBeVisible();
   expect((await analyze(page)).violations).toEqual([]);
 });
 
@@ -131,6 +193,15 @@ test("the stamp ceremony returns focus to the shop page", async ({ page }) => {
 
 test("the Passport book is reachable and operable from the keyboard", async ({ page }) => {
   await page.goto("/passport");
+
+  // The toggle is the first thing on the screen, and it is operable by keyboard
+  // in both directions.
+  const bookToggle = page
+    .getByRole("group", { name: "Passport view" })
+    .getByRole("button", { name: "Book", exact: true });
+  await bookToggle.focus();
+  await expect(bookToggle).toBeFocused();
+  await page.keyboard.press("Enter");
 
   const openButton = page.getByRole("button", { name: /open passport/i });
   await openButton.focus();

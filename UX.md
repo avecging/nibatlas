@@ -20,7 +20,7 @@ The map is the primary discovery surface. Passport is the durable personal archi
 | Destination | Purpose | Authentication |
 | --- | --- | --- |
 | **Map** | Geographic discovery, results, and global Saved mode | Public; persistent saves require authentication |
-| **Passport** | Personal book of shop impressions and derived geographic seals | Required |
+| **Passport** | Personal record of shop impressions and derived geographic seals, read as a list or as a book | Required |
 | **Me** | Profile, account, settings, privacy, help, export/delete, and sign out | Public shell; personal data requires authentication |
 
 This three-destination structure deliberately keeps Map central and Passport directly accessible. Saved places remain available through a complete cross-location Map mode rather than being duplicated inside Me. Countries and localities visited appear as concise profile geography in Me and as collection structure in Passport. Recent Impressions is deferred unless beta or post-launch evidence shows users want it.
@@ -111,11 +111,13 @@ Failure paths:
 
 ### Browse Passport
 
-1. User opens Passport.
+1. User opens Passport, in the mode they last chose.
 2. Overview shows total stamps, countries, and localities visited.
-3. User opens a country and then a locality.
+3. User opens a country and then a locality — from the list, from the book's
+   country/locality index, or from a direct URL.
 4. Stamps appear in collection-date order by default.
-5. Selecting a stamp opens its shop page while preserving Passport return context.
+5. Selecting a stamp enlarges the impression; from there the shop page opens with
+   Passport return context preserved, including the page the stamp was on.
 
 ## Mobile behaviour
 
@@ -250,12 +252,31 @@ Do not show “Popular” until there is a defensible signal. Do not use infinit
 
 Passport should feel browseable years later, not like a checklist.
 
+### Two modes over one collection
+
+List and Book are peer presentations of the same collection, not a screen and a
+decoration on it. The overview is whichever one the reader last chose, and both
+reach the same countries, localities and stamps.
+
+- **List** is the browsing and accessible baseline: counts, then country and
+  locality groups, then collected stamp rows. It must stay usable when motion or
+  3D transforms are unavailable.
+- **Book** is the tactile Passport object, with the page and leaf behaviour in
+  `docs/passport-interaction-spec.md`.
+
+Production-like mode defaults to List; reviewer mode may default to Book. Remember
+the reader's own choice per device and honour it over either default.
+
 ### Hierarchy
 
-- Overview: the Passport book, total collected shop stamps, and earned locality/country seals.
+The same hierarchy holds in both modes.
+
+- Overview: total collected shop stamps, countries visited, localities visited, and
+  earned locality/country seals.
 - Country: earned country seal, localities visited, and shop-stamp count.
 - Locality: locality seal and collected shop stamps.
-- Stamp: shop identity, location, local date, and route back to shop/map.
+- Stamp: the impression at a readable size, shop identity, location, local date,
+  and a route on to the shop that preserves Passport return context.
 
 ### Empty states
 

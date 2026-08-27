@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 
 import { useDialogFocus } from "@/src/components/hooks/useDialogFocus";
+import { passportHrefWithAnchor } from "@/src/components/shops/ShopBackLink";
 import { StampCeremony } from "@/src/components/stamps/StampCeremony";
 import { Button, ButtonLink } from "@/src/components/ui/Button";
 import { Icon } from "@/src/components/ui/Icon";
@@ -48,10 +49,14 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
    * The ceremony opens the Passport at the impression that was just pressed, not
    * at whatever page the session happened to be on. `UX.md` requires a direct
    * transition from a new stamp into the relevant Passport section.
+   *
+   * The impression's own id goes with it, because a locality that already spans
+   * several pages would otherwise open at its first page — which may not be the
+   * page the new stamp landed on.
    */
   const localitySlug =
     prototypeLocalitySlugById.get(shop.id) ?? shop.localityName.toLowerCase();
-  const passportHref = `/passport/${countrySlug(shop.countryCode)}/${localitySlug}`;
+  const localityHref = `/passport/${countrySlug(shop.countryCode)}/${localitySlug}`;
 
   function confirmCollection() {
     const alreadyCollected = existing !== undefined;
@@ -201,7 +206,7 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
         <StampCeremony
           collection={ceremony}
           alreadyCollected={wasAlreadyCollected}
-          passportHref={passportHref}
+          passportHref={passportHrefWithAnchor(localityHref, ceremony.id)}
           onClose={() => setCeremony(null)}
         />
       ) : null}

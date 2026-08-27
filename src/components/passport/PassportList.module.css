@@ -1,0 +1,288 @@
+/*
+ * List mode.
+ *
+ * Warm paper, strong serif hierarchy, archival dividers — `BRAND.md`'s Passport
+ * surface — but laid out as an ordinary document: block flow, no transforms, no
+ * fixed heights. Everything here has to survive being read at 200% zoom with
+ * animation off.
+ */
+.list {
+  width: 100%;
+  /* A reading column, not the full shell width: the list is a document. */
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4) var(--space-10);
+  background: var(--bg-canvas);
+}
+
+.title {
+  font-family: var(--font-serif);
+  font-size: var(--type-h1-size);
+  line-height: var(--type-h1-line);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  font-weight: 600;
+}
+
+.crumbs a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-target);
+  color: var(--atlas-900);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Stats ------------------------------------------------------------------- */
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: var(--space-4) 0 var(--space-6);
+}
+
+.stat {
+  display: flex;
+  /* Value above label, with `dt` still first in the document. */
+  flex-direction: column-reverse;
+  gap: 2px;
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-warm);
+}
+
+.statValue {
+  font-family: var(--font-serif);
+  font-size: 1.75rem;
+  line-height: 1.1;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.statLabel {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+/* Country ---------------------------------------------------------------- */
+
+.country {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 2px solid var(--border-default);
+}
+
+.countryHead {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.countryText {
+  flex: 1;
+  min-width: 0;
+}
+
+.countryName {
+  font-family: var(--font-serif);
+  font-size: var(--type-h2-size);
+  line-height: var(--type-h2-line);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.countryLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-target);
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.countryMeta {
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+/*
+ * A seal, as a control.
+ *
+ * Sized by what it is: a country seal is the section's own emblem and sits at
+ * the head of it; a locality seal is a mark beside a subheading. Both open the
+ * same overlay, so both have a real hit area and a real focus ring — the
+ * artwork is the label, and the accessible name sits beside it.
+ */
+.sealButton {
+  flex: 0 0 auto;
+  display: block;
+  padding: 2px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  cursor: pointer;
+}
+
+.sealButton[data-seal-size="country"] {
+  width: 7.75rem;
+}
+
+.sealButton[data-seal-size="locality"] {
+  width: 5.25rem;
+}
+
+.sealButton:hover {
+  background: var(--bg-surface-warm);
+}
+
+.sealArt {
+  display: block;
+}
+
+.sealArt > * {
+  max-width: 100%;
+}
+
+/* Locality --------------------------------------------------------------- */
+
+.locality {
+  margin-top: var(--space-5);
+}
+
+.localityHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.localityText {
+  flex: 1;
+  min-width: 0;
+}
+
+.localityName {
+  font-family: var(--font-serif);
+  font-size: var(--type-h3-size);
+  line-height: var(--type-h3-line);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.localityLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-target);
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.localityMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  font-weight: 600;
+}
+
+/* Stamp rows ------------------------------------------------------------- */
+
+.stampList {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.stampRow {
+  list-style: none;
+}
+
+.stampButton {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--tap-target);
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.stampButton:hover {
+  background: var(--bg-surface-warm);
+}
+
+.stampThumb {
+  flex: 0 0 auto;
+  width: 4.75rem;
+}
+
+.stampThumb > * {
+  max-width: 100%;
+}
+
+.stampText {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.stampName {
+  font-family: var(--font-serif);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+  font-weight: 600;
+  /* Long English, Japanese and Traditional Chinese names all wrap rather than
+     truncate: a shop's name is the one thing on the row that must stay whole. */
+  overflow-wrap: anywhere;
+}
+
+.stampLocalName {
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+  overflow-wrap: anywhere;
+}
+
+.stampMeta {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+}
+
+@media (min-width: 768px) {
+  .stats {
+    gap: var(--space-3);
+  }
+
+  .stampThumb {
+    width: 6rem;
+  }
+
+  .sealButton[data-seal-size="locality"] {
+    width: 6rem;
+  }
+}

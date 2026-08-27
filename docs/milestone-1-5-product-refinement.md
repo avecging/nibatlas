@@ -1,7 +1,8 @@
 # Milestone 1.5 — Production-like product refinement
 
-**Status:** Founder-approved direction. **WP1 and WP2 implemented**; WP3–WP7 and
-WP-D not started.
+**Status:** Founder-approved direction. **WP1, WP2 and WP3 implemented**, WP3
+including the two corrections from its staging review; WP4–WP7 and WP-D not
+started, with two founder decisions recorded for WP5 and WP6.
 **Recorded:** 26 August 2026
 **Owner:** Claude Code (frontend), with founder and Codex on sourcing
 **Depends on:** Milestone 1 (PR #5) landing as the corrected technical foundation
@@ -374,10 +375,10 @@ that feedback exists.
 | **WP0** | The five PR #5 review findings. **Milestone 1, not 1.5.** | — | Landed in PR #5 |
 | **WP1** | Reviewer mode plus the copy pass: the flag, migrating every badge and milestone label behind it, production copy for location and collection, About Nib Atlas | WP0 | **Implemented** |
 | **WP2** | Me restructure: signed-out/signed-in split, compact Places Visited linked into Passport, local-data controls, Contribute entries, Danger group | WP1 | **Implemented** |
-| **WP3** | Passport IA: List/Book toggle, opening spread on content, country/locality index and linked routes, stamp detail overlay, first-run-only cover, cover redesign, display name on the identity page | WP1 | Not started |
+| **WP3** | Passport IA: List/Book toggle, opening spread on content, country/locality index and linked routes, stamp detail overlay, first-run-only cover, cover redesign, display name on the identity page | WP1 | **Implemented** |
 | **WP4** | Shop value layer: the data-model extension, sourced content, reordered page, native directions, contextual report | WP1, sourcing | Not started |
-| **WP5** | Visual fidelity: shop identity system, interim hero, paper and cover texture, stamp at large size, ceremony material pass | WP3, WP4 | Not started |
-| **WP6** | Filter drawer: segment plus drawer, active count, one-tap clear | WP1 | Not started |
+| **WP5** | Visual fidelity: shop identity system, interim hero, paper and cover texture, stamp at large size, ceremony material pass, and the **one presentation family** for enlarged impressions and seal overlays recorded below | WP3, WP4 | Not started |
+| **WP6** | Filter drawer: segment plus drawer, active count, one-tap clear; and the **card and marker interaction** recorded below, with its documentation update | WP1 | Not started |
 | **WP7** | Contact and contribution routes: the contextual shop-page correction, help and contact, and the `/suggest-shop` page later. *Suggest a pen shop* is routed in WP2 | WP2 | Not started |
 | **WP-D** | **Required desktop audit** across all of the above | Founder desktop feedback | Not started |
 
@@ -1062,6 +1063,684 @@ and both are recorded above as decisions 17 and 18.
 - `tests/evidence/wp2-me.spec.ts` and `docs/evidence/milestone-1-5-wp2/` — every
   state at 360 × 800, 768 × 1024 and 1440 × 900. WP1's evidence set is a record
   of that review and is deliberately not regenerated here.
+
+## WP3 implementation record
+
+**Implemented:** 27 August 2026 · Claude Code · branch
+`claude/m1-5-wp3-passport-31di6u`.
+
+Scope was WP3 only. Nothing in WP4–WP7 or WP-D was started, no accepted decision
+above was reopened, and the reviewer, collection and account seams from WP1–WP2
+were extended rather than modified. This section records how WP3 was built and
+the implementation choices a reviewer would otherwise have to infer from the
+diff.
+
+### The problem it solves
+
+Root cause E: the Passport had one mode and no navigation model. The book was
+built, the List view was dropped, `/passport/[country]` and
+`/passport/[country]/[locality]` existed but nothing linked to them, and the
+opening spread was identity plus seals — so a reader with six stamps opened their
+Passport and saw no stamps at all. Nothing enlarged an impression, so the
+artwork existed only at thumbnail size, which is where the founder's review found
+it.
+
+WP3 is therefore mostly *structure*: the same collection, presented two ways,
+with real destinations and one overlay that makes a stamp worth looking at. The
+material pass — paper, cover fidelity, the stamping ceremony — is WP5 and is
+deliberately not here.
+
+### Two modes over one collection
+
+`src/components/passport/PassportScreen.tsx` is the single screen behind all
+three routes. The route decides *what* is shown; the reader's remembered choice
+decides *how*. `/passport/[country]` and `/passport/[country]/[locality]` are no
+longer separate views: they are the same collection, narrowed, and they have to
+narrow in whichever mode the reader last used.
+
+- **List** (`PassportList.tsx`) is the accessible browsing baseline: block flow,
+  no transforms, no gestures, no fixed heights. Three counts, then per country
+  its name, stamp count and country seal *as artwork* where earned, then per
+  locality a subheading and rows of
+  `thumbnail · shop name · local-script name · locality · date`.
+- **Book** (`PassportBook.tsx`) is unchanged as an object. The committed spine
+  geometry, the leaf model, the drag and turn controller, the reduced-motion
+  treatment and the focus handling were preserved exactly; what changed is the
+  list of pages it presents and where it opens.
+
+The toggle is **List on the left, Book on the right**, as two buttons carrying
+`aria-pressed` rather than a radiogroup: each one is a control that switches the
+view immediately, and `aria-pressed` is what states which view is showing.
+
+### The page order, and the one judgment call in it
+
+`buildPassportPages` now produces:
+
+```
+  0  identity   inside front cover — who the volume belongs to
+  1  contents   the country / locality index
+  2  seals      country seals
+  3  locality   the most recently collected locality   ← opening spread
+  4… locality   the rest, newest locality first
+  n  blank      room for the next impression
+```
+
+The opening position is page 3, so the opening spread is pages 2 and 3 — country
+seals on the left, the most recent locality on the right, exactly as approved.
+Portrait reading opens on page 3 as well, which is the same promise in one page:
+the reader's newest impressions rather than the front matter.
+
+**The judgment call, confirmed in review on 27 August 2026.** The approved wording
+is *"identity content on the inside front cover, not as the routine opening
+spread."* The committed geometry cannot
+carry durable content on the cover's back face: once the cover has swung open it
+lies behind the left page on desktop (`z-index: 1`) and fades out entirely in
+portrait mode, so anything printed there is visible only mid-animation. Rather
+than modify the cover geometry — which decision 10 asks to preserve — the inside
+front cover is realised as **page 0**, tinted as endpaper rather than page stock,
+facing the contents page as a front-matter spread one turn behind the opening
+spread. That satisfies both halves of the requirement: identity is where a
+passport keeps it, and it is not what the reader lands on. The cover's own inside
+face is now plain endpaper, and the sentence WP1's copy pass would have removed
+from it ("This passport records visits you chose to make…") is gone. Accepted in
+review as the reading of the approved direction; the committed cover and leaf
+geometry stays as it is.
+
+**The contents index** sits at page 1 rather than at the back, and is reached by
+a labelled **Contents** control in the pager next to **Cover**, so a reader
+looking for a country never pages blindly. Each entry carries a leader rule and
+the page it starts on, the way a contents page sets one, and turns the book
+directly to that page.
+
+**Locality pages are ordered by recency**, newest first, because a passport fills
+up in the order it was stamped — and because that is what makes the most recently
+collected locality the opening spread's right-hand page without a special case.
+List mode keeps the alphabetical grouping `buildPassport` already produced, which
+is also what Me's Places visited shows. `buildPassport` itself was **not**
+reordered: doing so would have quietly changed Me, which is accepted work.
+`PassportCountry` and `PassportLocality` gained a `mostRecentOn` key and
+`countriesByRecency` / `localitiesByRecency` sort a copy, so both orders are
+deterministic and neither surface reorders the other.
+
+### Precise implementation decisions
+
+1. **A default is not a choice** (`passport-view-state.ts`). A device that has
+   never used the toggle keeps `mode: null` on disk and the audience default is
+   computed every time: List in normal mode, Book in reviewer mode. Writing the
+   default down would make a later change of default silently ineffective and
+   would tell a reviewer the reader had picked List when they had picked nothing.
+   The store is only written when the reader actually does something — chooses a
+   mode, opens the cover, turns to a spread, scrolls the list.
+
+2. **The view record is namespaced by audience**, alongside the collection
+   stores: `nib-atlas.passport-view.v1` and
+   `nib-atlas.passport-view.reviewer.v1`. One key plus a flag would let a
+   reviewer's Book choice become a tester's, and the two audiences have different
+   defaults to fall back to. A reviewer session therefore cannot change what a
+   tester's device does, in either direction.
+
+3. **The remembered spread is content, not geometry** — and it is the screen's,
+   not the book's. Milestone 1's `nib-atlas.passport-position.v1` session key is
+   gone, with no migration written for it, because it lived in `sessionStorage`
+   and never outlived the tab that wrote it. The record stores a
+   `place` — `{ kind: "locality", countryCode, localitySlug }`, or `front`, or
+   `seals` — never a page number. Page numbers move as the collection grows, so a
+   stored index would silently drift by one every time an impression was
+   collected. `pageIndexForPlace` resolves a place back to a page and returns
+   `null` when it no longer exists, which lands the reader on the opening spread
+   rather than on an error. `parsePassportView` canonicalises the country code
+   and locality slug, and discards anything it cannot read.
+
+4. **Mount-time resume and route-driven requests are separate props**
+   (`initialPageIndex` and `requestedPageIndex`). This is a defect found and
+   fixed during implementation, worth recording because it is not obvious: the
+   screen derives its target partly from the *remembered* spread, and the book is
+   what updates that memory. Feeding every change of one prop back into the book
+   made a page turn recompute a target and turn again — pressing Home landed on
+   the identity page and then jumped forward to the contents page. The resume
+   target is now read once; only a route's own request is watched, because that
+   one genuinely arrives late (the collection resolves from device storage after
+   mount, so a Passport opened at a freshly collected impression renders once
+   before that locality exists).
+
+5. **The cover opens once, and a deep link never opens it.** `coverSeen` is
+   recorded on the first activation rather than when the swing finishes, so a
+   reader who navigates away mid-animation is not shown the cover again. A
+   requested country or locality opens directly and deliberately does *not*
+   consume the first-run moment: a reader who followed a link to Ginza asked for
+   Ginza, not for a ceremony, and their own first visit to `/passport` still gets
+   the cover once.
+
+6. **An impression is a button, not a link.** Tapping a stamp in either mode
+   opens the detail overlay (`PassportDetailOverlay` after the staging review,
+   which generalised it over seals as well): the impression at a useful size, its
+   tier, the shop
+   name and local-script name, locality, country, the local collection date, and
+   **Open shop**. The shop is one step further on, from inside the overlay, so a
+   reader can look at a stamp without leaving the Passport. It shows what the
+   impression itself records and nothing more — no rating, no note, no sharing, no
+   visit history.
+
+7. **Return context is carried and validated.** The overlay's shop link is
+   `?from=passport&back=<the Passport route>`, so the shop page's one back
+   control returns to the locality the reader was on rather than to the overview.
+   `passportReturnHref` honours only a path inside `/passport`, so a crafted link
+   cannot turn the back control into a redirect elsewhere. Browser Back is
+   unaffected and restores the exact route; the mode and the spread come from the
+   record.
+
+8. **List-mode scroll memory is the overview's only.** A country or locality
+   route is short and is its own destination, so restoring the overview's offset
+   onto it would be actively wrong. The offset is written at most once per frame.
+
+9. **The empty state is the same in both modes.** An empty book is a real object
+   with real pages, but it cannot offer the one thing this state needs to offer,
+   which is the way to the map. So a device with nothing collected gets one
+   notice — *No stamps collected yet*, one line naming where stamps come from, and
+   **Explore the map** — with the toggle still present, because that is what makes
+   the audience default observable. No fake stamps, no invented history, no locked
+   silhouettes.
+
+10. **The cover was restructured, not decorated.** The two foil rule frames are
+    gone. In their place: a fine two-directional fibre tooth and a shallow deboss
+    field on the board, an issuing line at the top, the mark in the middle,
+    `PASSPORT` below it and `VOLUME I` at the foot, all in the same strong serif
+    the rest of the Passport uses. No handwriting face anywhere. This is the
+    approved WP3 *structure* plus restrained grain and debossing; WP5 owns the
+    full material pass.
+
+11. **The identity page carries the display name from the existing account seam**,
+    with **Your Passport** as the fallback. It reads `session.displayName` only —
+    never `identityLabel`, which is an address — so no name can be derived from an
+    email address. The palette version that used to print on that page is now
+    reviewer-only: it proves an impression regenerates identically later, which is
+    a review concern rather than something a keepsake should carry.
+
+12. **The book's hidden layers are `inert` as well as `aria-hidden`.** A second
+    defect found during implementation. The opening spread now carries real
+    controls — every impression on it is a button — so the closed book's
+    `aria-hidden` spread, and a leaf in flight, were focusable subtrees that no
+    screen reader would announce. Milestone 1 never hit this because its opening
+    spread was identity plus seals and had nothing focusable on it. An axe audit
+    of Book mode is now part of the accessibility suite.
+
+13. **The pager wraps at 360 px.** A third defect, and the one with the widest
+    effect. Adding **Contents** made the control strip wider than a 360 px
+    screen; because the Passport field is a centred grid, an over-wide strip
+    widened the whole column, and the book — sized correctly — was pushed right
+    and clipped by the field's own `overflow: hidden`. The strip is now two
+    groups (where to jump, how to turn) that wrap onto two rows below 480 px and
+    sit on one row above it. Worth recording because the symptom appeared on the
+    book rather than on the control that caused it.
+
+14. **Two icons were added** (`list`, `book`) for the toggle and the Contents
+    control. `ResizeObserver` gained a no-op stub in `src/test/setup.ts`, next to
+    the existing `matchMedia` and `scrollIntoView` shims, because the book
+    measures its field and jsdom has no layout.
+
+15. **Two contrast fixes.** The caption-sized text in List rows and in the
+    overlay's fact list started on `--text-muted`, which is 4.1:1 on the canvas
+    at 12 px and therefore below AA. Both now use `--text-secondary` at 7.2:1.
+    Found by the axe audit, not by eye.
+
+### Copy
+
+Written to the founder's WP2 direction. The Passport says less than it did:
+
+- the closed-book line *"Open the cover to read your impressions"* is gone — the
+  **Open Passport** button says that;
+- the open-book hint is now only the thing that is *not* visible in the interface:
+  *"Drag a page, or use the arrow keys"*, or *"Arrow keys turn pages"* with
+  reduced motion;
+- the identity page's *"A private record of shops visited and the ink each visit
+  left behind"* and its shared-ink count are gone;
+- the blank page's *"The next impression you collect is pressed here"* is gone;
+  the heading already says it;
+- the empty state is a heading, one line and a route, not three paragraphs.
+
+The seals page's explanation of how a seal derives was kept. It is WP1-reviewed
+copy, and it states a rule that is genuinely not self-evident — which is the one
+case the direction leaves room for.
+
+### Deliberately not done in WP3
+
+- **No shop-page or shop-data work** (WP4). The overlay's **Open shop** goes to
+  the existing page unchanged.
+- **No material-fidelity pass** (WP5). Paper texture, the impression's printed
+  character and the stamping ceremony are untouched; the cover carries WP3's
+  structure and restrained grain only, and the ceremony was not opened.
+- **No map filtering** (WP6) and **no contact or contribution routes** (WP7).
+- **Desktop layout was made responsive, not designed.** The list is a centred
+  reading column and the book keeps its committed spread; the 1440 × 900 evidence
+  shows integrity at that width and is not sign-off. WP-D still awaits founder
+  feedback.
+- **No Passport Library and no second volume.**
+  `docs/future/passport-library.md` stays a later idea, and nothing in the cover
+  or the identity page anticipates it.
+- **No authentication.** The display name comes from WP2's reviewer-only preview
+  seam; a normal device is always signed out and always sees **Your Passport**.
+- **No completion denominators anywhere new.** The only `x / y` in the Passport
+  remains the one an explicitly versioned curated set licenses, on the seals page.
+- **No sideways reading mode**, per `docs/future/passport-sideways-reading-mode.md`.
+
+### Coverage
+
+- `src/features/passport/passport-view-state.test.ts` — the resolution rules in
+  both directions, the per-audience keys, and fifteen unparseable or hostile
+  stored values including a bad mode, a bad place, a negative and a `NaN` scroll
+  offset; plus the round trip and the property that a default is never written
+  down as a choice.
+- `src/features/passport/passport-pages.test.ts` — the page order, the opening
+  spread being seals facing the newest locality, recency ordering of locality
+  pages, the display name and its fallback, every indexed country and locality
+  resolving to a real page, the country seal being counted separately from the
+  countries indexed, and `placeForPage` / `pageIndexForPlace` including a stale
+  locality and the blank end page.
+- `src/domain/passport.test.ts` — that the grouping order Me and List share is
+  unchanged and alphabetical, that `mostRecentOn` is derived correctly, that the
+  recency projections do not disturb it, and that a same-day tie breaks
+  deterministically.
+- `src/components/passport/PassportScreen.test.tsx` — the toggle's order and its
+  two defaults, an explicit choice outranking a default, a corrupt record falling
+  back, the two audiences' records staying apart, the List counts and links, the
+  narrowed country and locality routes, both stale-destination notices, the empty
+  state carrying no seeded history, and the overlay as a modal dialog: an
+  accessible name, its facts, the carried return route, Escape, the close control
+  and focus restoration to the stamp that opened it.
+- `tests/e2e/passport.spec.ts` — the journeys: both clean-device defaults, a
+  choice surviving navigation and reload in both directions, a reviewer choice not
+  becoming a tester's, collection isolation across a mode switch, deterministic
+  ordering across a reload, the country and locality URLs, both stale
+  destinations, remembered scroll, the cover shown once and the spread resumed,
+  the **Cover** and **Contents** controls, index navigation to a country and a
+  locality, a deep link skipping the cover, a stale remembered locality falling
+  back to the opening spread, the enlarged stamp from List and from Book by
+  keyboard with focus returned, **Open shop** preserving the route, a crafted
+  `back` parameter being refused, browser Back restoring mode and spread, the
+  post-collection link, Me's Places visited, the identity name and fallback, and
+  reduced motion in both modes. The Milestone 1 acceptance list for the book — the
+  spread, the portrait page, forward and reverse turns, rapid input, the keyboard
+  journey, focus on turn, no Recent Impressions — is carried over intact.
+- `tests/e2e/accessibility.spec.ts` — an axe audit of the enlarged stamp, of Book
+  mode opened, and of the contents spread, none of which existed before; the
+  keyboard test now enters Book mode through the toggle.
+- `tests/e2e/reduced-motion.spec.ts` and `tests/e2e/explore.spec.ts` — updated for
+  the new mode toggle and the locality route's heading level.
+- `tests/visual/breakpoints.spec.ts` — `passport-list` replaces
+  `passport-closed`, and `passport-book-closed` records the redesigned cover.
+- `tests/evidence/wp3-passport.spec.ts` and
+  `docs/evidence/milestone-1-5-wp3/` — every state at 360 × 800, 768 × 1024 and
+  1440 × 900. WP1's and WP2's evidence sets are records of those reviews and are
+  deliberately not regenerated; because the `evidence` project holds every work
+  package's suite, the WP3 README now names the spec file in its regenerate
+  command rather than running the project unfiltered.
+
+### Conflicts found in the documentation, and how they were settled
+
+Raised in the WP3 pull request and settled in review on 27 August 2026. All three
+are corrections to stale documents rather than new product decisions.
+
+1. **`UX.md` described the Passport overview as "the Passport book".** Corrected.
+   `UX.md` now states that List and Book are peer presentations of one collection,
+   that the overview is whichever one the reader last chose, that production-like
+   mode defaults to List and reviewer mode may default to Book, and that the
+   hierarchy holds in both. Its Browse Passport journey now names the three routes
+   into a locality and the enlarged impression.
+2. **`docs/passport-interaction-spec.md` said "Persist the user's current logical
+   page for the session."** Corrected: the remembered page is durable per device,
+   not per session, and is remembered as content the page holds rather than as a
+   page number. Two acceptance checks were added there — the exact page inside a
+   locality that spans more than one, and a remembered page surviving a new
+   browser session.
+3. **The inside front cover as page 0 — confirmed.** The identity page, tinted as
+   endpaper and facing Contents one turn behind the opening spread, is the accepted
+   reading of *"identity content on the inside front cover, not as the routine
+   opening spread"*. The committed cover and leaf geometry stays as it is.
+
+### WP3 revisions after the Codex review
+
+Three defects, all in remembered state, all found by review on commit
+`a498eb4`. CI was green and the structure was accepted; these are the corrections.
+
+#### 1. A locality that spans pages remembered only the locality
+
+`STAMPS_PER_PAGE` is four, so a locality with five or six impressions has a
+continuation page — and a remembered place naming only the country and locality
+resolved every one of them back to the locality's first page. A reader on the
+second page who opened a stamp, visited its shop and came back landed on the
+first page.
+
+The remembered place gained an optional `collectionId`: the id of an impression
+*on that page*. It is a stable content identifier, which a page number is not —
+page indices move as the collection grows — and it is not a display string.
+
+- `placeForPage` anchors a locality page to its first impression, so the two pages
+  of one locality no longer describe themselves identically.
+- `pageIndexForPlace` resolves the anchor, and checks that the page it lands on is
+  in the locality the record named. A record written before the anchor existed, an
+  impression that has since been cleared, and an anchor carried across from the
+  other audience's collection all fall back to the locality's first page rather
+  than erroring.
+- The **deep-linked locality route** needed more than the record, because the
+  route asks for a locality and cannot name a page inside it. Two things fixed
+  it. `?stamp=<collection id>` is now carried by the overlay's **Open shop** link
+  and by the ceremony's **Open in Passport** link, kept internal to Passport
+  routes and whitelisted by name in `passportReturnHref` — which was rewritten to
+  parse the whole href, reject anything that resolves off-origin or outside
+  `/passport`, and re-encode only that one parameter. And at mount, a remembered
+  place *inside* the locality the route asked for now outranks the locality's
+  first page: a reload while reading page two asks for the locality, and the
+  record is the same destination only more precise.
+- The anchor is read from the URL at mount rather than through `useSearchParams`,
+  which would take the statically prerendered `/passport` route out of static
+  rendering for a parameter that only ever arrives on a client navigation.
+- Route-driven requests and the mount-time resume are kept apart, as they already
+  were: the watched prop stays free of the remembered place, so turning a page
+  past the end of a locality cannot recompute a target and drag the reader back.
+- One adjacent defect surfaced while testing this. On a desktop spread the
+  remembered place came from the right-hand page, which on the final spread is the
+  blank page a book always ends on — so a reader on the last real page was
+  remembered as being nowhere. The right page still names the spread; when it has
+  nothing to name, the left page does.
+
+#### 2. One tab could erase another tab's record
+
+`usePassportView` wrote its whole in-memory snapshot and never listened for
+`storage`. A tab open since before the reader chose Book would write `mode: null`
+back over that choice on its next scroll, and the same race could reset
+`coverSeen` or the remembered place.
+
+Both halves are now in place, mirroring `collection-store.tsx`:
+
+- **Every write is a patch against what is stored**, re-read immediately
+  beforehand. `mergePassportView` is the one place that combines them, so a field
+  the patch does not name always survives.
+- **Changes made elsewhere are adopted**, through a `storage` listener scoped to
+  this audience's key. `lastWrittenRef` absorbs the echo, so two tabs cannot
+  answer each other indefinitely. `localStorage.clear()` resolves to "nothing
+  remembered", which is what a device that has never chosen holds.
+- `coverSeen` is treated as a durable fact rather than a current state: no patch,
+  and no rewritten storage, can bring the first-run ceremony back once a device
+  has opened the cover.
+- Adopting a mode or an opened cover does **not** move the page under the reader.
+  A tab sitting on the closed cover stays there; it simply does not ask again next
+  visit.
+- The audiences stay isolated: the listener ignores the other key, and a default
+  is still never written down as a choice.
+
+#### 3. List scroll restoration was armed once per mount
+
+The latch was set on the first List render and never reset, so a reader who
+scrolled down, switched to Book — whose shorter document clamps `window.scrollY` —
+and switched back was left wherever the clamp had put them.
+
+- The latch is now re-armed whenever the overview list is left, for Book mode or
+  for a country or locality route. It is a per-visit guard, not a per-mount one.
+- The offset is re-applied for a short fixed frame budget rather than once,
+  because the list is not yet tall enough on the frame a mode change commits and
+  because the App Router scrolls a new route to the top *after* the render
+  commits. Genuine input — wheel, touch, a key — cancels the rest of the budget,
+  so it can never be mistaken for the page moving under the reader.
+- A second defect fell out of testing this, and it is the one that made route
+  navigation fail rather than merely clamp. The router scrolls to the top as it
+  *begins* a navigation, before the URL changes and before this component
+  unmounts, so the still-attached listener recorded 0 over the reader's real
+  position. Recording now stops the moment a navigation starts — a click on a
+  link, or Back — and re-arms on the next visit.
+- The overview's offset is still never applied to a country or locality route,
+  which is its own destination and starts at its own top.
+
+#### Coverage added
+
+- `src/features/passport/passport-view-state.test.ts` — the anchor's parsing,
+  including a legacy record that must not gain a `collectionId` key, four
+  unusable anchor values, and that the anchor is not case-folded; and
+  `mergePassportView` in full: fields the patch does not name, fields it does,
+  the durability of `coverSeen` in both directions, and that it never invents a
+  mode.
+- `src/features/passport/passport-pages.test.ts` — a synthesised locality of six
+  impressions: that it really splits into two pages, that the two pages anchor
+  differently, that a continuation page resolves back to itself, that every
+  impression resolves to its own page, and the three fallbacks (no anchor, a
+  cleared impression, an anchor from another locality).
+- `src/components/shops/ShopBackLink.test.ts` — `passportReturnHref` against
+  absolute, protocol-relative, `javascript:`, prefix-lookalike and traversal
+  inputs; that only the anchor parameter survives; and that what
+  `passportHrefWithAnchor` writes reads back unchanged.
+- `src/components/passport/PassportScreen.test.tsx` — the two-tab rules as
+  structure: adopting a mode chosen elsewhere, adopting an opened cover *without*
+  springing the book open, ignoring the other audience's key, not erasing a field
+  it was never told about, keeping an opened cover against a stale write, and
+  resolving a cleared storage area to nothing remembered.
+- `tests/e2e/passport.spec.ts` — the journeys. A locality across two pages:
+  reload from `/passport` and from the locality route, a stamp opened from the
+  continuation page returning to it by the back control and by browser Back, a
+  stale anchor, an anchor from another locality, and List mode showing all six
+  impressions regardless. Two tabs: a real second page adopting a mode choice
+  without a reload, an opened cover, and neither tab erasing the other's work;
+  plus a stale tab that missed the notification failing to erase anything. Scroll:
+  List → Book → List, List → country route → List, and the overview's offset not
+  reaching a locality route.
+- `tests/support/local-state.ts` — `seedPagedLocality` and the fixture behind it.
+  Six catalogue shops gathered into one locality with descending dates, so the
+  page split is the same every run.
+
+All three revisions are to remembered state rather than to what the Passport
+looks like, so the WP3 evidence captures and the visual baselines were regenerated
+and came back byte-identical. `pnpm verify`, `pnpm test:e2e`,
+`pnpm build:cloudflare`, the visual suite and the WP3 evidence suite are all green
+on the revised commit.
+
+### WP3 revisions after the founder's staging review
+
+**Reviewed:** 27 August 2026. Two corrections, both about things the Passport was
+already carrying but not letting the reader reach.
+
+#### 1. Derived seals are viewable
+
+The founder found country seals rendered as artwork nobody could touch, and
+locality seals reduced to a line of text — *"Locality seal earned 2026-03-14"* —
+which is the one place in the Passport where a seal was not shown at all. A seal
+is meaningful artwork; if a shop stamp enlarges, a seal has to.
+
+`StampDetailOverlay` became `PassportDetailOverlay`, generalised over a subject
+union rather than duplicated:
+
+```ts
+type PassportDetailSubject =
+  | { kind: "impression"; collection: StampCollection }
+  | { kind: "seal"; seal: EarnedSeal };
+```
+
+A union rather than one shape with optional fields, because the two are not
+interchangeable in content. Each branch states what its own kind records:
+
+- **A shop stamp** keeps exactly what it had — tier, shop name, local-script name,
+  locality, country, the local collection date, and **Open shop**.
+- **A country seal** shows the artwork at size, *Country seal*, the country, and
+  the earned date.
+- **A locality seal** shows the artwork at size, *Locality seal*, the locality, the
+  country, and the earned date.
+
+**No derived seal offers Open shop, and none reports a collection date.** A country
+seal derives from five stamps or a complete curated set and a locality seal from
+the first stamp there, so there is no single shop for either to lead to; offering
+one would misreport what a seal is. The overlay simply ends on the earned date,
+and says nothing about why (see the final review below). The reasoning stays in
+the component as a code comment.
+
+Where the seals became selectable:
+
+- **List, country** — the artwork already sat at the head of each country section
+  and is now a button. Still artwork, not a chip: WP1's filled vermilion "Country
+  seal earned" badge is not coming back.
+- **List, locality** — the text note in the locality heading is replaced by the
+  seal artwork itself, as a button, sized as a mark beside a subheading rather
+  than as a section emblem.
+- **Book, seals page** — each earned country seal is a button. The *Not yet* row
+  for an unearned one is unchanged and is not a control.
+- **Book, locality page** — the text line is replaced by the seal artwork as a
+  button, with *Locality seal · Earned <date>* as concise supporting text beside
+  it. The stamp grid's top margin came in slightly to keep four impressions and a
+  seal on one page.
+
+**Nothing is shown for an unearned seal in List.** No locked silhouette, no
+placeholder — `PRODUCT.md` and `UX.md` both rule that out, and an absent seal is
+already legible from the seals page.
+
+Two properties worth naming because they are easy to lose:
+
+- A seal is a `<button>`, which the book's drag handler already refuses to start a
+  page turn on — so pressing a seal enlarges it rather than dragging the leaf. The
+  existing `closest("a, button, [data-no-drag]")` guard covers it with no change.
+- The artwork inside each seal button is `aria-hidden`, and the accessible name is
+  one line beside it: *"Country seal, Singapore, earned 2026-06-03"*. Without that
+  the button would announce the impression's own long description twice over, and
+  *"Japan"* alone would not say what had been earned.
+
+Book geometry, the page order, continuation-page behaviour and the modal
+guarantees — keyboard, touch, focus containment, Escape, a visible close control,
+focus restoration — are unchanged and apply to seals exactly as to stamps.
+
+#### 2. One control for the cover
+
+At 360 px the floating **Open Passport** button sat partly behind the pager pill.
+The two controls were the same idea from opposite ends — the way between the cover
+and the pages — so they are now one control in one place, the first position in
+the pager:
+
+| Book | Visible label | Accessible name |
+| --- | --- | --- |
+| Closed | **Open** | Open Passport |
+| Open | **Cover** | Cover |
+
+The visible label is the shorter word so the strip fits at 360 px; the accessible
+name is the longer one, and *Open* is contained in *Open Passport*, so the
+label-in-name requirement holds. The same treatment applies at every breakpoint —
+there is no reason for it to differ, and one control is simpler everywhere.
+
+The floating button and its styles are gone. The pager already wraps onto two rows
+below 480 px from the Codex-review pass, so removing the overlap needed no further
+layout change.
+
+The strip itself gained `role="group"` and the name *Passport pages*, which is
+what the List/Book toggle already had. It names a set of related controls for a
+screen reader, and it gives the tests a handle that is not a hashed CSS-module
+class name — the first attempt at the 360 px test matched `_pagerCover_` as well
+as `_pager_` in development and neither in the production build.
+
+#### Coverage added
+
+- `src/components/passport/PassportScreen.test.tsx` — the seals as structure: one
+  country seal and five locality seals as named controls in List, nothing where
+  none is earned, each overlay's own facts, the absence of **Open shop** and of a
+  collection date, focus restoration for both kinds, the Book's country and
+  locality seals, the disappearance of the text-only treatment, and that the
+  shop-stamp overlay is untouched. Plus the pager: one Open control inside the
+  strip, the same position becoming Cover, and returning through it.
+- `tests/e2e/passport.spec.ts` — the journeys at all three breakpoints. A country
+  seal opened by keyboard with focus contained and returned; a locality seal
+  opened and closed by its own control; the Book's seals page; the Book's locality
+  page proving the text line is gone and that pressing a seal does not turn the
+  page; the shop stamp unchanged. And for the pager: one Open control in the
+  strip beside Contents, the same position exposing Cover, and a 360 px check that
+  the document does not overflow sideways, that every control is inside the
+  viewport with a real tap target, and that the control still opens the book.
+
+#### Evidence
+
+Three captures were added at each of the three breakpoints — `seal-country`,
+`seal-locality` and `book-locality-seal` — and the `book-cover` row now records
+that the way in is **Open** inside the pager. The `passport-list` visual baselines
+were regenerated, because the locality seals really are a visible change to that
+screen; every other baseline still matches.
+
+#### Deliberately not done
+
+- **The sign-in explanation is unchanged**, as instructed.
+- **No speculative redesign** of the areas the founder called *slightly odd*
+  without concrete direction.
+- **No WP5 material work.** The two overlays share one interaction and one layout;
+  making them share a visual presentation family with the shop page's collected
+  impression is recorded below as WP5's.
+- **No Map changes.** The pointer and touch decisions from the same review are
+  recorded below as WP6's.
+
+### WP3 revisions after the final review
+
+#### A seal overlay ends on its facts
+
+The seal overlay carried one closing line — *"Derived from verified visits, not
+collected on its own."* — added on the reasoning that an overlay ending straight
+after the earned date would read as though **Open shop** had gone missing. The
+review rejected that reasoning: the interface should not narrate why an
+inapplicable action is absent, and the line was the same over-explicit pattern
+the founder has asked us to drop elsewhere. It is gone, with nothing in its place,
+along with its `.sealNote` rule. Why a seal has no shop to open stays where it
+belongs — a code comment on `SealDetail`. `.facts` loses its bottom margin when it
+is the last thing on the sheet, so the seal overlay closes on the earned date
+rather than on a gap.
+
+#### Two evidence captures were wrong
+
+Regenerating the captures showed `stamp-detail` and `seal-locality` were
+byte-identical, and `book-locality-seal` identical to `book-locality`:
+
+- `stamp-detail` selected the first button containing *2026-03-14*. The locality
+  seal for Chūō, Tokyo derives from that same stamp, so it carries that date too
+  and now sits ahead of the rows — the capture was photographing the seal. It
+  selects **Ginza Itoya Main Store** by name instead, which is what the row is
+  identified by everywhere else in the suite.
+- `book-locality-seal` opened the Book's locality page, which `book-locality`
+  already shows. It now opens the seal from that page, which is the state the
+  founder's correction was actually about; the README says which capture shows
+  which.
+
+Both were evidence defects only — `tests/e2e/passport.spec.ts` had targeted the
+row by shop name from the start, so nothing about the interface was unverified.
+
+## Founder decisions recorded for later work packages
+
+Approved on 27 August 2026 during the WP3 staging review, recorded here so they
+are not lost, and **deliberately not implemented in WP3**.
+
+### For WP5 — one visual presentation family
+
+> Enlarged shop impressions in Passport should use the same visual presentation
+> family as the collected impression shown on a shop page. Country and locality
+> seal overlays should belong to that same family while retaining type-appropriate
+> facts and actions.
+
+WP5 owns the shared visual treatment and the component consolidation behind it.
+The two surfaces that have to converge are `PassportDetailOverlay` and the shop
+page's *Your impression* block; WP3 has already made the Passport side one
+component with one subject union, which is the seam that consolidation plugs into.
+
+What must survive the consolidation, because it is content rather than treatment:
+a shop stamp reports a collection date and leads to its shop; a derived seal
+reports an earned date and leads nowhere. A shared presentation family is not a
+shared fact list.
+
+### For WP6 — Map card and marker interaction
+
+Approved Map interaction, for WP6 to implement together with the corresponding
+update to the Map interaction documentation:
+
+- Hovering a shop card on pointer-capable desktop highlights and synchronises its
+  marker.
+- Keyboard focus gives the equivalent highlight.
+- Activating the body of a shop card opens the shop detail page.
+- On touch devices, tapping the card opens shop detail rather than merely selecting
+  it.
+- Clicking or tapping a map marker may continue to select and reveal its
+  corresponding card.
+- Explicit controls such as **Save** perform their own action without opening the
+  shop.
+
+WP6 owns implementation and the documentation update. **Map behaviour is unchanged
+in WP3**, and `UX.md`'s map sections were deliberately left alone: correcting them
+before the behaviour exists would put the documentation ahead of the product,
+which is the opposite of the two corrections WP3 made to it.
 
 ## Open items still needing founder input
 

@@ -311,10 +311,15 @@ test("explore to simulated collection to Passport", async ({ page }) => {
   await ceremony.getByRole("link", { name: /open in passport/i }).click();
 
   // The ceremony opens the Passport at the impression that was just pressed, so
-  // it lands on that locality's own page already open — not on the cover.
-  await expect(page).toHaveURL(/\/passport\/tw\/east-tainan$/);
+  // it lands on that locality's own content — not on the overview and not on a
+  // cover.
+  // The locality route, carrying the impression that was just pressed so a
+  // locality already spanning several pages opens on the right one.
+  await expect(page).toHaveURL(
+    /\/passport\/tw\/east-tainan\?stamp=collection-pen-house-tainan$/,
+  );
   await expect(
-    page.getByRole("heading", { level: 3, name: /East District, Tainan/ }).first(),
+    page.getByRole("heading", { level: 1, name: /East District, Tainan/ }),
   ).toBeVisible();
 });
 

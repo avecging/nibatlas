@@ -40,4 +40,16 @@ if (typeof window !== "undefined") {
   if (!Element.prototype.scrollIntoView) {
     Element.prototype.scrollIntoView = vi.fn();
   }
+
+  // The Passport book measures its field to size the object. jsdom has no
+  // layout, so the observer never fires anything useful — it only has to exist.
+  if (typeof window.ResizeObserver === "undefined") {
+    class NoopResizeObserver implements ResizeObserver {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    }
+
+    window.ResizeObserver = NoopResizeObserver;
+  }
 }

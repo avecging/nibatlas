@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
-
 import { NibAtlasMark } from "@/src/components/brand/NibAtlasMark";
 import { StampArt } from "@/src/components/stamps/StampArt";
-import { STAMP_INKS } from "@/src/domain/stamp-palette";
+import { Icon } from "@/src/components/ui/Icon";
+import type { StampCollection } from "@/src/domain/passport";
+import type { EarnedSeal } from "@/src/domain/seals";
 import { useReviewerMode } from "@/src/features/reviewer/ReviewerModeProvider";
 import type { PassportPage } from "@/src/features/passport/passport-pages";
 
@@ -20,12 +20,64 @@ const SLOTS = [
   { rotate: -2.4 },
 ] as const;
 
+/**
+ * A seal on a book page, as artwork you can open.
+ *
+ * The same control as List mode's, sized for a page rather than for a section
+ * head. A `<button>` for the interaction and — just as importantly — because the
+ * book's drag handler already refuses to start a page turn on one, so tapping a
+ * seal enlarges it instead of dragging the leaf.
+ */
+function PageSealButton({
+  seal,
+  onSelect,
+  size,
+}: {
+  readonly seal: EarnedSeal;
+  readonly onSelect: () => void;
+  readonly size: "country" | "locality";
+}) {
+  const name =
+    seal.scope === "country" ? seal.countryLabel : (seal.localityName ?? seal.countryLabel);
+
+  return (
+    <button
+      className={styles.sealButton}
+      data-seal-size={size}
+      onClick={onSelect}
+      type="button"
+    >
+      <span aria-hidden="true">
+        <StampArt
+          size="small"
+          stamp={seal.stamp}
+          subtitle={seal.earnedOn}
+          title={name}
+        />
+      </span>
+      <span className="visually-hidden">
+        {seal.scope === "country" ? "Country seal" : "Locality seal"}, {name}, earned{" "}
+        {seal.earnedOn}
+      </span>
+    </button>
+  );
+}
+
 export function PassportPageView({
   page,
   headingId,
+  onSelectStamp,
+  onSelectSeal,
+  onJumpToPage,
 }: {
   readonly page: PassportPage;
   readonly headingId: string;
+  /** Enlarges an impression. The same overlay List mode opens. */
+  readonly onSelectStamp: (collection: StampCollection) => void;
+  /** Enlarges a derived seal, in that same overlay. */
+  readonly onSelectSeal: (seal: EarnedSeal) => void;
+  /** Turns to a page from the contents index, without paging there by hand. */
+  readonly onJumpToPage: (pageIndex: number) => void;
 }) {
   const reviewer = useReviewerMode();
 
@@ -42,12 +94,16 @@ export function PassportPageView({
         {page.kind === "identity" ? (
           <div className={styles.identity}>
             <NibAtlasMark size={56} />
+            {/*
+              The name the reader chose, or the volume itself. Never anything
+              derived from an address: an account is identified by its address
+              and that is not a name, so `account-session.ts` keeps the two
+              apart and this page shows only the display name.
+            */}
             <h3 className={styles.identityTitle} id={headingId} tabIndex={-1}>
-              Passport of impressions
+              {page.displayName ?? "Your Passport"}
             </h3>
-            <p className={styles.identityLine}>
-              A private record of shops visited and the ink each visit left behind.
-            </p>
+            <p className={styles.identityLine}>Passport of impressions</p>
             <dl className={styles.identityFacts}>
               <div>
                 <dt>Shop stamps</dt>
@@ -62,12 +118,68 @@ export function PassportPageView({
                 <dd>{page.localityCount}</dd>
               </div>
             </dl>
-            <p className={styles.identityNote}>
-              Volume I · {STAMP_INKS.length} shared inks
-              {page.paletteVersion === null
-                ? ""
-                : ` · palette v${page.paletteVersion}`}
-            </p>
+            {/*
+              The palette version proves an impression regenerates identically
+              later, which is a review concern rather than something a keepsake
+              should carry.
+            */}
+            {reviewer && page.paletteVersion !== null ? (
+              <p className={styles.identityNote}>palette v{page.paletteVersion}</p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {page.kind === "index" ? (
+          <div className={styles.index}>
+            <h3 className={styles.pageTitle} id={headingId} tabIndex={-1}>
+              Contents
+            </h3>
+            {page.countries.length === 0 ? (
+              <p className={styles.pageNote}>Nothing collected yet.</p>
+            ) : (
+              <ul className={styles.indexList} data-no-drag="true">
+                {page.countries.map((country) => (
+                  <li className={styles.indexCountry} key={country.countryCode}>
+                    <button
+                      className={styles.indexCountryButton}
+                      type="button"
+                      onClick={() => onJumpToPage(country.pageIndex)}
+                    >
+                      <span className={styles.indexName}>{country.countryLabel}</span>
+                      {country.sealEarned ? (
+                        <span className={styles.indexSeal}>
+                          <Icon name="seal" size={13} />
+                          <span className="visually-hidden">Country seal earned</span>
+                        </span>
+                      ) : null}
+                      <span className={styles.indexLeader} aria-hidden="true" />
+                      <span className={styles.indexPage}>{country.pageIndex + 1}</span>
+                    </button>
+
+                    <ul className={styles.indexLocalities}>
+                      {country.localities.map((locality) => (
+                        <li key={locality.slug}>
+                          <button
+                            className={styles.indexLocalityButton}
+                            type="button"
+                            onClick={() => onJumpToPage(locality.pageIndex)}
+                          >
+                            <span className={styles.indexName}>{locality.name}</span>
+                            <span className={styles.indexCount}>
+                              {locality.stampCount}
+                            </span>
+                            <span className={styles.indexLeader} aria-hidden="true" />
+                            <span className={styles.indexPage}>
+                              {locality.pageIndex + 1}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         ) : null}
 
@@ -91,11 +203,10 @@ export function PassportPageView({
                   <li className={styles.sealRow} key={country.countryCode}>
                     <span className={styles.sealArt}>
                       {seal ? (
-                        <StampArt
-                          stamp={seal.stamp}
-                          title={country.countryLabel}
-                          subtitle={seal.earnedOn}
-                          size="small"
+                        <PageSealButton
+                          onSelect={() => onSelectSeal(seal)}
+                          seal={seal}
+                          size="country"
                         />
                       ) : (
                         <span className={styles.sealPending} aria-hidden="true">
@@ -141,6 +252,11 @@ export function PassportPageView({
                   </li>
                 );
               })}
+              {page.countries.length === 0 ? (
+                <li className={styles.pageNote}>
+                  A seal derives from the first stamp you collect.
+                </li>
+              ) : null}
             </ul>
           </div>
         ) : null}
@@ -151,10 +267,23 @@ export function PassportPageView({
               {page.localityName}
               {page.continued ? " (continued)" : ""}
             </h3>
+            {/*
+              The locality seal, as the artwork it is. It read as a line of text
+              until the founder's WP3 staging review, which is the one place in
+              the Passport a seal was not shown at all.
+            */}
             {page.seal ? (
-              <p className={styles.localitySeal}>
-                Locality seal earned {page.seal.earnedOn}
-              </p>
+              <div className={styles.localitySeal}>
+                <PageSealButton
+                  onSelect={() => onSelectSeal(page.seal as EarnedSeal)}
+                  seal={page.seal}
+                  size="locality"
+                />
+                <span className={styles.localitySealMeta}>
+                  Locality seal
+                  <span>Earned {page.seal.earnedOn}</span>
+                </span>
+              </div>
             ) : null}
             <ul className={styles.stampGrid}>
               {page.collections.map((collection, index) => (
@@ -163,9 +292,15 @@ export function PassportPageView({
                   key={collection.id}
                   style={{ "--slot-rotate": `${SLOTS[index % SLOTS.length]?.rotate ?? 0}deg` } as React.CSSProperties}
                 >
-                  <Link
-                    className={styles.stampLink}
-                    href={`/shops/${collection.shopSlug}?from=passport`}
+                  {/*
+                    A button, not a link: tapping an impression enlarges it. The
+                    shop is one step further on, from inside the overlay, so a
+                    reader can look at the stamp without leaving the Passport.
+                  */}
+                  <button
+                    className={styles.stampButton}
+                    type="button"
+                    onClick={() => onSelectStamp(collection)}
                   >
                     <StampArt
                       stamp={collection.stamp}
@@ -177,7 +312,7 @@ export function PassportPageView({
                       {collection.shopNameSnapshot}
                       <span>{collection.collectedOn}</span>
                     </span>
-                  </Link>
+                  </button>
                 </li>
               ))}
               {page.collections.length === 0 ? (
@@ -192,9 +327,6 @@ export function PassportPageView({
             <h3 className={styles.pageTitle} id={headingId} tabIndex={-1}>
               Room for the next visit
             </h3>
-            <p className={styles.pageNote}>
-              The next impression you collect is pressed here.
-            </p>
           </div>
         ) : null}
       </div>
