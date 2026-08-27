@@ -1,9 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 
 import { useDialogFocus } from "@/src/components/hooks/useDialogFocus";
+import {
+  detectMapPlatform,
+  directionsHref,
+  type MapPlatform,
+} from "@/src/components/shops/directions";
 import { passportHrefWithAnchor } from "@/src/components/shops/ShopBackLink";
 import { StampCeremony } from "@/src/components/stamps/StampCeremony";
 import { Button, ButtonLink } from "@/src/components/ui/Button";
@@ -25,15 +30,34 @@ export function ShopStatusBadges({ shop }: { readonly shop: ShopDetail }) {
   return <MarkerStateBadge state={markerStateFor(shop.id, collection.userShopState)} />;
 }
 
-function externalMapUrl(shop: ShopDetail): string {
-  const { latitude, longitude } = shop.position;
+/**
+ * Directions open the platform's own maps application.
+ *
+ * WP4 replaces Milestone 1's OpenStreetMap marker link with a native handoff, per
+ * `docs/milestone-1-5-product-refinement.md`: Apple Maps on Apple platforms, the
+ * `geo:` intent on Android, and OpenStreetMap's directions page where there is no
+ * application to hand to. Nib Atlas never embeds an itinerary.
+ *
+ * The platform never changes for a document, so this is a read of the
+ * environment rather than state: the server snapshot is the universal fallback,
+ * which works everywhere, and hydration upgrades it to the native handoff. That
+ * is the same shape `useMediaQuery` uses, and it keeps the two renders in
+ * agreement instead of correcting one after paint.
+ */
+const NO_SUBSCRIPTION = () => () => {};
 
-  return `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=17/${latitude}/${longitude}`;
+function useMapPlatform(): MapPlatform {
+  return useSyncExternalStore(
+    NO_SUBSCRIPTION,
+    () => detectMapPlatform(window.navigator.userAgent),
+    () => "other" as const,
+  );
 }
 
 export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
   const collection = useCollection();
   const reviewer = useReviewerMode();
+  const platform = useMapPlatform();
   const [preflightOpen, setPreflightOpen] = useState(false);
   const [ceremony, setCeremony] = useState<StampCollection | null>(null);
   const [wasAlreadyCollected, setWasAlreadyCollected] = useState(false);
@@ -97,7 +121,7 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
         ) : null}
 
         <ButtonLink
-          href={externalMapUrl(shop)}
+          href={directionsHref(shop, platform)}
           variant="quiet"
           external
           onClick={() =>

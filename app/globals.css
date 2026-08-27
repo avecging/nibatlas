@@ -18,6 +18,16 @@
   --sumi-700: #4d5551;
   --sumi-500: #737b76;
   --teal-700: #287a78;
+  /*
+   * A darker step of the same teal, for text-sized links.
+   *
+   * `--teal-700` clears AA at body size on white (4.86:1) but not at the 14 px
+   * caption and body-small sizes the shop page's inline links use on the warm
+   * paper surfaces — WP4's contribution invitation measured 4.34:1 on
+   * `--bg-surface-warm`. This step passes AA at small text on every paper
+   * surface in the palette while staying recognisably the same accent.
+   */
+  --teal-800: #1f6462;
   --teal-100: #dcebe7;
   --vermilion-700: #c54b32;
   --vermilion-100: #f3ded4;
@@ -40,6 +50,8 @@
   --action-primary: var(--atlas-900);
   --action-primary-hover: var(--atlas-800);
   --action-secondary: var(--teal-700);
+  /* Text-sized links, where the lighter accent does not clear AA. */
+  --action-secondary-text: var(--teal-800);
   --state-visited: var(--vermilion-700);
   --state-visited-surface: var(--vermilion-100);
   --state-saved: var(--teal-700);

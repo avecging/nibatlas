@@ -129,6 +129,197 @@
 }
 
 /*
+ * The designed shop identity, in place of a photograph.
+ *
+ * Accepted decision 5: the interim state is designed, not a missing asset. The
+ * plate is Atlas paper stock with a soft directional wash — the founder's own
+ * prototype used `linear-gradient(135deg,#EFE9DC,#E2D9C9)`, and this is that
+ * gradient expressed in the shipped token palette — carrying the mark, the shop
+ * name, and the shop's own stamp motif as a low-contrast watermark.
+ */
+.hero {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-areas:
+    "brand"
+    "identity"
+    "photos";
+  gap: var(--space-4);
+  min-height: 13rem;
+  padding: var(--space-5);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(135deg, var(--paper-100) 0%, var(--paper-200) 100%);
+  color: var(--text-primary);
+}
+
+/*
+ * The motif, at watermark contrast.
+ *
+ * Ink comes from the shop's own impression, so the map marker, the page and the
+ * stamp read as one identity. It is decoration and is hidden from assistive
+ * technology: the record does not claim to know what the shopfront looks like.
+ */
+.heroMotif {
+  position: absolute;
+  right: -1.5rem;
+  bottom: -2.5rem;
+  width: 13rem;
+  height: 13rem;
+  color: var(--ink-navy);
+  opacity: 0.1;
+  pointer-events: none;
+}
+
+.hero[data-ink="vermilion"] .heroMotif { color: var(--ink-vermilion); }
+.hero[data-ink="navy"] .heroMotif { color: var(--ink-navy); }
+.hero[data-ink="teal"] .heroMotif { color: var(--ink-teal); }
+.hero[data-ink="indigo"] .heroMotif { color: var(--ink-indigo); }
+.hero[data-ink="plum"] .heroMotif { color: var(--ink-plum); }
+.hero[data-ink="moss"] .heroMotif { color: var(--ink-moss); }
+.hero[data-ink="ochre"] .heroMotif { color: var(--ink-ochre); }
+.hero[data-ink="brick"] .heroMotif { color: var(--ink-brick); }
+
+.heroBrand {
+  grid-area: brand;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.heroIdentity {
+  grid-area: identity;
+  position: relative;
+  align-self: end;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.heroPlace {
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+/*
+ * One caption, once. No repeated empty gallery slots and no photo count: a count
+ * would be a claim about images that do not exist.
+ */
+.heroPhotos {
+  grid-area: photos;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+/* WP4's value layer: a claim, how it is reached, and any sourced note. */
+.subheading {
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+  font-weight: 700;
+}
+
+.valueList {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.valueRow {
+  display: grid;
+  gap: 2px;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--border-default);
+}
+
+.valueLabel {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.valueMeta {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.valueNote {
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+/* The material gap: warm, quiet, and never the loudest thing on the page. */
+.gap {
+  background: var(--bg-surface-warm);
+}
+
+.actionBlock {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.nearbyList {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.nearbyRow {
+  display: grid;
+  gap: 2px;
+  min-height: var(--tap-target);
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-warm);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.nearbyName {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.nearbyMeta {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+/*
+ * The correction route, sitting with the provenance line rather than competing
+ * with the shop's own information.
+ */
+.correction {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.inlineLink {
+  color: var(--action-secondary-text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/*
  * The one provenance line a normal tester sees.
  *
  * Subordinate by design: caption size, muted, no card, no heading. It sits at
@@ -191,7 +382,8 @@
 }
 
 .sourceLabel a {
-  color: var(--action-secondary);
+  /* Body-small text on the warm provenance surface, so the darker step. */
+  color: var(--action-secondary-text);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -223,6 +415,23 @@
 @media (min-width: 768px) {
   .grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /*
+   * The identity plate becomes a wide banner rather than a tall card: the same
+   * treatment a photograph would get in this slot once rights exist.
+   */
+  .hero {
+    grid-template-areas:
+      "brand photos"
+      "identity identity";
+    align-content: space-between;
+    min-height: 15rem;
+    padding: var(--space-6);
+  }
+
+  .heroPhotos {
+    justify-self: end;
   }
 
   .wide {

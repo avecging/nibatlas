@@ -28,7 +28,11 @@ export type IconName =
   | "trash"
   | "pen"
   | "list"
-  | "book";
+  | "book"
+  | "train"
+  | "card"
+  | "globe"
+  | "camera";
 
 const PATHS: Record<IconName, readonly string[]> = {
   /* The two Passport modes. The list is rules and rows; the book is a spread
@@ -76,6 +80,29 @@ const PATHS: Record<IconName, readonly string[]> = {
   clock: ["M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17Z", "M12 7.2V12l3.4 2.2"],
   alert: ["M12 3.6 21.4 20H2.6L12 3.6Z", "M12 10v4.2", "M12 17.2h.01"],
   link: ["M10.5 13.5a4 4 0 0 0 5.7 0l2.6-2.6a4 4 0 1 0-5.7-5.7l-1.2 1.2", "M13.5 10.5a4 4 0 0 0-5.7 0l-2.6 2.6a4 4 0 1 0 5.7 5.7l1.2-1.2"],
+  /* WP4's practical-visit rows: the station you walk from, how you pay, what is
+     spoken at the counter, and the photography state. */
+  train: [
+    "M7.5 3.6h9a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2Z",
+    "M5.5 9.4h13",
+    "M9.2 12.6h.01M14.8 12.6h.01",
+    "m8.2 15.6-2 4.8M15.8 15.6l2 4.8",
+    "M7.5 20.4h9",
+  ],
+  card: [
+    "M3.6 6.4h16.8v11.2H3.6z",
+    "M3.6 10.2h16.8",
+    "M7 14h4",
+  ],
+  globe: [
+    "M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17Z",
+    "M3.7 9.4h16.6M3.7 14.6h16.6",
+    "M12 3.5c-2.6 2.4-4 5.3-4 8.5s1.4 6.1 4 8.5c2.6-2.4 4-5.3 4-8.5s-1.4-6.1-4-8.5Z",
+  ],
+  camera: [
+    "M4.2 8.4h3.2l1.4-2.2h6.4l1.4 2.2h3.2v10H4.2z",
+    "M12 10.4a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8Z",
+  ],
   accessibility: [
     "M12 3.4a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2Z",
     "M4.8 8.6h14.4",

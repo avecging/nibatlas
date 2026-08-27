@@ -83,3 +83,72 @@ untouched, with its own test. Milestone 1's catalogue no longer extends it,
 because its three records are invented and the acceptance brief requires a subset
 of real shops. If Codex wants the shared example to be the same records the
 frontend renders, that is a coordination point, not a silent change.
+
+## Milestone 1.5 WP4 — the shop value layer
+
+`ShopDetail` gains the optional pen-specific fields root cause D in
+`docs/milestone-1-5-product-refinement.md` asks for. **`ShopMapSummary` is
+unchanged**, so this is a frontend projection change under accepted decision 4
+("Claude Code may define the optional schema and the sourcing rules"), not a
+change to the Codex-owned marker/card contract.
+
+New optional fields, all on `ShopDetail` only:
+
+| Field | Shape | Why |
+| --- | --- | --- |
+| `services` | `readonly ShopService[]` | A service with `accessMode` (`walk_in`, `booking`, `send_in`, `enquire`) and a sourced `duration`. Separates a repair bench from a shelf |
+| `experiences` | `readonly ShopExperience[]` | Test bench, ink wall, clinics, and whether they need booking |
+| `exclusives` | `readonly ShopExclusive[]` | Shop-only inks and editions — the field a general listing cannot have |
+| `access` | `ShopAccessNote` | Nearest station, walking guidance as the source words it, floor/building note, accessibility note |
+| `practical` | `ShopPracticalInfo` | Payment methods, languages spoken, appointment requirement |
+
+Two Milestone 1 fields were folded into those blocks rather than left beside
+them, so that a practical claim cannot exist without the evidence reference the
+block carries:
+
+- `appointmentRequired: boolean` → `practical.appointmentRequired`
+- `accessibilityNotes: string` → `access.accessibilityNote`
+
+`services` also changes shape, from `readonly string[]` to
+`readonly ShopService[]`. A bare label cannot say whether a nib grind is a
+walk-in or a three-day send-in, which is the distinction the section exists to
+make. **Nothing populated any of the three fields in their old form**, so no data
+was migrated and no other surface read them.
+
+### Every pen-specific claim names its source
+
+Each new entry carries `confirmedBy: string`, holding the `label` of one of the
+record's own `sources` entries. This reuses the evidence registry that already
+exists — the source list, its `retrievedOn` dates and its `confirms` breakdown
+are unchanged, and reviewer mode still renders them in full.
+
+`shopEvidenceIssues` in `src/domain/shop-evidence.ts` returns every claim whose
+reference does not resolve, and `prototype-catalogue.test.ts` asserts the result
+is empty for every record. A claim therefore cannot reach a shop page without the
+source that backs it travelling with it.
+
+Milestone 3 should be able to satisfy the same shape from
+`GET /api/v1/shops/[slug]`. The natural mapping is the join-table `note`,
+`confidence`, `source_id` columns `DATA-MODEL.md` already reserves on
+`shop_services` and its siblings, with `confirmedBy` projected from `source_id`.
+Nothing here asks for a schema change; if Codex would rather project a source id
+than a label, that is a coordination point and a one-line change in this module.
+
+### `nearbyPenShops` is derived, not stored
+
+`src/domain/nearby-shops.ts` derives the "Nearby pen shops" section from the same
+catalogue the map reads. It is not a new data structure and nothing persists it.
+A distance is offered **only** where both records carry
+`positionPrecision: "street"`; a locality-centroid coordinate gets the locality
+name instead, because a measured figure from a city centroid would claim
+precision the record does not have. Walking time is not offered at all — that
+needs a routing source this repository does not have.
+
+### `src/fixtures/shop-value-specimen.ts`
+
+One invented record, `sourceQuality: "demo"`, carrying its own fixture notice and
+rendered only on `/styleguide` (internal, `noindex`). It exists because no source
+in the prototype catalogue publishes a service, an experience, a shop-only item,
+a station, a payment method or a language, so the populated design would otherwise
+be unreviewable. It is not imported by `prototype-catalogue.ts` and never reaches
+a shop page, the map, search, or the Passport.

@@ -10,7 +10,7 @@ import styles from "./StampArt.module.css";
  * a national symbol: `BRAND.md` forbids applying one country's iconography to
  * another, so a motif describes the shop, not the country it happens to be in.
  */
-const MOTIFS: Record<StampMotif, readonly string[]> = {
+export const STAMP_MOTIF_PATHS: Record<StampMotif, readonly string[]> = {
   storefront: [
     "M18 104h84",
     "M26 104V58h68v46",
@@ -226,7 +226,7 @@ export function StampArt({
             </text>
 
             <g strokeWidth="8" transform="translate(400 132)">
-              {MOTIFS[stamp.motif].map((d) => (
+              {STAMP_MOTIF_PATHS[stamp.motif].map((d) => (
                 <path key={d} d={d} strokeLinecap="round" strokeLinejoin="round" />
               ))}
             </g>

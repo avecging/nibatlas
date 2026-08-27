@@ -1,0 +1,120 @@
+import { COUNTRY_LABELS, type ShopDetail } from "@/src/domain/shop-detail";
+import { inkForStampKey, STAMP_PALETTE_VERSION } from "@/src/domain/stamp-palette";
+import { PROTOTYPE_DESIGN_VERSION } from "@/src/fixtures/prototype-catalogue";
+
+/**
+ * A specimen record for the component styleguide.
+ *
+ * WP4 builds the pen-specific value layer, and no source in this repository
+ * publishes a service, an in-store experience, a shop-only item, a station, a
+ * payment method or a language for any of the ten real catalogue shops. Accepted
+ * decision 4 forbids inventing them, so the real pages show the gap state
+ * instead — which leaves the design of the populated state unreviewable.
+ *
+ * This is that specimen: an invented record, marked `demo`, carrying its own
+ * fixture notice, named so it cannot be mistaken for a business, and rendered
+ * **only** on `/styleguide`, which is internal and `noindex`. It never reaches a
+ * shop page, the map, search, or the Passport, and `prototype-catalogue.ts` does
+ * not import it.
+ *
+ * Its own `confirmedBy` references resolve against its own specimen source, so
+ * the evidence rule is exercised rather than bypassed.
+ */
+const SPECIMEN_SOURCE = "Specimen record — component styleguide only, not a real business";
+
+export const SHOP_VALUE_SPECIMEN_NOTICE =
+  "Specimen — an invented record for component review, not a real business";
+
+export const shopValueSpecimen: ShopDetail = {
+  id: "specimen-shop-value",
+  slug: "specimen-shop-value",
+  name: "Specimen Pen Bench",
+  localName: "見本万年筆店",
+  countryCode: "JP",
+  localityName: "Specimen locality",
+  position: { latitude: 35.6721, longitude: 139.7669 },
+  primaryType: "nib_repair_services",
+  specialtyLine: "Same-day nib alignment at the bench",
+  operationalStatus: "open",
+  markerState: "unvisited",
+  sourceQuality: "demo",
+  fixtureNotice: SHOP_VALUE_SPECIMEN_NOTICE,
+  shortDescription:
+    "A specimen record showing the populated shape of the shop value layer: services with an access mode and a duration, in-store experiences, and something available only here.",
+  addressLines: ["1 Specimen Street", "Specimen locality"],
+  timezone: "Asia/Tokyo",
+  shopTypes: ["nib_repair_services", "fountain_pen_specialist"],
+  specialties: ["Nib grinding", "Vintage restoration"],
+  services: [
+    {
+      label: "Nib alignment & tuning",
+      accessMode: "walk_in",
+      duration: "~30 min",
+      confirmedBy: SPECIMEN_SOURCE,
+    },
+    {
+      label: "Custom grind",
+      accessMode: "booking",
+      duration: "3–5 days",
+      note: "Bring the pen you want ground.",
+      confirmedBy: SPECIMEN_SOURCE,
+    },
+    {
+      label: "Vintage sac replacement",
+      accessMode: "send_in",
+      confirmedBy: SPECIMEN_SOURCE,
+    },
+  ],
+  experiences: [
+    {
+      label: "Test bench",
+      detail: "40+ nibs to write with, free of charge.",
+      bookingRequired: false,
+      confirmedBy: SPECIMEN_SOURCE,
+    },
+    {
+      label: "Monthly nib clinic",
+      bookingRequired: true,
+      confirmedBy: SPECIMEN_SOURCE,
+    },
+  ],
+  exclusives: [
+    {
+      label: "House ink — Bench No.4",
+      detail: "Mixed on site and sold in store only.",
+      confirmedBy: SPECIMEN_SOURCE,
+    },
+  ],
+  access: {
+    nearestStation: "Specimen Station, exit B2",
+    walkFromStation: "4 minutes on foot",
+    floorNote: "Third floor of the Specimen Building; use the rear lift.",
+    accessibilityNote: "Step-free from the lift lobby.",
+    confirmedBy: SPECIMEN_SOURCE,
+  },
+  practical: {
+    paymentMethods: ["Cash", "Credit card"],
+    languages: ["Japanese", "English"],
+    appointmentRequired: false,
+    confirmedBy: SPECIMEN_SOURCE,
+  },
+  positionPrecision: "street",
+  sources: [
+    {
+      label: SPECIMEN_SOURCE,
+      retrievedOn: "2026-08-27",
+      kind: "founder_visit",
+      confirms: ["Specimen content only"],
+    },
+  ],
+  stamp: {
+    id: "stamp-specimen-shop-value",
+    tier: "shop",
+    motif: "workbench",
+    ink: inkForStampKey("stamp-specimen-shop-value"),
+    localityLabel: "Specimen locality",
+    countryLabel: COUNTRY_LABELS.JP,
+    designVersion: PROTOTYPE_DESIGN_VERSION,
+    paletteVersion: STAMP_PALETTE_VERSION,
+  },
+};

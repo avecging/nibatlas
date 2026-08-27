@@ -7,6 +7,7 @@ import { ShopBackLink } from "@/src/components/shops/ShopBackLink";
 import { ShopDetailView } from "@/src/components/shops/ShopDetailView";
 import { shopMetaDescription } from "@/src/components/shops/shop-metadata";
 import detailStyles from "@/src/components/shops/ShopDetailView.module.css";
+import { nearbyPenShops } from "@/src/domain/nearby-shops";
 import {
   findPrototypeShop,
   prototypeShopDetails,
@@ -52,6 +53,9 @@ export default async function ShopPage({
   return (
     <ShopDetailView
       shop={shop}
+      // Derived from the same catalogue the map reads, so nothing here is a
+      // separate data structure that could drift out of step with the records.
+      nearby={nearbyPenShops(shop, prototypeShopDetails)}
       back={
         <Suspense
           fallback={<span className={detailStyles.back}>Back to map</span>}

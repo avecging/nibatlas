@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
 
 import { NibAtlasMark } from "@/src/components/brand/NibAtlasMark";
+import { ShopIdentityHero } from "@/src/components/shops/ShopIdentityHero";
+import {
+  ShopExclusives,
+  ShopValueGap,
+  ShopWhatYouCanDo,
+} from "@/src/components/shops/ShopValueSections";
 import { StampArt } from "@/src/components/stamps/StampArt";
 import { Button } from "@/src/components/ui/Button";
 import { Icon } from "@/src/components/ui/Icon";
@@ -11,7 +17,11 @@ import {
 } from "@/src/components/ui/StatusBadge";
 import { markerGlyph, clusterGlyph } from "@/src/components/map/marker-markup";
 import type { MarkerState } from "@/src/domain/shops";
-import { PROTOTYPE_DESIGN_VERSION } from "@/src/fixtures/prototype-catalogue";
+import { findPrototypeShop, PROTOTYPE_DESIGN_VERSION } from "@/src/fixtures/prototype-catalogue";
+import {
+  SHOP_VALUE_SPECIMEN_NOTICE,
+  shopValueSpecimen,
+} from "@/src/fixtures/shop-value-specimen";
 import {
   inkForStampKey,
   STAMP_INKS,
@@ -55,6 +65,8 @@ const MOTIF_SAMPLES: readonly StampMotif[] = [
 const MARKER_STATES: readonly MarkerState[] = ["unvisited", "saved", "visited"];
 
 export default function StyleguidePage() {
+  const gapExample = findPrototypeShop("juspirit-banqiao");
+
   return (
     <div className={styles.page}>
       <header>
@@ -214,6 +226,31 @@ export default function StyleguidePage() {
             <span dangerouslySetInnerHTML={{ __html: clusterGlyph(12) }} />
             cluster
           </span>
+        </div>
+      </section>
+
+      <section className={styles.section} aria-labelledby="shop-value">
+        <h2 className={styles.title} id="shop-value">
+          Shop value layer
+        </h2>
+        <p className="type-body-sm">
+          Populated and empty states of the pen-specific sections. No source in
+          the prototype catalogue publishes a service, an in-store experience or
+          a shop-only item, so every real shop page shows the gap state; the
+          populated state is drawn from a specimen record that exists only here.
+        </p>
+        <div className={styles.shopValue}>
+          <PrototypeBadge>{SHOP_VALUE_SPECIMEN_NOTICE}</PrototypeBadge>
+          <ShopIdentityHero shop={shopValueSpecimen} titleAs="p" />
+          <ShopWhatYouCanDo shop={shopValueSpecimen} />
+          <ShopExclusives shop={shopValueSpecimen} />
+        </div>
+        <p className="type-body-sm">
+          The same sections on a real record with nothing sourced: one concise
+          caution and the contribution invitation, never a list of empty fields.
+        </p>
+        <div className={styles.shopValue}>
+          {gapExample ? <ShopValueGap shop={gapExample} /> : null}
         </div>
       </section>
 

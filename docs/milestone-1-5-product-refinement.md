@@ -376,7 +376,7 @@ that feedback exists.
 | **WP1** | Reviewer mode plus the copy pass: the flag, migrating every badge and milestone label behind it, production copy for location and collection, About Nib Atlas | WP0 | **Implemented** |
 | **WP2** | Me restructure: signed-out/signed-in split, compact Places Visited linked into Passport, local-data controls, Contribute entries, Danger group | WP1 | **Implemented** |
 | **WP3** | Passport IA: List/Book toggle, opening spread on content, country/locality index and linked routes, stamp detail overlay, first-run-only cover, cover redesign, display name on the identity page | WP1 | **Implemented** |
-| **WP4** | Shop value layer: the data-model extension, sourced content, reordered page, native directions, contextual report | WP1, sourcing | Not started |
+| **WP4** | Shop value layer: the data-model extension, sourced content, reordered page, native directions, contextual report | WP1, sourcing | Implemented; content awaits sourcing |
 | **WP5** | Visual fidelity: shop identity system, interim hero, paper and cover texture, stamp at large size, ceremony material pass, and the **one presentation family** for enlarged impressions and seal overlays recorded below | WP3, WP4 | Not started |
 | **WP6** | Filter drawer: segment plus drawer, active count, one-tap clear; and the **card and marker interaction** recorded below, with its documentation update | WP1 | Not started |
 | **WP7** | Contact and contribution routes: the contextual shop-page correction, help and contact, and the `/suggest-shop` page later. *Suggest a pen shop* is routed in WP2 | WP2 | Not started |
@@ -1698,6 +1698,153 @@ byte-identical, and `book-locality-seal` identical to `book-locality`:
 
 Both were evidence defects only — `tests/e2e/passport.spec.ts` had targeted the
 row by shop name from the start, so nothing about the interface was unverified.
+
+## WP4 implementation record
+
+Delivered on `claude/m1-5-wp4-shop-value`. Scope was WP4 only: the pen-specific
+schema, the reordered shop page, the interim identity treatment, native
+directions, nearby shops, and the contextual correction route. Nothing in
+WP5–WP7 or WP-D was started, and no accepted decision was reinterpreted.
+
+### The problem it solves
+
+Root cause D: Milestone 1's shop record modelled name, address, hours, brands and
+links, which is the shape of a general mapping listing, so the page read as one.
+The founder's prototype modelled what a visitor can *do* — a service with an
+access mode and a duration, an in-store experience with a nib count, an
+in-store-only ink, the station you walk from and the floor you climb to.
+
+WP4 builds that layer, in the order
+[Proposed experience → Shop detail](#shop-detail) approves.
+
+### The order, and where the actions sit
+
+1. the designed identity plate, carrying the page's `h1`;
+2. the shop's own name in its own script, then one concise line on why it may be
+   worth the trip;
+3. **what you can do there** — services with mode and duration, then in-store
+   experiences, under two labelled subheadings;
+4. **only available here**;
+5. practical access — station and walking guidance, floor note, address, payment,
+   languages, accessibility, official links — then opening hours, then brands as
+   supporting information;
+6. Save · Official site · Directions · Collect Stamp;
+7. nearby pen shops;
+8. the quiet provenance line, then the correction route.
+
+The actions moved **below** the practical information, which is where the
+approved order puts them and is a change from Milestone 1, where they sat in the
+header. It is recorded here because it is the one place in the order where a
+usability argument pulls the other way: on a 360 px screen Save and Collect are
+now below the fold. The approved order was followed rather than split, because
+the page's job is to answer "is this worth the trip?" before it offers to act on
+the answer — and the founder's own prototype ordered it that way. If the founder
+would rather have the actions in the header as well, that is a one-line change
+and a decision, not a rework.
+
+### The data, and the one honest outcome of it
+
+No source in the prototype catalogue publishes a service, an in-store
+experience, a shop-only item, a nearest station, a payment method or a language
+for any of the ten real shops. Accepted decision 4 forbids inventing them, and
+this work package did no new sourcing. So **every real shop page currently shows
+the gap state**: one concise caution — "We have not confirmed what you can do at
+this shop — services, in-store experiences, or anything sold only here." — and
+the invitation "Know this shop? Help us improve this listing.", routed to
+`hello@nibatlas.com` with subject `[Shop correction]` and the shop's name.
+
+That is the designed answer to a material gap rather than a placeholder. It is
+also the reason WP4's table row above reads *content awaits sourcing*: the layer
+is built, tested and reviewable, and populating it is a sourcing task shared with
+the founder and Codex.
+
+The populated design is reviewable on `/styleguide`, from
+`src/fixtures/shop-value-specimen.ts` — one invented record, marked `demo`,
+carrying its own fixture notice, named so it cannot be mistaken for a business,
+and rendered nowhere else. Putting the specimen on the internal styleguide rather
+than on a shop page is the whole point: the design gets reviewed without a real
+business being described by content its sources do not support.
+
+### Every claim names its source
+
+Each pen-specific entry carries `confirmedBy`, holding the `label` of one of the
+record's own `sources` entries. `shopEvidenceIssues` rejects a reference that
+resolves to nothing, and the catalogue test runs it over every record — so the
+rule is enforced rather than described. The evidence registry itself is unchanged:
+the source list, its retrieval dates and its `confirms` breakdown are the same,
+and reviewer mode still renders them in full.
+
+`docs/api/fixture-contract.md` carries the field-by-field contract note,
+including the two Milestone 1 fields folded into the new sourced blocks and the
+`services` shape change. `ShopMapSummary` is untouched.
+
+### Photography
+
+Accepted decision 5, implemented as a design rather than as a disclosure: a
+paper-stock plate carrying the Nib Atlas mark, the shop name, and the shop's own
+Atlas Stamp motif as a watermark in the impression's own ink, so the marker, the
+page and the stamp read as one identity. One "Photos coming soon" caption, once.
+No repeated empty gallery slots, and no photo-count badge — a count would be a
+claim about images that do not exist.
+
+### Directions
+
+Native, per the approved experience: an Apple Maps universal link on Apple
+platforms, the `geo:` intent on Android, and OpenStreetMap's directions page where
+there is no application to hand to. The platform is read with
+`useSyncExternalStore` so the server and client agree on the first render. Only
+the destination travels; nothing sends a user position, and there is no embedded
+itinerary. The *Map position* row stays reviewer-only, as WP1 left it.
+
+### Nearby pen shops
+
+Derived from the same catalogue the map reads. A distance appears only where both
+records were placed from a sourced street address, rounded to 50 m under a
+kilometre and labelled straight-line; a locality-centroid coordinate gets "Also
+in Kobe" instead of a number it cannot support. Walking time is **not** shown —
+that needs a routing source this repository does not have, so the section departs
+from the wording in [Shop pages beyond a generic listing](#shop-pages-beyond-a-generic-listing)
+and offers distance instead. No ordering to follow, no route, no named trip.
+
+### One accessibility fix beyond the feature
+
+`--action-secondary` (`#287a78`) measured 4.34:1 for the contribution invitation
+at 14 px on the warm paper surface, failing AA. A darker step of the same accent,
+`--teal-800` / `--action-secondary-text`, was added for text-sized links and
+applied to the two inline links on the shop page, including the reviewer-mode
+source links, which had the same latent failure.
+
+### Deliberately not done in WP4
+
+- **No new sourcing.** This session did no web research, per its brief.
+- **No invented service, experience, exclusive, station, payment method or
+  language on any real record.**
+- **No photographs**, and no gallery scaffolding waiting for them.
+- **No reviews, ratings, social features, inventory, product catalogue,
+  marketplace, merchant tooling, or community publishing.** The correction route
+  is a pre-addressed mail, not a submission surface.
+- **No Near Me or distance-from-user**, which accepted decision 7 defers.
+- **No change to `ShopMapSummary`**, the map, the results sheet, or the Passport.
+- **No desktop sign-off.** The 768 and 1440 captures show responsive integrity;
+  WP-D owns the desktop treatment.
+
+### Coverage
+
+- `src/domain/shop-evidence.test.ts` — the evidence rule, including a claim whose
+  source is missing, and the value-layer gap predicate.
+- `src/domain/nearby-shops.test.ts` — distance rounding, the street-precision
+  requirement, the radius, ordering, the cap, and the real catalogue pairs.
+- `src/components/shops/directions.test.ts` — platform detection and the three
+  hrefs, including that no user position is ever carried.
+- `src/components/shops/ShopDetailView.test.tsx` — the information order, the
+  populated value layer, the gap state, silent omission of ordinary fields, the
+  identity treatment, nearby honesty, and the correction subject.
+- `src/fixtures/prototype-catalogue.test.ts` — every record's claims resolve, and
+  no record carries an invented service, experience, exclusive, access or
+  practical block.
+- `tests/e2e/shop-value.spec.ts` — the journeys at all three breakpoints.
+- `tests/evidence/wp4-shop-value.spec.ts` — the review screenshots in
+  `docs/evidence/milestone-1-5-wp4/`.
 
 ## Founder decisions recorded for later work packages
 
