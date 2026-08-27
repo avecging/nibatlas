@@ -164,14 +164,14 @@ export function ShopDetailView({
             <div className={styles.factList}>
               {access?.nearestStation || access?.walkFromStation ? (
                 <Fact icon="train" label="Nearest station">
-                  {[access.nearestStation, access.walkFromStation]
+                  {[access.nearestStation?.value, access.walkFromStation?.value]
                     .filter(Boolean)
                     .join(" · ")}
                 </Fact>
               ) : null}
               {access?.floorNote ? (
                 <Fact icon="locate" label="Finding the door">
-                  {access.floorNote}
+                  {access.floorNote.value}
                 </Fact>
               ) : null}
               {shop.addressLines && shop.addressLines.length > 0 ? (
@@ -179,24 +179,25 @@ export function ShopDetailView({
                   {shop.addressLines.join(", ")}
                 </Fact>
               ) : null}
-              {practical?.appointmentRequired ? (
+              {practical?.appointmentRequired?.value ? (
                 <Fact icon="clock" label="Appointment">
                   An appointment is required.
                 </Fact>
               ) : null}
-              {practical?.paymentMethods && practical.paymentMethods.length > 0 ? (
+              {practical?.paymentMethods &&
+              practical.paymentMethods.values.length > 0 ? (
                 <Fact icon="card" label="Payment">
-                  {practical.paymentMethods.join(", ")}
+                  {practical.paymentMethods.values.join(", ")}
                 </Fact>
               ) : null}
-              {practical?.languages && practical.languages.length > 0 ? (
+              {practical?.languages && practical.languages.values.length > 0 ? (
                 <Fact icon="globe" label="Languages">
-                  {practical.languages.join(", ")}
+                  {practical.languages.values.join(", ")}
                 </Fact>
               ) : null}
               {access?.accessibilityNote ? (
                 <Fact icon="accessibility" label="Accessibility">
-                  {access.accessibilityNote}
+                  {access.accessibilityNote.value}
                 </Fact>
               ) : null}
               {links.map((link) => (

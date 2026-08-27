@@ -1,111 +1,224 @@
 import type {
-  ShopAccessNote,
   ShopDetail,
-  ShopExclusive,
-  ShopExperience,
-  ShopPracticalInfo,
-  ShopService,
+  ShopSourceRef,
   SourcedClaim,
 } from "@/src/domain/shop-detail";
 
 /**
  * The rule that keeps WP4's value layer honest.
  *
- * Accepted decision 4 lets Claude Code define the pen-specific schema and
- * forbids it inventing the content. A schema alone cannot enforce that, so every
+ * Accepted decision 4 lets Claude Code define the pen-specific schema and forbids
+ * it inventing the content. A schema alone cannot enforce that, so every
  * pen-specific claim carries `confirmedBy` — the `label` of one of the record's
- * own `sources` entries — and this module is what checks the reference resolves.
+ * own `sources` entries — and this module checks two things, not one:
+ *
+ * 1. the reference resolves to a source actually attached to the record, and
+ * 2. **that source's own `confirms` list covers this specific claim.**
+ *
+ * The second check is the one the first WP4 attempt was missing, and the reason
+ * it mattered is concrete: TY Lee's official source confirms only
+ * `Local-script name`, so label-existence alone would have let a nib-grinding
+ * service cite it and publish. Access and practical facts are checked **per
+ * populated field** for the same reason — one confirmed station never vouches for
+ * a payment method or a spoken language.
  *
  * It reuses the evidence registry that already exists rather than adding a
- * second one: the source list, its retrieval dates and its `confirms` breakdown
- * are unchanged, and reviewer mode still renders them.
+ * second one: `ShopSourceRef` is unchanged, `confirms` is still the field-level
+ * evidence list it always was, and reviewer mode still renders the whole list
+ * with its retrieval dates.
+ *
+ * What is new is that a pen-specific claim's entry in `confirms` has a canonical
+ * form, produced by the token helpers below. Data and validator derive the token
+ * the same way from the same helper, so support is a lookup rather than a
+ * substring guess — and the tokens stay readable English, because reviewer mode
+ * prints them verbatim.
  */
 
-/** One claim whose evidence reference does not resolve. */
-export interface EvidenceIssue {
-  /** Where the claim sits: `services[0]`, `access`, `practical`. */
-  readonly path: string;
-  /** What the claim says, for a legible failure message. */
-  readonly claim: string;
-  /** The unresolved `ShopSourceRef.label` the claim pointed at. */
-  readonly confirmedBy: string;
+/** Evidence tokens for the fields of an access block. */
+export const ACCESS_EVIDENCE_TOKENS = {
+  nearestStation: "Nearest station",
+  walkFromStation: "Walking time from station",
+  floorNote: "Floor or building note",
+  accessibilityNote: "Accessibility",
+} as const;
+
+/** Evidence tokens for the fields of a practical block. */
+export const PRACTICAL_EVIDENCE_TOKENS = {
+  paymentMethods: "Payment methods",
+  languages: "Languages spoken",
+  appointmentRequired: "Appointment requirement",
+} as const;
+
+export function serviceEvidenceToken(label: string): string {
+  return `Service: ${label}`;
 }
 
+export function experienceEvidenceToken(label: string): string {
+  return `Experience: ${label}`;
+}
+
+export function exclusiveEvidenceToken(label: string): string {
+  return `Only here: ${label}`;
+}
+
+/**
+ * Compared case- and whitespace-insensitively.
+ *
+ * A record hand-edited to `service: nib alignment & tuning` means the same thing
+ * as `Service: Nib alignment & tuning`, and failing it would be pedantry rather
+ * than honesty. Nothing looser than this: no substring or prefix matching, so a
+ * source confirming `Languages of the website` can never be read as confirming
+ * the languages spoken at the counter.
+ */
+function normalise(token: string): string {
+  return token.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function confirmsSet(source: ShopSourceRef): ReadonlySet<string> {
+  return new Set(source.confirms.map(normalise));
+}
+
+/** Why a claim was rejected. */
+export type EvidenceFailure =
+  /** `confirmedBy` names no source attached to this record. */
+  | "unknown-source"
+  /** The source exists, but its `confirms` list does not cover this claim. */
+  | "claim-not-confirmed";
+
+/** One claim whose evidence does not hold. */
+export interface EvidenceIssue {
+  /** Where the claim sits: `services[0]`, `access.nearestStation`. */
+  readonly path: string;
+  /** The evidence token the source had to confirm. */
+  readonly token: string;
+  /** The `ShopSourceRef.label` the claim pointed at. */
+  readonly confirmedBy: string;
+  readonly failure: EvidenceFailure;
+}
+
+/**
+ * Checks one claim against the source it names.
+ *
+ * Returns an empty array when the named source exists **and** confirms the
+ * claim's own token; otherwise the single issue explaining which half failed.
+ */
 function claimIssues(
   shop: ShopDetail,
   path: string,
-  claim: string,
-  entry: SourcedClaim,
+  token: string,
+  claim: SourcedClaim,
 ): readonly EvidenceIssue[] {
-  const resolved = shop.sources.some(
-    (source) => source.label === entry.confirmedBy,
-  );
+  const source = shop.sources.find((entry) => entry.label === claim.confirmedBy);
 
-  return resolved
+  if (source === undefined) {
+    return [
+      { path, token, confirmedBy: claim.confirmedBy, failure: "unknown-source" },
+    ];
+  }
+
+  return confirmsSet(source).has(normalise(token))
     ? []
-    : [{ path, claim, confirmedBy: entry.confirmedBy }];
-}
-
-/** Names an access or practical block well enough to read in a failure. */
-function summarise(parts: readonly (string | undefined)[]): string {
-  return parts.filter((part) => part !== undefined && part !== "").join(" · ");
-}
-
-function accessSummary(access: ShopAccessNote): string {
-  return summarise([
-    access.nearestStation,
-    access.walkFromStation,
-    access.floorNote,
-    access.accessibilityNote,
-  ]);
-}
-
-function practicalSummary(practical: ShopPracticalInfo): string {
-  return summarise([
-    practical.paymentMethods?.join(", "),
-    practical.languages?.join(", "),
-    practical.appointmentRequired === undefined
-      ? undefined
-      : `appointment required: ${practical.appointmentRequired}`,
-  ]);
+    : [
+        {
+          path,
+          token,
+          confirmedBy: claim.confirmedBy,
+          failure: "claim-not-confirmed",
+        },
+      ];
 }
 
 /**
  * Every unsupported pen-specific claim on a record.
  *
- * An empty array is the only acceptable result. The catalogue test asserts it
- * for every shop, so a claim can never reach a shop page without the source
- * that backs it travelling with the record.
+ * An empty array is the only acceptable result. The catalogue test asserts it for
+ * every shop, so a claim can never reach a shop page unless the source that backs
+ * it travels with the record *and* says it backs that claim.
  */
 export function shopEvidenceIssues(shop: ShopDetail): readonly EvidenceIssue[] {
   const issues: EvidenceIssue[] = [];
 
-  (shop.services ?? []).forEach((service: ShopService, index) => {
-    issues.push(...claimIssues(shop, `services[${index}]`, service.label, service));
-  });
-
-  (shop.experiences ?? []).forEach((experience: ShopExperience, index) => {
+  (shop.services ?? []).forEach((service, index) => {
     issues.push(
-      ...claimIssues(shop, `experiences[${index}]`, experience.label, experience),
+      ...claimIssues(
+        shop,
+        `services[${index}]`,
+        serviceEvidenceToken(service.label),
+        service,
+      ),
     );
   });
 
-  (shop.exclusives ?? []).forEach((exclusive: ShopExclusive, index) => {
+  (shop.experiences ?? []).forEach((experience, index) => {
     issues.push(
-      ...claimIssues(shop, `exclusives[${index}]`, exclusive.label, exclusive),
+      ...claimIssues(
+        shop,
+        `experiences[${index}]`,
+        experienceEvidenceToken(experience.label),
+        experience,
+      ),
     );
   });
 
-  if (shop.access) {
+  (shop.exclusives ?? []).forEach((exclusive, index) => {
     issues.push(
-      ...claimIssues(shop, "access", accessSummary(shop.access), shop.access),
+      ...claimIssues(
+        shop,
+        `exclusives[${index}]`,
+        exclusiveEvidenceToken(exclusive.label),
+        exclusive,
+      ),
     );
+  });
+
+  // Per populated field, in a fixed order so a failure list reads the same way
+  // every run. An absent field is not checked; a present one is checked against
+  // its own token and its own source.
+  const access = shop.access;
+
+  if (access) {
+    for (const field of [
+      "nearestStation",
+      "walkFromStation",
+      "floorNote",
+      "accessibilityNote",
+    ] as const) {
+      const claim = access[field];
+
+      if (claim) {
+        issues.push(
+          ...claimIssues(
+            shop,
+            `access.${field}`,
+            ACCESS_EVIDENCE_TOKENS[field],
+            claim,
+          ),
+        );
+      }
+    }
   }
 
-  if (shop.practical) {
-    issues.push(
-      ...claimIssues(shop, "practical", practicalSummary(shop.practical), shop.practical),
-    );
+  const practical = shop.practical;
+
+  if (practical) {
+    for (const field of [
+      "paymentMethods",
+      "languages",
+      "appointmentRequired",
+    ] as const) {
+      const claim = practical[field];
+
+      if (claim) {
+        issues.push(
+          ...claimIssues(
+            shop,
+            `practical.${field}`,
+            PRACTICAL_EVIDENCE_TOKENS[field],
+            claim,
+          ),
+        );
+      }
+    }
   }
 
   return issues;

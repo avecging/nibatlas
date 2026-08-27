@@ -1738,9 +1738,12 @@ header. It is recorded here because it is the one place in the order where a
 usability argument pulls the other way: on a 360 px screen Save and Collect are
 now below the fold. The approved order was followed rather than split, because
 the page's job is to answer "is this worth the trip?" before it offers to act on
-the answer — and the founder's own prototype ordered it that way. If the founder
-would rather have the actions in the header as well, that is a one-line change
-and a decision, not a rework.
+the answer — and the founder's own prototype ordered it that way.
+
+**Decided by the founder, 27 August 2026:** do not duplicate the action block in
+the header for now. Keep the approved information order and evaluate it on
+staging; Save and Collect sitting below the first mobile viewport is not
+automatically a defect.
 
 ### The data, and the one honest outcome of it
 
@@ -1765,18 +1768,38 @@ and rendered nowhere else. Putting the specimen on the internal styleguide rathe
 than on a shop page is the whole point: the design gets reviewed without a real
 business being described by content its sources do not support.
 
-### Every claim names its source
+### Every claim names a source that confirms it
 
 Each pen-specific entry carries `confirmedBy`, holding the `label` of one of the
-record's own `sources` entries. `shopEvidenceIssues` rejects a reference that
-resolves to nothing, and the catalogue test runs it over every record — so the
-rule is enforced rather than described. The evidence registry itself is unchanged:
-the source list, its retrieval dates and its `confirms` breakdown are the same,
-and reviewer mode still renders them in full.
+record's own `sources` entries — and `shopEvidenceIssues` requires the named
+source's own `confirms` list to cover *that* claim, not merely to exist.
 
-`docs/api/fixture-contract.md` carries the field-by-field contract note,
-including the two Milestone 1 fields folded into the new sourced blocks and the
-`services` shape change. `ShopMapSummary` is untouched.
+The first version of this check tested label existence alone, which Codex's
+review correctly called a P2: TY Lee's official source confirms only the shop's
+local-script name, so a nib-grinding service could have cited it and the
+catalogue test would have passed. Fixed by comparing a canonical evidence token —
+`Service: Custom grind`, `Nearest station` — produced by one helper used by both
+the data and the validator, so support is a lookup rather than a substring guess.
+Comparison normalises case and whitespace and nothing looser.
+
+Access and practical facts are now sourced **per field** rather than per block, so
+a source that publishes a station cannot implicitly vouch for a payment method or
+a spoken language. That makes the hole unsayable rather than merely detectable,
+and lets one block rest on two sources.
+
+The evidence registry itself is unchanged: `ShopSourceRef`, the source list, its
+retrieval dates and its `confirms` breakdown are the same, and reviewer mode still
+renders them in full — the tokens are readable English precisely because it
+prints them verbatim.
+
+`docs/api/fixture-contract.md` carries the field-by-field contract note, including
+the two Milestone 1 fields folded into the new sourced blocks, the `services`
+shape change, the per-field access and practical shapes, and the Milestone 3
+mapping. **Decided by the founder, 27 August 2026:** that projection should use a
+stable source id rather than a display label; the label reference here is the
+smallest change compatible with the registry as it stands, and it fails loudly
+rather than silently because the catalogue test resolves every reference.
+`ShopMapSummary` is untouched.
 
 ### Photography
 
@@ -1819,6 +1842,11 @@ source links, which had the same latent failure.
 - **No new sourcing.** This session did no web research, per its brief.
 - **No invented service, experience, exclusive, station, payment method or
   language on any real record.**
+- **No floor note derived from a Singapore unit number.** `#03-33` could be read
+  as "third floor of The Adelphi", but that is an interpretation of the address,
+  and the address is already shown verbatim. **Decided by the founder,
+  27 August 2026:** keep the sourced address as it stands and do not duplicate an
+  inferred reading of it.
 - **No photographs**, and no gallery scaffolding waiting for them.
 - **No reviews, ratings, social features, inventory, product catalogue,
   marketplace, merchant tooling, or community publishing.** The correction route
@@ -1830,8 +1858,12 @@ source links, which had the same latent failure.
 
 ### Coverage
 
-- `src/domain/shop-evidence.test.ts` — the evidence rule, including a claim whose
-  source is missing, and the value-layer gap predicate.
+- `src/domain/shop-evidence.test.ts` — the evidence rule in both halves: an
+  unattached source, an attached but unrelated one (the real TY Lee official
+  source against a nib service), one supported field failing to validate another
+  in the same block, two sources supporting two fields of one block, a falsy
+  claim still needing evidence, similar wording never counting as support, and
+  the fully supported specimen passing. Plus the value-layer gap predicate.
 - `src/domain/nearby-shops.test.ts` — distance rounding, the street-precision
   requirement, the radius, ordering, the cap, and the real catalogue pairs.
 - `src/components/shops/directions.test.ts` — platform detection and the three

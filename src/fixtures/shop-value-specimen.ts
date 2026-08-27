@@ -1,4 +1,11 @@
 import { COUNTRY_LABELS, type ShopDetail } from "@/src/domain/shop-detail";
+import {
+  ACCESS_EVIDENCE_TOKENS,
+  exclusiveEvidenceToken,
+  experienceEvidenceToken,
+  PRACTICAL_EVIDENCE_TOKENS,
+  serviceEvidenceToken,
+} from "@/src/domain/shop-evidence";
 import { inkForStampKey, STAMP_PALETTE_VERSION } from "@/src/domain/stamp-palette";
 import { PROTOTYPE_DESIGN_VERSION } from "@/src/fixtures/prototype-catalogue";
 
@@ -17,8 +24,10 @@ import { PROTOTYPE_DESIGN_VERSION } from "@/src/fixtures/prototype-catalogue";
  * shop page, the map, search, or the Passport, and `prototype-catalogue.ts` does
  * not import it.
  *
- * Its own `confirmedBy` references resolve against its own specimen source, so
- * the evidence rule is exercised rather than bypassed.
+ * Its `confirmedBy` references resolve against its own specimen source, and that
+ * source's `confirms` list is built from the same evidence tokens the validator
+ * compares — so the record satisfies the rule the way a real sourced record will
+ * have to, rather than bypassing it.
  */
 const SPECIMEN_SOURCE = "Specimen record — component styleguide only, not a real business";
 
@@ -86,17 +95,21 @@ export const shopValueSpecimen: ShopDetail = {
     },
   ],
   access: {
-    nearestStation: "Specimen Station, exit B2",
-    walkFromStation: "4 minutes on foot",
-    floorNote: "Third floor of the Specimen Building; use the rear lift.",
-    accessibilityNote: "Step-free from the lift lobby.",
-    confirmedBy: SPECIMEN_SOURCE,
+    nearestStation: { value: "Specimen Station, exit B2", confirmedBy: SPECIMEN_SOURCE },
+    walkFromStation: { value: "4 minutes on foot", confirmedBy: SPECIMEN_SOURCE },
+    floorNote: {
+      value: "Third floor of the Specimen Building; use the rear lift.",
+      confirmedBy: SPECIMEN_SOURCE,
+    },
+    accessibilityNote: {
+      value: "Step-free from the lift lobby.",
+      confirmedBy: SPECIMEN_SOURCE,
+    },
   },
   practical: {
-    paymentMethods: ["Cash", "Credit card"],
-    languages: ["Japanese", "English"],
-    appointmentRequired: false,
-    confirmedBy: SPECIMEN_SOURCE,
+    paymentMethods: { values: ["Cash", "Credit card"], confirmedBy: SPECIMEN_SOURCE },
+    languages: { values: ["Japanese", "English"], confirmedBy: SPECIMEN_SOURCE },
+    appointmentRequired: { value: false, confirmedBy: SPECIMEN_SOURCE },
   },
   positionPrecision: "street",
   sources: [
@@ -104,7 +117,25 @@ export const shopValueSpecimen: ShopDetail = {
       label: SPECIMEN_SOURCE,
       retrievedOn: "2026-08-27",
       kind: "founder_visit",
-      confirms: ["Specimen content only"],
+      // The field-level evidence list, in the canonical token form the validator
+      // compares. Built from the helpers rather than typed out, so the specimen
+      // cannot drift out of agreement with the claims above.
+      confirms: [
+        "Specimen content only",
+        serviceEvidenceToken("Nib alignment & tuning"),
+        serviceEvidenceToken("Custom grind"),
+        serviceEvidenceToken("Vintage sac replacement"),
+        experienceEvidenceToken("Test bench"),
+        experienceEvidenceToken("Monthly nib clinic"),
+        exclusiveEvidenceToken("House ink — Bench No.4"),
+        ACCESS_EVIDENCE_TOKENS.nearestStation,
+        ACCESS_EVIDENCE_TOKENS.walkFromStation,
+        ACCESS_EVIDENCE_TOKENS.floorNote,
+        ACCESS_EVIDENCE_TOKENS.accessibilityNote,
+        PRACTICAL_EVIDENCE_TOKENS.paymentMethods,
+        PRACTICAL_EVIDENCE_TOKENS.languages,
+        PRACTICAL_EVIDENCE_TOKENS.appointmentRequired,
+      ],
     },
   ],
   stamp: {

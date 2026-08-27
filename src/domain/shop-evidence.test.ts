@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import type { ShopDetail } from "@/src/domain/shop-detail";
-import { hasSourcedValueLayer, shopEvidenceIssues } from "@/src/domain/shop-evidence";
+import type { ShopDetail, ShopSourceRef } from "@/src/domain/shop-detail";
+import {
+  ACCESS_EVIDENCE_TOKENS,
+  exclusiveEvidenceToken,
+  experienceEvidenceToken,
+  hasSourcedValueLayer,
+  PRACTICAL_EVIDENCE_TOKENS,
+  serviceEvidenceToken,
+  shopEvidenceIssues,
+} from "@/src/domain/shop-evidence";
+import { findPrototypeShop } from "@/src/fixtures/prototype-catalogue";
 import { shopValueSpecimen } from "@/src/fixtures/shop-value-specimen";
 
 const SOURCE = shopValueSpecimen.sources[0]!.label;
@@ -21,71 +30,291 @@ function withClaims(patch: ShopOverrides): ShopDetail {
   return { ...shopValueSpecimen, ...patch } as ShopDetail;
 }
 
-describe("shopEvidenceIssues", () => {
-  it("accepts a record whose every claim names one of its own sources", () => {
-    // The specimen carries a service, an experience, an exclusive, an access
-    // block and a practical block, all pointing at its single source.
+/** A record carrying exactly the sources a test wants to reason about. */
+function withSources(
+  sources: readonly ShopSourceRef[],
+  patch: ShopOverrides,
+): ShopDetail {
+  return withClaims({ ...patch, sources });
+}
+
+const bare = {
+  services: undefined,
+  experiences: undefined,
+  exclusives: undefined,
+  access: undefined,
+  practical: undefined,
+} as const;
+
+describe("shopEvidenceIssues — a fully supported record", () => {
+  it("accepts the specimen, whose source confirms every claim it makes", () => {
+    // Services, experiences, an exclusive, four access fields and three
+    // practical fields, each named in the source's own `confirms` list.
     expect(shopEvidenceIssues(shopValueSpecimen)).toEqual([]);
   });
 
-  it("rejects a claim whose source is not on the record", () => {
+  it("has nothing to check on a record with no pen-specific claims", () => {
+    expect(shopEvidenceIssues(withClaims(bare))).toEqual([]);
+  });
+});
+
+describe("shopEvidenceIssues — a source that is not attached", () => {
+  it("rejects a claim naming a source the record does not carry", () => {
     const shop = withClaims({
+      ...bare,
+      services: [{ label: "Nib grinding", confirmedBy: "A source nobody attached" }],
+    });
+
+    expect(shopEvidenceIssues(shop)).toEqual([
+      {
+        path: "services[0]",
+        token: "Service: Nib grinding",
+        confirmedBy: "A source nobody attached",
+        failure: "unknown-source",
+      },
+    ]);
+  });
+});
+
+describe("shopEvidenceIssues — an attached but unrelated source", () => {
+  /**
+   * The defect the P2 review found, as a test.
+   *
+   * TY Lee's own website is a real, attached, `official` source — and it confirms
+   * only the shop's local-script name. Naming it must not publish a nib service.
+   */
+  it("rejects a service citing a source whose evidence does not cover it", () => {
+    const tyLee = findPrototypeShop("ty-lee-pen-shop")!;
+    const official = tyLee.sources.find((source) => source.kind === "official")!;
+
+    expect(official.confirms).toEqual(["Local-script name"]);
+
+    const shop = withSources(tyLee.sources, {
+      ...bare,
       services: [
-        { label: "Nib grinding", confirmedBy: "A source nobody attached" },
+        {
+          label: "Nib alignment & tuning",
+          accessMode: "walk_in",
+          confirmedBy: official.label,
+        },
       ],
     });
 
     expect(shopEvidenceIssues(shop)).toEqual([
       {
         path: "services[0]",
-        claim: "Nib grinding",
-        confirmedBy: "A source nobody attached",
+        token: "Service: Nib alignment & tuning",
+        confirmedBy: official.label,
+        failure: "claim-not-confirmed",
       },
     ]);
   });
 
-  it("names the position of the claim, so a failure is findable", () => {
-    const shop = withClaims({
-      services: [
-        { label: "Fine", confirmedBy: SOURCE },
-        { label: "Broken", confirmedBy: "missing" },
-      ],
-      experiences: [{ label: "Also broken", confirmedBy: "missing" }],
-      exclusives: [{ label: "Broken too", confirmedBy: "missing" }],
+  it("rejects an experience and an exclusive on the same footing", () => {
+    const source: ShopSourceRef = {
+      label: "Only confirms the address",
+      retrievedOn: "2026-08-27",
+      kind: "official",
+      confirms: ["Address"],
+    };
+
+    const shop = withSources([source], {
+      ...bare,
+      experiences: [{ label: "Test bench", confirmedBy: source.label }],
+      exclusives: [{ label: "House ink", confirmedBy: source.label }],
     });
 
-    expect(shopEvidenceIssues(shop).map((issue) => issue.path)).toEqual([
-      "services[1]",
-      "experiences[0]",
-      "exclusives[0]",
+    expect(shopEvidenceIssues(shop).map((issue) => [issue.path, issue.failure])).toEqual([
+      ["experiences[0]", "claim-not-confirmed"],
+      ["exclusives[0]", "claim-not-confirmed"],
     ]);
   });
 
-  it("checks the access and practical blocks, and describes them legibly", () => {
-    const shop = withClaims({
-      services: undefined,
-      experiences: undefined,
-      exclusives: undefined,
-      access: { nearestStation: "Somewhere", confirmedBy: "missing" },
-      practical: { languages: ["English"], confirmedBy: "missing" },
+  it("does not let one claim's evidence cover a differently named claim", () => {
+    // The source confirms the alignment service and nothing else, so the second
+    // service is unsupported even though the first one is fine.
+    const source: ShopSourceRef = {
+      label: "Confirms one service",
+      retrievedOn: "2026-08-27",
+      kind: "official",
+      confirms: [serviceEvidenceToken("Nib alignment & tuning")],
+    };
+
+    const shop = withSources([source], {
+      ...bare,
+      services: [
+        { label: "Nib alignment & tuning", confirmedBy: source.label },
+        { label: "Custom grind", confirmedBy: source.label },
+      ],
     });
 
     expect(shopEvidenceIssues(shop)).toEqual([
-      { path: "access", claim: "Somewhere", confirmedBy: "missing" },
-      { path: "practical", claim: "English", confirmedBy: "missing" },
+      {
+        path: "services[1]",
+        token: "Service: Custom grind",
+        confirmedBy: source.label,
+        failure: "claim-not-confirmed",
+      },
     ]);
   });
 
-  it("has nothing to check on a record with no pen-specific claims", () => {
-    const bare = withClaims({
-      services: undefined,
-      experiences: undefined,
-      exclusives: undefined,
-      access: undefined,
-      practical: undefined,
+  it("never reads a similarly worded confirmation as support", () => {
+    // "Languages of the website" is not "Languages spoken". No substring or
+    // prefix matching, so this stays a rejection.
+    const source: ShopSourceRef = {
+      label: "Confirms the website's languages",
+      retrievedOn: "2026-08-27",
+      kind: "official",
+      confirms: ["Languages of the website"],
+    };
+
+    const shop = withSources([source], {
+      ...bare,
+      practical: { languages: { values: ["English"], confirmedBy: source.label } },
     });
 
-    expect(shopEvidenceIssues(bare)).toEqual([]);
+    expect(shopEvidenceIssues(shop).map((issue) => issue.path)).toEqual([
+      "practical.languages",
+    ]);
+  });
+});
+
+describe("shopEvidenceIssues — access and practical are checked per field", () => {
+  /**
+   * One supported field must not validate another.
+   *
+   * The source publishes a station. It says nothing about the floor, the payment
+   * methods, the languages, or whether an appointment is needed, and each of
+   * those is rejected on its own.
+   */
+  const stationOnly: ShopSourceRef = {
+    label: "Station notice, confirms the station only",
+    retrievedOn: "2026-08-27",
+    kind: "official",
+    confirms: [ACCESS_EVIDENCE_TOKENS.nearestStation],
+  };
+
+  it("accepts the confirmed field and rejects every other populated one", () => {
+    const shop = withSources([stationOnly], {
+      ...bare,
+      access: {
+        nearestStation: { value: "Specimen Station", confirmedBy: stationOnly.label },
+        walkFromStation: { value: "4 minutes on foot", confirmedBy: stationOnly.label },
+        floorNote: { value: "Third floor", confirmedBy: stationOnly.label },
+        accessibilityNote: { value: "Step-free", confirmedBy: stationOnly.label },
+      },
+      practical: {
+        paymentMethods: { values: ["Cash"], confirmedBy: stationOnly.label },
+        languages: { values: ["Japanese"], confirmedBy: stationOnly.label },
+        appointmentRequired: { value: true, confirmedBy: stationOnly.label },
+      },
+    });
+
+    // `access.nearestStation` is absent from the failures: it is the one field
+    // this source actually supports.
+    expect(shopEvidenceIssues(shop).map((issue) => issue.path)).toEqual([
+      "access.walkFromStation",
+      "access.floorNote",
+      "access.accessibilityNote",
+      "practical.paymentMethods",
+      "practical.languages",
+      "practical.appointmentRequired",
+    ]);
+  });
+
+  it("checks each field against its own token", () => {
+    const shop = withSources([stationOnly], {
+      ...bare,
+      access: { floorNote: { value: "Third floor", confirmedBy: stationOnly.label } },
+    });
+
+    expect(shopEvidenceIssues(shop)).toEqual([
+      {
+        path: "access.floorNote",
+        token: ACCESS_EVIDENCE_TOKENS.floorNote,
+        confirmedBy: stationOnly.label,
+        failure: "claim-not-confirmed",
+      },
+    ]);
+  });
+
+  it("lets different fields of one block rest on different sources", () => {
+    const station: ShopSourceRef = {
+      label: "Confirms the station",
+      retrievedOn: "2026-08-27",
+      kind: "official",
+      confirms: [ACCESS_EVIDENCE_TOKENS.nearestStation],
+    };
+    const payment: ShopSourceRef = {
+      label: "Confirms the payment methods",
+      retrievedOn: "2026-08-27",
+      kind: "brand_dealer_list",
+      confirms: [PRACTICAL_EVIDENCE_TOKENS.paymentMethods],
+    };
+
+    const shop = withSources([station, payment], {
+      ...bare,
+      access: { nearestStation: { value: "Specimen Station", confirmedBy: station.label } },
+      practical: { paymentMethods: { values: ["Cash"], confirmedBy: payment.label } },
+    });
+
+    expect(shopEvidenceIssues(shop)).toEqual([]);
+  });
+
+  it("ignores an absent field rather than demanding evidence for it", () => {
+    const shop = withSources([stationOnly], {
+      ...bare,
+      access: { nearestStation: { value: "Specimen Station", confirmedBy: stationOnly.label } },
+    });
+
+    expect(shopEvidenceIssues(shop)).toEqual([]);
+  });
+
+  it("still checks a field whose value is falsy", () => {
+    // `appointmentRequired: false` is a claim about the shop, not an absence, so
+    // it needs evidence like any other.
+    const shop = withSources([stationOnly], {
+      ...bare,
+      practical: { appointmentRequired: { value: false, confirmedBy: stationOnly.label } },
+    });
+
+    expect(shopEvidenceIssues(shop).map((issue) => issue.path)).toEqual([
+      "practical.appointmentRequired",
+    ]);
+  });
+});
+
+describe("evidence tokens", () => {
+  it("are readable English, because reviewer mode prints them verbatim", () => {
+    expect(serviceEvidenceToken("Custom grind")).toBe("Service: Custom grind");
+    expect(experienceEvidenceToken("Test bench")).toBe("Experience: Test bench");
+    expect(exclusiveEvidenceToken("House ink")).toBe("Only here: House ink");
+  });
+
+  it("compare case- and whitespace-insensitively, and nothing looser", () => {
+    const source: ShopSourceRef = {
+      label: "Hand-edited casing",
+      retrievedOn: "2026-08-27",
+      kind: "official",
+      confirms: ["  service:   custom GRIND "],
+    };
+
+    const shop = withSources([source], {
+      ...bare,
+      services: [{ label: "Custom grind", confirmedBy: source.label }],
+    });
+
+    expect(shopEvidenceIssues(shop)).toEqual([]);
+
+    // A prefix is not support: "Custom grind, wet" is a different claim.
+    const wider = withSources([source], {
+      ...bare,
+      services: [{ label: "Custom grind, wet", confirmedBy: source.label }],
+    });
+
+    expect(shopEvidenceIssues(wider).map((issue) => issue.failure)).toEqual([
+      "claim-not-confirmed",
+    ]);
   });
 });
 
@@ -96,8 +325,7 @@ describe("hasSourcedValueLayer", () => {
 
   it("is true on an exclusive alone — that is a reason to travel by itself", () => {
     const shop = withClaims({
-      services: undefined,
-      experiences: undefined,
+      ...bare,
       exclusives: [{ label: "House ink", confirmedBy: SOURCE }],
     });
 
@@ -107,14 +335,7 @@ describe("hasSourcedValueLayer", () => {
   it("is false when only ordinary directory fields are known", () => {
     // An address, hours and a brand list do not answer the question the section
     // exists to answer, so this is the gap state.
-    const shop = withClaims({
-      services: undefined,
-      experiences: undefined,
-      exclusives: undefined,
-      brands: ["Sailor"],
-    });
-
-    expect(hasSourcedValueLayer(shop)).toBe(false);
+    expect(hasSourcedValueLayer(withClaims({ ...bare, brands: ["Sailor"] }))).toBe(false);
   });
 
   it("does not count an empty list as an answer", () => {

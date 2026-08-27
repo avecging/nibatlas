@@ -86,8 +86,13 @@ export const SERVICE_ACCESS_MODE_LABELS: Record<ServiceAccessMode, string> = {
  * `confirmedBy` holds the `label` of one of the record's own {@link ShopSourceRef}
  * entries — the evidence registry that already exists — so a pen-specific claim
  * cannot be written without pointing at the source it came from.
- * `shopEvidenceIssues` in `src/domain/shop-evidence.ts` rejects a reference that
- * resolves to nothing, and the catalogue test runs it over every record.
+ *
+ * Naming the source is necessary but not sufficient. `shopEvidenceIssues` in
+ * `src/domain/shop-evidence.ts` also requires the named source's own `confirms`
+ * list to cover *this* claim: a service may not lean on a source that confirms
+ * only a shop's local-script name, and one confirmed field of an access or
+ * practical block never validates another. See that module for the rule and the
+ * evidence tokens it compares.
  *
  * This is the mechanism accepted decision 4 asks for: Claude Code may define the
  * optional schema, and must never invent services, experiences, exclusives, or
@@ -96,6 +101,27 @@ export const SERVICE_ACCESS_MODE_LABELS: Record<ServiceAccessMode, string> = {
 export interface SourcedClaim {
   /** `ShopSourceRef.label` of the source that confirms this claim. */
   readonly confirmedBy: string;
+}
+
+/**
+ * One practical fact, with the source that confirms *it*.
+ *
+ * Access and practical facts are sourced per field rather than per block. A
+ * block-level reference would let one source that publishes a station implicitly
+ * vouch for a payment method and a spoken language it says nothing about, which
+ * is exactly the hole the first WP4 attempt left open — a check alone would have
+ * caught it, but the type now makes it unsayable.
+ */
+export interface SourcedText extends SourcedClaim {
+  readonly value: string;
+}
+
+export interface SourcedList extends SourcedClaim {
+  readonly values: readonly string[];
+}
+
+export interface SourcedFlag extends SourcedClaim {
+  readonly value: boolean;
 }
 
 /** Something a visitor can have done to a pen, with how it is reached. */
@@ -125,21 +151,21 @@ export interface ShopExclusive extends SourcedClaim {
  *
  * The two practical facts a general listing never carries: which station you
  * walk from, and the building or floor note that decides whether you find the
- * door at all.
+ * door at all. Each carries its own source.
  */
-export interface ShopAccessNote extends SourcedClaim {
-  readonly nearestStation?: string;
+export interface ShopAccessNote {
+  readonly nearestStation?: SourcedText;
   /** Walking guidance exactly as the source words it. Never computed. */
-  readonly walkFromStation?: string;
-  readonly floorNote?: string;
-  readonly accessibilityNote?: string;
+  readonly walkFromStation?: SourcedText;
+  readonly floorNote?: SourcedText;
+  readonly accessibilityNote?: SourcedText;
 }
 
 /** Practical facts that decide whether a visit works: payment, language, booking. */
-export interface ShopPracticalInfo extends SourcedClaim {
-  readonly paymentMethods?: readonly string[];
-  readonly languages?: readonly string[];
-  readonly appointmentRequired?: boolean;
+export interface ShopPracticalInfo {
+  readonly paymentMethods?: SourcedList;
+  readonly languages?: SourcedList;
+  readonly appointmentRequired?: SourcedFlag;
 }
 
 export interface ShopDetail extends ShopMapSummary {

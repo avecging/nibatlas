@@ -99,8 +99,8 @@ New optional fields, all on `ShopDetail` only:
 | `services` | `readonly ShopService[]` | A service with `accessMode` (`walk_in`, `booking`, `send_in`, `enquire`) and a sourced `duration`. Separates a repair bench from a shelf |
 | `experiences` | `readonly ShopExperience[]` | Test bench, ink wall, clinics, and whether they need booking |
 | `exclusives` | `readonly ShopExclusive[]` | Shop-only inks and editions — the field a general listing cannot have |
-| `access` | `ShopAccessNote` | Nearest station, walking guidance as the source words it, floor/building note, accessibility note |
-| `practical` | `ShopPracticalInfo` | Payment methods, languages spoken, appointment requirement |
+| `access` | `ShopAccessNote` | Nearest station, walking guidance as the source words it, floor/building note, accessibility note — **each field sourced separately** |
+| `practical` | `ShopPracticalInfo` | Payment methods, languages spoken, appointment requirement — **each field sourced separately** |
 
 Two Milestone 1 fields were folded into those blocks rather than left beside
 them, so that a practical claim cannot exist without the evidence reference the
@@ -115,24 +115,81 @@ walk-in or a three-day send-in, which is the distinction the section exists to
 make. **Nothing populated any of the three fields in their old form**, so no data
 was migrated and no other surface read them.
 
-### Every pen-specific claim names its source
+### Every pen-specific claim names a source that confirms *it*
 
-Each new entry carries `confirmedBy: string`, holding the `label` of one of the
+Each entry carries `confirmedBy: string`, holding the `label` of one of the
 record's own `sources` entries. This reuses the evidence registry that already
-exists — the source list, its `retrievedOn` dates and its `confirms` breakdown
-are unchanged, and reviewer mode still renders them in full.
+exists — `ShopSourceRef` is unchanged, `confirms` is still the field-level
+evidence list it always was, and reviewer mode still renders the whole list with
+its retrieval dates.
 
-`shopEvidenceIssues` in `src/domain/shop-evidence.ts` returns every claim whose
-reference does not resolve, and `prototype-catalogue.test.ts` asserts the result
-is empty for every record. A claim therefore cannot reach a shop page without the
-source that backs it travelling with it.
+`shopEvidenceIssues` in `src/domain/shop-evidence.ts` checks **two** things per
+claim, and `prototype-catalogue.test.ts` asserts the result is empty for every
+record:
+
+1. `confirmedBy` resolves to a source actually attached to the record
+   (`failure: "unknown-source"`), and
+2. **that source's own `confirms` list covers this specific claim**
+   (`failure: "claim-not-confirmed"`).
+
+The second check exists because the first alone is not honesty. TY Lee's official
+source confirms only `Local-script name`; label-existence alone would have let a
+nib-grinding service cite it and publish.
+
+A pen-specific claim's `confirms` entry therefore has a canonical form, produced
+by the token helpers in the same module — `serviceEvidenceToken`,
+`experienceEvidenceToken`, `exclusiveEvidenceToken`, `ACCESS_EVIDENCE_TOKENS`,
+`PRACTICAL_EVIDENCE_TOKENS`. Data and validator derive the token from the same
+helper, so support is a lookup rather than a substring guess, and the tokens stay
+readable English (`Service: Custom grind`, `Nearest station`) because reviewer
+mode prints them verbatim. Comparison normalises case and whitespace and nothing
+looser: a source confirming `Languages of the website` never counts as confirming
+`Languages spoken`, and `Custom grind` never covers `Custom grind, wet`.
+
+The Milestone 1 fields keep their existing prose entries (`Name`, `Address`,
+`Opening hours`); they are not validated by this function, which checks only the
+pen-specific claims.
+
+#### Access and practical facts are sourced per field
+
+`access` and `practical` do **not** carry one block-level `confirmedBy`. Each
+populated field is its own `SourcedText`, `SourcedList` or `SourcedFlag`, with its
+own `confirmedBy`:
+
+```ts
+access: {
+  nearestStation: { value: "…", confirmedBy: "…" },
+  floorNote: { value: "…", confirmedBy: "…" },
+}
+```
+
+A block-level reference would let one source that publishes a station implicitly
+vouch for a payment method and a spoken language it says nothing about. Per-field
+values make that unsayable rather than merely detectable, and they let one block
+rest on two sources — a station from an official page, payment methods from a
+dealer listing. An absent field is not checked; a present one is, including
+`appointmentRequired: { value: false }`, which is a claim about the shop rather
+than an absence.
+
+#### Milestone 3 mapping
 
 Milestone 3 should be able to satisfy the same shape from
-`GET /api/v1/shops/[slug]`. The natural mapping is the join-table `note`,
-`confidence`, `source_id` columns `DATA-MODEL.md` already reserves on
-`shop_services` and its siblings, with `confirmedBy` projected from `source_id`.
-Nothing here asks for a schema change; if Codex would rather project a source id
-than a label, that is a coordination point and a one-line change in this module.
+`GET /api/v1/shops/[slug]`. **Project `confirmedBy` from a stable source id, not
+from a display label** — that is the founder's recorded preference, and a label is
+display prose that can be reworded. The mapping:
+
+| Frontend | Database |
+| --- | --- |
+| `services[]`, `experiences[]`, `exclusives[]` | `shop_services` / `shop_specialties`-style join rows, one per claim |
+| a claim's `confirmedBy` | that join row's `source_id` → `shop_sources.id` |
+| an `access`/`practical` field's `confirmedBy` | the same, per attribute row |
+| the evidence token in `confirms` | derived server-side from the attribute row; the API need not send a token list at all if every claim already carries a resolved `source_id` |
+
+`ShopSourceRef` gains an `id` at that point and `confirmedBy` becomes that id.
+Nothing in this PR asks for a schema change: the label reference is the smallest
+change compatible with the registry as it stands, and it fails loudly rather than
+silently if a label is reworded, because the catalogue test resolves every
+reference.
 
 ### `nearbyPenShops` is derived, not stored
 
@@ -152,3 +209,7 @@ in the prototype catalogue publishes a service, an experience, a shop-only item,
 a station, a payment method or a language, so the populated design would otherwise
 be unreviewable. It is not imported by `prototype-catalogue.ts` and never reaches
 a shop page, the map, search, or the Passport.
+
+Its specimen source's `confirms` list is built from the same token helpers the
+validator compares, so the record satisfies the evidence rule the way a real
+sourced record will have to rather than bypassing it.
