@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import {
   ACCOUNT_PREVIEW_STORAGE_KEY,
@@ -17,6 +17,19 @@ import {
  * the one property the account seam exists for — that a normal-mode device can
  * never be put into the signed-in state.
  */
+/**
+ * Each row's result is its own named live region, and a sibling of the button
+ * rather than a descendant — a live region nested in a button is flattened into
+ * that button's accessible name and never announced.
+ */
+function clearResult(page: Page) {
+  return page.getByRole("status", { name: /clear data on this device result/i });
+}
+
+function downloadResult(page: Page) {
+  return page.getByRole("status", { name: /download local data result/i });
+}
+
 test.describe("signed out", () => {
   test("offers an account, and locates the reader's data on the device", async ({
     page,
@@ -104,7 +117,7 @@ test.describe("signed out", () => {
     ).toBeVisible();
     await page.getByRole("button", { name: /^clear this device$/i }).click();
 
-    await expect(page.getByRole("status")).toContainText(/removed from this browser/i);
+    await expect(clearResult(page)).toContainText(/removed from this browser/i);
     await expect(page.getByText(/nothing from nib atlas/i)).toHaveCount(0);
   });
 
@@ -182,7 +195,7 @@ test.describe("local data controls", () => {
     await trigger.click();
     await page.getByRole("button", { name: /^clear this device$/i }).click();
 
-    await expect(page.getByRole("status")).toContainText(/cleared/i);
+    await expect(clearResult(page)).toContainText(/cleared/i);
     await expect(page.getByRole("region", { name: /places visited/i })).toHaveCount(0);
 
     /*
@@ -237,10 +250,79 @@ test.describe("local data controls", () => {
 
     await page.keyboard.press("Enter");
 
-    await expect(page.getByRole("status")).toContainText(/removed from this browser/i);
+    await expect(clearResult(page)).toContainText(/removed from this browser/i);
     await expect(
       page.getByRole("button", { name: /clear data on this device/i }),
     ).toBeFocused();
+  });
+
+  test("announces each result outside the button that produced it", async ({
+    page,
+  }) => {
+    await seedSampleCollection(page);
+    await page.goto("/me");
+
+    // The regions exist before they have anything to say: several screen
+    // readers miss an update to a live region inserted at the same moment.
+    await expect(clearResult(page)).toBeAttached();
+    await expect(downloadResult(page)).toBeAttached();
+
+    for (const result of [clearResult(page), downloadResult(page)]) {
+      expect(
+        await result.evaluate((node) => node.closest("button") !== null),
+      ).toBe(false);
+    }
+  });
+
+  /*
+   * Two tabs, one clear. Tab B is holding the old collection in React state,
+   * and its next write must carry the cleared state forward rather than the
+   * state it was holding — otherwise the collection comes back and the
+   * confirmation ("this cannot be undone") was a lie.
+   */
+  test("a clear in one tab is not undone by another tab", async ({ context }) => {
+    const first = await context.newPage();
+    const second = await context.newPage();
+
+    // Seeded on the first page only, then the second navigates — the two share
+    // the context's `localStorage`, which is the whole point of the test.
+    await seedSampleCollection(first);
+    await first.goto("/me");
+    await second.goto("/me");
+
+    await expect(first.getByRole("region", { name: /places visited/i })).toBeVisible();
+    await expect(second.getByRole("region", { name: /places visited/i })).toBeVisible();
+
+    await first.getByRole("button", { name: /clear data on this device/i }).click();
+    await first.getByRole("button", { name: /^clear this device$/i }).click();
+    await expect(clearResult(first)).toContainText(/removed from this browser/i);
+
+    // The second tab adopts it rather than sitting on a stale collection.
+    await expect(
+      second.getByRole("region", { name: /places visited/i }),
+    ).toHaveCount(0);
+
+    // And a save made there afterwards does not write the old arrays back.
+    await second.goto("/shops/juspirit-banqiao");
+    await second.getByRole("button", { name: /^save$/i }).click();
+    await expect(second.getByRole("button", { name: /^saved$/i })).toBeVisible();
+
+    /*
+     * Checked live in the first tab and against storage, not by reloading: the
+     * arranged collection is an init script on that page, so a reload would
+     * re-seed the very state under test.
+     */
+    await expect(first.getByRole("region", { name: /places visited/i })).toHaveCount(0);
+
+    const stored = await first.evaluate(
+      (key) => window.localStorage.getItem(key),
+      COLLECTION_STORAGE_KEYS.normal,
+    );
+
+    expect(JSON.parse(stored!).collections).toEqual([]);
+
+    await first.close();
+    await second.close();
   });
 
   test("downloads a machine-readable copy of the device's own data", async ({

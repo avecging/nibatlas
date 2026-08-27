@@ -113,6 +113,38 @@ function Row({
   );
 }
 
+/**
+ * The result of using a row control.
+ *
+ * A **sibling** of the button, never a descendant. A native button's
+ * descendants are flattened into its accessible name, so a `role="status"`
+ * nested inside one is not exposed as a live region at all — the announcement
+ * simply never happens, and the reader is left with a control that appears to
+ * have done nothing. That matters most in the case with no other feedback: a
+ * download the browser blocked.
+ *
+ * Rendered inside the same list item and indented to the row text, so the
+ * visual association is unchanged.
+ *
+ * The element is always present, empty included: a live region has to be in the
+ * document *before* its text arrives, or several screen readers miss the first
+ * update. It is named after its own row, because two unnamed status regions on
+ * one screen are indistinguishable to anyone navigating by region.
+ */
+function RowStatus({
+  label,
+  status,
+}: {
+  readonly label: string;
+  readonly status: string | null | undefined;
+}) {
+  return (
+    <p aria-label={`${label} result`} className={styles.rowResult} role="status">
+      {status ?? ""}
+    </p>
+  );
+}
+
 /** A row that does something immediately, with an optional result message. */
 function ActionRow({
   icon,
@@ -147,18 +179,9 @@ function ActionRow({
         <span className={styles.rowText}>
           <span className={styles.rowTitle}>{title}</span>
           <span className={styles.rowDetail}>{detail}</span>
-          {/*
-            `role="status"` rather than a bare paragraph: the button stays put
-            and only its subtitle changes, which a screen-reader user would
-            otherwise never learn about.
-          */}
-          {status ? (
-            <span className={styles.rowStatus} role="status">
-              {status}
-            </span>
-          ) : null}
         </span>
       </button>
+      <RowStatus label={title} status={status} />
     </li>
   );
 }
@@ -254,14 +277,15 @@ function ConfirmRow({
         <span className={styles.rowText}>
           <span className={styles.rowTitle}>{title}</span>
           <span className={styles.rowDetail}>{detail}</span>
+          {/*
+            The note stays inside: it is standing description, so belonging to
+            the button's accessible name is correct. The result does not — see
+            `RowStatus`.
+          */}
           {note ? <span className={styles.rowStatus}>{note}</span> : null}
-          {status ? (
-            <span className={styles.rowStatus} role="status">
-              {status}
-            </span>
-          ) : null}
         </span>
       </button>
+      <RowStatus label={title} status={status} />
 
       {open ? (
         <div className={styles.confirm} data-tone={tone} id={panelId}>

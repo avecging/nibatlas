@@ -870,6 +870,30 @@ deletes the preview. Every consumer keeps the same shape.
     Covered from the keyboard in `me.spec.ts` and by focus assertions in
     `MeScreen.test.tsx`.
 
+17. **A row's result is a sibling of its button, not a descendant.** From the
+    Codex review of the pull request. A native button's descendants are
+    flattened into its accessible name, so a `role="status"` nested inside one is
+    never exposed as a live region — the announcement simply does not happen. It
+    hid the only feedback in the case that has no other: a download the browser
+    blocked. Each result is now its own named region beside the row, present in
+    the document even when empty (a live region has to exist before its text
+    arrives) and collapsed with padding rather than `display: none`, which would
+    take it back out of the accessibility tree.
+18. **A clear in one tab is not undone by another.** Also from the pull-request
+    review, and the more serious of the two: a broken promise rather than a
+    missed announcement. With Nib Atlas open twice, tab A clears and is told the
+    removal cannot be undone; tab B still holds the old arrays in React state,
+    and its persistence effect writes them straight back the next time anything
+    changes there. The collection returns.
+
+    `CollectionProvider` now listens for `storage` and adopts what another tab
+    did to its own scope — which also fixes the quieter half, a save made in one
+    tab going missing in another. `storage` fires only in tabs that did not make
+    the change, and a `lastWrittenRef` stops the echo that comes back when the
+    other tab persists what it adopted, so two tabs cannot answer each other
+    indefinitely. Covered in the store's own tests and by a two-tab journey; both
+    were confirmed to fail with the listener removed.
+
 ### WP2 revisions after the Codex review
 
 Recorded 27 August 2026. Six required fixes, all accepted and all implemented;
@@ -882,6 +906,10 @@ than deleting its key.
 The fixes are recorded above as decisions 12 to 16, plus the tablet breakpoint
 added to the WP2 evidence suite: `IMPLEMENTATION-PLAN.md` names three review
 breakpoints and the first pass captured two.
+
+A second Codex pass, on the pull request itself, raised two P2 findings. Both
+were real defects in code this work package added, both were small and local,
+and both are recorded above as decisions 17 and 18.
 
 ### Deliberately not done in WP2
 

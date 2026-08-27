@@ -195,6 +195,27 @@ button.row:disabled:hover {
   font-weight: 600;
 }
 
+/*
+ * The live region for a row's result. Present even when empty — see
+ * `RowStatus` — so it must take no space until it has something to say.
+ *
+ * Collapsed by removing its padding, never with `display: none`: that would
+ * take it out of the accessibility tree, which is the one place it has to be
+ * before the text arrives. An empty block with no padding is already zero-high.
+ */
+.rowResult:empty {
+  padding: 0;
+}
+
+.rowResult {
+  /* Aligned to the row text rather than the row, so it reads as that row's. */
+  padding: 0 var(--space-4) var(--space-4) calc(20px + var(--space-3) + var(--space-4));
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+  font-weight: 600;
+}
+
 .rowStatus {
   padding-top: var(--space-1);
   color: var(--text-secondary);

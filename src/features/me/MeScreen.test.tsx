@@ -159,7 +159,9 @@ describe("Me, signed out", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /^clear this device$/i }));
 
-    const status = screen.getByRole("status");
+    const status = screen.getByRole("status", {
+      name: /clear data on this device result/i,
+    });
 
     expect(status).toHaveTextContent(/removed from this browser/i);
     expect(status).not.toHaveTextContent(/nothing from nib atlas/i);
@@ -241,7 +243,9 @@ describe("Me, local-data controls", () => {
     expect(
       screen.queryByRole("region", { name: /places visited/i }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent(/cleared/i);
+    expect(
+      screen.getByRole("status", { name: /clear data on this device result/i }),
+    ).toHaveTextContent(/cleared/i);
   });
 
   it("hands over a file, named for the day it was taken", () => {
@@ -259,7 +263,9 @@ describe("Me, local-data controls", () => {
 
     expect(created).toHaveBeenCalledOnce();
     expect(clicked).toHaveBeenCalledOnce();
-    expect(screen.getByRole("status")).toHaveTextContent(/downloaded/i);
+    expect(
+      screen.getByRole("status", { name: /download local data result/i }),
+    ).toHaveTextContent(/downloaded/i);
 
     created.mockRestore();
     revoked.mockRestore();
@@ -270,6 +276,23 @@ describe("Me, local-data controls", () => {
    * A browser that blocks object URLs must produce a message rather than a
    * control that looks like it worked and silently did nothing.
    */
+  /*
+   * A live region nested inside a button is flattened into that button's
+   * accessible name and never announced. The result has to be a sibling.
+   */
+  it("keeps each result outside the button that produced it", () => {
+    renderMe({ collection: "seeded" });
+
+    const result = screen.getByRole("status", {
+      name: /download local data result/i,
+    });
+
+    expect(result.closest("button")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: /download local data/i }),
+    ).not.toContainElement(result);
+  });
+
   it("says so when the browser refuses the download", () => {
     const created = vi.spyOn(URL, "createObjectURL").mockImplementation(() => {
       throw new Error("blocked");
@@ -279,7 +302,9 @@ describe("Me, local-data controls", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /download local data/i }));
 
-    expect(screen.getByRole("status")).toHaveTextContent(/blocked the download/i);
+    expect(
+      screen.getByRole("status", { name: /download local data result/i }),
+    ).toHaveTextContent(/blocked the download/i);
 
     created.mockRestore();
   });
