@@ -72,27 +72,41 @@ test.describe("signed out", () => {
 
     expect(new URL(href!).searchParams.get("subject")).toBe("[Suggest shop]");
 
-    // A routed entry carries no pending badge; the correction stays deferred to
-    // WP7 and says so without a work-package number.
-    await expect(contribute.getByText("Report incorrect information")).toBeVisible();
-    await expect(contribute.getByText("Not open yet")).toHaveCount(1);
-    await expect(contribute.getByText(/WP\d|Milestone \d/)).toHaveCount(0);
+    /*
+     * One entry, and it works. The founder's staging review removed the
+     * correction row — a visible control carrying "Not open yet" is prototype
+     * scaffolding — and WP7 gives it its real home on the shop page, where the
+     * mail can name the shop.
+     */
+    await expect(contribute.getByText(/report incorrect information/i)).toHaveCount(0);
+    await expect(contribute.getByText(/not open yet/i)).toHaveCount(0);
   });
 
-  test("states preferences as copy, with nothing inert to press", async ({ page }) => {
+  /*
+   * Me is where a person changes their own settings, and there is nothing here
+   * to change. The section returns when real controls exist — a theme choice, a
+   * text size, a colour-vision option, a motion override — and not before.
+   */
+  test("has no Preferences and accessibility section", async ({ page }) => {
     await page.goto("/me");
 
-    const preferences = page.getByRole("region", {
-      name: /preferences and accessibility/i,
-    });
+    await expect(
+      page.getByRole("region", { name: /preferences and accessibility/i }),
+    ).toHaveCount(0);
+    await expect(page.getByText(/reduced-motion setting/i)).toHaveCount(0);
+    await expect(page.getByText(/no in-app override|reference only/i)).toHaveCount(0);
+  });
 
-    await expect(preferences).toContainText(/reduced-motion setting/i);
-    await expect(preferences).toContainText(/keyboard navigation with visible focus/i);
-    await expect(preferences.getByRole("button")).toHaveCount(0);
-    await expect(preferences.getByRole("listitem")).toHaveCount(0);
-    await expect(preferences.getByText(/no in-app override|reference only/i)).toHaveCount(
-      0,
-    );
+  /*
+   * The founder's copy direction: the interface already says a link opens, a
+   * button acts, a file downloads. Saying it again is noise.
+   */
+  test("does not narrate its own interaction mechanics", async ({ page }) => {
+    await seedSampleCollection(page);
+    await page.goto("/me");
+
+    await expect(page.getByText(/opens an email/i)).toHaveCount(0);
+    await expect(page.getByText(/exactly as they are stored here/i)).toHaveCount(0);
   });
 
   /*

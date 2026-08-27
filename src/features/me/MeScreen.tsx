@@ -456,62 +456,51 @@ function PlacesVisited() {
   );
 }
 
-/**
- * Preferences and accessibility.
+/*
+ * There is no Preferences and accessibility section.
  *
- * Two sentences, not two rows. Milestone 1 rendered these as list items with a
- * chevron-less pending badge — *No in-app override*, *Reference only* — which
- * is the checklist presentation WP2 exists to remove: a row that looks like a
- * control and then explains why it is not one is worse than a sentence. There
- * is nothing here to set, so there is nothing here to press.
+ * WP2 first rendered reduced motion and accessibility as rows with a pending
+ * badge, then as two sentences of copy. The founder's staging review rejected
+ * both, and the reasoning holds: Me is where a person changes their own
+ * settings, and there is nothing here to change. General statements about how
+ * the product behaves are not personal settings, and putting them on this page
+ * makes it read as a specification of itself.
+ *
+ * The behaviour is unchanged and its documentation stays in the repository. The
+ * section returns when there is something to set — a theme choice, a text size,
+ * a colour-vision option, a motion override — and not before. None of those are
+ * built here.
  */
-function Preferences() {
-  return (
-    <Section id="me-preferences" title="Preferences and accessibility">
-      <p className={styles.prose}>
-        Nib Atlas follows your device&rsquo;s reduced-motion setting: page turns and
-        the stamp ceremony become an immediate change with a short fade. Map
-        results are also available as a list, status never relies on colour alone,
-        and controls support keyboard navigation with visible focus.
-      </p>
-    </Section>
-  );
-}
 
 /**
  * Contribute.
  *
- * **Suggest a pen shop** is routed: a pre-addressed email with the subject tag
- * accepted decision 8 fixes, built in `src/features/contribute/contribute-links.ts`
- * so the address and tag exist once and can be asserted exactly.
+ * One entry, because one is routed. **Suggest a pen shop** opens a pre-addressed
+ * email with the subject tag accepted decision 8 fixes, built in
+ * `src/features/contribute/contribute-links.ts` so the address and tag exist
+ * once and can be asserted exactly.
  *
- * **Report incorrect information** stays deferred to WP7. Its own accepted
- * routing says the mail should name the relevant shop where possible, and that
- * context lives on the shop page rather than in a global Me row — so wiring the
- * same address here would ship the weaker half of the flow and make the stronger
- * one harder to add.
+ * **Report incorrect information** is not here at all. It was a row carrying
+ * *Not open yet*, and the founder's staging review removed it: a visible control
+ * that cannot be used is prototype scaffolding, not a feature preview. Its real
+ * home is the shop page, where WP7 can name the shop the reader is looking at —
+ * which is what accepted decision 8 asks for and what a global Me row could
+ * never do.
  */
 function Contribute() {
   return (
     <Section
-      description="The catalogue is small and hand-checked. Both of these come back to a person."
+      description="The catalogue is small and hand-checked."
       id="me-contribute"
       title="Contribute"
     >
       <ul className={styles.rows}>
         <Row
-          detail="Tell us about a shop that sells or services fountain pens and is not on the map. Opens an email."
+          detail="Tell us about a fountain pen shop that isn't on the map."
           external
           href={suggestShopHref()}
           icon="pen"
           title="Suggest a pen shop"
-        />
-        <Row
-          action="Not open yet"
-          detail="Hours, address or services wrong on a shop page? Send a correction and it is checked against the shop's own sources."
-          icon="alert"
-          reviewerAction="Routing arrives in WP7"
-          title="Report incorrect information"
         />
       </ul>
     </Section>
@@ -550,7 +539,7 @@ export function MeScreen() {
 
     setDownloadStatus(
       {
-        ok: "Your file has been prepared and downloaded.",
+        ok: "Your data has been downloaded.",
         // Unreachable through the interface — the row is held until the store
         // has been read — but the message exists so the guard can never fail
         // silently if some other path reaches it.
@@ -584,7 +573,7 @@ export function MeScreen() {
   const localDataRows = (
     <>
       <ActionRow
-        detail="A JSON copy of your saved shops and collected impressions, exactly as they are stored here."
+        detail="A JSON copy of your saved shops and collected impressions."
         disabled={!hydrated}
         icon="download"
         onClick={handleDownload}
@@ -595,7 +584,7 @@ export function MeScreen() {
         confirmLabel="Clear this device"
         disabled={!hydrated}
         consequence="Your saved shops and collected impressions are removed from this browser. There is no copy anywhere else, so this cannot be undone — download your data first if you want to keep it."
-        detail="Removes your saved shops and collected impressions from this browser."
+        detail="Removes them from this browser."
         icon="trash"
         onConfirm={handleClear}
         question="Clear your saved shops and collected impressions from this browser?"
@@ -712,11 +701,9 @@ export function MeScreen() {
 
       <PlacesVisited />
 
-      <Preferences />
-
       {signedIn ? (
         <Section
-          description="Export account data covers what is held against your account. Download and Clear act on this browser only."
+          description="What is held against your account, and what is held in this browser."
           id="me-data"
           title="Privacy and your data"
         >
@@ -791,7 +778,7 @@ export function MeScreen() {
           />
           {signedIn ? (
             <ActionRow
-              detail="Ends this session. What is stored in this browser stays where it is."
+              detail="Ends this session on this device."
               icon="logout"
               onClick={signOut}
               title="Sign out"
@@ -811,7 +798,7 @@ export function MeScreen() {
             <ConfirmRow
               confirmLabel="Delete my account"
               consequence="Your account, your saved shops and every stamp you have collected are removed permanently. This cannot be undone."
-              detail="Removes your account and everything collected against it."
+              detail="Removes your account and everything you have collected."
               icon="alert"
               onConfirm={signOut}
               note={

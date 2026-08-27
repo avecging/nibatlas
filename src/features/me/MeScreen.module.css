@@ -83,21 +83,6 @@
   line-height: var(--type-body-sm-line);
 }
 
-/*
- * Preferences and accessibility is a statement, not a list of controls. There
- * is nothing here to set, so it is set as prose rather than as rows carrying a
- * badge explaining why they cannot be pressed.
- */
-.prose {
-  padding: var(--space-4);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-  font-size: var(--type-body-sm-size);
-  line-height: var(--type-body-lg-line);
-}
-
 .inlineLink {
   color: var(--action-secondary);
   font-weight: 600;

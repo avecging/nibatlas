@@ -99,7 +99,7 @@ describe("Me, signed out", () => {
     expect(screen.queryByRole("button", { name: /sign out/i })).not.toBeInTheDocument();
   });
 
-  it("routes Suggest a pen shop, and defers only the correction", () => {
+  it("offers one Contribute entry, and it works", () => {
     renderMe();
 
     const contribute = region(/contribute/i);
@@ -111,32 +111,42 @@ describe("Me, signed out", () => {
       "mailto:hello@nibatlas.com?subject=%5BSuggest%20shop%5D",
     );
 
-    // A routed entry carries no pending badge; the deferred one carries exactly
-    // one, and normal mode states it without a work-package number.
-    expect(within(contribute).getAllByText("Not open yet")).toHaveLength(1);
+    /*
+     * The founder's staging review removed the correction row: a visible
+     * control carrying "Not open yet" is prototype scaffolding, not a feature
+     * preview. WP7 gives the correction its real home on the shop page, where
+     * the mail can name the shop.
+     */
     expect(
-      within(contribute).getByText("Report incorrect information"),
-    ).toBeInTheDocument();
-    expect(within(contribute).queryByText(/WP7|Milestone/i)).not.toBeInTheDocument();
+      within(contribute).queryByText(/report incorrect information/i),
+    ).not.toBeInTheDocument();
+    expect(within(contribute).queryByText(/not open yet/i)).not.toBeInTheDocument();
   });
 
   /*
-   * Reduced motion and Accessibility are facts about how the product behaves,
-   * not controls. Milestone 1 rendered them as rows with a badge explaining why
-   * they could not be pressed, which is the checklist presentation WP2 removes.
+   * Me is where a person changes their own settings, and there is nothing here
+   * to change. General statements about how the product behaves are not
+   * personal settings; the section returns when real controls exist.
    */
-  it("states preferences as copy rather than as inert rows", () => {
+  it("has no Preferences and accessibility section", () => {
     renderMe();
 
-    const preferences = region(/preferences and accessibility/i);
+    expect(
+      screen.queryByRole("region", { name: /preferences and accessibility/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/reduced-motion setting/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/no in-app override|reference only/i)).not.toBeInTheDocument();
+  });
 
-    // The copy uses a typographic apostrophe, so the pattern goes around it.
-    expect(preferences).toHaveTextContent(/reduced-motion setting/i);
-    expect(preferences).toHaveTextContent(/keyboard navigation with visible focus/i);
-    expect(within(preferences).queryAllByRole("button")).toHaveLength(0);
-    expect(within(preferences).queryAllByRole("listitem")).toHaveLength(0);
-    expect(within(preferences).queryByText(/no in-app override/i)).not.toBeInTheDocument();
-    expect(within(preferences).queryByText(/reference only/i)).not.toBeInTheDocument();
+  /*
+   * The founder's copy direction: the interface already says a link opens, a
+   * button acts, a file downloads. Saying it again is noise.
+   */
+  it("does not narrate its own interaction mechanics", () => {
+    renderMe({ collection: "seeded" });
+
+    expect(screen.queryByText(/opens an email/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/exactly as they are stored here/i)).not.toBeInTheDocument();
   });
 
   /*
@@ -265,7 +275,7 @@ describe("Me, local-data controls", () => {
     expect(clicked).toHaveBeenCalledOnce();
     expect(
       screen.getByRole("status", { name: /download local data result/i }),
-    ).toHaveTextContent(/downloaded/i);
+    ).toHaveTextContent(/your data has been downloaded/i);
 
     created.mockRestore();
     revoked.mockRestore();

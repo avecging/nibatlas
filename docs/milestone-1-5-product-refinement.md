@@ -169,6 +169,19 @@ Until Milestone 6:
 
 The dedicated `/suggest-shop` form is a later implementation.
 
+**Amended 27 August 2026, after the founder's staging review of WP2.** *Report
+incorrect information* is not a row in Me. A global control cannot name the shop
+the reader is looking at, which is the part of this decision that makes the mail
+useful, and as an unrouted row it was prototype scaffolding rather than a feature
+preview. It belongs on the shop page, and WP7 owns it there.
+
+Its copy is approved as natural product language rather than an instruction:
+
+> Found something wrong with this listing? Let us know and we&rsquo;ll look into it
+> as soon as possible.
+
+WP7 attaches the `[Shop correction]` route to that, carrying the shop name.
+
 ### 9. Scope
 
 WP1–WP7 below are Milestone 1.5. PR #5 must not grow indefinitely.
@@ -262,14 +275,18 @@ from a shop lands on that stamp's page in either mode.
 visited, if local stamps exist, linked into Passport · Preferences and
 accessibility · **On this device** (what is stored locally, that it does not sync
 and is lost if browser data is cleared or the PWA is removed, Download local
-data, Clear data on this device) · **Contribute** (Suggest a pen shop, Report
-incorrect information) · Privacy · Help · About Nib Atlas.
+data, Clear data on this device) · **Contribute** (Suggest a pen shop) ·
+Privacy · Help · About Nib Atlas.
 
 **Signed in** — optional display name and account identity · **Places visited**,
 compact and clickable, where a country entry opens that country's Passport
-section or filtered List view · Preferences and accessibility · Privacy and your
-data (export, download) · Contribute · Help · About · Sign out · then a separated
-**Danger** group with **Delete account** in `--error`, behind a confirmation.
+section or filtered List view · Privacy and your data (export, download) ·
+Contribute · Help · About · Sign out · then a separated **Danger** group with
+**Delete account** in `--error`, behind a confirmation.
+
+*Amended 27 August 2026:* **Preferences and accessibility** is not part of either
+state. See the staging-review record below — it returns when there is something
+to set.
 
 Anonymous users may save shops and preferences locally on that browser or device,
 with a clear explanation that local data does not sync and can be lost. On
@@ -813,19 +830,19 @@ deletes the preview. Every consumer keeps the same shape.
     `src/features/contribute/contribute-links.ts` so the address and both tags
     exist once and can be asserted exactly, encoded and decoded.
 
-    **Report incorrect information** stays with WP7. Decision 8 says that mail
-    should name the relevant shop where possible, and that context lives on the
-    shop page, not in a global Me row; wiring the same address here would ship
-    the weaker half of the flow and leave the stronger one harder to add. It
-    carries the one remaining *Not open yet*, as does **Help and contact**.
+    **Report incorrect information** stays with WP7, and after the founder's
+    staging review it is not in Me at all — see revision 19 below. Decision 8
+    says that mail should name the relevant shop, and that context lives on the
+    shop page, not in a global Me row.
 
-13. **Preferences and accessibility is copy, not rows.** Revised after the Codex
-    review. Milestone 1 rendered reduced motion and accessibility as list items
-    with a pending badge — *No in-app override*, *Reference only* — which is
-    precisely the checklist presentation WP2 exists to remove: a row that looks
-    like a control and then explains why it is not one is worse than a sentence.
-    Neither is a control or a destination, so both are now two sentences of
-    product copy with nothing to press.
+13. **Preferences and accessibility is copy, not rows** — and then, after the
+    founder's staging review, is not on the page at all. See revision 20 below.
+    Recorded here because the intermediate step is the useful part of the
+    reasoning: Milestone 1 rendered reduced motion and accessibility as list
+    items with a pending badge (*No in-app override*, *Reference only*), the
+    Codex review replaced them with two sentences of copy, and the staging review
+    then asked the question neither pass had — whether the content belongs on
+    this page at all.
 14. **Local-data copy says what the controls do, and no more.** Also from the
     Codex review, and the most substantive of its copy findings. Clearing acts on
     this scope's store alone, so:
@@ -893,6 +910,64 @@ deletes the preview. Every consumer keeps the same shape.
     other tab persists what it adopted, so two tabs cannot answer each other
     indefinitely. Covered in the store's own tests and by a two-tab journey; both
     were confirmed to fail with the listener removed.
+
+19. **Report incorrect information leaves Me.** From the founder's staging
+    review. It was a row carrying *Not open yet*, and the objection is the one
+    this milestone was opened over: a visible control that cannot be used is
+    prototype scaffolding, not a feature preview. Removing it is not a deferral —
+    the correction route is WP7's and always was, and decision 8 is amended above
+    with the founder's approved copy for it on the shop page, where the mail can
+    name the shop the reader is looking at.
+
+    **Suggest a pen shop** keeps its working route and subject tag, with shorter
+    copy: *"Tell us about a fountain pen shop that isn't on the map."* The
+    trailing *"Opens an email."* is gone — a link that opens a mail client
+    announces itself by opening one.
+20. **Preferences and accessibility leaves Me entirely.** Also from the staging
+    review, and the more interesting of the two.
+
+    Both earlier passes argued about *presentation* — rows with a badge, then two
+    sentences of copy — and neither asked whether the content belonged on the
+    page. It does not. Me is where a person changes their own settings, and there
+    is nothing here to change; general statements about reduced motion, keyboard
+    behaviour and colour use are a description of how the product works, and
+    putting that on a personal-settings page makes it read as a specification of
+    itself.
+
+    Nothing about the behaviour changed, and its technical documentation stays in
+    the repository. It was **not** moved into Terms of Use. A user-facing
+    accessibility or help destination may be worth having later, if it earns its
+    place.
+
+    The section returns when there is something to set — *Light / Dark / Follow
+    system*, a text-size adjustment, colour-vision options, a motion override.
+    None of those are built here.
+21. **Copy that narrates the interface is gone.** The founder's general
+    direction, applied across Me: a download result no longer says the file was
+    *prepared and* downloaded, the export no longer promises the data *exactly as
+    it is stored here*, signing out no longer explains what stays behind, and the
+    clear row no longer pre-announces the consequence its own confirmation panel
+    exists to state.
+
+    Truthfulness, consequences and privacy explanations are untouched — the
+    device-storage paragraph, the clear result naming what it removed, the
+    blocked-download message and the confirmation panels all read exactly as
+    before. The rule is that the interface should not describe mechanics the
+    interaction already demonstrates, not that it should say less about what it
+    is doing to the reader's data.
+
+### WP2 revisions after the founder's staging review
+
+Recorded 27 August 2026, after the founder read WP2 on staging as an ordinary
+user. Three refinements, all copy or structure, no behaviour change: revisions 19
+to 21 above.
+
+The reviewer-mode organisation was reviewed and kept as it stands.
+
+One item is raised rather than settled: **Help and contact** is now the only row
+in Me carrying *Not open yet*. The reasoning that removed *Report incorrect
+information* applies to it word for word, but it is the last support route a
+tester has, and removing it leaves none. It is left in place pending a decision.
 
 ### WP2 revisions after the Codex review
 

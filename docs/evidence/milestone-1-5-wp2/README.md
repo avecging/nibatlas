@@ -26,12 +26,21 @@ paint. Reduced motion is emulated so the captures are deterministic.
 
 | Capture | What it shows |
 | --- | --- |
-| `signed-out-clean` | What a tester who has just been handed the link sees. Account offers sign-in rather than requiring it; **Places visited** is absent, because there is nothing yet to point at; **On this device** carries the local-storage fact once, next to the two controls that act on it. **Preferences and accessibility** is two sentences of copy, not rows |
+| `signed-out-clean` | What a tester who has just been handed the link sees. Account offers sign-in rather than requiring it; **Places visited** is absent, because there is nothing yet to point at; **On this device** carries the local-storage fact once, next to the two controls that act on it; **Contribute** carries the one entry that works |
 | `signed-out-collection` | The same reader once stamps exist. **Places visited** appears: three counts from the stamps, then one row per country linking into `/passport/[country]`, locality chips linking into `/passport/[country]/[locality]`, and seal state stated separately from the visit |
 | `clear-confirm` | **Clear data on this device** asks first. An inline panel, not a native dialog: it can be styled, screenshotted, and read in context. Focus opens on **Cancel** — the destructive button is one Tab away, so two presses of Enter cannot destroy a collection |
 | `signed-in` | The signed-in structure — account identity, optional display name, **Privacy and your data**, **Sign out**, and the separated **Danger** group. Reachable only as a reviewer preview until Milestone 4 builds authentication, and labelled as one where it renders |
 | `delete-confirm` | **Delete account** asks first, in `--error`, focus on **Cancel**, with the standing note that the preview has no account to delete |
 | `passport-country` | Where **Places visited** leads. `/passport/jp` reached by clicking Japan in Me |
+
+## After the founder's staging review
+
+Regenerated 27 August 2026. Three things left the page and nothing was added:
+the **Preferences and accessibility** section (nothing there to set, so it is
+not a personal setting), the unrouted **Report incorrect information** row (a
+visible control that cannot be used is scaffolding — WP7 gives it its real home
+on the shop page), and the phrases that narrated interaction mechanics. Compare
+against `docs/evidence/milestone-1-5-wp1/` to see how far Me has come down.
 
 ## What the pairs are for
 
