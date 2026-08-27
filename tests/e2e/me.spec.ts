@@ -32,7 +32,7 @@ test.describe("signed out", () => {
     await expect(account.getByText(/need an account/i)).toHaveCount(0);
 
     await expect(device).toContainText(/do not sync/i);
-    await expect(device).toContainText(/lost if you clear this browser's data/i);
+    await expect(device).toContainText(/clearing this browser's data clears them/i);
     await expect(
       device.getByRole("button", { name: /download local data/i }),
     ).toBeVisible();
@@ -42,17 +42,70 @@ test.describe("signed out", () => {
     await expect(page.getByRole("button", { name: /sign out/i })).toHaveCount(0);
   });
 
-  test("carries the Contribute entries without a work-package number", async ({
-    page,
-  }) => {
+  test("routes Suggest a pen shop to the contribution mailbox", async ({ page }) => {
     await page.goto("/me");
 
     const contribute = page.getByRole("region", { name: /contribute/i });
+    const suggest = contribute.getByRole("link", { name: /suggest a pen shop/i });
 
-    await expect(contribute.getByText("Suggest a pen shop")).toBeVisible();
+    await expect(suggest).toHaveAttribute(
+      "href",
+      "mailto:hello@nibatlas.com?subject=%5BSuggest%20shop%5D",
+    );
+
+    // The subject tag has to arrive at the mailbox exactly as accepted decision
+    // 8 writes it, so it is asserted decoded as well as encoded.
+    const href = await suggest.getAttribute("href");
+
+    expect(new URL(href!).searchParams.get("subject")).toBe("[Suggest shop]");
+
+    // A routed entry carries no pending badge; the correction stays deferred to
+    // WP7 and says so without a work-package number.
     await expect(contribute.getByText("Report incorrect information")).toBeVisible();
-    await expect(contribute.getByText("Not open yet")).toHaveCount(2);
+    await expect(contribute.getByText("Not open yet")).toHaveCount(1);
     await expect(contribute.getByText(/WP\d|Milestone \d/)).toHaveCount(0);
+  });
+
+  test("states preferences as copy, with nothing inert to press", async ({ page }) => {
+    await page.goto("/me");
+
+    const preferences = page.getByRole("region", {
+      name: /preferences and accessibility/i,
+    });
+
+    await expect(preferences).toContainText(/reduced-motion setting/i);
+    await expect(preferences).toContainText(/keyboard navigation with visible focus/i);
+    await expect(preferences.getByRole("button")).toHaveCount(0);
+    await expect(preferences.getByRole("listitem")).toHaveCount(0);
+    await expect(preferences.getByText(/no in-app override|reference only/i)).toHaveCount(
+      0,
+    );
+  });
+
+  /*
+   * The copy corrections from the Codex review, asserted so they cannot come
+   * back: clearing removes two named things, it does not leave the device free
+   * of Nib Atlas, it does not touch preferences, and removing the app from a
+   * home screen is not stated as deleting data.
+   */
+  test("never overstates what the local-data controls cover", async ({ page }) => {
+    await seedSampleCollection(page);
+    await page.goto("/me");
+
+    const device = page.getByRole("region", { name: /on this device/i });
+
+    await expect(device).toContainText(/saved shops and collected impressions/i);
+    await expect(device.getByText(/home screen/i)).toHaveCount(0);
+    await expect(device.getByText(/preferences are stored/i)).toHaveCount(0);
+
+    await page.getByRole("button", { name: /clear data on this device/i }).click();
+    await expect(
+      page.getByText(/clear your saved shops and collected impressions/i),
+    ).toBeVisible();
+    await page.getByRole("button", { name: /^clear this device$/i }).click();
+
+    await expect(page.getByRole("status")).toContainText(/removed from this browser/i);
+    await expect(page.getByText(/nothing from nib atlas/i)).toHaveCount(0);
   });
 
   test("omits Places visited on a device with no stamps", async ({ page }) => {
@@ -145,6 +198,49 @@ test.describe("local data controls", () => {
 
     expect(stored).not.toBeNull();
     expect(JSON.parse(stored!)).toMatchObject({ savedShopIds: [], collections: [] });
+  });
+
+  /*
+   * The reason Cancel takes focus: opening the panel and confirming it would
+   * otherwise be two presses of the same key, with the question never read.
+   */
+  test("a destructive confirmation opens on Cancel and survives a second Enter", async ({
+    page,
+  }) => {
+    await seedSampleCollection(page);
+    await page.goto("/me");
+
+    await page.getByRole("button", { name: /clear data on this device/i }).focus();
+    await page.keyboard.press("Enter");
+
+    await expect(page.getByRole("button", { name: /^cancel$/i })).toBeFocused();
+
+    await page.keyboard.press("Enter");
+
+    // Focus is back on the row, the panel is closed, and nothing was cleared.
+    await expect(
+      page.getByRole("button", { name: /clear data on this device/i }),
+    ).toBeFocused();
+    await expect(page.getByRole("region", { name: /places visited/i })).toBeVisible();
+    await expect(page.getByText(/cannot be undone/i)).toHaveCount(0);
+  });
+
+  test("the destructive button is still reachable, one tab away", async ({ page }) => {
+    await seedSampleCollection(page);
+    await page.goto("/me");
+
+    await page.getByRole("button", { name: /clear data on this device/i }).focus();
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Shift+Tab");
+
+    await expect(page.getByRole("button", { name: /^clear this device$/i })).toBeFocused();
+
+    await page.keyboard.press("Enter");
+
+    await expect(page.getByRole("status")).toContainText(/removed from this browser/i);
+    await expect(
+      page.getByRole("button", { name: /clear data on this device/i }),
+    ).toBeFocused();
   });
 
   test("downloads a machine-readable copy of the device's own data", async ({

@@ -570,6 +570,30 @@ test.describe("copy that has to be true of every record", () => {
     await expect(device).toContainText(/stored in this browser, on this device/i);
     await expect(device).toContainText(/do not sync/i);
   });
+
+  /*
+   * The two controls act on saved shops and collected impressions. Privacy may
+   * describe exactly that and no more: not preferences, which neither control
+   * touches, and not a promise that the device is left clean.
+   */
+  test("Privacy describes the local-data controls without overstating them", async ({
+    page,
+  }) => {
+    await page.goto("/privacy");
+    await expectMode(page, "off");
+
+    const text = await visibleText(page);
+
+    expect(text).toMatch(
+      /Clear data on this device\s+removes those same two things\s+from this browser/i,
+    );
+    expect(text).not.toMatch(/home screen/i);
+    expect(text).not.toMatch(/removes everything Nib Atlas has stored/i);
+
+    await expect(
+      page.getByRole("link", { name: /Me\s*›?\s*On this device/i }),
+    ).toHaveAttribute("href", "/me#me-device");
+  });
 });
 
 /** The populated journeys still work when the state is genuinely the user's. */

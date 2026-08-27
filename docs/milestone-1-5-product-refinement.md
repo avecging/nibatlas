@@ -805,12 +805,83 @@ deletes the preview. Every consumer keeps the same shape.
     described separately, still in the future tense, which is where they belong.
 11. **`/account` redirects to `#me-account`.** The old `#me-profile` anchor no
     longer exists.
-12. **Contribute entries are placed; their routing is not.** WP7 owns `mailto`
-    routing and the later `/suggest-shop` page. The entries say *Not open yet*
-    rather than opening a link that goes nowhere, and the work-package number
-    stays in reviewer mode. This is the one part of the approved Me structure
-    that is present without being usable, and it is deliberate: the alternative
-    was to leave a group-shaped hole that WP7 would have to design into.
+12. **Suggest a pen shop is routed; the correction is not.** Revised after the
+    Codex review, which read the WP2 brief as requiring the route now — correctly:
+    accepted decision 8 already fixes the address and the subject tag, so
+    deferring it was deferring nothing but the wiring. It is a `mailto` to
+    `hello@nibatlas.com` with subject `[Suggest shop]`, built in
+    `src/features/contribute/contribute-links.ts` so the address and both tags
+    exist once and can be asserted exactly, encoded and decoded.
+
+    **Report incorrect information** stays with WP7. Decision 8 says that mail
+    should name the relevant shop where possible, and that context lives on the
+    shop page, not in a global Me row; wiring the same address here would ship
+    the weaker half of the flow and leave the stronger one harder to add. It
+    carries the one remaining *Not open yet*, as does **Help and contact**.
+
+13. **Preferences and accessibility is copy, not rows.** Revised after the Codex
+    review. Milestone 1 rendered reduced motion and accessibility as list items
+    with a pending badge — *No in-app override*, *Reference only* — which is
+    precisely the checklist presentation WP2 exists to remove: a row that looks
+    like a control and then explains why it is not one is worse than a sentence.
+    Neither is a control or a destination, so both are now two sentences of
+    product copy with nothing to press.
+14. **Local-data copy says what the controls do, and no more.** Also from the
+    Codex review, and the most substantive of its copy findings. Clearing acts on
+    this scope's store alone, so:
+    - the result no longer reads *"Nothing from Nib Atlas is stored on this
+      device now"* — the reviewer choice, the account preview and whatever else
+      the browser holds are untouched — but names the two things it removed;
+    - the question asks about *"your saved shops and collected impressions"*
+      rather than *"everything Nib Atlas has stored"*;
+    - **preferences** are no longer listed as stored or cleared, because neither
+      control touches them and Nib Atlas stores none of its own;
+    - removing the app from a home screen is no longer stated as deleting its
+      data: whether it does depends on the platform, and on several it does not.
+      Privacy names the browser's own site-data control instead, which is the
+      thing that really removes everything;
+    - `clearLocalData`'s interface documentation said it removed the storage key.
+      It deliberately writes an empty one — an absent key is a scope's cue to
+      reseed — and the comment now says so, along with the scope limit that the
+      copy above depends on.
+
+    Each claim is pinned by an assertion, in `MeScreen.test.tsx`, `me.spec.ts`
+    and `reviewer-mode.spec.ts`, so none of them can come back unnoticed.
+15. **Download and Clear are held until the store has been read.** From the Codex
+    review, and a real defect rather than a copy one. The collection store reads
+    `localStorage` in an effect, so between the first paint and that effect a
+    returning reader's store is the *empty baseline*. A fast interaction in that
+    window would have exported an empty file that looks exactly like a successful
+    export of nothing, or cleared the baseline over their real collection.
+
+    The guard lives in `exportLocalData`, which owns the whole action, so a
+    second caller cannot forget it; the rows also carry `disabled` for the same
+    interval. It is one frame, so the treatment is deliberately understated — a
+    heavier one would read as a permanently unavailable control, which these are
+    not. `local-data.test.ts` proves a seeded collection cannot be exported
+    before hydration, and a static render of Me — which *is* the first paint,
+    since effects have not run — proves both controls are inoperable in it.
+16. **A destructive confirmation opens on Cancel.** From the Codex review.
+    Opening the panel and confirming it were otherwise one keystroke apart:
+    pressing Enter twice, an ordinary way to work down a list of buttons, would
+    have destroyed a collection whose question was never read. Focus now lands on
+    **Cancel** for destructive panels, the destructive button is one Tab away,
+    and focus returns to the originating row on both cancel and completion.
+    Covered from the keyboard in `me.spec.ts` and by focus assertions in
+    `MeScreen.test.tsx`.
+
+### WP2 revisions after the Codex review
+
+Recorded 27 August 2026. Six required fixes, all accepted and all implemented;
+five accepted decisions were confirmed unchanged — the reviewer-only account
+seam, normal mode being structurally forced signed out, omitting Places visited
+on a clean device, folding seal status into each country while keeping it
+distinct from the visit, and writing an empty reviewer collection store rather
+than deleting its key.
+
+The fixes are recorded above as decisions 12 to 16, plus the tablet breakpoint
+added to the WP2 evidence suite: `IMPLEMENTATION-PLAN.md` names three review
+breakpoints and the first pass captured two.
 
 ### Deliberately not done in WP2
 
@@ -846,8 +917,11 @@ deletes the preview. Every consumer keeps the same shape.
 - `tests/e2e/accessibility.spec.ts` — an axe audit of the signed-in state and of
   the destructive confirmation open, neither of which exists in the signed-out
   audit.
+- `src/features/contribute/contribute-links.test.ts` — the mailbox, both subject
+  tags, and the encoding, asserted as the exact href and as the decoded subject.
 - `tests/evidence/wp2-me.spec.ts` and `docs/evidence/milestone-1-5-wp2/` — every
-  state at both breakpoints.
+  state at 360 × 800, 768 × 1024 and 1440 × 900. WP1's evidence set is a record
+  of that review and is deliberately not regenerated here.
 
 ## Open items still needing founder input
 

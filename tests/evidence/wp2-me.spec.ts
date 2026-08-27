@@ -12,13 +12,13 @@ import { seedSampleCollection } from "../support/local-state";
  *
  * Not an assertion suite — `tests/e2e/me.spec.ts` holds the verdicts. This
  * writes screenshots into `docs/evidence/milestone-1-5-wp2/` so the founder can
- * read the four states side by side at the two breakpoints the review cares
- * about: a clean device, a device with a collection, the reviewer-only
- * signed-in preview, and the destructive confirmations open.
+ * read the states side by side at the three breakpoints
+ * `IMPLEMENTATION-PLAN.md` names: a clean device, a device with a collection,
+ * the reviewer-only signed-in preview, and the destructive confirmations open.
  *
  * Opted into with `EVIDENCE=1 pnpm test:e2e --project=evidence`.
  *
- * The 1440 × 900 captures are evidence of the restructure only.
+ * The 768 × 1024 and 1440 × 900 captures are evidence of the restructure only.
  * `docs/milestone-1-5-product-refinement.md` records the desktop treatment as
  * not designed and not approved; WP-D owns that, and nothing here is sign-off.
  */
@@ -26,6 +26,7 @@ const OUT_DIR = path.join(process.cwd(), "docs", "evidence", "milestone-1-5-wp2"
 
 const BREAKPOINTS = [
   { name: "m", width: 360, height: 800 },
+  { name: "t", width: 768, height: 1024 },
   { name: "d", width: 1440, height: 900 },
 ] as const;
 

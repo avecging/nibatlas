@@ -125,13 +125,21 @@ export interface CollectionStore {
   /** Restores the current scope's baseline. Reviewer-only in the interface. */
   resetPrototypeState(): void;
   /**
-   * Empties this device's store and removes its key.
+   * Empties this device's store, in place.
    *
-   * Distinct from {@link CollectionStore.resetPrototypeState}, which restores a
-   * baseline — on a reviewer device that baseline is the seeded demonstration
-   * collection, so reset *adds* six stamps back. **Clear data on this device**
-   * in Me promises removal, so it has to remove: no saves, no impressions, no
-   * carried seals, and no leftover key for the next visit to read.
+   * The key is *written as empty*, not removed: an absent key is a scope's cue
+   * to fall back to its baseline, and on a reviewer device that baseline is the
+   * seeded demonstration collection. Removing it would reseed six stamps on the
+   * next visit.
+   *
+   * Distinct from {@link CollectionStore.resetPrototypeState}, which restores
+   * that baseline deliberately. Clearing removes: no saves, no impressions, no
+   * carried seals.
+   *
+   * Scoped to this store alone. It is not a device wipe — the reviewer-mode
+   * choice, the account preview and anything else the browser holds are
+   * untouched — so copy describing it must name the two things it removes
+   * rather than claim the device is now clean.
    */
   clearLocalData(): void;
 }

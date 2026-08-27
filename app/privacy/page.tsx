@@ -81,12 +81,14 @@ export default function PrivacyPage() {
 
       <h2 className="type-h2">Your data, your call</h2>
       <p>
-        Everything Nib Atlas is holding for you today is held in this browser, and
-        you can take it or remove it whenever you like. <strong>Download local
-        data</strong> hands you a machine-readable copy of your saved shops and
-        collected impressions, and <strong>Clear data on this device</strong>
-        removes them. Both are in{" "}
-        <Link href="/me#me-device">Me &rsaquo; On this device</Link>.
+        Nothing Nib Atlas holds for you today leaves this browser, and two
+        controls act on it. <strong>Download local data</strong> hands you a
+        machine-readable copy of your saved shops and collected impressions, and{" "}
+        <strong>Clear data on this device</strong> removes those same two things
+        from this browser. Both are in{" "}
+        <Link href="/me#me-device">Me &rsaquo; On this device</Link>. Clearing your
+        browser&rsquo;s own site data for Nib Atlas removes everything it has kept
+        here, including those.
       </p>
       <p>
         Once accounts exist, the same two things apply to an account: a

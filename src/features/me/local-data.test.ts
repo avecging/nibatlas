@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { EarnedSeal } from "@/src/domain/seals";
 import {
   LOCAL_DATA_SCHEMA,
   buildLocalDataExport,
+  exportLocalData,
   localDataFilename,
   serializeLocalDataExport,
 } from "@/src/features/me/local-data";
@@ -104,5 +105,66 @@ describe("localDataFilename", () => {
     expect(localDataFilename(new Date("2026-08-27T09:15:00.000Z"))).toMatch(
       /^nib-atlas-data-\d{4}-\d{2}-\d{2}\.json$/u,
     );
+  });
+});
+
+describe("exportLocalData", () => {
+  const seeded = {
+    scope: "normal",
+    savedShopIds: ["ty-lee-pen-shop"],
+    collections: prototypeSeedCollections,
+    seals: [],
+    exportedAt: EXPORTED_AT,
+  } as const;
+
+  /*
+   * The window this guard exists for: the collection store reads `localStorage`
+   * in an effect, so between the first paint and that effect a returning
+   * reader's store is the empty baseline. An export taken then would hand them
+   * an empty file that looks exactly like a successful export of nothing.
+   */
+  it("refuses to export before the device's state has been read", () => {
+    const created = vi.spyOn(URL, "createObjectURL");
+
+    expect(exportLocalData({ ...seeded, hydrated: false })).toBe("not-ready");
+    expect(created).not.toHaveBeenCalled();
+
+    created.mockRestore();
+  });
+
+  it("exports the real collection once it has", async () => {
+    let handed: Blob | null = null;
+    const created = vi.spyOn(URL, "createObjectURL").mockImplementation((blob) => {
+      // Captured through the Blob so the assertion is about what the reader
+      // actually receives, not about what was passed to the builder.
+      handed = blob as Blob;
+      return "blob:nib-atlas";
+    });
+    const revoked = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    const clicked = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+
+    expect(exportLocalData({ ...seeded, hydrated: true })).toBe("ok");
+    expect(created).toHaveBeenCalledOnce();
+
+    const payload = JSON.parse(await (handed as unknown as Blob).text());
+
+    expect(payload.collections).toHaveLength(prototypeSeedCollections.length);
+    expect(payload.savedShopIds).toEqual(["ty-lee-pen-shop"]);
+
+    created.mockRestore();
+    revoked.mockRestore();
+    clicked.mockRestore();
+  });
+
+  it("reports a browser that refuses the object URL", () => {
+    const created = vi.spyOn(URL, "createObjectURL").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+
+    expect(exportLocalData({ ...seeded, hydrated: true })).toBe("blocked");
+
+    created.mockRestore();
   });
 });

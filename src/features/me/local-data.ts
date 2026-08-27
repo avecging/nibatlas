@@ -78,6 +78,32 @@ export function serializeLocalDataExport(payload: LocalDataExport): string {
 }
 
 /**
+ * The whole action: guard, build, hand over.
+ *
+ * The guard is the point, and it is here rather than in the component so it
+ * cannot be forgotten by a second caller. The collection store reads
+ * `localStorage` in an effect, so between the first paint and that effect a
+ * returning reader's store is the *empty baseline* — and an export taken in
+ * that window would hand them an empty file that looks exactly like a
+ * successful export of nothing. Refusing is the only safe answer; the interval
+ * is one frame, so a reader will not notice it.
+ */
+export type LocalDataExportResult = "ok" | "not-ready" | "blocked";
+
+export function exportLocalData({
+  hydrated,
+  ...payload
+}: Parameters<typeof buildLocalDataExport>[0] & {
+  readonly hydrated: boolean;
+}): LocalDataExportResult {
+  if (!hydrated) {
+    return "not-ready";
+  }
+
+  return downloadLocalData(buildLocalDataExport(payload)) ? "ok" : "blocked";
+}
+
+/**
  * Hands the file to the browser.
  *
  * An object URL and a synthetic click, because there is no server to stream

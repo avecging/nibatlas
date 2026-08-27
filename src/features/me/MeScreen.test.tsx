@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { ACCOUNT_PREVIEW_STORAGE_KEY } from "@/src/features/account/account-session";
@@ -81,7 +82,7 @@ describe("Me, signed out", () => {
     const device = region(/on this device/i);
 
     expect(device).toHaveTextContent(/do not sync/i);
-    expect(device).toHaveTextContent(/lost if you clear this browser's data/i);
+    expect(device).toHaveTextContent(/clearing this browser's data clears them/i);
     expect(
       within(device).getByRole("button", { name: /download local data/i }),
     ).toBeInTheDocument();
@@ -98,21 +99,70 @@ describe("Me, signed out", () => {
     expect(screen.queryByRole("button", { name: /sign out/i })).not.toBeInTheDocument();
   });
 
-  it("places the Contribute entries WP7 will route", () => {
+  it("routes Suggest a pen shop, and defers only the correction", () => {
     renderMe();
 
     const contribute = region(/contribute/i);
 
-    expect(within(contribute).getByText("Suggest a pen shop")).toBeInTheDocument();
+    expect(
+      within(contribute).getByRole("link", { name: /suggest a pen shop/i }),
+    ).toHaveAttribute(
+      "href",
+      "mailto:hello@nibatlas.com?subject=%5BSuggest%20shop%5D",
+    );
+
+    // A routed entry carries no pending badge; the deferred one carries exactly
+    // one, and normal mode states it without a work-package number.
+    expect(within(contribute).getAllByText("Not open yet")).toHaveLength(1);
     expect(
       within(contribute).getByText("Report incorrect information"),
     ).toBeInTheDocument();
-    // The entries exist; the routing does not, and normal mode says so without a
-    // work-package number.
-    expect(within(contribute).getAllByText("Not open yet")).toHaveLength(2);
-    expect(
-      within(contribute).queryByText(/WP7|Milestone/i),
-    ).not.toBeInTheDocument();
+    expect(within(contribute).queryByText(/WP7|Milestone/i)).not.toBeInTheDocument();
+  });
+
+  /*
+   * Reduced motion and Accessibility are facts about how the product behaves,
+   * not controls. Milestone 1 rendered them as rows with a badge explaining why
+   * they could not be pressed, which is the checklist presentation WP2 removes.
+   */
+  it("states preferences as copy rather than as inert rows", () => {
+    renderMe();
+
+    const preferences = region(/preferences and accessibility/i);
+
+    // The copy uses a typographic apostrophe, so the pattern goes around it.
+    expect(preferences).toHaveTextContent(/reduced-motion setting/i);
+    expect(preferences).toHaveTextContent(/keyboard navigation with visible focus/i);
+    expect(within(preferences).queryAllByRole("button")).toHaveLength(0);
+    expect(within(preferences).queryAllByRole("listitem")).toHaveLength(0);
+    expect(within(preferences).queryByText(/no in-app override/i)).not.toBeInTheDocument();
+    expect(within(preferences).queryByText(/reference only/i)).not.toBeInTheDocument();
+  });
+
+  /*
+   * The copy corrections from the Codex review. Clearing removes two things; it
+   * does not leave the device free of Nib Atlas, it does not touch preferences,
+   * and removing the app from a home screen is not stated as deleting data —
+   * that varies by platform and on several it does not.
+   */
+  it("does not overstate what the local-data controls cover", () => {
+    renderMe({ collection: "seeded" });
+
+    const device = region(/on this device/i);
+
+    expect(device).toHaveTextContent(/saved shops and collected impressions/i);
+    expect(device).not.toHaveTextContent(/preferences are stored/i);
+    expect(device).not.toHaveTextContent(/home screen/i);
+
+    fireEvent.click(screen.getByRole("button", { name: /clear data on this device/i }));
+    expect(screen.getByText(/clear your saved shops and collected impressions/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^clear this device$/i }));
+
+    const status = screen.getByRole("status");
+
+    expect(status).toHaveTextContent(/removed from this browser/i);
+    expect(status).not.toHaveTextContent(/nothing from nib atlas/i);
   });
 
   it("omits Places visited until there is something to point at", () => {
@@ -232,6 +282,130 @@ describe("Me, local-data controls", () => {
     expect(screen.getByRole("status")).toHaveTextContent(/blocked the download/i);
 
     created.mockRestore();
+  });
+});
+
+describe("Me, the hydration guard", () => {
+  /*
+   * The first paint is the empty baseline, whatever the device actually holds:
+   * the collection store reads `localStorage` in an effect, which has not run
+   * yet. A returning reader who managed to press Download in that window would
+   * receive an empty file that looks exactly like a successful export of
+   * nothing — so the controls are not operable until the store has been read.
+   *
+   * Rendered to static markup rather than through Testing Library, because that
+   * *is* the first paint: effects do not run, so this is the pre-hydration DOM a
+   * real browser paints.
+   */
+  it("holds Download and Clear until the device's state has been read", () => {
+    window.localStorage.setItem(
+      COLLECTION_STORAGE_KEYS.normal,
+      JSON.stringify({
+        savedShopIds: prototypeSeedSavedShopIds,
+        collections: prototypeSeedCollections,
+      }),
+    );
+
+    const markup = renderToStaticMarkup(
+      <WithReviewerMode>
+        <AccountSessionProvider>
+          <CollectionProvider>
+            <MeScreen />
+          </CollectionProvider>
+        </AccountSessionProvider>
+      </WithReviewerMode>,
+    );
+
+    const container = document.createElement("div");
+    container.innerHTML = markup;
+
+    const buttons = [...container.querySelectorAll("button")];
+    const named = (label: RegExp) =>
+      buttons.find((button) => label.test(button.textContent ?? ""));
+
+    expect(named(/Download local data/)).toHaveAttribute("disabled");
+    expect(named(/Clear data on this device/)).toHaveAttribute("disabled");
+  });
+
+  it("releases them once it has", () => {
+    renderMe({ collection: "seeded" });
+
+    expect(
+      screen.getByRole("button", { name: /download local data/i }),
+    ).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: /clear data on this device/i }),
+    ).toBeEnabled();
+  });
+});
+
+describe("Me, destructive confirmations", () => {
+  /*
+   * Opening the panel and confirming it are one keystroke apart if focus lands
+   * on the destructive button: pressing Enter twice — an ordinary way to work
+   * down a list of buttons — would delete a collection the reader never saw the
+   * question about.
+   */
+  it("opens with focus on Cancel, not on the destructive action", () => {
+    renderMe({ collection: "seeded" });
+
+    const trigger = screen.getByRole("button", { name: /clear data on this device/i });
+
+    fireEvent.click(trigger);
+
+    expect(screen.getByRole("button", { name: /^cancel$/i })).toHaveFocus();
+    expect(screen.getByRole("button", { name: /^clear this device$/i })).not.toHaveFocus();
+  });
+
+  it("returns focus to the row when cancelled", () => {
+    renderMe({ collection: "seeded" });
+
+    const trigger = screen.getByRole("button", { name: /clear data on this device/i });
+
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole("button", { name: /^cancel$/i }));
+
+    expect(trigger).toHaveFocus();
+  });
+
+  it("returns focus to the row when the action goes through", () => {
+    renderMe({ collection: "seeded" });
+
+    const trigger = screen.getByRole("button", { name: /clear data on this device/i });
+
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole("button", { name: /^clear this device$/i }));
+
+    expect(trigger).toHaveFocus();
+  });
+
+  /*
+   * The double-Enter case, which is the reason Cancel takes focus.
+   *
+   * A keyboard activation of a button is a click, so the two `click` calls here
+   * are the two Enter presses: the first opens the panel, and the second lands
+   * on whatever now holds focus. The collection has to survive it.
+   */
+  it("survives two Enter presses in a row", () => {
+    renderMe({ collection: "seeded" });
+
+    const trigger = screen.getByRole("button", { name: /clear data on this device/i });
+
+    trigger.focus();
+    fireEvent.click(document.activeElement!);
+    fireEvent.click(document.activeElement!);
+
+    expect(trigger).toHaveFocus();
+    expect(screen.getByRole("region", { name: /places visited/i })).toBeInTheDocument();
+    expect(screen.queryByText(/cleared\./i)).not.toBeInTheDocument();
+  });
+
+  it("applies the same rule to Delete account", () => {
+    renderMe({ reviewer: true, signedIn: true });
+
+    fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
+
+    expect(screen.getByRole("button", { name: /^cancel$/i })).toHaveFocus();
   });
 });
 

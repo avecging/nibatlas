@@ -11,7 +11,8 @@ import {
 } from "@/src/features/account/account-session";
 import { useAccountSession } from "@/src/features/account/AccountSessionProvider";
 import { useCollection } from "@/src/features/collection/collection-store";
-import { buildLocalDataExport, downloadLocalData } from "@/src/features/me/local-data";
+import { suggestShopHref } from "@/src/features/contribute/contribute-links";
+import { exportLocalData } from "@/src/features/me/local-data";
 import { ReviewerModeBadge } from "@/src/features/reviewer/ReviewerModeBadge";
 import { useReviewerMode } from "@/src/features/reviewer/ReviewerModeProvider";
 
@@ -46,13 +47,27 @@ interface RowProps {
   readonly title: string;
   readonly detail: string;
   readonly href?: string;
+  /**
+   * Leaves the application — a `mailto:` today. Rendered as a plain anchor
+   * rather than a `Link`, which exists to prefetch and client-navigate routes
+   * this one is not.
+   */
+  readonly external?: boolean;
   /** What a normal tester reads: why the row cannot be used yet, in plain terms. */
   readonly action?: string;
   /** The same fact with its milestone or work-package number, for internal review. */
   readonly reviewerAction?: string;
 }
 
-function Row({ icon, title, detail, href, action, reviewerAction }: RowProps) {
+function Row({
+  icon,
+  title,
+  detail,
+  href,
+  external,
+  action,
+  reviewerAction,
+}: RowProps) {
   const reviewer = useReviewerMode();
   const pendingLabel = reviewer ? (reviewerAction ?? action) : action;
   const body = (
@@ -67,6 +82,16 @@ function Row({ icon, title, detail, href, action, reviewerAction }: RowProps) {
       {href ? <Icon name="chevron-right" size={18} /> : null}
     </>
   );
+
+  if (href && external) {
+    return (
+      <li>
+        <a className={styles.row} href={href}>
+          {body}
+        </a>
+      </li>
+    );
+  }
 
   if (href) {
     return (
@@ -94,17 +119,28 @@ function ActionRow({
   title,
   detail,
   onClick,
+  disabled,
   status,
 }: {
   readonly icon: IconName;
   readonly title: string;
   readonly detail: string;
   onClick(): void;
+  /**
+   * Held while the device's own state is still being read. One frame in
+   * practice, so it is a race guard rather than an interface state.
+   */
+  readonly disabled?: boolean;
   readonly status?: string | null;
 }) {
   return (
     <li>
-      <button className={styles.row} type="button" onClick={onClick}>
+      <button
+        className={styles.row}
+        disabled={disabled}
+        onClick={onClick}
+        type="button"
+      >
         <span className={styles.rowIcon} aria-hidden="true">
           <Icon name={icon} size={20} />
         </span>
@@ -145,6 +181,7 @@ function ConfirmRow({
   confirmLabel,
   tone = "default",
   onConfirm,
+  disabled,
   note,
   status,
 }: {
@@ -156,6 +193,8 @@ function ConfirmRow({
   readonly confirmLabel: string;
   readonly tone?: "default" | "destructive";
   onConfirm(): void;
+  /** Held while the device's own state is still being read. */
+  readonly disabled?: boolean;
   /** Standing explanatory text. Present from first paint, so not a live region. */
   readonly note?: string | null;
   /** The result of using the control, announced when it appears. */
@@ -165,13 +204,31 @@ function ConfirmRow({
   const panelId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
 
+  /*
+   * A destructive panel opens with focus on **Cancel**, never on the action.
+   * Opening the panel and confirming it are one keystroke apart otherwise: a
+   * reader who presses Enter or Space twice — a perfectly ordinary way to
+   * operate a list of buttons — would delete their collection without ever
+   * reading the question. Cancel first makes the second keystroke the safe one,
+   * and the destructive button is still one Tab away.
+   */
   useEffect(() => {
-    if (open) {
+    if (!open) {
+      return;
+    }
+
+    if (tone === "destructive") {
+      cancelRef.current?.focus();
+    } else {
       confirmRef.current?.focus();
     }
-  }, [open]);
+  }, [open, tone]);
 
+  // Focus returns to the row that opened the panel, whether the reader
+  // cancelled or went through with it — otherwise the panel unmounts under
+  // their focus and a keyboard user is dropped back to the top of the document.
   const close = useCallback(() => {
     setOpen(false);
     triggerRef.current?.focus();
@@ -184,6 +241,7 @@ function ConfirmRow({
         aria-expanded={open}
         className={styles.row}
         data-tone={tone}
+        disabled={disabled}
         onClick={() => {
           setOpen((current) => !current);
         }}
@@ -222,7 +280,12 @@ function ConfirmRow({
             >
               {confirmLabel}
             </button>
-            <button className={styles.cancelButton} onClick={close} type="button">
+            <button
+              className={styles.cancelButton}
+              onClick={close}
+              ref={cancelRef}
+              type="button"
+            >
               Cancel
             </button>
           </div>
@@ -369,23 +432,24 @@ function PlacesVisited() {
   );
 }
 
+/**
+ * Preferences and accessibility.
+ *
+ * Two sentences, not two rows. Milestone 1 rendered these as list items with a
+ * chevron-less pending badge — *No in-app override*, *Reference only* — which
+ * is the checklist presentation WP2 exists to remove: a row that looks like a
+ * control and then explains why it is not one is worse than a sentence. There
+ * is nothing here to set, so there is nothing here to press.
+ */
 function Preferences() {
   return (
     <Section id="me-preferences" title="Preferences and accessibility">
-      <ul className={styles.rows}>
-        <Row
-          action="No in-app override"
-          detail="Nib Atlas follows your operating system's reduce-motion setting. Page turns and the stamp ceremony become an immediate change with a short fade."
-          icon="settings"
-          title="Reduced motion"
-        />
-        <Row
-          action="Reference only"
-          detail="Every map result has a list equivalent, status never relies on colour alone, and controls are keyboard operable with visible focus."
-          icon="accessibility"
-          title="Accessibility"
-        />
-      </ul>
+      <p className={styles.prose}>
+        Nib Atlas follows your device&rsquo;s reduced-motion setting: page turns and
+        the stamp ceremony become an immediate change with a short fade. Map
+        results are also available as a list, status never relies on colour alone,
+        and controls support keyboard navigation with visible focus.
+      </p>
     </Section>
   );
 }
@@ -393,10 +457,15 @@ function Preferences() {
 /**
  * Contribute.
  *
- * The entries are WP2's; the routing behind them is WP7's — `mailto` first, a
- * `/suggest-shop` page later. They are placed now, in the group the approved
- * structure gives them, and they say plainly that they cannot be used yet
- * rather than opening a link that goes nowhere.
+ * **Suggest a pen shop** is routed: a pre-addressed email with the subject tag
+ * accepted decision 8 fixes, built in `src/features/contribute/contribute-links.ts`
+ * so the address and tag exist once and can be asserted exactly.
+ *
+ * **Report incorrect information** stays deferred to WP7. Its own accepted
+ * routing says the mail should name the relevant shop where possible, and that
+ * context lives on the shop page rather than in a global Me row — so wiring the
+ * same address here would ship the weaker half of the flow and make the stronger
+ * one harder to add.
  */
 function Contribute() {
   return (
@@ -407,10 +476,10 @@ function Contribute() {
     >
       <ul className={styles.rows}>
         <Row
-          action="Not open yet"
-          detail="Tell us about a shop that sells or services fountain pens and is not on the map."
+          detail="Tell us about a shop that sells or services fountain pens and is not on the map. Opens an email."
+          external
+          href={suggestShopHref()}
           icon="pen"
-          reviewerAction="Routing arrives in WP7"
           title="Suggest a pen shop"
         />
         <Row
@@ -446,32 +515,53 @@ export function MeScreen() {
   const signedIn = session.status === "signed-in";
 
   const handleDownload = useCallback(() => {
-    const started = downloadLocalData(
-      buildLocalDataExport({
-        scope,
-        savedShopIds,
-        collections,
-        seals,
-        exportedAt: new Date(),
-      }),
-    );
+    const result = exportLocalData({
+      hydrated,
+      scope,
+      savedShopIds,
+      collections,
+      seals,
+      exportedAt: new Date(),
+    });
 
     setDownloadStatus(
-      started
-        ? "Your file has been prepared and downloaded."
-        : "This browser blocked the download. Check its download settings and try again.",
+      {
+        ok: "Your file has been prepared and downloaded.",
+        // Unreachable through the interface — the row is held until the store
+        // has been read — but the message exists so the guard can never fail
+        // silently if some other path reaches it.
+        "not-ready": "Still reading this device. Try again in a moment.",
+        blocked:
+          "This browser blocked the download. Check its download settings and try again.",
+      }[result],
     );
-  }, [collections, savedShopIds, scope, seals]);
+  }, [collections, hydrated, savedShopIds, scope, seals]);
 
   const handleClear = useCallback(() => {
+    // Guarded for the same reason as the export: before the store has been read
+    // this would clear the empty baseline and write it over a returning
+    // reader's real collection.
+    if (!hydrated) {
+      return;
+    }
+
     clearLocalData();
-    setClearStatus("Cleared. Nothing from Nib Atlas is stored on this device now.");
-  }, [clearLocalData]);
+    /*
+     * Names the two things that were removed rather than claiming the device is
+     * now free of Nib Atlas. It is not: the reviewer choice, the account preview
+     * and whatever else a browser keeps are untouched, and a control that
+     * overstates what it did is the same defect as one that understates it.
+     */
+    setClearStatus(
+      "Cleared. Your saved shops and collected impressions have been removed from this browser.",
+    );
+  }, [clearLocalData, hydrated]);
 
   const localDataRows = (
     <>
       <ActionRow
         detail="A JSON copy of your saved shops and collected impressions, exactly as they are stored here."
+        disabled={!hydrated}
         icon="download"
         onClick={handleDownload}
         status={downloadStatus}
@@ -479,11 +569,12 @@ export function MeScreen() {
       />
       <ConfirmRow
         confirmLabel="Clear this device"
+        disabled={!hydrated}
         consequence="Your saved shops and collected impressions are removed from this browser. There is no copy anywhere else, so this cannot be undone — download your data first if you want to keep it."
         detail="Removes your saved shops and collected impressions from this browser."
         icon="trash"
         onConfirm={handleClear}
-        question="Clear everything Nib Atlas has stored on this device?"
+        question="Clear your saved shops and collected impressions from this browser?"
         status={clearStatus}
         title="Clear data on this device"
         tone="destructive"
@@ -601,7 +692,7 @@ export function MeScreen() {
 
       {signedIn ? (
         <Section
-          description="Your account data lives on a server; the two controls below act on this browser only."
+          description="Export account data covers what is held against your account. Download and Clear act on this browser only."
           id="me-data"
           title="Privacy and your data"
         >
@@ -629,7 +720,14 @@ export function MeScreen() {
             repeated a shorter version of it on several screens; the approved
             structure gives it a single home, next to the controls that act on it.
           */
-          description="Your saved shops, collected impressions and preferences are stored in this browser, on this device. They do not sync to your other devices, and they are lost if you clear this browser's data or remove Nib Atlas from your home screen."
+          /*
+            Two corrections against the WP2 draft. Preferences are not named,
+            because neither control touches them — Nib Atlas follows the
+            operating system's settings and stores none of its own. And removing
+            the app from a home screen is not stated as deleting its data:
+            whether it does depends on the platform, and on several it does not.
+          */
+          description="Your saved shops and collected impressions are stored in this browser, on this device. They do not sync to your other devices, and clearing this browser's data clears them."
           id="me-device"
           title="On this device"
         >
