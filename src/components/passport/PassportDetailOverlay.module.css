@@ -1,5 +1,5 @@
 /*
- * The enlarged impression.
+ * The enlarged impression, or the enlarged seal.
  *
  * A quiet sheet over a dimmed field, not a lightbox: the stamp is the only thing
  * that carries colour, and everything around it is page furniture.
@@ -112,6 +112,19 @@
 .facts dd {
   margin-top: 2px;
   color: var(--text-primary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+/*
+ * The one line a seal carries that a stamp does not.
+ *
+ * A seal has no shop to open, and an overlay that simply stopped after the facts
+ * would read as though the control were missing. One quiet line says why there
+ * is nothing to press.
+ */
+.sealNote {
+  color: var(--text-secondary);
   font-size: var(--type-body-sm-size);
   line-height: var(--type-body-sm-line);
 }

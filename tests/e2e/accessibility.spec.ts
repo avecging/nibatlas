@@ -26,6 +26,27 @@ test.beforeEach(async ({ page }) => {
   await seedSampleCollection(page);
 });
 
+/**
+ * Waits for a surface's entry animation to finish before auditing it.
+ *
+ * An overlay is "visible" to Playwright as soon as it has a box, which is while
+ * it is still fading in — and a contrast audit taken then reads the half-faded
+ * colours rather than the ones the reader sees. Auditing the settled surface is
+ * both the honest check and the deterministic one.
+ */
+async function settled(page: Page, selector: string) {
+  await page
+    .locator(selector)
+    .first()
+    .evaluate(async (node) => {
+      await Promise.all(
+        node
+          .getAnimations({ subtree: true })
+          .map((animation) => animation.finished.catch(() => undefined)),
+      );
+    });
+}
+
 async function analyze(page: Page) {
   return new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
@@ -73,11 +94,24 @@ test("me in its signed-in form is accessible, confirmation included", async ({
  * audit above covers List, which is what a normal device lands in; Book mode and
  * the enlarged impression are separate surfaces reached by a control.
  */
-test("both Passport modes and the enlarged stamp are accessible", async ({ page }) => {
+test("both Passport modes, the enlarged stamp and a seal are accessible", async ({
+  page,
+}) => {
   await page.goto("/passport");
 
-  await page.getByRole("button").filter({ hasText: /2026-03-14/ }).first().click();
+  await page.getByRole("button", { name: /Ginza Itoya Main Store/ }).first().click();
   await expect(page.getByRole("dialog")).toBeVisible();
+  await settled(page, '[role="dialog"]');
+  expect((await analyze(page)).violations).toEqual([]);
+
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+
+  // A derived seal opens the same overlay with different content, so it is its
+  // own audit.
+  await page.getByRole("button", { name: /^Country seal,/ }).first().click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await settled(page, '[role="dialog"]');
   expect((await analyze(page)).violations).toEqual([]);
 
   await page.keyboard.press("Escape");

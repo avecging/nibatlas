@@ -1107,6 +1107,272 @@ test("seal logic is shown against an explicit versioned set", async ({ page }) =
 });
 
 /* ---------------------------------------------------------------------- */
+/* Derived seals                                                          */
+/* ---------------------------------------------------------------------- */
+
+/**
+ * A seal is artwork, and artwork you can open.
+ *
+ * The founder's WP3 staging review found country seals rendered as artwork
+ * nobody could touch and locality seals reduced to a line of text. Both are now
+ * the same interaction as a shop stamp, in the same overlay, with content
+ * appropriate to what they are: a seal is *derived* from visits, so it never
+ * offers a shop.
+ */
+test.describe("derived seals", () => {
+  const COUNTRY_SEAL = /^Country seal, Singapore, earned 2026-06-03$/;
+  const LOCALITY_SEAL = /^Locality seal, Chūō, Tokyo, earned 2026-03-14$/;
+
+  test.beforeEach(async ({ page }) => {
+    await useNormalMode(page);
+    await seedSampleCollection(page);
+  });
+
+  /** Asserts what every seal overlay owes the reader, and what it must not have. */
+  async function expectSealOverlay(page: Page, scope: "Country" | "Locality") {
+    const dialog = page.getByRole("dialog");
+
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toHaveAttribute("aria-modal", "true");
+    await expect(dialog).toHaveAttribute("data-detail-kind", "seal");
+    await expect(dialog.getByText(`${scope} seal`, { exact: true })).toBeVisible();
+
+    // Derived from visits, so there is no shop to go on to and no collection
+    // date to report.
+    await expect(dialog.getByRole("link", { name: /open shop/i })).toHaveCount(0);
+    await expect(dialog.getByText("Collected", { exact: true })).toHaveCount(0);
+    await expect(dialog.getByText("Earned", { exact: true })).toBeVisible();
+
+    return dialog;
+  }
+
+  test("List shows a country seal as artwork, and opens it", async ({ page }) => {
+    await page.goto("/passport");
+
+    const seal = page.getByRole("button", { name: COUNTRY_SEAL });
+
+    // Artwork, not a filled alert-style chip.
+    await expect(seal).toBeVisible();
+    await expect(seal.locator("svg")).toBeVisible();
+
+    // Three countries are visited and only one seal is earned; nothing stands in
+    // for the other two.
+    await expect(page.getByRole("button", { name: /^Country seal,/ })).toHaveCount(1);
+
+    await seal.focus();
+    await page.keyboard.press("Enter");
+
+    const dialog = await expectSealOverlay(page, "Country");
+    await expect(dialog).toHaveAccessibleName("Singapore");
+
+    const facts = dialog.getByRole("definition");
+    await expect(facts).toHaveCount(2);
+    await expect(facts.nth(0)).toHaveText("Singapore");
+    await expect(facts.nth(1)).toHaveText("2026-06-03");
+
+    // Focus is contained, Escape closes, and focus comes back to the seal.
+    await page.keyboard.press("Tab");
+    expect(
+      await page.evaluate(
+        () => document.querySelector('[role="dialog"]')?.contains(document.activeElement) ?? false,
+      ),
+    ).toBe(true);
+
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    expect(
+      await page.evaluate(() => document.activeElement?.getAttribute("data-seal-scope")),
+    ).toBe("country");
+  });
+
+  test("List shows every locality seal as artwork, and opens one", async ({ page }) => {
+    await page.goto("/passport");
+
+    // Five localities are collected, so five locality seals derive.
+    await expect(page.getByRole("button", { name: /^Locality seal,/ })).toHaveCount(5);
+
+    const seal = page.getByRole("button", { name: LOCALITY_SEAL });
+    await seal.click();
+
+    const dialog = await expectSealOverlay(page, "Locality");
+    await expect(dialog).toHaveAccessibleName("Chūō, Tokyo");
+
+    const facts = dialog.getByRole("definition");
+    await expect(facts).toHaveCount(3);
+    await expect(facts.nth(0)).toHaveText("Chūō, Tokyo");
+    await expect(facts.nth(1)).toHaveText("Japan");
+    await expect(facts.nth(2)).toHaveText("2026-03-14");
+
+    // The obvious close control, and focus back where it came from.
+    await page.getByRole("button", { name: /close seal/i }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  });
+
+  test("Book opens a country seal from the geographic-seals page", async ({ page }) => {
+    await seedPassportView(page, {
+      mode: "book",
+      coverSeen: true,
+      place: { kind: "seals" },
+    });
+    await page.goto("/passport");
+    await expect
+      .poll(async () => (await bookState(page)).opened, { timeout: 5000 })
+      .toBe(true);
+    await expect(page.getByText(/Geographic seals/i)).toBeVisible();
+
+    await page.getByRole("button", { name: COUNTRY_SEAL }).click();
+    await expectSealOverlay(page, "Country");
+  });
+
+  test("Book shows the locality seal as artwork, not as a line of text", async ({
+    page,
+  }) => {
+    await seedPassportView(page, { mode: "book", coverSeen: true });
+    await openBook(page, "/passport/jp/chuo-tokyo");
+
+    // The WP3 text-only treatment is gone.
+    await expect(page.getByText(/^Locality seal earned/)).toHaveCount(0);
+
+    const seal = page.getByRole("button", { name: LOCALITY_SEAL });
+    await expect(seal).toBeVisible();
+
+    const before = await page.getByTestId("passport-pager").innerText();
+
+    await seal.click();
+    await expectSealOverlay(page, "Locality");
+
+    // Pressing a seal enlarges it; it never starts a page turn.
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    expect(await page.getByTestId("passport-pager").innerText()).toBe(before);
+  });
+
+  test("a shop stamp still opens its own overlay, unchanged", async ({ page }) => {
+    await page.goto("/passport");
+
+    await page
+      .getByRole("button", { name: /Ginza Itoya Main Store/ })
+      .first()
+      .click();
+
+    const dialog = page.getByRole("dialog");
+
+    await expect(dialog).toHaveAttribute("data-detail-kind", "impression");
+    await expect(dialog.getByText("Shop stamp", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("Collected", { exact: true })).toBeVisible();
+    await expect(dialog.getByRole("link", { name: /open shop/i })).toBeVisible();
+  });
+});
+
+/* ---------------------------------------------------------------------- */
+/* The way in and out of the book                                         */
+/* ---------------------------------------------------------------------- */
+
+test.describe("one control for the cover", () => {
+  test.beforeEach(async ({ page }) => {
+    await useNormalMode(page);
+    await seedSampleCollection(page);
+    await seedPassportView(page, { mode: "book" });
+  });
+
+  test("the closed book has one Open control, and it is in the pager", async ({
+    page,
+  }) => {
+    await page.goto("/passport");
+
+    const opener = page.getByRole("button", { name: /open passport/i });
+
+    // One, not two: the floating opener that sat partly behind the pager pill at
+    // 360 px is gone.
+    await expect(opener).toHaveCount(1);
+    await expect(opener).toHaveText("Open");
+
+    // In the strip, next to Contents and the page label.
+    const pager = page.getByRole("group", { name: "Passport pages" });
+
+    await expect(pager.getByRole("button", { name: /open passport/i })).toHaveCount(1);
+    await expect(pager.getByRole("button", { name: /^contents$/i })).toBeVisible();
+    await expect(pager.getByTestId("passport-pager")).toBeVisible();
+  });
+
+  test("the open book exposes Cover through that same control", async ({ page }) => {
+    await page.goto("/passport");
+
+    const opener = page.getByRole("button", { name: /open passport/i });
+    const position = await opener.evaluate(
+      (node) => [...(node.parentElement?.children ?? [])].indexOf(node),
+    );
+
+    await opener.click();
+    await expect
+      .poll(async () => (await bookState(page)).opened, { timeout: 5000 })
+      .toBe(true);
+
+    const cover = page.getByRole("button", { name: /^cover$/i });
+
+    await expect(cover).toHaveCount(1);
+    await expect(page.getByRole("button", { name: /open passport/i })).toHaveCount(0);
+    expect(
+      await cover.evaluate((node) => [...(node.parentElement?.children ?? [])].indexOf(node)),
+    ).toBe(position);
+
+    // And it takes the reader back, where the control offers Open again.
+    await cover.click();
+    await expect
+      .poll(async () => (await bookState(page)).opened, { timeout: 5000 })
+      .toBe(false);
+    await expect(page.getByRole("button", { name: /open passport/i })).toBeVisible();
+  });
+
+  test("the pager fits and works at 360 x 800", async ({ page, viewport }) => {
+    test.skip((viewport?.width ?? 0) !== 360, "The width the overlap was found at.");
+
+    await page.goto("/passport");
+    await expect(page.getByRole("button", { name: /open passport/i })).toBeVisible();
+
+    // Nothing overflows the document sideways.
+    expect(
+      await page.evaluate(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        innerWidth: window.innerWidth,
+      })),
+    ).toEqual({ scrollWidth: 360, innerWidth: 360 });
+
+    // Every control in the strip is fully inside the viewport and has a real
+    // tap target.
+    const boxes = await page
+      .getByRole("group", { name: "Passport pages" })
+      .evaluate((pager) =>
+        [...pager.querySelectorAll("button")].map((button) => {
+          const rect = button.getBoundingClientRect();
+
+          return {
+            left: Math.round(rect.left),
+            right: Math.round(rect.right),
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+          };
+        }),
+      );
+
+    expect(boxes.length).toBeGreaterThanOrEqual(4);
+
+    for (const box of boxes) {
+      expect(box.left).toBeGreaterThanOrEqual(0);
+      expect(box.right).toBeLessThanOrEqual(360);
+      expect(box.width).toBeGreaterThan(0);
+      expect(box.height).toBeGreaterThanOrEqual(24);
+    }
+
+    // And the control still does its job at this width.
+    await page.getByRole("button", { name: /open passport/i }).click();
+    await expect
+      .poll(async () => (await bookState(page)).opened, { timeout: 5000 })
+      .toBe(true);
+  });
+});
+
+/* ---------------------------------------------------------------------- */
 /* Stamp detail                                                           */
 /* ---------------------------------------------------------------------- */
 
@@ -1119,7 +1385,9 @@ test.describe("the enlarged stamp", () => {
   test("opens from a List row, by keyboard, and returns focus", async ({ page }) => {
     await page.goto("/passport");
 
-    const row = page.getByRole("button").filter({ hasText: /2026-03-14/ }).first();
+    // By the shop's name: the Chūō, Tokyo locality seal was earned on the same
+    // day, so a date alone no longer identifies a stamp row.
+    const row = page.getByRole("button", { name: /Ginza Itoya Main Store/ }).first();
     await row.focus();
     await page.keyboard.press("Enter");
 
@@ -1163,7 +1431,7 @@ test.describe("the enlarged stamp", () => {
 
   test("closes on its own control", async ({ page }) => {
     await page.goto("/passport");
-    await page.getByRole("button").filter({ hasText: /2026-03-14/ }).first().click();
+    await page.getByRole("button", { name: /Ginza Itoya Main Store/ }).first().click();
 
     await expect(page.getByRole("dialog")).toBeVisible();
     await page.getByRole("button", { name: /close stamp/i }).click();
@@ -1174,7 +1442,7 @@ test.describe("the enlarged stamp", () => {
     await seedPassportView(page, { mode: "book", coverSeen: true });
     await openBook(page);
 
-    await page.getByRole("button").filter({ hasText: /2026-06-03/ }).first().click();
+    await page.getByRole("button", { name: /Fook Hing Trading/ }).first().click();
 
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
@@ -1186,7 +1454,7 @@ test.describe("the enlarged stamp", () => {
   test("Open shop keeps the Passport route it was opened from", async ({ page }) => {
     await page.goto("/passport/jp/chuo-tokyo");
 
-    await page.getByRole("button").filter({ hasText: /2026-03-14/ }).first().click();
+    await page.getByRole("button", { name: /Ginza Itoya Main Store/ }).first().click();
     await page.getByRole("link", { name: /open shop/i }).click();
 
     await expect(page).toHaveURL(/\/shops\/ginza-itoya-main-store/);
@@ -1230,7 +1498,7 @@ test("browser Back from a shop restores the Passport mode and context", async ({
 
   const before = await bookState(page);
 
-  await page.getByRole("button").filter({ hasText: /2026-06-03/ }).first().click();
+  await page.getByRole("button", { name: /Fook Hing Trading/ }).first().click();
   await page.getByRole("link", { name: /open shop/i }).click();
   await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
 
@@ -1342,7 +1610,7 @@ test.describe("reduced motion", () => {
     await page.goto("/passport");
 
     // List mode has no motion to remove, and the overlay still opens and closes.
-    await page.getByRole("button").filter({ hasText: /2026-03-14/ }).first().click();
+    await page.getByRole("button", { name: /Ginza Itoya Main Store/ }).first().click();
     await expect(page.getByRole("dialog")).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);

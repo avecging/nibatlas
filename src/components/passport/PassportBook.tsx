@@ -15,6 +15,7 @@ import { useMediaQuery } from "@/src/components/hooks/useMediaQuery";
 import { PassportPageView } from "@/src/components/passport/PassportPageView";
 import { Icon } from "@/src/components/ui/Icon";
 import type { StampCollection } from "@/src/domain/passport";
+import type { EarnedSeal } from "@/src/domain/seals";
 import {
   canTurn,
   firstPosition,
@@ -88,6 +89,8 @@ interface PassportBookProps {
   readonly onPlaceChange?: ((place: PassportPlace | null) => void) | undefined;
   /** Enlarges an impression. Same overlay as List mode. */
   readonly onSelectStamp: (collection: StampCollection) => void;
+  /** Enlarges a derived seal, in that same overlay. */
+  readonly onSelectSeal: (seal: EarnedSeal) => void;
 }
 
 /**
@@ -113,6 +116,7 @@ export function PassportBook({
   onCoverOpened,
   onPlaceChange,
   onSelectStamp,
+  onSelectSeal,
 }: PassportBookProps) {
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
@@ -591,6 +595,7 @@ export function PassportBook({
         page={page}
         headingId={`${headingPrefix}-page-${index}`}
         onSelectStamp={onSelectStamp}
+        onSelectSeal={onSelectSeal}
         onJumpToPage={jumpTo}
       />
     );
@@ -706,28 +711,37 @@ export function PassportBook({
         </div>
       </div>
 
-      {!opened ? (
-        <button className={styles.openButton} type="button" onClick={openCover}>
-          <Icon name="passport" size={18} />
-          Open Passport
-        </button>
-      ) : null}
-
       {/*
         Two groups — where to jump, and how to turn — in one control strip. They
         wrap onto two rows at narrow widths rather than pushing the pager wider
         than a 360 px screen.
       */}
-      <div className={styles.pager}>
+      <div
+        aria-label="Passport pages"
+        className={styles.pager}
+        role="group"
+      >
         <div className={styles.pagerGroup}>
+          {/*
+            One control, two states.
+            
+            It used to be two: a floating **Open Passport** button over the field
+            and a **Cover** button in the pager, and at 360 px the floating one
+            sat partly behind the pill. They are the same idea — the way between
+            the cover and the pages — so they are now the same control in the same
+            place. The accessible name stays *Open Passport* while the visible
+            label is the shorter *Open*, which is the same word: enough room in
+            the strip, and no ambiguity for a screen reader.
+          */}
           <button
+            aria-label={opened ? undefined : "Open Passport"}
             className={styles.pagerCover}
             type="button"
-            onClick={closeToCover}
-            disabled={!opened || coverAnimating}
+            onClick={opened ? closeToCover : openCover}
+            disabled={coverAnimating}
           >
             <Icon name="passport" size={16} />
-            Cover
+            {opened ? "Cover" : "Open"}
           </button>
           {/*
             The contents spread is one turn behind the opening spread, which is

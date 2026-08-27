@@ -34,11 +34,14 @@ capture time so the frames are deterministic.
 | `list-empty` | A clean normal device. It says nothing has been collected, names where stamps come from in one line, and offers the map. No fake stamps, no locked silhouettes, no invented history |
 | `list` | List mode with a collection: three counts, then per country its name, stamp count and country seal *as artwork* where earned, then per locality a subheading and rows of `thumbnail · shop name · local-script name · locality · date` |
 | `list-locality` | `/passport/jp/chuo-tokyo` in List mode. A locality URL is its own destination, not the overview scrolled down |
-| `book-cover` | The redesigned cover: textured passport stock, the issuing line at the top, the mark in the middle, `PASSPORT` below it and `VOLUME I` at the foot. The two decorative foil rules are gone |
+| `book-cover` | The redesigned cover: textured passport stock, the issuing line at the top, the mark in the middle, `PASSPORT` below it and `VOLUME I` at the foot. The two decorative foil rules are gone. The way in is **Open**, in the pager — the floating button that overlapped the pill at 360 px is gone |
 | `book-opening` | The opening spread — country seals on the left, the most recently collected locality on the right. Portrait reading opens on that locality, so the first thing a reader with stamps sees is their stamps |
 | `book-index` | The contents spread: the identity page facing the country/locality index, with a leader rule and a page number per entry. Reached by the labelled **Contents** control rather than by paging |
 | `book-locality` | A locality spread reached by its own URL, with no cover sequence first |
 | `stamp-detail` | The enlarged impression: the stamp at a useful size, its tier, the shop name and local-script name, locality, country, local collection date, and **Open shop** |
+| `seal-country` | The enlarged country seal: the artwork at size, **Country seal**, the country and the earned date. No shop fields and no **Open shop** — a seal is derived from visits, not one of them |
+| `seal-locality` | The enlarged locality seal: the same, with the locality named as well as the country |
+| `book-locality-seal` | A Book locality page carrying its seal as selectable artwork with concise supporting text, in place of WP3's text-only *Locality seal earned…* line |
 | `identity-named` | The identity page with a display name from the account seam |
 | `identity-fallback` | The same page with no display name: **Your Passport**. Never anything derived from an address |
 | `book-reduced-motion` | The opening spread with reduced motion: no three-quarter tilt, no perspective, every page and control unchanged |

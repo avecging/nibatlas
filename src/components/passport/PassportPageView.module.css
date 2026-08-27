@@ -258,6 +258,42 @@
   display: block;
 }
 
+/*
+ * A seal on a page, as a control.
+ *
+ * It is a `<button>` for two reasons: it opens the enlarged seal, and the book's
+ * drag handler refuses to begin a page turn on a button — so tapping a seal
+ * cannot be mistaken for starting to drag the leaf.
+ */
+.sealButton {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.sealButton:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+.sealButton > span {
+  display: block;
+}
+
+.sealButton > span > * {
+  max-width: 100%;
+}
+
+.sealButton[data-seal-size="locality"] {
+  width: 5.4em;
+}
+
 .sealPending {
   display: grid;
   place-items: center;
@@ -298,20 +334,38 @@
 
 /* Locality page --------------------------------------------------------- */
 
+/* The locality seal beside its own caption, so the artwork leads and the fact
+   follows it rather than replacing it. */
 .localitySeal {
-  margin-top: 0.35em;
-  color: var(--vermilion-700);
-  font-size: 0.65em;
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  margin-top: 0.5em;
+}
+
+.localitySealMeta {
+  display: flex;
+  flex-direction: column;
+  color: var(--sumi-700);
+  font-size: 0.62em;
+  line-height: 1.35;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.localitySealMeta span {
+  color: var(--sumi-500);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: none;
 }
 
 .stampGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.9em;
-  margin-top: 1em;
+  margin-top: 0.8em;
 }
 
 .stampSlot {

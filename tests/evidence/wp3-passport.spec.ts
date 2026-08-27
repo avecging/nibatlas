@@ -164,6 +164,48 @@ for (const breakpoint of BREAKPOINTS) {
       await capture(page, `${breakpoint.name}-stamp-detail`);
     });
 
+    /**
+     * A derived country seal, enlarged.
+     *
+     * Type-appropriate facts and no **Open shop**: a seal falls out of verified
+     * visits rather than being one.
+     */
+    test("enlarged country seal", async ({ page }) => {
+      await useNormalMode(page);
+      await seedSampleCollection(page);
+      await page.goto("/passport");
+      await settled(page);
+
+      await page.getByRole("button", { name: /^Country seal,/ }).first().click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+      await capture(page, `${breakpoint.name}-seal-country`);
+    });
+
+    /** And a locality seal, which names its locality as well as its country. */
+    test("enlarged locality seal", async ({ page }) => {
+      await useNormalMode(page);
+      await seedSampleCollection(page);
+      await page.goto("/passport");
+      await settled(page);
+
+      await page
+        .getByRole("button", { name: /^Locality seal, Chūō, Tokyo/ })
+        .click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+      await capture(page, `${breakpoint.name}-seal-locality`);
+    });
+
+    /** The Book's locality page, where the seal is artwork rather than a line. */
+    test("Book locality page with its seal", async ({ page }) => {
+      await useNormalMode(page);
+      await seedSampleCollection(page);
+      await seedPassportView(page, { mode: "book", coverSeen: true });
+      await page.goto("/passport/jp/chuo-tokyo");
+      await bookSettled(page);
+
+      await capture(page, `${breakpoint.name}-book-locality-seal`);
+    });
+
     /** The identity page with a display name from the account seam. */
     test("identity with a display name", async ({ page }) => {
       await seedSignedInPreview(page, "Ada Lovelace");

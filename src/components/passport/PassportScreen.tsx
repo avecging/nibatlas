@@ -4,7 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { PassportBook } from "@/src/components/passport/PassportBook";
 import { PassportList } from "@/src/components/passport/PassportList";
-import { StampDetailOverlay } from "@/src/components/passport/StampDetailOverlay";
+import {
+  impressionSubject,
+  PassportDetailOverlay,
+  sealSubject,
+  type PassportDetailSubject,
+} from "@/src/components/passport/PassportDetailOverlay";
 import { PASSPORT_ANCHOR_PARAM } from "@/src/components/shops/ShopBackLink";
 import { ButtonLink } from "@/src/components/ui/Button";
 import { Icon } from "@/src/components/ui/Icon";
@@ -14,6 +19,7 @@ import {
   findPassportLocality,
   type StampCollection,
 } from "@/src/domain/passport";
+import type { EarnedSeal } from "@/src/domain/seals";
 import { useAccountSession } from "@/src/features/account/AccountSessionProvider";
 import { useCollection } from "@/src/features/collection/collection-store";
 import { noopTelemetry } from "@/src/features/map/telemetry";
@@ -60,12 +66,26 @@ import styles from "./PassportScreen.module.css";
 const SCROLL_RESTORE_HOLD_FRAMES = 3;
 
 /**
- * The most frames a restoration may run for.
+ * The most frames a restoration may re-apply for.
  *
  * A backstop for a list that genuinely cannot scroll that far — a collection that
  * shrank, say — so the loop ends instead of re-applying for ever.
  */
 const SCROLL_RESTORE_MAX_FRAMES = 30;
+
+/**
+ * How long after a restoration the offset is still defended, in milliseconds.
+ *
+ * The frame loop above ends as soon as the offset holds, which is right for
+ * layout but not for the router: it scrolls a new route to the top *after* the
+ * render commits, and on a slow or loaded machine that can land after the loop
+ * has already let go. So for a short window afterwards a scroll that moves away
+ * from the restored offset — with no input to explain it — is put back.
+ *
+ * Only ever one correction is needed in practice; input cancels the window
+ * outright, so this can never turn into the page resisting the reader.
+ */
+const SCROLL_RESTORE_GUARD_MS = 700;
 
 /** What tells us the reader has taken over, so the restoration should stop. */
 const USER_SCROLL_INTENT = ["wheel", "touchstart", "keydown", "pointerdown"] as const;
@@ -148,8 +168,23 @@ export function PassportScreen({ target }: { readonly target: PassportTarget }) 
       : new URLSearchParams(window.location.search).get(PASSPORT_ANCHOR_PARAM),
   );
 
-  const [detail, setDetail] = useState<StampCollection | null>(null);
+  /**
+   * What the enlarged overlay is showing, if anything.
+   *
+   * One piece of state for both kinds, because only one thing can be enlarged at
+   * a time and because a stamp and a seal are the same act from the reader's
+   * side: tap the artwork, see it properly.
+   */
+  const [detail, setDetail] = useState<PassportDetailSubject | null>(null);
   const closeDetail = useCallback(() => setDetail(null), []);
+  const selectStamp = useCallback(
+    (collection: StampCollection) => setDetail(impressionSubject(collection)),
+    [],
+  );
+  const selectSeal = useCallback(
+    (seal: EarnedSeal) => setDetail(sealSubject(seal)),
+    [],
+  );
 
   const displayName =
     session.status === "signed-in" ? session.displayName : null;
@@ -320,10 +355,16 @@ export function PassportScreen({ target }: { readonly target: PassportTarget }) 
      * which is what makes it behave the same on a loaded machine as on an idle
      * one.
      *
-     * Genuine input belongs to the reader, so it cancels the rest of the loop
-     * rather than being overridden.
+     * Once it holds, a short guard window keeps defending it: the router's
+     * scroll-to-top can land after the loop has let go, and on a loaded machine
+     * often does. `restoringRef` stays set for that window too, so the offset
+     * being corrected is never itself recorded as the reader's position.
+     *
+     * Genuine input belongs to the reader, so it cancels the loop and the guard
+     * together rather than being overridden.
      */
     let frame = 0;
+    let guard = 0;
     let ticks = 0;
     let held = 0;
     restoringRef.current = true;
@@ -334,11 +375,30 @@ export function PassportScreen({ target }: { readonly target: PassportTarget }) 
         frame = 0;
       }
 
+      if (guard !== 0) {
+        window.clearTimeout(guard);
+        guard = 0;
+      }
+
       restoringRef.current = false;
+      window.removeEventListener("scroll", onDeviation);
 
       for (const type of USER_SCROLL_INTENT) {
         window.removeEventListener(type, stop);
       }
+    };
+
+    /**
+     * Something moved the page away from the restored offset, and it was not the
+     * reader — input would have stopped this listener before it could fire. The
+     * only thing that does that here is the router's own scroll-to-top.
+     */
+    const onDeviation = () => {
+      if (frame !== 0 || Math.abs(window.scrollY - offset) <= 2) {
+        return;
+      }
+
+      window.scrollTo({ top: offset });
     };
 
     const step = () => {
@@ -353,7 +413,9 @@ export function PassportScreen({ target }: { readonly target: PassportTarget }) 
 
       if (held >= SCROLL_RESTORE_HOLD_FRAMES || ticks >= SCROLL_RESTORE_MAX_FRAMES) {
         frame = 0;
-        stop();
+        // The frame loop is done, but the guard window is not: from here the
+        // offset is defended rather than re-applied.
+        guard = window.setTimeout(stop, SCROLL_RESTORE_GUARD_MS);
         return;
       }
 
@@ -363,6 +425,8 @@ export function PassportScreen({ target }: { readonly target: PassportTarget }) 
     for (const type of USER_SCROLL_INTENT) {
       window.addEventListener(type, stop, { passive: true });
     }
+
+    window.addEventListener("scroll", onDeviation, { passive: true });
 
     frame = requestAnimationFrame(step);
 
@@ -500,7 +564,8 @@ export function PassportScreen({ target }: { readonly target: PassportTarget }) 
       ) : view.mode === "list" ? (
         <PassportList
           focus={focus}
-          onSelectStamp={setDetail}
+          onSelectSeal={selectSeal}
+          onSelectStamp={selectStamp}
           passport={passport}
           seals={seals}
         />
@@ -510,7 +575,8 @@ export function PassportScreen({ target }: { readonly target: PassportTarget }) 
           requestedPageIndex={requestedPageIndex}
           onCoverOpened={view.markCoverSeen}
           onPlaceChange={view.rememberPlace}
-          onSelectStamp={setDetail}
+          onSelectSeal={selectSeal}
+          onSelectStamp={selectStamp}
           pages={pages}
           // A deep link opens where it was asked to. The cover ceremony is for
           // a first visit to the Passport itself, not for a reader who followed
@@ -519,10 +585,10 @@ export function PassportScreen({ target }: { readonly target: PassportTarget }) 
         />
       )}
 
-      <StampDetailOverlay
-        collection={detail}
+      <PassportDetailOverlay
         onClose={closeDetail}
         returnHref={backHref}
+        subject={detail}
       />
     </div>
   );

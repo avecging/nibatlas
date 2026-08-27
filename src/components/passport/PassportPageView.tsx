@@ -4,6 +4,7 @@ import { NibAtlasMark } from "@/src/components/brand/NibAtlasMark";
 import { StampArt } from "@/src/components/stamps/StampArt";
 import { Icon } from "@/src/components/ui/Icon";
 import type { StampCollection } from "@/src/domain/passport";
+import type { EarnedSeal } from "@/src/domain/seals";
 import { useReviewerMode } from "@/src/features/reviewer/ReviewerModeProvider";
 import type { PassportPage } from "@/src/features/passport/passport-pages";
 
@@ -19,16 +20,62 @@ const SLOTS = [
   { rotate: -2.4 },
 ] as const;
 
+/**
+ * A seal on a book page, as artwork you can open.
+ *
+ * The same control as List mode's, sized for a page rather than for a section
+ * head. A `<button>` for the interaction and — just as importantly — because the
+ * book's drag handler already refuses to start a page turn on one, so tapping a
+ * seal enlarges it instead of dragging the leaf.
+ */
+function PageSealButton({
+  seal,
+  onSelect,
+  size,
+}: {
+  readonly seal: EarnedSeal;
+  readonly onSelect: () => void;
+  readonly size: "country" | "locality";
+}) {
+  const name =
+    seal.scope === "country" ? seal.countryLabel : (seal.localityName ?? seal.countryLabel);
+
+  return (
+    <button
+      className={styles.sealButton}
+      data-seal-size={size}
+      onClick={onSelect}
+      type="button"
+    >
+      <span aria-hidden="true">
+        <StampArt
+          size="small"
+          stamp={seal.stamp}
+          subtitle={seal.earnedOn}
+          title={name}
+        />
+      </span>
+      <span className="visually-hidden">
+        {seal.scope === "country" ? "Country seal" : "Locality seal"}, {name}, earned{" "}
+        {seal.earnedOn}
+      </span>
+    </button>
+  );
+}
+
 export function PassportPageView({
   page,
   headingId,
   onSelectStamp,
+  onSelectSeal,
   onJumpToPage,
 }: {
   readonly page: PassportPage;
   readonly headingId: string;
   /** Enlarges an impression. The same overlay List mode opens. */
   readonly onSelectStamp: (collection: StampCollection) => void;
+  /** Enlarges a derived seal, in that same overlay. */
+  readonly onSelectSeal: (seal: EarnedSeal) => void;
   /** Turns to a page from the contents index, without paging there by hand. */
   readonly onJumpToPage: (pageIndex: number) => void;
 }) {
@@ -156,11 +203,10 @@ export function PassportPageView({
                   <li className={styles.sealRow} key={country.countryCode}>
                     <span className={styles.sealArt}>
                       {seal ? (
-                        <StampArt
-                          stamp={seal.stamp}
-                          title={country.countryLabel}
-                          subtitle={seal.earnedOn}
-                          size="small"
+                        <PageSealButton
+                          onSelect={() => onSelectSeal(seal)}
+                          seal={seal}
+                          size="country"
                         />
                       ) : (
                         <span className={styles.sealPending} aria-hidden="true">
@@ -221,10 +267,23 @@ export function PassportPageView({
               {page.localityName}
               {page.continued ? " (continued)" : ""}
             </h3>
+            {/*
+              The locality seal, as the artwork it is. It read as a line of text
+              until the founder's WP3 staging review, which is the one place in
+              the Passport a seal was not shown at all.
+            */}
             {page.seal ? (
-              <p className={styles.localitySeal}>
-                Locality seal earned {page.seal.earnedOn}
-              </p>
+              <div className={styles.localitySeal}>
+                <PageSealButton
+                  onSelect={() => onSelectSeal(page.seal as EarnedSeal)}
+                  seal={page.seal}
+                  size="locality"
+                />
+                <span className={styles.localitySealMeta}>
+                  Locality seal
+                  <span>Earned {page.seal.earnedOn}</span>
+                </span>
+              </div>
             ) : null}
             <ul className={styles.stampGrid}>
               {page.collections.map((collection, index) => (

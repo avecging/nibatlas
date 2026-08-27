@@ -1,7 +1,8 @@
 # Milestone 1.5 — Production-like product refinement
 
-**Status:** Founder-approved direction. **WP1, WP2 and WP3 implemented**;
-WP4–WP7 and WP-D not started.
+**Status:** Founder-approved direction. **WP1, WP2 and WP3 implemented**, WP3
+including the two corrections from its staging review; WP4–WP7 and WP-D not
+started, with two founder decisions recorded for WP5 and WP6.
 **Recorded:** 26 August 2026
 **Owner:** Claude Code (frontend), with founder and Codex on sourcing
 **Depends on:** Milestone 1 (PR #5) landing as the corrected technical foundation
@@ -376,8 +377,8 @@ that feedback exists.
 | **WP2** | Me restructure: signed-out/signed-in split, compact Places Visited linked into Passport, local-data controls, Contribute entries, Danger group | WP1 | **Implemented** |
 | **WP3** | Passport IA: List/Book toggle, opening spread on content, country/locality index and linked routes, stamp detail overlay, first-run-only cover, cover redesign, display name on the identity page | WP1 | **Implemented** |
 | **WP4** | Shop value layer: the data-model extension, sourced content, reordered page, native directions, contextual report | WP1, sourcing | Not started |
-| **WP5** | Visual fidelity: shop identity system, interim hero, paper and cover texture, stamp at large size, ceremony material pass | WP3, WP4 | Not started |
-| **WP6** | Filter drawer: segment plus drawer, active count, one-tap clear | WP1 | Not started |
+| **WP5** | Visual fidelity: shop identity system, interim hero, paper and cover texture, stamp at large size, ceremony material pass, and the **one presentation family** for enlarged impressions and seal overlays recorded below | WP3, WP4 | Not started |
+| **WP6** | Filter drawer: segment plus drawer, active count, one-tap clear; and the **card and marker interaction** recorded below, with its documentation update | WP1 | Not started |
 | **WP7** | Contact and contribution routes: the contextual shop-page correction, help and contact, and the `/suggest-shop` page later. *Suggest a pen shop* is routed in WP2 | WP2 | Not started |
 | **WP-D** | **Required desktop audit** across all of the above | Founder desktop feedback | Not started |
 
@@ -1211,7 +1212,9 @@ deterministic and neither surface reorders the other.
    the cover once.
 
 6. **An impression is a button, not a link.** Tapping a stamp in either mode
-   opens `StampDetailOverlay`: the impression at a useful size, its tier, the shop
+   opens the detail overlay (`PassportDetailOverlay` after the staging review,
+   which generalised it over seals as well): the impression at a useful size, its
+   tier, the shop
    name and local-script name, locality, country, the local collection date, and
    **Open shop**. The shop is one step further on, from inside the overlay, so a
    reader can look at a stamp without leaving the Passport. It shows what the
@@ -1527,6 +1530,184 @@ looks like, so the WP3 evidence captures and the visual baselines were regenerat
 and came back byte-identical. `pnpm verify`, `pnpm test:e2e`,
 `pnpm build:cloudflare`, the visual suite and the WP3 evidence suite are all green
 on the revised commit.
+
+### WP3 revisions after the founder's staging review
+
+**Reviewed:** 27 August 2026. Two corrections, both about things the Passport was
+already carrying but not letting the reader reach.
+
+#### 1. Derived seals are viewable
+
+The founder found country seals rendered as artwork nobody could touch, and
+locality seals reduced to a line of text — *"Locality seal earned 2026-03-14"* —
+which is the one place in the Passport where a seal was not shown at all. A seal
+is meaningful artwork; if a shop stamp enlarges, a seal has to.
+
+`StampDetailOverlay` became `PassportDetailOverlay`, generalised over a subject
+union rather than duplicated:
+
+```ts
+type PassportDetailSubject =
+  | { kind: "impression"; collection: StampCollection }
+  | { kind: "seal"; seal: EarnedSeal };
+```
+
+A union rather than one shape with optional fields, because the two are not
+interchangeable in content. Each branch states what its own kind records:
+
+- **A shop stamp** keeps exactly what it had — tier, shop name, local-script name,
+  locality, country, the local collection date, and **Open shop**.
+- **A country seal** shows the artwork at size, *Country seal*, the country, and
+  the earned date.
+- **A locality seal** shows the artwork at size, *Locality seal*, the locality, the
+  country, and the earned date.
+
+**No derived seal offers Open shop, and none reports a collection date.** A country
+seal derives from five stamps or a complete curated set and a locality seal from
+the first stamp there, so there is no single shop for either to lead to; offering
+one would misreport what a seal is. One quiet line says so, in place of the
+action, rather than leaving the overlay looking as though a control had gone
+missing.
+
+Where the seals became selectable:
+
+- **List, country** — the artwork already sat at the head of each country section
+  and is now a button. Still artwork, not a chip: WP1's filled vermilion "Country
+  seal earned" badge is not coming back.
+- **List, locality** — the text note in the locality heading is replaced by the
+  seal artwork itself, as a button, sized as a mark beside a subheading rather
+  than as a section emblem.
+- **Book, seals page** — each earned country seal is a button. The *Not yet* row
+  for an unearned one is unchanged and is not a control.
+- **Book, locality page** — the text line is replaced by the seal artwork as a
+  button, with *Locality seal · Earned <date>* as concise supporting text beside
+  it. The stamp grid's top margin came in slightly to keep four impressions and a
+  seal on one page.
+
+**Nothing is shown for an unearned seal in List.** No locked silhouette, no
+placeholder — `PRODUCT.md` and `UX.md` both rule that out, and an absent seal is
+already legible from the seals page.
+
+Two properties worth naming because they are easy to lose:
+
+- A seal is a `<button>`, which the book's drag handler already refuses to start a
+  page turn on — so pressing a seal enlarges it rather than dragging the leaf. The
+  existing `closest("a, button, [data-no-drag]")` guard covers it with no change.
+- The artwork inside each seal button is `aria-hidden`, and the accessible name is
+  one line beside it: *"Country seal, Singapore, earned 2026-06-03"*. Without that
+  the button would announce the impression's own long description twice over, and
+  *"Japan"* alone would not say what had been earned.
+
+Book geometry, the page order, continuation-page behaviour and the modal
+guarantees — keyboard, touch, focus containment, Escape, a visible close control,
+focus restoration — are unchanged and apply to seals exactly as to stamps.
+
+#### 2. One control for the cover
+
+At 360 px the floating **Open Passport** button sat partly behind the pager pill.
+The two controls were the same idea from opposite ends — the way between the cover
+and the pages — so they are now one control in one place, the first position in
+the pager:
+
+| Book | Visible label | Accessible name |
+| --- | --- | --- |
+| Closed | **Open** | Open Passport |
+| Open | **Cover** | Cover |
+
+The visible label is the shorter word so the strip fits at 360 px; the accessible
+name is the longer one, and *Open* is contained in *Open Passport*, so the
+label-in-name requirement holds. The same treatment applies at every breakpoint —
+there is no reason for it to differ, and one control is simpler everywhere.
+
+The floating button and its styles are gone. The pager already wraps onto two rows
+below 480 px from the Codex-review pass, so removing the overlap needed no further
+layout change.
+
+The strip itself gained `role="group"` and the name *Passport pages*, which is
+what the List/Book toggle already had. It names a set of related controls for a
+screen reader, and it gives the tests a handle that is not a hashed CSS-module
+class name — the first attempt at the 360 px test matched `_pagerCover_` as well
+as `_pager_` in development and neither in the production build.
+
+#### Coverage added
+
+- `src/components/passport/PassportScreen.test.tsx` — the seals as structure: one
+  country seal and five locality seals as named controls in List, nothing where
+  none is earned, each overlay's own facts, the absence of **Open shop** and of a
+  collection date, focus restoration for both kinds, the Book's country and
+  locality seals, the disappearance of the text-only treatment, and that the
+  shop-stamp overlay is untouched. Plus the pager: one Open control inside the
+  strip, the same position becoming Cover, and returning through it.
+- `tests/e2e/passport.spec.ts` — the journeys at all three breakpoints. A country
+  seal opened by keyboard with focus contained and returned; a locality seal
+  opened and closed by its own control; the Book's seals page; the Book's locality
+  page proving the text line is gone and that pressing a seal does not turn the
+  page; the shop stamp unchanged. And for the pager: one Open control in the
+  strip beside Contents, the same position exposing Cover, and a 360 px check that
+  the document does not overflow sideways, that every control is inside the
+  viewport with a real tap target, and that the control still opens the book.
+
+#### Evidence
+
+Three captures were added at each of the three breakpoints — `seal-country`,
+`seal-locality` and `book-locality-seal` — and the `book-cover` row now records
+that the way in is **Open** inside the pager. The `passport-list` visual baselines
+were regenerated, because the locality seals really are a visible change to that
+screen; every other baseline still matches.
+
+#### Deliberately not done
+
+- **The sign-in explanation is unchanged**, as instructed.
+- **No speculative redesign** of the areas the founder called *slightly odd*
+  without concrete direction.
+- **No WP5 material work.** The two overlays share one interaction and one layout;
+  making them share a visual presentation family with the shop page's collected
+  impression is recorded below as WP5's.
+- **No Map changes.** The pointer and touch decisions from the same review are
+  recorded below as WP6's.
+
+## Founder decisions recorded for later work packages
+
+Approved on 27 August 2026 during the WP3 staging review, recorded here so they
+are not lost, and **deliberately not implemented in WP3**.
+
+### For WP5 — one visual presentation family
+
+> Enlarged shop impressions in Passport should use the same visual presentation
+> family as the collected impression shown on a shop page. Country and locality
+> seal overlays should belong to that same family while retaining type-appropriate
+> facts and actions.
+
+WP5 owns the shared visual treatment and the component consolidation behind it.
+The two surfaces that have to converge are `PassportDetailOverlay` and the shop
+page's *Your impression* block; WP3 has already made the Passport side one
+component with one subject union, which is the seam that consolidation plugs into.
+
+What must survive the consolidation, because it is content rather than treatment:
+a shop stamp reports a collection date and leads to its shop; a derived seal
+reports an earned date and leads nowhere. A shared presentation family is not a
+shared fact list.
+
+### For WP6 — Map card and marker interaction
+
+Approved Map interaction, for WP6 to implement together with the corresponding
+update to the Map interaction documentation:
+
+- Hovering a shop card on pointer-capable desktop highlights and synchronises its
+  marker.
+- Keyboard focus gives the equivalent highlight.
+- Activating the body of a shop card opens the shop detail page.
+- On touch devices, tapping the card opens shop detail rather than merely selecting
+  it.
+- Clicking or tapping a map marker may continue to select and reveal its
+  corresponding card.
+- Explicit controls such as **Save** perform their own action without opening the
+  shop.
+
+WP6 owns implementation and the documentation update. **Map behaviour is unchanged
+in WP3**, and `UX.md`'s map sections were deliberately left alone: correcting them
+before the behaviour exists would put the documentation ahead of the product,
+which is the opposite of the two corrections WP3 made to it.
 
 ## Open items still needing founder input
 

@@ -37,6 +37,8 @@ import styles from "./PassportList.module.css";
 export interface PassportListProps {
   readonly passport: PassportOverview;
   readonly seals: readonly EarnedSeal[];
+  /** Enlarges a derived seal, in the same overlay a stamp uses. */
+  readonly onSelectSeal: (seal: EarnedSeal) => void;
   /** Narrows the list to one country or one locality for the deep-link routes. */
   readonly focus?:
     | { readonly kind: "all" }
@@ -73,6 +75,51 @@ function localitySealFor(
 
 function stampsLabel(count: number): string {
   return `${count} ${count === 1 ? "stamp" : "stamps"}`;
+}
+
+/**
+ * An earned seal, as artwork you can open.
+ *
+ * A button rather than a decoration: the founder's staging review found country
+ * seals rendered as artwork nobody could touch and locality seals reduced to a
+ * line of text. The impression already carries its own accessible description,
+ * so the button borrows it rather than repeating it — with the kind of seal said
+ * once, because "Japan" alone does not say what has been earned.
+ */
+function SealButton({
+  seal,
+  onSelect,
+  size,
+}: {
+  readonly seal: EarnedSeal;
+  readonly onSelect: () => void;
+  readonly size: "country" | "locality";
+}) {
+  const name =
+    seal.scope === "country" ? seal.countryLabel : (seal.localityName ?? seal.countryLabel);
+
+  return (
+    <button
+      className={styles.sealButton}
+      data-seal-scope={seal.scope}
+      data-seal-size={size}
+      onClick={onSelect}
+      type="button"
+    >
+      <span className={styles.sealArt} aria-hidden="true">
+        <StampArt
+          size="small"
+          stamp={seal.stamp}
+          subtitle={seal.earnedOn}
+          title={name}
+        />
+      </span>
+      <span className="visually-hidden">
+        {seal.scope === "country" ? "Country seal" : "Locality seal"}, {name}, earned{" "}
+        {seal.earnedOn}
+      </span>
+    </button>
+  );
 }
 
 function localitiesLabel(count: number): string {
@@ -125,12 +172,14 @@ function LocalitySection({
   locality,
   seals,
   onSelectStamp,
+  onSelectSeal,
   headingLevel,
 }: {
   readonly country: PassportCountry;
   readonly locality: PassportLocality;
   readonly seals: readonly EarnedSeal[];
   readonly onSelectStamp: (collection: StampCollection) => void;
+  readonly onSelectSeal: (seal: EarnedSeal) => void;
   readonly headingLevel: 2 | 3;
 }) {
   const headingId = useId();
@@ -140,26 +189,29 @@ function LocalitySection({
   return (
     <section aria-labelledby={headingId} className={styles.locality}>
       <div className={styles.localityHead}>
-        <Heading className={styles.localityName} id={headingId}>
-          <Link
-            className={styles.localityLink}
-            href={`/passport/${country.slug}/${locality.slug}`}
-          >
-            {locality.name}
-          </Link>
-        </Heading>
-        <p className={styles.localityMeta}>
-          {stampsLabel(locality.collections.length)}
-          {seal ? (
-            <>
-              <span aria-hidden="true"> · </span>
-              <span className={styles.sealNote}>
-                <Icon name="seal" size={14} />
-                Locality seal
-              </span>
-            </>
-          ) : null}
-        </p>
+        <div className={styles.localityText}>
+          <Heading className={styles.localityName} id={headingId}>
+            <Link
+              className={styles.localityLink}
+              href={`/passport/${country.slug}/${locality.slug}`}
+            >
+              {locality.name}
+            </Link>
+          </Heading>
+          <p className={styles.localityMeta}>
+            {stampsLabel(locality.collections.length)}
+          </p>
+        </div>
+
+        {/* The seal itself, where the old text note used to be. Nothing at all
+            where a seal has not been earned — no locked silhouette. */}
+        {seal ? (
+          <SealButton
+            onSelect={() => onSelectSeal(seal)}
+            seal={seal}
+            size="locality"
+          />
+        ) : null}
       </div>
 
       <ul className={styles.stampList}>
@@ -179,11 +231,13 @@ function CountrySection({
   country,
   seals,
   onSelectStamp,
+  onSelectSeal,
   linkName,
 }: {
   readonly country: PassportCountry;
   readonly seals: readonly EarnedSeal[];
   readonly onSelectStamp: (collection: StampCollection) => void;
+  readonly onSelectSeal: (seal: EarnedSeal) => void;
   /** False on the country route, where the heading is already the destination. */
   readonly linkName: boolean;
 }) {
@@ -213,17 +267,16 @@ function CountrySection({
         {/*
           The seal is artwork, not a status chip. WP1's filled vermilion "Country
           seal earned" badge read as an alert to dismiss; the impression itself
-          says the same thing and is the thing worth keeping.
+          says the same thing and is the thing worth keeping — and it now opens,
+          because artwork a reader cannot enlarge is what the staging review
+          found wrong with it.
         */}
         {seal ? (
-          <span className={styles.countrySeal}>
-            <StampArt
-              stamp={seal.stamp}
-              title={country.countryLabel}
-              subtitle={seal.earnedOn}
-              size="small"
-            />
-          </span>
+          <SealButton
+            onSelect={() => onSelectSeal(seal)}
+            seal={seal}
+            size="country"
+          />
         ) : null}
       </div>
 
@@ -233,6 +286,7 @@ function CountrySection({
           headingLevel={3}
           key={locality.slug}
           locality={locality}
+          onSelectSeal={onSelectSeal}
           onSelectStamp={onSelectStamp}
           seals={seals}
         />
@@ -246,6 +300,7 @@ export function PassportList({
   seals,
   focus = { kind: "all" },
   onSelectStamp,
+  onSelectSeal,
 }: PassportListProps) {
   if (focus.kind === "locality") {
     return (
@@ -262,6 +317,7 @@ export function PassportList({
           country={focus.country}
           headingLevel={2}
           locality={focus.locality}
+          onSelectSeal={onSelectSeal}
           onSelectStamp={onSelectStamp}
           seals={seals}
         />
@@ -279,6 +335,7 @@ export function PassportList({
         <CountrySection
           country={focus.country}
           linkName={false}
+          onSelectSeal={onSelectSeal}
           onSelectStamp={onSelectStamp}
           seals={seals}
         />
@@ -315,6 +372,7 @@ export function PassportList({
           country={country}
           key={country.countryCode}
           linkName
+          onSelectSeal={onSelectSeal}
           onSelectStamp={onSelectStamp}
           seals={seals}
         />

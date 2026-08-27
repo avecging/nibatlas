@@ -120,9 +120,42 @@
   line-height: var(--type-body-sm-line);
 }
 
-.countrySeal {
+/*
+ * A seal, as a control.
+ *
+ * Sized by what it is: a country seal is the section's own emblem and sits at
+ * the head of it; a locality seal is a mark beside a subheading. Both open the
+ * same overlay, so both have a real hit area and a real focus ring — the
+ * artwork is the label, and the accessible name sits beside it.
+ */
+.sealButton {
   flex: 0 0 auto;
-  width: 7.5rem;
+  display: block;
+  padding: 2px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  cursor: pointer;
+}
+
+.sealButton[data-seal-size="country"] {
+  width: 7.75rem;
+}
+
+.sealButton[data-seal-size="locality"] {
+  width: 5.25rem;
+}
+
+.sealButton:hover {
+  background: var(--bg-surface-warm);
+}
+
+.sealArt {
+  display: block;
+}
+
+.sealArt > * {
+  max-width: 100%;
 }
 
 /* Locality --------------------------------------------------------------- */
@@ -133,11 +166,15 @@
 
 .localityHead {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-1) var(--space-3);
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
   padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--border-default);
+}
+
+.localityText {
+  flex: 1;
+  min-width: 0;
 }
 
 .localityName {
@@ -165,13 +202,6 @@
   color: var(--text-secondary);
   font-size: var(--type-caption-size);
   font-weight: 600;
-}
-
-.sealNote {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--text-secondary);
 }
 
 /* Stamp rows ------------------------------------------------------------- */
@@ -249,6 +279,10 @@
   }
 
   .stampThumb {
+    width: 6rem;
+  }
+
+  .sealButton[data-seal-size="locality"] {
     width: 6rem;
   }
 }
