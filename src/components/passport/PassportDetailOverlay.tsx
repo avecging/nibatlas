@@ -175,10 +175,6 @@ function SealDetail({
           </dd>
         </div>
       </dl>
-
-      <p className={styles.sealNote}>
-        Derived from verified visits, not collected on its own.
-      </p>
     </>
   );
 }

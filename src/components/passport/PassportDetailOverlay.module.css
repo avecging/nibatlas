@@ -116,17 +116,9 @@
   line-height: var(--type-body-sm-line);
 }
 
-/*
- * The one line a seal carries that a stamp does not.
- *
- * A seal has no shop to open, and an overlay that simply stopped after the facts
- * would read as though the control were missing. One quiet line says why there
- * is nothing to press.
- */
-.sealNote {
-  color: var(--text-secondary);
-  font-size: var(--type-body-sm-size);
-  line-height: var(--type-body-sm-line);
+/* A seal ends on its facts, with nothing below to be spaced away from. */
+.facts:last-child {
+  margin-bottom: 0;
 }
 
 @keyframes scrim-in {

@@ -41,7 +41,7 @@ capture time so the frames are deterministic.
 | `stamp-detail` | The enlarged impression: the stamp at a useful size, its tier, the shop name and local-script name, locality, country, local collection date, and **Open shop** |
 | `seal-country` | The enlarged country seal: the artwork at size, **Country seal**, the country and the earned date. No shop fields and no **Open shop** — a seal is derived from visits, not one of them |
 | `seal-locality` | The enlarged locality seal: the same, with the locality named as well as the country |
-| `book-locality-seal` | A Book locality page carrying its seal as selectable artwork with concise supporting text, in place of WP3's text-only *Locality seal earned…* line |
+| `book-locality-seal` | The locality seal opened from the Book rather than from List. `book-locality` above shows the page it was pressed on, where the seal is selectable artwork with concise supporting text in place of WP3's text-only *Locality seal earned…* line |
 | `identity-named` | The identity page with a display name from the account seam |
 | `identity-fallback` | The same page with no display name: **Your Passport**. Never anything derived from an address |
 | `book-reduced-motion` | The opening spread with reduced motion: no three-quarter tilt, no perspective, every page and control unchanged |

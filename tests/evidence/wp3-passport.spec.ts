@@ -159,8 +159,15 @@ for (const breakpoint of BREAKPOINTS) {
       await page.goto("/passport");
       await settled(page);
 
-      await page.getByRole("button").filter({ hasText: /2026-03-14/ }).first().click();
-      await expect(page.getByRole("dialog")).toBeVisible();
+      // By shop name, not by date: the locality seal beside the heading was
+      // earned on this stamp's own date, so a date filter picks the seal.
+      await page
+        .getByRole("button", { name: /Ginza Itoya Main Store/ })
+        .first()
+        .click();
+      await expect(
+        page.getByRole("heading", { name: "Ginza Itoya Main Store" }),
+      ).toBeVisible();
       await capture(page, `${breakpoint.name}-stamp-detail`);
     });
 
@@ -195,14 +202,24 @@ for (const breakpoint of BREAKPOINTS) {
       await capture(page, `${breakpoint.name}-seal-locality`);
     });
 
-    /** The Book's locality page, where the seal is artwork rather than a line. */
-    test("Book locality page with its seal", async ({ page }) => {
+    /**
+     * The same seal opened from the Book rather than from List.
+     *
+     * The locality page itself is already in `-book-locality`, where the seal is
+     * artwork rather than the WP3 line of text; this is the state that follows
+     * pressing it, which is what the founder's review asked for.
+     */
+    test("Book locality seal, opened", async ({ page }) => {
       await useNormalMode(page);
       await seedSampleCollection(page);
       await seedPassportView(page, { mode: "book", coverSeen: true });
       await page.goto("/passport/jp/chuo-tokyo");
       await bookSettled(page);
 
+      await page
+        .getByRole("button", { name: /^Locality seal, Chūō, Tokyo/ })
+        .click();
+      await expect(page.getByRole("dialog")).toBeVisible();
       await capture(page, `${breakpoint.name}-book-locality-seal`);
     });
 

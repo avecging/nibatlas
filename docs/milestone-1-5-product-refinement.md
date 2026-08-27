@@ -1565,9 +1565,9 @@ interchangeable in content. Each branch states what its own kind records:
 **No derived seal offers Open shop, and none reports a collection date.** A country
 seal derives from five stamps or a complete curated set and a locality seal from
 the first stamp there, so there is no single shop for either to lead to; offering
-one would misreport what a seal is. One quiet line says so, in place of the
-action, rather than leaving the overlay looking as though a control had gone
-missing.
+one would misreport what a seal is. The overlay simply ends on the earned date,
+and says nothing about why (see the final review below). The reasoning stays in
+the component as a code comment.
 
 Where the seals became selectable:
 
@@ -1665,6 +1665,39 @@ screen; every other baseline still matches.
   impression is recorded below as WP5's.
 - **No Map changes.** The pointer and touch decisions from the same review are
   recorded below as WP6's.
+
+### WP3 revisions after the final review
+
+#### A seal overlay ends on its facts
+
+The seal overlay carried one closing line — *"Derived from verified visits, not
+collected on its own."* — added on the reasoning that an overlay ending straight
+after the earned date would read as though **Open shop** had gone missing. The
+review rejected that reasoning: the interface should not narrate why an
+inapplicable action is absent, and the line was the same over-explicit pattern
+the founder has asked us to drop elsewhere. It is gone, with nothing in its place,
+along with its `.sealNote` rule. Why a seal has no shop to open stays where it
+belongs — a code comment on `SealDetail`. `.facts` loses its bottom margin when it
+is the last thing on the sheet, so the seal overlay closes on the earned date
+rather than on a gap.
+
+#### Two evidence captures were wrong
+
+Regenerating the captures showed `stamp-detail` and `seal-locality` were
+byte-identical, and `book-locality-seal` identical to `book-locality`:
+
+- `stamp-detail` selected the first button containing *2026-03-14*. The locality
+  seal for Chūō, Tokyo derives from that same stamp, so it carries that date too
+  and now sits ahead of the rows — the capture was photographing the seal. It
+  selects **Ginza Itoya Main Store** by name instead, which is what the row is
+  identified by everywhere else in the suite.
+- `book-locality-seal` opened the Book's locality page, which `book-locality`
+  already shows. It now opens the seal from that page, which is the state the
+  founder's correction was actually about; the README says which capture shows
+  which.
+
+Both were evidence defects only — `tests/e2e/passport.spec.ts` had targeted the
+row by shop name from the start, so nothing about the interface was unverified.
 
 ## Founder decisions recorded for later work packages
 
