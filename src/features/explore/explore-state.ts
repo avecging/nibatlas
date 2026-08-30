@@ -293,8 +293,17 @@ export function exploreReducer(
       };
     }
 
+    /*
+     * The drawer's Clear is for the drawer's own controls. The visit segment is
+     * outside it, so clearing shop type and availability must not silently reset
+     * a choice the reader made out there — that is what the bar's
+     * `Clear filters` is for.
+     */
     case "clearDraftFilters": {
-      return { ...state, draftFilters: EMPTY_FILTERS };
+      return {
+        ...state,
+        draftFilters: { ...EMPTY_FILTERS, status: state.draftFilters.status },
+      };
     }
 
     case "applyFilters": {

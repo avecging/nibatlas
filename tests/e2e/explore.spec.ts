@@ -233,6 +233,37 @@ test("a card synchronises its marker on hover and on keyboard focus", async ({
   await expect(card).toHaveAttribute("data-selected", "false");
 });
 
+/*
+ * A shop whose own marker is clustered away at this zoom still answers. Without
+ * this, the documented synchronisation silently does nothing wherever the map is
+ * dense — which is most of the opening view.
+ */
+test("a clustered shop highlights the cluster standing for it", async ({ page }) => {
+  await openMap(page);
+
+  // The opening world view clusters everything, so no single-shop marker exists.
+  const clusters = page.locator("[data-cluster-count]");
+  await expect(clusters.first()).toBeVisible();
+  await expect(page.locator("[data-shop-id][data-marker-state]")).toHaveCount(0);
+
+  await raiseSheet(page);
+
+  const card = page.getByRole("article").first();
+  const name = await card.getByRole("link").first().textContent();
+
+  await card.getByRole("link", { name: name ?? "" }).focus();
+
+  await expect(page.locator('[data-cluster-count][data-highlighted="true"]')).toHaveCount(
+    1,
+  );
+
+  // And it lets go again, like any other highlight.
+  await page.getByRole("combobox", { name: /search shops or places/i }).focus();
+  await expect(page.locator('[data-cluster-count][data-highlighted="true"]')).toHaveCount(
+    0,
+  );
+});
+
 test("activating the body of a card opens the shop, and Save does not", async ({ page }) => {
   await openMap(page);
   await searchDestination(page, "Ginza", /^Ginza/);

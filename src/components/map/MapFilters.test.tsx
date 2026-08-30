@@ -177,6 +177,20 @@ describe("MapFilters", () => {
   });
 
   /*
+   * The drawer's Clear is for the drawer's own controls: a visit choice made
+   * outside it is not something it offers to clear.
+   */
+  it("does not offer the drawer clear for a visit filter it does not hold", () => {
+    renderFilters({
+      open: true,
+      filters: filters({ status: "saved" }),
+      draftFilters: filters({ status: "saved" }),
+    });
+
+    expect(screen.getByRole("button", { name: /^clear$/i })).toBeDisabled();
+  });
+
+  /*
    * The badge counts what is applied. It describes the results on screen, and
    * the visit segment is not counted there because it is already visible.
    */
@@ -251,7 +265,11 @@ describe("MapFilters", () => {
     expect(onApply).not.toHaveBeenCalled();
   });
 
-  it("moves focus into the drawer when it opens", () => {
+  /*
+   * `aria-modal` does not make the rest of the page inert, so the drawer uses
+   * the same modal focus contract every other dialog here does.
+   */
+  it("moves focus into the drawer when it opens and traps it there", () => {
     const { view } = renderFilters();
 
     view.rerender(
@@ -273,6 +291,25 @@ describe("MapFilters", () => {
       />,
     );
 
-    expect(document.activeElement).toBe(screen.getByRole("dialog", { name: "Filters" }));
+    const drawer = screen.getByRole("dialog", { name: "Filters" });
+
+    expect(document.activeElement).toBe(drawer);
+
+    const focusable = [...drawer.querySelectorAll<HTMLElement>("button")];
+    const first = focusable[0]!;
+    const last = focusable[focusable.length - 1]!;
+
+    // Tab from the dialog itself lands on its first control, not behind it.
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(document.activeElement).toBe(first);
+
+    // And the ends wrap rather than walking out past the scrim.
+    last.focus();
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(document.activeElement).toBe(first);
+
+    first.focus();
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(last);
   });
 });

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useId, useRef, type ReactNode } from "react";
 
+import { useDialogFocus } from "@/src/components/hooks/useDialogFocus";
 import { Chip } from "@/src/components/ui/Chip";
 import { Icon } from "@/src/components/ui/Icon";
 import {
@@ -91,46 +92,19 @@ export function MapFilters({
   const drawerId = useId();
   const titleId = `${drawerId}-title`;
   const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const drawerRef = useRef<HTMLDivElement | null>(null);
-  const wasOpen = useRef(open);
+  /*
+   * The same modal focus contract every other dialog here uses: the drawer takes
+   * focus, Tab and Shift+Tab cycle inside it, Escape closes it, and focus
+   * returns to the trigger. `aria-modal` alone does not make the rest of the
+   * page inert, so Tab would otherwise walk out behind the scrim.
+   */
+  const drawerRef = useDialogFocus<HTMLDivElement>(open, onClose);
 
   // The badge counts what is applied, not what is being drafted: it describes
   // the results on screen.
   const drawerCount = drawerFilterCount(filters);
   const totalCount = activeFilterCount(filters);
   const draftCount = drawerFilterCount(draftFilters);
-
-  useEffect(() => {
-    if (open === wasOpen.current) {
-      return;
-    }
-
-    wasOpen.current = open;
-
-    if (open) {
-      drawerRef.current?.focus();
-    } else {
-      // Closing returns the reader to the control they opened, not to the top of
-      // the document.
-      triggerRef.current?.focus();
-    }
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-
-    document.addEventListener("keydown", onKeyDown);
-
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [onClose, open]);
 
   return (
     <section className={styles.bar} aria-label="Result filters" data-filters-open={open}>
@@ -248,7 +222,7 @@ export function MapFilters({
                 <button
                   type="button"
                   className={styles.clearDraft}
-                  disabled={draftCount === 0 && draftFilters.status === "all"}
+                  disabled={draftCount === 0}
                   onClick={onClearDraft}
                 >
                   Clear

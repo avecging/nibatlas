@@ -213,6 +213,11 @@ Selected adds a temporary halo to whichever persisted state applies. Highlighted
 adds a lighter ring, distinct from the selection halo because it means something
 different and does not persist.
 
+Where the highlighted shop's own marker is clustered away at the current zoom,
+the cluster standing for it takes the ring. Clustering is never rearranged to
+suit a hover: the answer is where the shop is, not a marker that appears and
+disappears under the pointer.
+
 ### Filters
 
 Visit status is a segment, always visible beside the results:
@@ -253,7 +258,8 @@ segment is not counted there because it is already on screen.
 - The **drawer is a transaction.** Shop type and availability are edited as a
   draft and commit together on **Apply filters**, which also closes the drawer.
   Closing or cancelling discards the draft. **Clear** inside the drawer clears
-  the draft controls; applying that cleared state updates the results.
+  the draft controls it holds — shop type and availability, never the segment
+  outside it; applying that cleared state updates the results.
 
 One commit action, never a partial one: availability must not land while a shop
 type is still waiting on a query. The drawer shows the number of matching shops

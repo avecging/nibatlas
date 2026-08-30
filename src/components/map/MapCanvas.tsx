@@ -127,7 +127,12 @@ export function MapCanvas({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef(new Map<string, Marker>());
-  /** Single-shop marker elements by shop id, so a highlight never rebuilds one. */
+  /**
+   * The marker element that stands for each shop, so a highlight never rebuilds
+   * one. A clustered shop maps to its cluster: at a zoom where its own marker
+   * does not exist, the cluster is where it is, and saying so beats saying
+   * nothing.
+   */
   const markerElementsRef = useRef(new Map<string, HTMLElement>());
   const selectedRef = useRef<string | null>(selectedShopId);
   const highlightedRef = useRef<string | null>(highlightedShopId);
@@ -275,6 +280,7 @@ export function MapCanvas({
       if (cluster.shops.length > 1) {
         button.className = styles.cluster ?? "";
         button.dataset.clusterCount = String(cluster.shops.length);
+        button.dataset.highlighted = "false";
         button.setAttribute(
           "aria-label",
           `${cluster.shops.length} shops in this area. Zoom in to separate them.`,
@@ -319,7 +325,6 @@ export function MapCanvas({
         .join(" ");
       button.dataset.shopId = shop.id;
       button.dataset.markerState = shop.markerState;
-      button.dataset.highlighted = highlightedRef.current === shop.id ? "true" : "false";
       button.setAttribute("aria-pressed", selected ? "true" : "false");
       button.setAttribute("aria-label", markerLabel(shop));
       button.innerHTML = `<span class="${styles.markerGlyph}">${markerGlyph(
@@ -335,9 +340,18 @@ export function MapCanvas({
     }
 
     const applyHighlight = () => {
-      for (const [shopId, element] of markerElementsRef.current) {
-        element.dataset.highlighted =
-          shopId === highlightedRef.current ? "true" : "false";
+      // Cleared first: several shops can share one cluster element, so a single
+      // pass keyed on shop id would let a later entry undo an earlier match.
+      for (const element of markerElementsRef.current.values()) {
+        element.dataset.highlighted = "false";
+      }
+
+      const target = highlightedRef.current
+        ? markerElementsRef.current.get(highlightedRef.current)
+        : undefined;
+
+      if (target) {
+        target.dataset.highlighted = "true";
       }
     };
 
@@ -387,8 +401,10 @@ export function MapCanvas({
           markersRef.current.set(key, marker);
         }
 
-        if (single) {
-          markerElementsRef.current.set(single.id, marker.getElement());
+        const element = marker.getElement();
+
+        for (const clustered of cluster.shops) {
+          markerElementsRef.current.set(clustered.id, element);
         }
       }
 

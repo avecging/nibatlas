@@ -2128,6 +2128,10 @@ the founder's prototype `.fsheet`:
   *Apply to see what matches* rather than guessing when it cannot: a draft that
   *widens* the committed shop types asks about shops the source never returned,
   and a truncated result set is a lower bound on any question at all.
+- **Clear** inside the drawer clears the controls the drawer *holds* — shop type
+  and availability. It deliberately leaves the visit segment alone: that control
+  is outside the drawer, and silently resetting a choice a reader made out there
+  is not what a drawer's clear is for.
 - **Clear filters** appears beside the button whenever anything is applied, the
   segment included, and clears everything in one press from outside the drawer.
 
@@ -2183,6 +2187,13 @@ the selection halo. It is applied to the marker element in place rather than by
 rebuilding it, so a pointer sweeping down the results does not churn the marker
 layer.
 
+**A clustered shop still answers.** Where the highlighted shop's own marker does
+not exist at the current zoom, the cluster standing for it takes the ring.
+Clustering is not rearranged to suit a hover — pinning the hovered shop out of
+its cluster would make markers appear and disappear under the pointer — and
+without this the synchronisation would silently do nothing wherever the map is
+dense, which is most of the opening view.
+
 The card's `Shop details` button is gone. With the body of the card opening the
 shop it was a second control for the same destination, and Milestone 1 only
 needed it because the card itself did nothing a reader could see.
@@ -2203,6 +2214,33 @@ assumed.** WP4's second revision gave the shared badge three levels of attention
 The same test confirms operational status stays separate from the reader's own
 state: it is about the shop, `Visited` and `Saved` are about the reader, and no
 `Not visited` pill appears alongside either.
+
+### Corrections made during review
+
+Recorded because each was a real defect rather than a preference.
+
+1. **The founder's correction: `Unvisited` was removed and should not have
+   been.** WP6's first pass read finding 1 — three conflated states on a card —
+   as a reason to drop the `Unvisited` filter. It was not. The finding was about
+   presentation; the filter set is unchanged, and the four choices are the
+   independent sets described above. The 26 August *Proposed experience*
+   paragraph carries a dated amendment saying so.
+2. **The founder's correction: the drawer had no commit action.** The first pass
+   removed the draft/committed split entirely, which fixed the "not functioning"
+   report by making availability apply instantly while a shop type still waited
+   on a query — the inconsistency this record now describes as the thing to
+   avoid. The drawer is a transaction instead.
+3. **The drawer's Clear reset the visit segment.** Found by the review bot. It
+   replaced the whole draft with the empty set, so Apply silently cleared a
+   segment choice made outside the drawer. It now preserves the segment.
+4. **A clustered shop's highlight did nothing.** Found by the review bot. Only
+   single-shop markers were tracked, so wherever the map was dense — most of the
+   opening view — hovering or focusing a card highlighted nothing at all. The
+   cluster standing for the shop now takes the ring.
+5. **The drawer did not trap focus.** Found by the review bot. `aria-modal` does
+   not make the rest of the page inert, so Tab walked out behind the scrim. It
+   uses `useDialogFocus`, the modal focus contract every other dialog here
+   already used and which the first pass should have reached for.
 
 ### Interaction consequences worth recording
 
@@ -2239,14 +2277,15 @@ state: it is about the shop, `Visited` and `Saved` are about the reader, and no
 - `src/features/explore/explore-state.test.ts` — the segment committing on press
   with no round trip; the drawer holding a draft, committing every dimension in
   one request, discarding on close, and needing no request when nothing the
-  source resolves has changed; the draft clear needing an apply; applying with
+  source resolves has changed; the draft clear needing an apply and leaving the
+  segment alone; applying with
   and without the moved camera; the one-tap clear; and the predicate that decides
   whether a draft can be counted exactly.
 - `src/components/map/MapFilters.test.tsx` — the four-choice segment, what the
   drawer holds, drawer controls drawn from the draft, the badge counting only
-  applied criteria, the draft clear, the two Apply labels, the count shown only
-  when it is exact, the one-tap clear, and the drawer's focus, Escape and scrim
-  behaviour.
+  applied criteria, the draft clear and its scope, the two Apply labels, the
+  count shown only when it is exact, the one-tap clear, and the drawer's focus
+  trap, Escape and scrim behaviour.
 - `src/components/shops/ShopList.test.tsx` — the card body as a link, hover
   highlighting only on a fine pointer, keyboard focus giving the equivalent,
   selected and highlighted drawn apart, the separated states, and Save acting
@@ -2254,8 +2293,9 @@ state: it is about the shop, `Visited` and `Saved` are about the reader, and no
 - `tests/e2e/explore.spec.ts` — the drawer holding a draft until applied,
   discarding on close, committing every dimension together, the draft clear, the
   segment committing on press with Unvisited including a saved shop, applying
-  after a pan, the card/marker synchronisation, card activation versus Save, and
-  finding 3's three rendered operational-status treatments on a map card.
+  after a pan, the card/marker synchronisation including a clustered shop
+  highlighting its cluster, card activation versus Save, and finding 3's three
+  rendered operational-status treatments on a map card.
 - `tests/e2e/accessibility.spec.ts` — the drawer audited open with axe, plus its
   keyboard contract: focus in on open, back to the trigger on close, and Escape
   closing without applying. The audit caught a real contrast failure — the

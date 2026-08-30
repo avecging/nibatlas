@@ -180,11 +180,8 @@ describe("explore reducer", () => {
     const reopened = exploreReducer(applied, { type: "openFilters" });
     const cleared = exploreReducer(reopened, { type: "clearDraftFilters" });
 
-    expect(cleared.draftFilters).toEqual({
-      status: "all",
-      shopTypes: [],
-      availability: "any",
-    });
+    expect(cleared.draftFilters.shopTypes).toEqual([]);
+    expect(cleared.draftFilters.availability).toBe("any");
     // Still a draft: the results are untouched until it is applied.
     expect(cleared.filters.shopTypes).toEqual(["vintage_used"]);
 
@@ -192,6 +189,31 @@ describe("explore reducer", () => {
 
     expect(settled.filters.shopTypes).toEqual([]);
     expect(settled.query.shopTypes).toEqual([]);
+  });
+
+  /*
+   * The drawer's Clear is for the drawer's own controls. The visit segment lives
+   * outside it, and clearing shop type must not silently reset a choice made out
+   * there — the bar's `Clear filters` is what clears everything.
+   */
+  it("leaves the visit segment alone when the drawer's controls are cleared", () => {
+    const withStatus = exploreReducer(loaded(createExploreState({ viewport: tokyo })), {
+      type: "setStatusFilter",
+      status: "saved",
+    });
+    const drafted = exploreReducer(
+      exploreReducer(withStatus, { type: "openFilters" }),
+      { type: "toggleDraftShopType", shopType: "vintage_used" },
+    );
+    const cleared = exploreReducer(drafted, { type: "clearDraftFilters" });
+
+    expect(cleared.draftFilters.status).toBe("saved");
+    expect(cleared.draftFilters.shopTypes).toEqual([]);
+
+    const applied = exploreReducer(cleared, { type: "applyFilters" });
+
+    expect(applied.filters.status).toBe("saved");
+    expect(applied.filters.shopTypes).toEqual([]);
   });
 
   /*
