@@ -1,0 +1,223 @@
+.bar {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-surface);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Three-way visit segment: one axis, three positions, always on screen. */
+.segment {
+  display: inline-flex;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-round);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+.segmentButton {
+  min-height: var(--tap-target);
+  padding: 0 var(--space-4);
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  font-size: var(--type-label-size);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.segmentButton + .segmentButton {
+  border-left: 1px solid var(--border-default);
+}
+
+.segmentButton[aria-pressed="true"] {
+  background: var(--action-primary);
+  color: var(--text-on-dark);
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap-target);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-round);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: var(--type-label-size);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.trigger[data-active="true"] {
+  border-color: var(--action-primary);
+}
+
+.count {
+  display: grid;
+  place-items: center;
+  min-width: 1.375rem;
+  height: 1.375rem;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-round);
+  background: var(--action-primary);
+  color: var(--text-on-dark);
+  font-size: var(--type-caption-size);
+  font-weight: 700;
+}
+
+.clear {
+  min-height: var(--tap-target);
+  padding: 0 var(--space-3);
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  font-size: var(--type-label-size);
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  /* Above the results sheet and the bottom navigation, which are 22–30. */
+  z-index: 40;
+  background: rgb(0 0 0 / 32%);
+}
+
+/*
+ * Mobile: a bottom sheet, following the founder's `.fsheet` prototype. It is
+ * fixed rather than absolute so the results sheet's own scroll container can
+ * never clip it.
+ */
+.drawer {
+  position: fixed;
+  z-index: 41;
+  left: 0;
+  right: 0;
+  /* Clear of the persistent bottom navigation rather than under it. */
+  bottom: var(--nav-height);
+  display: grid;
+  gap: var(--space-4);
+  max-height: 80dvh;
+  overflow-y: auto;
+  padding: var(--space-4) var(--space-4) var(--space-6);
+  border-top: 1px solid var(--border-default);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-raised, var(--shadow-card));
+}
+
+.drawer:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -4px;
+}
+
+.drawerHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.drawerTitle {
+  font-family: var(--font-serif);
+  font-size: var(--type-h3-size);
+  line-height: var(--type-h3-line);
+  font-weight: 600;
+  color: var(--atlas-900);
+}
+
+.close {
+  display: grid;
+  place-items: center;
+  width: var(--tap-target);
+  height: var(--tap-target);
+  border: 0;
+  border-radius: var(--radius-round);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.group {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.groupLabel {
+  color: var(--text-muted);
+  font-size: var(--type-caption-size);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.note {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.drawerFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-default);
+}
+
+.liveCount {
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+}
+
+.done {
+  min-height: var(--tap-target);
+  padding: 0 var(--space-5);
+  border: 0;
+  border-radius: var(--radius-round);
+  background: var(--action-primary);
+  color: var(--text-on-dark);
+  font-size: var(--type-label-size);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Desktop: the drawer anchors to the results panel rather than the window. */
+@media (min-width: 1024px) {
+  .bar {
+    position: relative;
+  }
+
+  .scrim {
+    position: fixed;
+    background: transparent;
+  }
+
+  .drawer {
+    position: absolute;
+    top: calc(100% - var(--space-2));
+    right: var(--space-4);
+    left: var(--space-4);
+    bottom: auto;
+    max-height: none;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+  }
+}

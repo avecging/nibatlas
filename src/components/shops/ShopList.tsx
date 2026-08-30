@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
+import { useMediaQuery } from "@/src/components/hooks/useMediaQuery";
 import { ShopCard } from "@/src/components/shops/ShopCard";
 import { Icon } from "@/src/components/ui/Icon";
 import type { ShopMapSummary } from "@/src/domain/shops";
@@ -11,9 +12,11 @@ import styles from "./ShopList.module.css";
 interface ShopListProps {
   readonly shops: readonly ShopMapSummary[];
   readonly selectedShopId: string | null;
+  readonly highlightedShopId?: string | null;
   readonly savedShopIds: ReadonlySet<string>;
+  readonly visitedShopIds?: ReadonlySet<string>;
   readonly truncated: boolean;
-  readonly onSelect: (shopId: string) => void;
+  readonly onHighlight?: (shopId: string | null) => void;
   readonly onToggleSaved: (shopId: string) => void;
   readonly onOpenDetail?: (shop: ShopMapSummary) => void;
   readonly emptyMessage?: string;
@@ -21,12 +24,17 @@ interface ShopListProps {
   readonly detailFrom?: "map" | "saved" | "passport";
 }
 
+const NO_IDS: ReadonlySet<string> = new Set<string>();
+const NO_HIGHLIGHT = () => {};
+
 export function ShopList({
   shops,
   selectedShopId,
+  highlightedShopId = null,
   savedShopIds,
+  visitedShopIds = NO_IDS,
   truncated,
-  onSelect,
+  onHighlight,
   onToggleSaved,
   onOpenDetail,
   emptyMessage = "No shops match this area and these filters. Move the map or clear a filter, then search again.",
@@ -34,6 +42,12 @@ export function ShopList({
   detailFrom = "map",
 }: ShopListProps) {
   const listRef = useRef<HTMLOListElement | null>(null);
+  /**
+   * Hover synchronisation is for a real pointer only. A touch tap raises
+   * `mouseenter` too, and on a phone that would leave a card highlighted with no
+   * way to move off it.
+   */
+  const hoverHighlights = useMediaQuery("(hover: hover) and (pointer: fine)");
 
   useEffect(() => {
     if (!selectedShopId || !listRef.current) {
@@ -70,10 +84,13 @@ export function ShopList({
             key={shop.id}
             shop={shop}
             selected={shop.id === selectedShopId}
+            highlighted={shop.id === highlightedShopId}
             specialtyLine={shop.specialtyLine}
             saved={savedShopIds.has(shop.id)}
+            visited={visitedShopIds.has(shop.id) || shop.markerState === "visited"}
+            hoverHighlights={hoverHighlights}
             detailFrom={detailFrom}
-            onSelect={onSelect}
+            onHighlight={onHighlight ?? NO_HIGHLIGHT}
             onToggleSaved={onToggleSaved}
             {...(onOpenDetail ? { onOpenDetail } : {})}
           />

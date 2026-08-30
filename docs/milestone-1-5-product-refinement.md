@@ -1,8 +1,9 @@
 # Milestone 1.5 — Production-like product refinement
 
-**Status:** Founder-approved direction. **WP1, WP2 and WP3 implemented**, WP3
-including the two corrections from its staging review; WP4–WP7 and WP-D not
-started, with two founder decisions recorded for WP5 and WP6.
+**Status:** Founder-approved direction. **WP1–WP4 and WP6 implemented**, WP3
+including the two corrections from its staging review and WP6 including the three
+staging findings recorded against the map surfaces; WP5, WP7 and WP-D not
+started, with the founder decision for WP5 still recorded below.
 **Recorded:** 26 August 2026
 **Owner:** Claude Code (frontend), with founder and Codex on sourcing
 **Depends on:** Milestone 1 (PR #5) landing as the corrected technical foundation
@@ -378,7 +379,7 @@ that feedback exists.
 | **WP3** | Passport IA: List/Book toggle, opening spread on content, country/locality index and linked routes, stamp detail overlay, first-run-only cover, cover redesign, display name on the identity page | WP1 | **Implemented** |
 | **WP4** | Shop value layer: the data-model extension, sourced content, reordered page, native directions, contextual report | WP1, sourcing | Implemented; content awaits sourcing |
 | **WP5** | Visual fidelity: shop identity system, interim hero, paper and cover texture, stamp at large size, ceremony material pass, and the **one presentation family** for enlarged impressions and seal overlays recorded below | WP3, WP4 | Not started |
-| **WP6** | Filter drawer: segment plus drawer, active count, one-tap clear; and the **card and marker interaction** recorded below, with its documentation update | WP1 | Not started |
+| **WP6** | Filter drawer: segment plus drawer, active count, one-tap clear; and the **card and marker interaction** recorded below, with its documentation update | WP1 | **Implemented** |
 | **WP7** | Contact and contribution routes: the contextual shop-page correction, help and contact, and the `/suggest-shop` page later. *Suggest a pen shop* is routed in WP2 | WP2 | Not started |
 | **WP-D** | **Required desktop audit** across all of the above | Founder desktop feedback | Not started |
 
@@ -2056,6 +2057,159 @@ WP6 owns implementation and the documentation update. **Map behaviour is unchang
 in WP3**, and `UX.md`'s map sections were deliberately left alone: correcting them
 before the behaviour exists would put the documentation ahead of the product,
 which is the opposite of the two corrections WP3 made to it.
+
+**Implemented in WP6**, together with the `UX.md` correction. See the WP6
+implementation record below.
+
+## WP6 implementation record
+
+Recorded 30 August 2026. WP6 is the filter drawer, the approved card and marker
+interaction, and the three staging findings recorded against the map surfaces
+during the second WP4 review. Scope was WP6 only: nothing in WP5, WP7 or WP-D was
+started, no accepted decision above was reopened, and the shop page, Passport, Me
+and collection seams were left alone.
+
+### What WP6 changed
+
+**1. Filters apply where they are pressed.** This is finding 2 — *map filter
+buttons are not functioning* — and the diagnosis is that they were functioning
+exactly as Milestone 1 built them. Every filter went into a *draft* set that took
+effect only on the next committed search, so pressing `Saved` moved nothing and
+the only signal was a line of small print reading *Search this area to apply*.
+That is indistinguishable from broken, and a reader is right to call it broken.
+
+**Search this area** exists for *movement*, and a filter is not movement. So the
+draft/committed split is gone and there is one filter set:
+
+- **Visit status and availability** are decided over the result set already in
+  hand. They apply on the same frame, with no request and no new search.
+- **Shop type** is resolved by the source, so it does re-query — against the
+  bounds *already committed*, never against wherever the camera happens to be.
+  Narrowing the results a reader is looking at must not quietly search somewhere
+  else, and an outstanding **Search this area** for a moved camera survives the
+  round trip untouched.
+
+The committed-bounds camera model of accepted decision 10 is preserved: what
+changed is which criteria a commit is required for, not how bounds are committed.
+
+**2. Segment plus drawer, with an active count and a one-tap clear.** Following
+the founder's prototype `.fsheet`:
+
+- Visit status is a three-way segment — **All / Saved / Visited** — always
+  visible beside the results. There is no `Unvisited` position; see finding 1.
+- **Filters** is one labelled button opening a drawer holding shop type and
+  availability. On mobile the drawer is a bottom sheet clear of the persistent
+  navigation; from 1024 px it anchors to the results panel.
+- The button carries a badge counting the criteria set *inside* the drawer. The
+  segment is not counted there, because counting a choice the reader can already
+  see labels nothing.
+- The drawer names the live number of matching shops, which is the plainest
+  possible evidence that a filter did something.
+- **Clear filters** appears beside the button whenever anything is set, the
+  segment included, and clears everything in one press.
+
+**Availability is honest about what it knows.** The three options are *Any
+status*, *Confirmed open* and *Hide closed*, and they filter the operational
+status a shop has been recorded with. The drawer says so in as many words:
+opening hours are not modelled, and an availability filter that implied they were
+would be a claim the catalogue cannot support.
+
+**3. Visit status reads the reader's own sets, not the collapsed marker state.**
+A shop that is both saved and visited has the marker state `visited`, because
+`UX.md` gives visited priority in the marker. That is a *presentation* rule. Used
+as a *filter* rule it dropped saved-and-visited shops out of the Saved segment,
+which is wrong: the reader still saved them. `decorateResults` now reads the
+saved and visited sets directly, and the marker keeps its documented priority.
+
+**4. Card states are separated.** This is finding 1. `Visited`, `Not visited` and
+`Saved` shared one pill treatment, which drew three things as three positions on
+one axis. They are not one axis:
+
+- **Visited** is its own badge, drawn only when it applies.
+- **Saved** is carried by the card's own **Save** control, which already states
+  it in text, icon and pressed state. A second identical pill directly above that
+  control said the same thing twice.
+- **Not visited** is drawn as nothing at all, because the absence of a state is
+  not a state.
+
+**5. The approved card and marker interaction**, as recorded above:
+
+- Hovering a card on a pointer-capable device highlights and synchronises its
+  marker. The check is `(hover: hover) and (pointer: fine)`, so a touch tap —
+  which also raises `mouseenter` — never strands a highlight with no way off it.
+- Keyboard focus gives the equivalent highlight.
+- Activating the body of a card opens the shop. The card name is the link and it
+  covers the card, so the whole body opens the shop on touch as on a pointer.
+- Clicking or tapping a marker still selects and reveals its card.
+- **Save** is above the card-wide link and performs its own action only.
+
+A highlight is not a selection. It never changes the shared selected shop, never
+moves the camera, and does not survive the pointer or focus leaving — so it is
+drawn as a lighter ring on the marker and a warm edge on the card, distinct from
+the selection halo. It is applied to the marker element in place rather than by
+rebuilding it, so a pointer sweeping down the results does not churn the marker
+layer.
+
+The card's `Shop details` button is gone. With the body of the card opening the
+shop it was a second control for the same destination, and Milestone 1 only
+needed it because the card itself did nothing a reader could see.
+
+**6. Finding 3 — `Open` on the map surfaces — is verified rather than assumed.**
+WP4's second revision gave `Open` the success green in the shared badge.
+`tests/e2e/explore.spec.ts` now asserts the rendered background and border of the
+badge *on a map card*, alongside the absence of a `Not visited` pill.
+
+### Interaction consequences worth recording
+
+- **Saved mode no longer flies the camera from a card.** Selecting a saved shop
+  used to move the map to it; the card now opens the shop, which is what the
+  approved interaction asks for. The Saved banner copy was corrected to match
+  rather than left describing behaviour that no longer exists.
+- **The mobile Peek state still shows no filters.** Peek shows the count and the
+  top of the first or selected card, per `UX.md`; the segment and the button
+  appear from Half.
+
+### Deliberately not done in WP6
+
+- **No visual-fidelity work.** The shop identity system, paper and cover texture,
+  the stamp at large size and the ceremony material pass are WP5.
+- **No contact or contribution routes.** WP7 owns them.
+- **No new filter criteria beyond the approved set.** No distance, no rating, no
+  price, no opening-hours filter — the last because hours are not modelled.
+- **No change to the shop page, Passport, Me, or the collection ceremony.**
+  `MarkerStateBadge` keeps its collapsed single-state form where exactly one
+  marker state applies by definition.
+- **No desktop sign-off.** The 768 and 1440 captures show responsive integrity;
+  WP-D owns the desktop treatment.
+
+### Coverage
+
+- `src/domain/filters.test.ts` — the three-way segment, the two counts, equality
+  including availability, saved and visited as independent states, and
+  availability filtering on recorded operational status only.
+- `src/domain/user-state.test.ts` — that a saved-and-visited shop stays in the
+  Saved segment while its marker stays visited, and availability filtering after
+  the merge.
+- `src/features/explore/explore-state.test.ts` — a visit or availability filter
+  applying with no round trip, a shop-type change re-querying the committed
+  bounds while leaving an outstanding `Search this area` intact, and the one-tap
+  clear re-querying only when the source must.
+- `src/components/map/MapFilters.test.tsx` — the segment, what the drawer holds,
+  the badge counting only the drawer's criteria, the one-tap clear, the live
+  match count, and the drawer's focus, Escape and scrim behaviour.
+- `src/components/shops/ShopList.test.tsx` — the card body as a link, hover
+  highlighting only on a fine pointer, keyboard focus giving the equivalent,
+  selected and highlighted drawn apart, the separated states, and Save acting
+  without opening the shop.
+- `tests/e2e/explore.spec.ts` — the filter journeys at all three breakpoints, the
+  card/marker synchronisation, card activation versus Save, and finding 3's
+  rendered `Open` badge on a map card.
+- `tests/e2e/results-sheet.spec.ts` — marker selection still keeping the sheet,
+  the summary and the card in step.
+- `tests/evidence/wp6-map-interactions.spec.ts` — the review screenshots in
+  `docs/evidence/milestone-1-5-wp6/`.
+- `tests/visual/breakpoints.spec.ts-snapshots/` — the map and Saved baselines
+  refreshed for the new filter row and card.
 
 ## Open items still needing founder input
 

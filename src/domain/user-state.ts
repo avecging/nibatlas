@@ -1,5 +1,9 @@
 import type { MarkerState, ShopMapSummary } from "@/src/domain/shops";
-import { matchesStatus, type StatusFilter } from "@/src/domain/filters";
+import {
+  matchesAvailability,
+  matchesStatus,
+  type ShopFilters,
+} from "@/src/domain/filters";
 
 /**
  * Public shop projections are cacheable and therefore carry no user state.
@@ -34,12 +38,27 @@ export function applyUserShopState<T extends ShopMapSummary>(
   }));
 }
 
+/**
+ * The result set the reader actually sees.
+ *
+ * Saved and visited are read from the user's own sets rather than from the
+ * collapsed `markerState`, so a shop that is both stays in the Saved segment
+ * after it has been visited. The marker keeps its documented priority — visited
+ * outranks saved — because that is a presentation rule, not a filter rule.
+ */
 export function decorateResults<T extends ShopMapSummary>(
   shops: readonly T[],
   userState: UserShopState,
-  status: StatusFilter,
+  filters: ShopFilters,
 ): readonly T[] {
-  return applyUserShopState(shops, userState).filter((shop) =>
-    matchesStatus(shop.markerState, status),
+  return applyUserShopState(shops, userState).filter(
+    (shop) =>
+      matchesStatus(
+        {
+          saved: userState.savedShopIds.has(shop.id),
+          visited: userState.visitedShopIds.has(shop.id),
+        },
+        filters.status,
+      ) && matchesAvailability(shop.operationalStatus, filters.availability),
   );
 }

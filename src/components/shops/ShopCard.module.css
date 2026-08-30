@@ -16,9 +16,21 @@
   background: var(--bg-surface-warm);
 }
 
-.selected {
+/*
+ * Two different things, deliberately drawn differently.
+ *
+ * `selected` is the one shared shop identity the map and the list agree on and
+ * it persists. `highlighted` is the transient hover/focus synchronisation, so it
+ * gets a warm edge rather than the selection's inset rule.
+ */
+.card[data-selected="true"] {
   border-color: var(--action-primary);
   box-shadow: inset 0 0 0 1px var(--action-primary);
+}
+
+.card[data-highlighted="true"] {
+  border-color: var(--action-primary);
+  background: var(--bg-surface-warm);
 }
 
 .monogram {
@@ -50,28 +62,28 @@
   overflow-wrap: anywhere;
 }
 
-/* The name button is the card-wide selection target. */
-.selectButton {
+/* The name is the card-wide link: activating the body opens the shop. */
+.openLink {
   display: inline;
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
   color: inherit;
-  text-align: left;
-  cursor: pointer;
+  text-decoration: none;
 }
 
-.selectButton::after {
+.openLink::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: var(--radius-md);
 }
 
-.selectButton:focus-visible::after {
+.openLink:focus-visible::after {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
+}
+
+.openLink:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .localName {

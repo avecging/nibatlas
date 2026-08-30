@@ -142,7 +142,11 @@ Three stable states:
 Rules:
 
 - Tapping a marker raises the sheet to at least Peek and scrolls to its card.
-- Swiping/selecting a card highlights and recentres the marker only enough to reveal it; never reset the user's broader viewport.
+- Tapping the body of a card opens the shop. On touch there is no hover to
+  distinguish, and a tap that only selected left nothing visible behind a sheet
+  that already covers most of the map.
+- Selecting a marker recentres it only enough to reveal it; never reset the
+  user's broader viewport.
 - Sheet drag must not accidentally pan the map.
 - Browser Back closes detail/sheet layers in a predictable order before leaving the map route.
 - Map viewport and filter state survive shop-detail navigation.
@@ -152,7 +156,10 @@ Rules:
 - At 1024 px and above, use a map/list split, initially about 65/35.
 - Search and filters sit above the coordinated map/list workspace.
 - List scroll and map pan are independent.
-- Selecting a marker scrolls/highlights its row; selecting a row highlights its marker.
+- Selecting a marker scrolls to and marks its row.
+- Hovering a row on a pointer-capable device highlights and synchronises its
+  marker; keyboard focus gives the equivalent highlight. Neither is a selection.
+- Activating the body of a row opens the shop.
 - Shop detail may use a route-level side panel on wide screens, but the stable shop URL remains canonical.
 - Passport and Me use centred content layouts rather than forcing map split everywhere.
 
@@ -184,7 +191,17 @@ Show **Search this area** when movement exceeds the defined pixel/distance/zoom 
 
 ### Marker/list synchronization
 
-One selected shop ID is shared across map and list. Selection is not navigation by itself. Opening detail is a separate explicit action.
+One selected shop ID is shared across map and list. Selection comes from the map:
+clicking or tapping a marker selects it and reveals its card. Selection is not
+navigation.
+
+A second, transient link runs the other way. Hovering a card on a pointer-capable
+device, or giving it keyboard focus, highlights its marker without selecting it,
+without moving the camera, and without surviving the pointer or focus leaving.
+
+Opening detail is an explicit action, and on a card it is the card itself:
+activating the body of a card opens the shop. Explicit controls inside a card —
+**Save** above all — perform their own action and never open the shop.
 
 Persisted marker priority:
 
@@ -192,35 +209,54 @@ Persisted marker priority:
 2. Saved
 3. Unvisited
 
-Selected adds a temporary halo to whichever persisted state applies.
+Selected adds a temporary halo to whichever persisted state applies. Highlighted
+adds a lighter ring, distinct from the selection halo because it means something
+different and does not persist.
 
 ### Filters
 
-Status:
+Visit status is a three-way segment, always visible beside the results:
 
 - All
-- Unvisited
-- Visited
 - Saved
+- Visited
 
-Shop type:
+There is no **Unvisited** position. Visited and saved are two independent states
+a reader owns; "not visited" is the absence of one of them, and offering it as a
+peer made the segment read as one axis with four positions.
 
-- Fountain Pen Specialist
-- Stationery Store
-- Vintage / Used
-- Nib / Repair Services
+Shop type and availability live behind one labelled **Filters** button that opens
+a drawer:
 
-Filters update both map and list only when the viewport query is committed. Active-filter count is visible. Clearing filters is one action.
+- Shop type — Fountain Pen Specialist, Stationery Store, Vintage / Used,
+  Nib / Repair Services.
+- Availability — Any status, Confirmed open, Hide closed. This is the operational
+  status a shop has been recorded with, never live opening hours.
+
+The button carries a badge counting the criteria set inside the drawer. The
+segment is not counted there because it is already on screen.
+
+**Every filter applies where it is pressed.** Visit status and availability are
+decided over the result set already in hand, so they take effect on the same
+frame. Shop type is resolved by the source, so it re-queries — against the bounds
+already committed, never against wherever the camera happens to be, and without
+disturbing an outstanding **Search this area**. **Search this area** is for
+movement; a filter is not movement, and making one wait for the other made the
+controls read as broken.
+
+Clearing every filter, the segment included, is one action.
 
 ## Shop discovery
 
 ### Shop card hierarchy
 
-1. Shop name.
+1. Shop name, which is also the link that opens the shop.
 2. Locality/neighbourhood and primary type.
 3. One useful specialty/service line.
 4. Open/closed/unknown operational cue where reliable.
-5. Saved/Visited state.
+5. Visited, when it applies. Saved is carried by the card's own **Save** control,
+   which states it in text, icon and pressed state. Neither is drawn when it does
+   not apply: there is no "not visited" badge.
 6. Primary image where rights are known.
 
 ### Shop page hierarchy

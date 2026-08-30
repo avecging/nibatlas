@@ -4,7 +4,6 @@ import type { Viewport } from "@/src/domain/geo";
 import {
   createExploreState,
   exploreReducer,
-  hasUncommittedFilters,
   shouldOfferSearchArea,
   type ExploreState,
 } from "@/src/features/explore/explore-state";
@@ -74,16 +73,80 @@ describe("explore reducer", () => {
     expect(shouldOfferSearchArea(committed)).toBe(false);
   });
 
-  it("keeps filter changes uncommitted until the next search", () => {
+  /*
+   * Staging reported the filter buttons as "not functioning". They were doing
+   * exactly what Milestone 1 built — waiting for the next committed search —
+   * which is indistinguishable from broken. A visit or availability filter now
+   * takes effect where it is pressed, with no round trip and no new search.
+   */
+  it("applies a visit filter immediately and without refetching", () => {
     const initial = loaded(createExploreState({ viewport: tokyo }));
     const filtered = exploreReducer(initial, { type: "setStatusFilter", status: "saved" });
 
-    expect(hasUncommittedFilters(filtered)).toBe(true);
-    expect(filtered.committedFilters.status).toBe("all");
-    expect(shouldOfferSearchArea(filtered)).toBe(true);
+    expect(filtered.filters.status).toBe("saved");
+    expect(filtered.requestId).toBe(initial.requestId);
+    expect(filtered.status).toBe("idle");
+    expect(shouldOfferSearchArea(filtered)).toBe(false);
+  });
 
-    const committed = exploreReducer(filtered, { type: "commitSearch" });
-    expect(committed.committedFilters.status).toBe("saved");
+  it("applies an availability filter immediately and without refetching", () => {
+    const initial = loaded(createExploreState({ viewport: tokyo }));
+    const filtered = exploreReducer(initial, {
+      type: "setAvailabilityFilter",
+      availability: "open",
+    });
+
+    expect(filtered.filters.availability).toBe("open");
+    expect(filtered.query).toBe(initial.query);
+  });
+
+  /*
+   * Shop type is resolved by the source, so it does need a round trip — but
+   * against the bounds already committed. Narrowing the results a reader is
+   * looking at must never quietly search somewhere else.
+   */
+  it("re-queries the committed bounds when a shop type changes", () => {
+    const initial = loaded(createExploreState({ viewport: tokyo }));
+    const moved = exploreReducer(initial, { type: "cameraMoved", camera: kyoto });
+    const typed = exploreReducer(moved, {
+      type: "toggleShopType",
+      shopType: "vintage_used",
+    });
+
+    expect(typed.filters.shopTypes).toEqual(["vintage_used"]);
+    expect(typed.requestId).toBe(initial.requestId + 1);
+    expect(typed.query.bounds).toEqual(tokyo.bounds);
+    expect(typed.committed).toEqual(initial.committed);
+    expect(typed.status).toBe("loading");
+
+    // The outstanding `Search this area` for the moved camera survives.
+    const settled = exploreReducer(typed, {
+      type: "resultsLoaded",
+      requestId: typed.requestId,
+      shops: [shop],
+      truncated: false,
+    });
+
+    expect(shouldOfferSearchArea(settled)).toBe(true);
+  });
+
+  it("clears every filter in one action, re-querying only when the source must", () => {
+    const initial = loaded(createExploreState({ viewport: tokyo }));
+    const set = exploreReducer(
+      exploreReducer(initial, { type: "setStatusFilter", status: "visited" }),
+      { type: "setAvailabilityFilter", availability: "open" },
+    );
+
+    const cleared = exploreReducer(set, { type: "clearFilters" });
+
+    expect(cleared.filters).toEqual({ status: "all", shopTypes: [], availability: "any" });
+    expect(cleared.requestId).toBe(set.requestId);
+
+    const typed = exploreReducer(set, { type: "toggleShopType", shopType: "vintage_used" });
+    const clearedAfterType = exploreReducer(typed, { type: "clearFilters" });
+
+    expect(clearedAfterType.filters.shopTypes).toEqual([]);
+    expect(clearedAfterType.requestId).toBe(typed.requestId + 1);
   });
 
   it("ignores stale responses", () => {

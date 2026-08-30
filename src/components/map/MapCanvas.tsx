@@ -34,6 +34,12 @@ export interface CameraTarget {
 interface MapCanvasProps {
   readonly shops: readonly ShopMapSummary[];
   readonly selectedShopId: string | null;
+  /**
+   * Transient synchronisation from the results list: the shop a card is being
+   * hovered or focused on. It never changes the selection, and it never moves
+   * the camera.
+   */
+  readonly highlightedShopId?: string | null;
   readonly initialViewport: Viewport;
   readonly styleProvider: MapStyleProvider;
   readonly cameraTarget: CameraTarget | null;
@@ -111,6 +117,7 @@ function markerLabel(shop: ShopMapSummary): string {
 export function MapCanvas({
   shops,
   selectedShopId,
+  highlightedShopId = null,
   initialViewport,
   styleProvider,
   cameraTarget,
@@ -120,11 +127,15 @@ export function MapCanvas({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef(new Map<string, Marker>());
+  /** Single-shop marker elements by shop id, so a highlight never rebuilds one. */
+  const markerElementsRef = useRef(new Map<string, HTMLElement>());
   const selectedRef = useRef<string | null>(selectedShopId);
+  const highlightedRef = useRef<string | null>(highlightedShopId);
   const shopsRef = useRef<readonly ShopMapSummary[]>(shops);
   const onSelectRef = useRef(onSelectShop);
   const onCameraSettledRef = useRef(onCameraSettled);
   const syncRef = useRef<() => void>(() => {});
+  const applyHighlightRef = useRef<() => void>(() => {});
   /**
    * Intent of the camera move currently in flight. It is set immediately before
    * the application moves the camera itself and consumed by the next `moveend`,
@@ -308,6 +319,7 @@ export function MapCanvas({
         .join(" ");
       button.dataset.shopId = shop.id;
       button.dataset.markerState = shop.markerState;
+      button.dataset.highlighted = highlightedRef.current === shop.id ? "true" : "false";
       button.setAttribute("aria-pressed", selected ? "true" : "false");
       button.setAttribute("aria-label", markerLabel(shop));
       button.innerHTML = `<span class="${styles.markerGlyph}">${markerGlyph(
@@ -321,6 +333,13 @@ export function MapCanvas({
 
       return button;
     }
+
+    const applyHighlight = () => {
+      for (const [shopId, element] of markerElementsRef.current) {
+        element.dataset.highlighted =
+          shopId === highlightedRef.current ? "true" : "false";
+      }
+    };
 
     const sync = () => {
       const instance = mapRef.current;
@@ -338,29 +357,39 @@ export function MapCanvas({
 
       const nextKeys = new Set<string>();
 
+      markerElementsRef.current.clear();
+
       for (const cluster of clusters) {
+        const single = cluster.shops.length === 1 ? cluster.shops[0] : undefined;
         const key =
-          cluster.shops.length > 1
+          single === undefined
             ? `${cluster.id}:${cluster.shops.length}`
-            : `${cluster.id}:${cluster.shops[0]?.markerState}:${
-                selectedRef.current === cluster.shops[0]?.id ? "on" : "off"
+            : `${cluster.id}:${single.markerState}:${
+                selectedRef.current === single.id ? "on" : "off"
               }`;
 
         nextKeys.add(key);
 
         const existing = markersRef.current.get(key);
         const lngLat: LngLatLike = [cluster.position.longitude, cluster.position.latitude];
+        let marker = existing;
 
-        if (existing) {
-          existing.setLngLat(lngLat);
-          continue;
+        if (marker) {
+          marker.setLngLat(lngLat);
+        } else {
+          marker = new Marker({
+            element: buildElement(cluster, instance),
+            anchor: "center",
+          })
+            .setLngLat(lngLat)
+            .addTo(instance);
+
+          markersRef.current.set(key, marker);
         }
 
-        const marker = new Marker({ element: buildElement(cluster, instance), anchor: "center" })
-          .setLngLat(lngLat)
-          .addTo(instance);
-
-        markersRef.current.set(key, marker);
+        if (single) {
+          markerElementsRef.current.set(single.id, marker.getElement());
+        }
       }
 
       for (const [key, marker] of markersRef.current) {
@@ -369,11 +398,25 @@ export function MapCanvas({
           markersRef.current.delete(key);
         }
       }
+
+      applyHighlight();
     };
 
     syncRef.current = sync;
+    applyHighlightRef.current = applyHighlight;
     sync();
   }, [created, featureCollection, selectedShopId]);
+
+  /**
+   * List-to-map synchronisation.
+   *
+   * Hovering or focusing a card marks its marker without rebuilding it, so a
+   * pointer sweeping down the results never churns the marker layer.
+   */
+  useEffect(() => {
+    highlightedRef.current = highlightedShopId;
+    applyHighlightRef.current();
+  }, [highlightedShopId]);
 
   // Reveal the selected shop without resetting the broader viewport.
   useEffect(() => {

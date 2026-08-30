@@ -5,8 +5,8 @@ import {
 } from "@/src/domain/geo";
 import {
   EMPTY_FILTERS,
-  filtersEqual,
   toggleShopType,
+  type AvailabilityFilter,
   type ShopFilters,
   type StatusFilter,
 } from "@/src/domain/filters";
@@ -19,8 +19,9 @@ export const SHEET_STATES: readonly SheetState[] = ["peek", "half", "full"];
 export type ExploreStatus = "idle" | "loading" | "error";
 
 /**
- * The committed query. It changes only when the user commits a search, so
- * adopting a renderer-resolved camera can never trigger a refetch.
+ * The committed query. It changes only when the user commits a search or changes
+ * a filter the source itself resolves, so adopting a renderer-resolved camera can
+ * never trigger a refetch.
  */
 export interface CommittedQuery {
   readonly requestId: number;
@@ -32,8 +33,17 @@ export interface CommittedQuery {
 export interface ExploreState {
   readonly committed: Viewport;
   readonly camera: Viewport;
-  readonly committedFilters: ShopFilters;
-  readonly draftFilters: ShopFilters;
+  /**
+   * One filter set, applied as soon as it is changed.
+   *
+   * Milestone 1 held a draft set that only took effect on the next committed
+   * search. On staging that made the filter controls look broken: a reader
+   * pressed `Saved` and the results did not move. `Search this area` exists for
+   * *movement* — a filter is not movement, so it applies at once and, when the
+   * source itself resolves the criterion, re-queries the bounds already
+   * committed rather than wherever the camera happens to be.
+   */
+  readonly filters: ShopFilters;
   /** Public projection for the committed viewport; user state is merged for display. */
   readonly results: readonly ShopMapSummary[];
   readonly truncated: boolean;
@@ -63,6 +73,7 @@ export type ExploreAction =
   | { readonly type: "resultsFailed"; readonly requestId: number }
   | { readonly type: "selectShop"; readonly shopId: string | null }
   | { readonly type: "setStatusFilter"; readonly status: StatusFilter }
+  | { readonly type: "setAvailabilityFilter"; readonly availability: AvailabilityFilter }
   | { readonly type: "toggleShopType"; readonly shopType: ShopType }
   | { readonly type: "clearFilters" }
   | { readonly type: "setSheetState"; readonly sheetState: SheetState };
@@ -81,8 +92,7 @@ export function createExploreState({
   return {
     committed: viewport,
     camera: viewport,
-    committedFilters: filters,
-    draftFilters: filters,
+    filters,
     results: [],
     truncated: false,
     status: "loading",
@@ -96,6 +106,31 @@ export function createExploreState({
       shopTypes: filters.shopTypes,
     },
     lastCommittedLabel: null,
+  };
+}
+
+/**
+ * Re-run the *committed* query under a new filter set.
+ *
+ * Only criteria the source resolves reach this — today, shop type. The reader
+ * asked to narrow the results they are looking at, not to search somewhere else,
+ * so the bounds are the committed ones and an outstanding `Search this area`
+ * for a moved camera survives untouched.
+ */
+function requery(state: ExploreState, filters: ShopFilters): ExploreState {
+  const requestId = state.requestId + 1;
+
+  return {
+    ...state,
+    filters,
+    status: "loading",
+    requestId,
+    query: {
+      requestId,
+      bounds: state.committed.bounds,
+      zoom: state.committed.zoom,
+      shopTypes: filters.shopTypes,
+    },
   };
 }
 
@@ -132,14 +167,13 @@ export function exploreReducer(
         ...state,
         camera: viewport,
         committed: viewport,
-        committedFilters: state.draftFilters,
         status: "loading",
         requestId,
         query: {
           requestId,
           bounds: viewport.bounds,
           zoom: viewport.zoom,
-          shopTypes: state.draftFilters.shopTypes,
+          shopTypes: state.filters.shopTypes,
         },
         lastCommittedLabel: action.label ?? null,
       };
@@ -180,22 +214,29 @@ export function exploreReducer(
       return { ...state, selectedShopId: action.shopId };
     }
 
+    // Visit state and availability are decided over the result set already in
+    // hand, so they need no round trip and take effect on the same frame.
     case "setStatusFilter": {
+      return { ...state, filters: { ...state.filters, status: action.status } };
+    }
+
+    case "setAvailabilityFilter": {
       return {
         ...state,
-        draftFilters: { ...state.draftFilters, status: action.status },
+        filters: { ...state.filters, availability: action.availability },
       };
     }
 
     case "toggleShopType": {
-      return {
-        ...state,
-        draftFilters: toggleShopType(state.draftFilters, action.shopType),
-      };
+      return requery(state, toggleShopType(state.filters, action.shopType));
     }
 
     case "clearFilters": {
-      return { ...state, draftFilters: EMPTY_FILTERS };
+      if (state.filters.shopTypes.length === 0) {
+        return { ...state, filters: EMPTY_FILTERS };
+      }
+
+      return requery(state, EMPTY_FILTERS);
     }
 
     case "setSheetState": {
@@ -209,17 +250,13 @@ export function exploreReducer(
 }
 
 /**
- * `Search this area` is offered after meaningful camera movement or after the
- * user changes a filter that has not been committed yet. It is never offered
- * while a committed query is already in flight.
+ * `Search this area` is offered after meaningful camera movement, and never
+ * while a committed query is already in flight. Filters no longer wait on it:
+ * they apply where they are changed.
  */
 export function shouldOfferSearchArea(state: ExploreState): boolean {
   if (state.status === "loading") {
     return false;
-  }
-
-  if (!filtersEqual(state.draftFilters, state.committedFilters)) {
-    return true;
   }
 
   return hasMovedMeaningfully(
@@ -227,8 +264,4 @@ export function shouldOfferSearchArea(state: ExploreState): boolean {
     state.camera,
     DEFAULT_MOVEMENT_THRESHOLD,
   );
-}
-
-export function hasUncommittedFilters(state: ExploreState): boolean {
-  return !filtersEqual(state.draftFilters, state.committedFilters);
 }

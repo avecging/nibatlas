@@ -33,16 +33,28 @@ test.describe("mobile results sheet", () => {
     await expect(page.getByTestId("results-sheet")).toHaveAttribute("data-state", "half");
   });
 
-  test("selecting a card keeps the sheet and map in step", async ({ page }) => {
-    await page.goto("/");
+  /*
+   * Selection now comes from the map, not from the card: a card tap opens the
+   * shop. The sheet must still name the selected shop and scroll to its card.
+   */
+  /*
+   * Selection now comes from the map, not from the card: activating a card
+   * opens the shop. The sheet must still name the selected shop and scroll to
+   * its card, whether the selection came from a marker or from a return to the
+   * map that carried one.
+   */
+  test("selecting a marker keeps the sheet and map in step", async ({ page }) => {
+    await page.goto("/?shop=ginza-itoya-main-store");
     await expect(page.getByRole("list", { name: /shops in the searched area/i })).toBeVisible();
 
-    const firstCard = page.getByRole("article").first();
-    const name = await firstCard.getByRole("button").first().textContent();
-    await firstCard.getByRole("button").first().click();
+    const card = page.getByRole("article", { name: "Ginza Itoya Main Store" });
+    await expect(card).toHaveAttribute("data-selected", "true");
+    await expect(page.getByText("Selected: Ginza Itoya Main Store")).toBeVisible();
 
-    await expect(firstCard).toHaveAttribute("data-selected", "true");
-    await expect(page.getByText(`Selected: ${name}`)).toBeVisible();
+    const marker = page
+      .getByRole("button", { name: /^Ginza Itoya Main Store, Chūō, Tokyo\./ })
+      .first();
+    await expect(marker).toHaveAttribute("aria-pressed", "true");
   });
 
   test("dragging the handle resizes the sheet without panning the map", async ({ page }) => {
