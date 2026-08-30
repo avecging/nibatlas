@@ -65,3 +65,15 @@
   flex-wrap: wrap;
   gap: var(--space-4);
 }
+
+/*
+ * The shop value layer, shown at the width the sections actually render at.
+ *
+ * The specimen sits inside the styleguide's own surface rather than being given
+ * a page treatment: what is under review is the section design, not the page.
+ */
+.shopValue {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 34rem;
+}

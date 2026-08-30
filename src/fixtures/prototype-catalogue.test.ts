@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  hasSourcedValueLayer,
+  shopEvidenceIssues,
+} from "@/src/domain/shop-evidence";
 import { STAMP_INKS, STAMP_PALETTE_VERSION } from "@/src/domain/stamp-palette";
 import { COUNTRY_SEAL_STAMP_THRESHOLD } from "@/src/domain/seals";
 import { demoShops } from "@/src/fixtures/demo-shops";
@@ -71,11 +75,42 @@ describe("prototype catalogue", () => {
     expect(skb?.addressLines).toBeUndefined();
     expect(skb?.positionPrecision).toBe("locality");
 
-    // And nothing anywhere carries an appointment or accessibility claim we
-    // could not source.
+    // And nothing anywhere carries a practical or access claim we could not
+    // source. WP4 moved appointment, payment, languages and accessibility into
+    // the sourced `practical` and `access` blocks; no source in this catalogue
+    // publishes any of them, so no record carries either block.
     for (const shop of prototypeShopDetails) {
-      expect(shop.appointmentRequired).toBeUndefined();
-      expect(shop.accessibilityNotes).toBeUndefined();
+      expect(shop.practical).toBeUndefined();
+      expect(shop.access).toBeUndefined();
+    }
+  });
+
+  /**
+   * WP4's central rule, enforced rather than described.
+   *
+   * Accepted decision 4 lets Claude Code define the pen-specific schema and
+   * forbids it inventing the content. Every service, experience, exclusive,
+   * access and practical claim therefore names the source that confirms it, and
+   * this asserts the reference resolves against the record's own source list.
+   *
+   * The catalogue currently carries no such claim — no source in it publishes
+   * services, in-store experiences, shop-only items, stations, payment methods
+   * or languages — so the check is a guard on what may be added later rather
+   * than a verdict on what is here now. `shop-evidence.test.ts` proves it
+   * catches a bad reference.
+   */
+  it("backs every pen-specific claim with one of the record's own sources", () => {
+    for (const shop of prototypeShopDetails) {
+      expect(shopEvidenceIssues(shop)).toEqual([]);
+    }
+  });
+
+  it("invents no services, experiences, or exclusives", () => {
+    for (const shop of prototypeShopDetails) {
+      expect(shop.services).toBeUndefined();
+      expect(shop.experiences).toBeUndefined();
+      expect(shop.exclusives).toBeUndefined();
+      expect(hasSourcedValueLayer(shop)).toBe(false);
     }
   });
 

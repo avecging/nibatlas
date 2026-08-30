@@ -55,15 +55,45 @@
   background: var(--bg-surface-warm);
 }
 
+/*
+ * The stamp-collection action, before anything has been collected.
+ *
+ * Solid Plum, from the `--action-collect` semantic token. It is deliberately not
+ * Vermilion: Vermilion is the outcome — the impression, the collected line, the
+ * visited state — so using it here made an invitation look like a warning. White
+ * on `--action-collect` measures 8.35:1.
+ */
 .stamp {
-  border-color: var(--state-visited);
-  background: var(--state-visited);
+  border-color: var(--action-collect);
+  background: var(--action-collect);
   color: var(--white);
 }
 
 .stamp:hover:not([disabled]) {
+  border-color: var(--action-collect-hover);
+  background: var(--action-collect-hover);
+}
+
+/*
+ * The same action once the impression exists.
+ *
+ * Now it opens something the reader already has, so it steps back into the
+ * restrained Vermilion visited treatment the collected line and the marker
+ * already use. Primary ink on the pale visited surface, not reversed text.
+ */
+.collected {
+  border-color: var(--state-visited);
+  background: var(--state-visited-surface);
+  color: var(--text-primary);
+}
+
+.collected:hover:not([disabled]) {
   border-color: var(--state-visited-hover);
-  background: var(--state-visited-hover);
+  background: var(--vermilion-100);
+}
+
+.collected svg {
+  color: var(--state-visited);
 }
 
 .full {

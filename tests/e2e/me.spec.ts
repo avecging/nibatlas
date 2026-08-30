@@ -355,8 +355,8 @@ test.describe("local data controls", () => {
 
     // And a save made there afterwards does not write the old arrays back.
     await second.goto("/shops/juspirit-banqiao");
-    await second.getByRole("button", { name: /^save$/i }).click();
-    await expect(second.getByRole("button", { name: /^saved$/i })).toBeVisible();
+    await second.getByRole("button", { name: "Save shop" }).click();
+    await expect(second.getByRole("button", { name: "Remove saved shop" })).toBeVisible();
 
     /*
      * Checked live in the first tab and against storage, not by reloading: the

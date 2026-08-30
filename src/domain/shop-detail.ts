@@ -63,6 +63,111 @@ export interface ShopSourceRef {
  */
 export type PositionPrecision = "street" | "locality";
 
+/**
+ * How a service is reached.
+ *
+ * `docs/milestone-1-5-product-refinement.md` root cause D: a repair bench and a
+ * shelf of boxed pens are the same row in a general directory, and the thing
+ * that separates them is whether you can walk in, have to book, or have to post
+ * the pen. The mode is therefore part of the claim rather than prose around it.
+ */
+export type ServiceAccessMode = "walk_in" | "booking" | "send_in" | "enquire";
+
+export const SERVICE_ACCESS_MODE_LABELS: Record<ServiceAccessMode, string> = {
+  walk_in: "Walk-in",
+  booking: "Booking",
+  send_in: "Send-in",
+  enquire: "Ask in store",
+};
+
+/**
+ * A claim that names the source backing it.
+ *
+ * `confirmedBy` holds the `label` of one of the record's own {@link ShopSourceRef}
+ * entries — the evidence registry that already exists — so a pen-specific claim
+ * cannot be written without pointing at the source it came from.
+ *
+ * Naming the source is necessary but not sufficient. `shopEvidenceIssues` in
+ * `src/domain/shop-evidence.ts` also requires the named source's own `confirms`
+ * list to cover *this* claim: a service may not lean on a source that confirms
+ * only a shop's local-script name, and one confirmed field of an access or
+ * practical block never validates another. See that module for the rule and the
+ * evidence tokens it compares.
+ *
+ * This is the mechanism accepted decision 4 asks for: Claude Code may define the
+ * optional schema, and must never invent services, experiences, exclusives, or
+ * practical details.
+ */
+export interface SourcedClaim {
+  /** `ShopSourceRef.label` of the source that confirms this claim. */
+  readonly confirmedBy: string;
+}
+
+/**
+ * One practical fact, with the source that confirms *it*.
+ *
+ * Access and practical facts are sourced per field rather than per block. A
+ * block-level reference would let one source that publishes a station implicitly
+ * vouch for a payment method and a spoken language it says nothing about, which
+ * is exactly the hole the first WP4 attempt left open — a check alone would have
+ * caught it, but the type now makes it unsayable.
+ */
+export interface SourcedText extends SourcedClaim {
+  readonly value: string;
+}
+
+export interface SourcedList extends SourcedClaim {
+  readonly values: readonly string[];
+}
+
+export interface SourcedFlag extends SourcedClaim {
+  readonly value: boolean;
+}
+
+/** Something a visitor can have done to a pen, with how it is reached. */
+export interface ShopService extends SourcedClaim {
+  readonly label: string;
+  readonly accessMode?: ServiceAccessMode;
+  /** As the source states it: `~30 min`, `3–5 days`. Never estimated here. */
+  readonly duration?: string;
+  readonly note?: string;
+}
+
+/** Something a visitor can do in the shop: a test bench, an ink wall, a clinic. */
+export interface ShopExperience extends SourcedClaim {
+  readonly label: string;
+  readonly detail?: string;
+  readonly bookingRequired?: boolean;
+}
+
+/** The reason a pen traveller detours: shop-only inks, house editions. */
+export interface ShopExclusive extends SourcedClaim {
+  readonly label: string;
+  readonly detail?: string;
+}
+
+/**
+ * Getting in.
+ *
+ * The two practical facts a general listing never carries: which station you
+ * walk from, and the building or floor note that decides whether you find the
+ * door at all. Each carries its own source.
+ */
+export interface ShopAccessNote {
+  readonly nearestStation?: SourcedText;
+  /** Walking guidance exactly as the source words it. Never computed. */
+  readonly walkFromStation?: SourcedText;
+  readonly floorNote?: SourcedText;
+  readonly accessibilityNote?: SourcedText;
+}
+
+/** Practical facts that decide whether a visit works: payment, language, booking. */
+export interface ShopPracticalInfo {
+  readonly paymentMethods?: SourcedList;
+  readonly languages?: SourcedList;
+  readonly appointmentRequired?: SourcedFlag;
+}
+
 export interface ShopDetail extends ShopMapSummary {
   /** One or two sourced sentences on why the shop may be worth a visit. */
   readonly shortDescription?: string;
@@ -71,10 +176,20 @@ export interface ShopDetail extends ShopMapSummary {
   readonly timezone: string;
   readonly shopTypes: readonly ShopType[];
   readonly specialties?: readonly string[];
-  readonly services?: readonly string[];
+  /**
+   * What you can do there.
+   *
+   * WP4 replaces the plain `readonly string[]` this field carried in Milestone 1.
+   * A bare label cannot say whether a nib grind is a walk-in or a three-day
+   * send-in, which is the distinction the whole section exists to make. Nothing
+   * populated the string form, so nothing was migrated.
+   */
+  readonly services?: readonly ShopService[];
+  readonly experiences?: readonly ShopExperience[];
+  readonly exclusives?: readonly ShopExclusive[];
+  readonly access?: ShopAccessNote;
+  readonly practical?: ShopPracticalInfo;
   readonly brands?: readonly string[];
-  readonly appointmentRequired?: boolean;
-  readonly accessibilityNotes?: string;
   readonly openingHours?: readonly OpeningHoursEntry[];
   readonly openingHoursNote?: string;
   readonly links?: readonly ShopLink[];

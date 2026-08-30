@@ -360,9 +360,11 @@ test("saving a shop is consistent across card, shop page, and Saved mode", async
 }) => {
   await page.goto("/shops/nagasawa-stationery-center-main-store");
 
-  const saveButton = page.getByRole("button", { name: /^save$/i });
+  // Save is the bookmark beside the shop's name. Its accessible name carries the
+  // state, so the assertion is on the name rather than on colour.
+  const saveButton = page.getByRole("button", { name: "Save shop" });
   await saveButton.click();
-  await expect(page.getByRole("button", { name: /^saved$/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove saved shop" })).toBeVisible();
 
   await page.goto("/saved");
   await raiseSheet(page);

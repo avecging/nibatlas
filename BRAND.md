@@ -135,10 +135,36 @@ Use variable font files where practical and self-host production webfonts to red
 | `vermilion-700` | `#C54B32` | Collected/visited impression |
 | `vermilion-100` | `#F3DED4` | Collected-state surface |
 | `indigo-700` | `#365E88` | Approved stamp-ink option |
+| `plum-700` | `#6B3F63` | Stamp-collection action, and an approved stamp-ink option |
+| `plum-800` | `#56324F` | Darkened Plum for collection hover/pressed |
 | `brass-600` | `#98723D` | Rare ceremonial accent only |
 | `white` | `#FFFFFF` | High-contrast surface where needed |
 
-The everyday interface is dominated by Paper, Sumi, and Atlas Navy. Teal marks intent/saving. Vermilion marks completed visits and the stamp ceremony. Stamp artwork may use approved palette inks independently of country or tier. Brass is not a default button or status colour.
+The everyday interface is dominated by Paper, Sumi, and Atlas Navy. Teal marks
+intent/saving. **Plum marks the invitation to collect a stamp; Vermilion marks the
+result** — the impression, the collected line, visited status, and the ceremony.
+Stamp artwork may use approved palette inks independently of country or tier.
+Brass is not a default button or status colour.
+
+### Plum is the collection action, not the impression
+
+Recorded 28 August 2026, from the founder's staging review of Milestone 1.5 WP4.
+
+`Collect Stamp` was Vermilion before anything had been collected, which made an
+invitation read as a warning and collapsed the action and its outcome into one
+colour. The uncollected action is now solid Plum:
+
+- **Reserved.** Plum is for stamp-collection actions. Nothing else in the
+  interface may claim it.
+- **It carries no data.** It does not indicate country, locality, rarity, tier,
+  or the ink the shop's own stamp is printed in. A collection button is never
+  coloured from a shop's `stamp.ink` — that palette is chosen blind, and reading
+  it back out through a control would give it meaning it does not have.
+- **After collection**, `View Atlas Stamp`, the collected line, the marker and the
+  impression itself keep the existing restrained Vermilion visited treatment.
+- **Centralized.** `plum-700` is declared once in the palette and consumed by two
+  independent registries — the stamp inks and `action-collect`. Components use
+  the semantic token; literal Plum values never appear in a component.
 
 ### Semantic UI colours
 
@@ -153,16 +179,43 @@ The everyday interface is dominated by Paper, Sumi, and Atlas Navy. Teal marks i
 | `action-primary` | `atlas-900` | Primary actions |
 | `action-primary-hover` | `atlas-800` | Primary hover |
 | `action-secondary` | `teal-700` | Save/planning actions |
+| `action-secondary-text` | `teal-800` | Text-sized links, where `teal-700` misses AA at caption size |
+| `action-collect` | `plum-700` | Stamp-collection action before collection. White text: 8.35:1 |
+| `action-collect-hover` | `plum-800` | Collection hover/pressed. White text: 10.69:1 |
 | `state-visited` | `vermilion-700` | Collected stamp and visited status |
 | `state-saved` | `teal-700` | Saved status |
 | `state-unvisited` | `atlas-900` | Unvisited marker outline/text |
 | `focus-ring` | `#2477B3` | Keyboard focus; 2 px plus offset |
-| `success` | `#2F7653` | Operational success, not visit state |
-| `warning` | `#9A651D` | Caution/stale information |
+| `success` | `#2F7653` | Operational success, including a confirmed-open shop. Never visit state |
+| `warning` | `#9A651D` | Caution/stale information; the icon on both amber states |
+| `warning-surface` | `#F7EBD7` | Filled amber ground: a **confirmed closure**, the loudest status. Primary ink on it: 13.8:1 |
+| `warning-soft` | `#CFA96F` | Soft amber outline: a status **nobody has confirmed**, quieter than a closure |
+| `success-surface` | `#E3F0E6` | Pale ground behind a confirmed-open badge. Primary ink: 13.9:1; `success` on it: 4.7:1 |
 | `error` | `#B33A32` | Destructive/error state |
 | `disabled` | `#A9AEA9` | Disabled controls, paired with opacity/copy |
 
-Never communicate status with colour alone. Pair it with shape, icon, label, or pattern.
+Never communicate status with colour alone. Pair it with shape, icon, label, or
+pattern. Two worked examples: the Save bookmark carries its state in the glyph
+(outlined versus filled), in `aria-pressed`, and in an accessible name that
+changes between *Save shop* and *Remove saved shop*; an unconfirmed operational
+status carries it in the alert icon and the words *Status not confirmed* as well
+as in the amber outline.
+
+### Operational status has three levels of attention
+
+Recorded 30 August 2026, from the second staging review of Milestone 1.5 WP4.
+
+| Status | Treatment |
+| --- | --- |
+| Open | `success` on `success-surface`, check icon |
+| Temporarily / permanently closed | `warning` on `warning-surface`, alert icon — the loudest |
+| Status not confirmed | `warning-soft` outline on the surrounding surface, secondary ink, alert icon |
+
+A confirmed closure outranks everything: turning up to a shop that has closed is
+the failure a shop page exists to prevent. An unconfirmed status is said plainly
+and no louder — it is not a claim that anything is wrong. `Open` takes the success
+green rather than the Teal saved token, because saving is something the reader
+did and being open is something the world is doing.
 
 ### Derived interaction tokens
 
@@ -171,7 +224,7 @@ support interaction and motion without expanding the primary brand colours.
 
 | Semantic token | Value | Usage |
 | --- | --- | --- |
-| `state-visited-hover` | `#B0422C` | Darkened Vermilion hover step for visited and stamp actions |
+| `state-visited-hover` | `#B0422C` | Darkened Vermilion hover step for visited and collected actions |
 | `overlay-scrim` | `rgba(16, 45, 70, 0.42)` | Atlas Navy scrim behind modal dialogs |
 | `shadow-nav` | `0 -2px 10px rgba(16, 45, 70, 0.06)` | Subtle separation above mobile navigation |
 | `stamp-pressure-highlight` | `rgba(255, 255, 255, 0.42)` | Light edge of the stamp-pressure animation |

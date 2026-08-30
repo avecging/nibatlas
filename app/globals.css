@@ -18,11 +18,29 @@
   --sumi-700: #4d5551;
   --sumi-500: #737b76;
   --teal-700: #287a78;
+  /*
+   * A darker step of the same teal, for text-sized links.
+   *
+   * `--teal-700` clears AA at body size on white (4.86:1) but not at the 14 px
+   * caption and body-small sizes the shop page's inline links use on the warm
+   * paper surfaces — WP4's contribution invitation measured 4.34:1 on
+   * `--bg-surface-warm`. This step passes AA at small text on every paper
+   * surface in the palette while staying recognisably the same accent.
+   */
+  --teal-800: #1f6462;
   --teal-100: #dcebe7;
   --vermilion-700: #c54b32;
   --vermilion-100: #f3ded4;
   --indigo-700: #365e88;
   --brass-600: #98723d;
+  /*
+   * Plum, declared once in the core palette because two separate registries
+   * consume it: the stamp-ink palette below, and the collection action. Neither
+   * reads the other — see `--action-collect`.
+   */
+  --plum-700: #6b3f63;
+  /* Darkened Plum step for the collection action's hover and pressed states. */
+  --plum-800: #56324f;
   --white: #ffffff;
 
   /* Semantic surfaces and text */
@@ -40,6 +58,19 @@
   --action-primary: var(--atlas-900);
   --action-primary-hover: var(--atlas-800);
   --action-secondary: var(--teal-700);
+  /* Text-sized links, where the lighter accent does not clear AA. */
+  --action-secondary-text: var(--teal-800);
+  /*
+   * The stamp-collection action.
+   *
+   * Plum, not Vermilion. Vermilion is the *outcome* — the impression, the
+   * collected line, visited status — and using it before collection made the
+   * action read as a warning and collapsed action and outcome into one colour.
+   * Plum is reserved for collection actions and says nothing about country,
+   * rarity, tier, or the ink the shop's own stamp is printed in.
+   */
+  --action-collect: var(--plum-700);
+  --action-collect-hover: var(--plum-800);
   --state-visited: var(--vermilion-700);
   --state-visited-surface: var(--vermilion-100);
   --state-saved: var(--teal-700);
@@ -47,7 +78,18 @@
   --state-unvisited: var(--atlas-900);
   --focus-ring: #2477b3;
   --success: #2f7653;
+  /* Pale ground for a confirmed-open badge. Primary ink on it: 13.9:1. */
+  --success-surface: #e3f0e6;
   --warning: #9a651d;
+  /* Filled amber ground: a confirmed closure, the loudest status. */
+  --warning-surface: #f7ebd7;
+  /*
+   * A lighter amber outline for a status nobody has confirmed either way.
+   * Restrained on purpose — an unverified shop is not the same claim as a closed
+   * one, and the founder's second staging review found the filled badge saying
+   * it was.
+   */
+  --warning-soft: #cfa96f;
   --error: #b33a32;
   --disabled: #a9aea9;
 
@@ -102,7 +144,7 @@
   --ink-navy: #102d46;
   --ink-teal: #287a78;
   --ink-indigo: #365e88;
-  --ink-plum: #6b3f63;
+  --ink-plum: var(--plum-700);
   --ink-moss: #4f653f;
   --ink-ochre: #846024;
   --ink-brick: #8a4338;

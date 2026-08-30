@@ -1,9 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 
 import { useDialogFocus } from "@/src/components/hooks/useDialogFocus";
+import {
+  detectMapPlatform,
+  directionsHref,
+  type MapPlatform,
+} from "@/src/components/shops/directions";
 import { passportHrefWithAnchor } from "@/src/components/shops/ShopBackLink";
 import { StampCeremony } from "@/src/components/stamps/StampCeremony";
 import { Button, ButtonLink } from "@/src/components/ui/Button";
@@ -25,15 +30,34 @@ export function ShopStatusBadges({ shop }: { readonly shop: ShopDetail }) {
   return <MarkerStateBadge state={markerStateFor(shop.id, collection.userShopState)} />;
 }
 
-function externalMapUrl(shop: ShopDetail): string {
-  const { latitude, longitude } = shop.position;
+/**
+ * Directions open the platform's own maps application.
+ *
+ * WP4 replaces Milestone 1's OpenStreetMap marker link with a native handoff, per
+ * `docs/milestone-1-5-product-refinement.md`: Apple Maps on Apple platforms, the
+ * `geo:` intent on Android, and OpenStreetMap's directions page where there is no
+ * application to hand to. Nib Atlas never embeds an itinerary.
+ *
+ * The platform never changes for a document, so this is a read of the
+ * environment rather than state: the server snapshot is the universal fallback,
+ * which works everywhere, and hydration upgrades it to the native handoff. That
+ * is the same shape `useMediaQuery` uses, and it keeps the two renders in
+ * agreement instead of correcting one after paint.
+ */
+const NO_SUBSCRIPTION = () => () => {};
 
-  return `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=17/${latitude}/${longitude}`;
+function useMapPlatform(): MapPlatform {
+  return useSyncExternalStore(
+    NO_SUBSCRIPTION,
+    () => detectMapPlatform(window.navigator.userAgent),
+    () => "other" as const,
+  );
 }
 
 export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
   const collection = useCollection();
   const reviewer = useReviewerMode();
+  const platform = useMapPlatform();
   const [preflightOpen, setPreflightOpen] = useState(false);
   const [ceremony, setCeremony] = useState<StampCollection | null>(null);
   const [wasAlreadyCollected, setWasAlreadyCollected] = useState(false);
@@ -41,9 +65,7 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
   const closePreflight = useCallback(() => setPreflightOpen(false), []);
   const preflightRef = useDialogFocus<HTMLDivElement>(preflightOpen, closePreflight);
 
-  const saved = collection.isSaved(shop.id);
   const existing = collection.collectionForShop(shop.id);
-  const officialLink = (shop.links ?? []).find((link) => link.isOfficial);
 
   /*
    * The ceremony opens the Passport at the impression that was just pressed, not
@@ -73,31 +95,16 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
 
   return (
     <>
+      {/*
+        Save is not here: it is the bookmark beside the shop's name, so the two
+        remaining controls are the ones a visitor acts on — get there, and press
+        the stamp once there. There is no second *Official site* button either;
+        the sourced website is a contextual link in *Before you go*, where the
+        rest of the visit information lives.
+      */}
       <div className={styles.actions}>
-        <Button
-          variant={saved ? "secondary" : "primary"}
-          aria-pressed={saved}
-          onClick={() => {
-            const next = collection.toggleSaved(shop.id);
-            noopTelemetry.record("shop_saved", {
-              shopSlug: shop.slug,
-              outcome: next ? "saved" : "unsaved",
-            });
-          }}
-        >
-          <Icon name={saved ? "bookmark-filled" : "bookmark"} size={18} />
-          {saved ? "Saved" : "Save"}
-        </Button>
-
-        {officialLink ? (
-          <ButtonLink href={officialLink.url} variant="quiet" external>
-            <Icon name="link" size={18} />
-            Official site
-          </ButtonLink>
-        ) : null}
-
         <ButtonLink
-          href={externalMapUrl(shop)}
+          href={directionsHref(shop, platform)}
           variant="quiet"
           external
           onClick={() =>
@@ -112,8 +119,14 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
           Collect Stamp stays visible in both modes, per accepted decision 2. Only
           the label's diagnostic suffix is reviewer-only: a tester should read the
           product's action, not the build's caveat, on the button itself.
+
+          Solid Plum before collection, the restrained Vermilion visited step
+          after it: the invitation and its outcome are no longer the same colour.
         */}
-        <Button variant="stamp" onClick={() => setPreflightOpen(true)}>
+        <Button
+          variant={existing ? "collected" : "stamp"}
+          onClick={() => setPreflightOpen(true)}
+        >
           <Icon name="seal" size={18} />
           {existing
             ? "View Atlas Stamp"
@@ -187,7 +200,15 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
               ) : null}
             </div>
             <div className={styles.dialogActions}>
-              <Button variant="stamp" fullWidth onClick={confirmCollection}>
+              {/*
+                Atlas Navy, not Plum.
+
+                This confirms an intent; it is not the collectible entry point and
+                not a successful verification. Plum is reserved for the action that
+                offers a stamp — the header control — and turning the dialog's
+                confirm button the same colour made the two read as the same step.
+              */}
+              <Button variant="primary" fullWidth onClick={confirmCollection}>
                 {existing
                   ? "Show the impression"
                   : reviewer
