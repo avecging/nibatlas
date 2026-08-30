@@ -186,9 +186,11 @@ colour. The uncollected action is now solid Plum:
 | `state-saved` | `teal-700` | Saved status |
 | `state-unvisited` | `atlas-900` | Unvisited marker outline/text |
 | `focus-ring` | `#2477B3` | Keyboard focus; 2 px plus offset |
-| `success` | `#2F7653` | Operational success, not visit state |
-| `warning` | `#9A651D` | Caution/stale information, including unconfirmed operational status |
-| `warning-surface` | `#F7EBD7` | Pale amber ground behind a caution badge. Primary ink on it: 13.8:1 |
+| `success` | `#2F7653` | Operational success, including a confirmed-open shop. Never visit state |
+| `warning` | `#9A651D` | Caution/stale information; the icon on both amber states |
+| `warning-surface` | `#F7EBD7` | Filled amber ground: a **confirmed closure**, the loudest status. Primary ink on it: 13.8:1 |
+| `warning-soft` | `#CFA96F` | Soft amber outline: a status **nobody has confirmed**, quieter than a closure |
+| `success-surface` | `#E3F0E6` | Pale ground behind a confirmed-open badge. Primary ink: 13.9:1; `success` on it: 4.7:1 |
 | `error` | `#B33A32` | Destructive/error state |
 | `disabled` | `#A9AEA9` | Disabled controls, paired with opacity/copy |
 
@@ -197,7 +199,23 @@ pattern. Two worked examples: the Save bookmark carries its state in the glyph
 (outlined versus filled), in `aria-pressed`, and in an accessible name that
 changes between *Save shop* and *Remove saved shop*; an unconfirmed operational
 status carries it in the alert icon and the words *Status not confirmed* as well
-as in the amber ground.
+as in the amber outline.
+
+### Operational status has three levels of attention
+
+Recorded 30 August 2026, from the second staging review of Milestone 1.5 WP4.
+
+| Status | Treatment |
+| --- | --- |
+| Open | `success` on `success-surface`, check icon |
+| Temporarily / permanently closed | `warning` on `warning-surface`, alert icon — the loudest |
+| Status not confirmed | `warning-soft` outline on the surrounding surface, secondary ink, alert icon |
+
+A confirmed closure outranks everything: turning up to a shop that has closed is
+the failure a shop page exists to prevent. An unconfirmed status is said plainly
+and no louder — it is not a claim that anything is wrong. `Open` takes the success
+green rather than the Teal saved token, because saving is something the reader
+did and being open is something the world is doing.
 
 ### Derived interaction tokens
 

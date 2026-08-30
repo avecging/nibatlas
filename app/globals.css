@@ -78,9 +78,18 @@
   --state-unvisited: var(--atlas-900);
   --focus-ring: #2477b3;
   --success: #2f7653;
+  /* Pale ground for a confirmed-open badge. Primary ink on it: 13.9:1. */
+  --success-surface: #e3f0e6;
   --warning: #9a651d;
-  /* Pale amber ground for a caution badge, so unknown status is not silent. */
+  /* Filled amber ground: a confirmed closure, the loudest status. */
   --warning-surface: #f7ebd7;
+  /*
+   * A lighter amber outline for a status nobody has confirmed either way.
+   * Restrained on purpose — an unverified shop is not the same claim as a closed
+   * one, and the founder's second staging review found the filled badge saying
+   * it was.
+   */
+  --warning-soft: #cfa96f;
   --error: #b33a32;
   --disabled: #a9aea9;
 

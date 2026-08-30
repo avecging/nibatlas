@@ -200,7 +200,15 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
               ) : null}
             </div>
             <div className={styles.dialogActions}>
-              <Button variant="stamp" fullWidth onClick={confirmCollection}>
+              {/*
+                Atlas Navy, not Plum.
+
+                This confirms an intent; it is not the collectible entry point and
+                not a successful verification. Plum is reserved for the action that
+                offers a stamp — the header control — and turning the dialog's
+                confirm button the same colour made the two read as the same step.
+              */}
+              <Button variant="primary" fullWidth onClick={confirmCollection}>
                 {existing
                   ? "Show the impression"
                   : reviewer

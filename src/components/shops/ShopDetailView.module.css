@@ -225,20 +225,19 @@
  * wrapping onto two where there is not. The bookmark keeps its own 44 px target
  * either way — `flex: none` on the control stops a long name squeezing it.
  */
+/*
+ * Two columns that do not move: the bookmark's own 44 px, then the name.
+ *
+ * A flex row let a long or wrapped name — `銀座 伊東屋 横浜元町`,
+ * `NAGASAWA Stationery Center Main Store` — push the control onto its own line
+ * and change where it sits from shop to shop. `minmax(0, 1fr)` lets the name
+ * wrap inside its own column instead, at every breakpoint and in every script.
+ */
 .heroNameRow {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: var(--tap-target) minmax(0, 1fr);
   align-items: center;
   gap: var(--space-3);
-}
-
-/*
- * Beside the name, not pushed to the far edge of the plate: a bookmark two
- * hundred pixels away from what it bookmarks reads as a page control rather
- * than as this shop's.
- */
-.heroNameRow .title {
-  flex: 0 1 auto;
 }
 
 .heroPlace {

@@ -14,10 +14,11 @@ import { seedSampleCollection, useNormalMode } from "../support/local-state";
  * the specimen value layer side by side at the three breakpoints
  * `IMPLEMENTATION-PLAN.md` names.
  *
- * Revised after the founder's staging review: the actions are in the header, the
+ * Revised after the founder's staging reviews: the actions are in the header, the
  * Collect Stamp action is Plum before collection and the Vermilion visited step
- * after it, unknown status is an amber caution, and *Plan your visit* has
- * replaced the fragmented practical cards.
+ * after it, *Plan your visit* has replaced the fragmented practical cards, the
+ * Save bookmark leads a fixed title row, operational status has three levels of
+ * attention, and the preflight confirms in Atlas Navy.
  *
  * Opted into with `EVIDENCE=1 pnpm test:e2e --project=evidence`.
  *
@@ -119,6 +120,42 @@ for (const breakpoint of BREAKPOINTS) {
         page.getByRole("button", { name: /^collect stamp$/i }),
       ).toBeVisible();
       await capture(page, `${breakpoint.name}-header-actions`, false);
+    });
+
+    /**
+     * The preflight, where the confirmation is Atlas Navy.
+     *
+     * A confirmation of intent, not the collectible action and not a successful
+     * verification — so not Plum, which the header control keeps.
+     */
+    test("the collection preflight", async ({ page }) => {
+      await useNormalMode(page);
+      await page.goto("/shops/aesthetic-bay");
+      await settled(page, "Aesthetic Bay");
+
+      await page.getByRole("button", { name: /^collect stamp$/i }).click();
+      await expect(
+        page.getByRole("dialog", { name: /before you collect/i }),
+      ).toBeVisible();
+      // Off the confirm button, so it is captured in its resting state.
+      await page.mouse.move(0, 0);
+
+      await capture(page, `${breakpoint.name}-preflight`, false);
+    });
+
+    /**
+     * The title row under pressure.
+     *
+     * A long Japanese name that wraps: the bookmark holds its own column rather
+     * than being pushed beneath the name, which is what the second staging
+     * review found.
+     */
+    test("a long name beside the bookmark", async ({ page }) => {
+      await useNormalMode(page);
+      await page.goto("/shops/ginza-itoya-yokohama-motomachi");
+      await settled(page, "Ginza Itoya Yokohama Motomachi");
+
+      await capture(page, `${breakpoint.name}-long-name-title`, false);
     });
   });
 }

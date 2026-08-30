@@ -1911,6 +1911,60 @@ minimum heights, no filler, and no invented facts. Ginza Itoya still needs a
 sourcing pass — this changes how its thinness reads, not what is known about it.
 This is composition only; WP-D still owns the desktop audit.
 
+### WP4 revisions after the second staging review
+
+Recorded 30 August 2026. Three tightly scoped fixes; everything else the review
+raised is WP6's and is recorded below rather than built here.
+
+**The Save bookmark leads a fixed two-column title row.** A long or wrapping name
+— `NAGASAWA Stationery Center Main Store`, `銀座 伊東屋 横浜元町` — pushed the
+control beneath the name, so where it sat depended on the shop. The row is now
+`grid-template-columns: var(--tap-target) minmax(0, 1fr)`: the control's own
+44 px, then the name, which wraps inside its own column. States, `aria-pressed`,
+both accessible names, the title, the telemetry and the behaviour are unchanged.
+
+**Operational status has three levels of attention, not two.** The first review
+made `Status not confirmed` amber because as a neutral badge it read as verified;
+this one found the fix overshot, competing with an actual closure and leaving
+`Open` invisible.
+
+| Status | Treatment | Contrast |
+| --- | --- | --- |
+| `Open` | Success green on `--success-surface` (`#E3F0E6`), check icon | label 13.9:1, icon/border 4.7:1 |
+| `Temporarily`/`Permanently closed` | Unchanged filled amber, alert icon — still the loudest | label 13.8:1 |
+| `Status not confirmed` | Soft amber outline (`--warning-soft`) on the surrounding surface, secondary ink, alert icon at full strength | label 7.2:1 on Paper, 7.7:1 on white |
+
+Wording and operational meaning are unchanged in all four cases, and no status
+relies on colour alone. `Open` takes the success token rather than the Teal saved
+one deliberately: saving is something the reader did, being open is something the
+world is doing. The badge is shared, so this reaches the map and results cards
+too — WP6 verifies it in the map context.
+
+**The preflight's confirm button is Atlas Navy.** `I am at this shop`, and its
+reviewer-mode wording, confirm an intent; they are neither the collectible entry
+point nor a successful verification, and in Plum they read as the same step as
+the header action. Cancel stays quiet. Dialog behaviour, focus management,
+location copy, telemetry and the ceremony transition are untouched, and the
+founder has accepted the Plum collection action and the Vermilion collected state
+for this milestone.
+
+### Staging findings recorded for WP6
+
+Found in the second staging review of WP4 and **deliberately not implemented in
+that work package**, because they are map-surface work and WP4 is a shop-page
+package.
+
+1. **Map-card state presentation conflates three dimensions.** `Visited`,
+   `Not visited` and `Saved` share one pill treatment on the card, but they are
+   not one axis: visited and saved are separate persisted states a reader owns,
+   and "not visited" is the absence of one of them. WP6 separates them.
+2. **Map filter buttons are not functioning.** Reported from staging; WP6 owns
+   the diagnosis and the fix.
+3. **`Open` has not been obvious enough on the map surfaces.** The shared status
+   badge changed in WP4's second revision — success green for open, a soft amber
+   outline for unconfirmed, filled amber kept for a closure — which should help.
+   WP6 must verify it in the map and card context rather than assume it.
+
 ### Deliberately not done in WP4
 
 - **No new sourcing.** This session did no web research, per its brief.
@@ -1929,6 +1983,8 @@ This is composition only; WP-D still owns the desktop audit.
 - **No change to `ShopMapSummary`**, the map, the results sheet, or the Passport.
 - **No desktop sign-off.** The 768 and 1440 captures show responsive integrity;
   WP-D owns the desktop treatment.
+- **No map-card, filter, or map-interaction work.** The three findings above are
+  recorded for WP6 and nothing in WP4 touches those surfaces.
 
 ### Coverage
 
@@ -1945,6 +2001,9 @@ This is composition only; WP-D still owns the desktop audit.
 - `src/components/shops/ShopSaveButton.test.tsx` — the bookmark's toggle
   behaviour, its two accessible names, the non-colour state cue, that it is a
   bookmark rather than a heart, and that it writes to the shared store.
+- `src/components/ui/StatusBadge.test.tsx` — the three-level operational
+  hierarchy, that no status relies on colour alone, and that marker state is
+  left alone by it.
 - `src/components/shops/ShopDetailView.test.tsx` — the information order, the
   populated value layer, the gap state, silent omission of ordinary fields, the
   identity treatment, nearby honesty, and the correction subject.

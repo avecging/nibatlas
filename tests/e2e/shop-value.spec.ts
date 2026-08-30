@@ -66,6 +66,43 @@ test("the page leads with identity, the actions, and what you can do", async ({
   await expect(page.locator("img")).toHaveCount(0);
 });
 
+/**
+ * The bookmark's position, across the name lengths and scripts the catalogue
+ * actually holds.
+ *
+ * The founder's second staging review: a long name wrapped and pushed the
+ * control beneath it, so where the bookmark sat depended on the shop. The title
+ * row is now a two-column grid — the control's own 44 px, then the name — so the
+ * name wraps inside its own column and the control never moves.
+ */
+test("a long or wrapped name never moves the Save bookmark", async ({ page }) => {
+  for (const slug of [
+    "skb-kaohsiung", // short Latin
+    "nagasawa-stationery-center-main-store", // long Latin, wraps
+    "ginza-itoya-yokohama-motomachi", // Japanese, long
+    "pen-house-tainan", // Traditional Chinese
+  ]) {
+    await page.goto(`/shops/${slug}`);
+
+    const save = page.getByRole("button", { name: /^(save shop|remove saved shop)$/i });
+    const title = page.getByRole("heading", { level: 1 });
+
+    const [saveBox, titleBox] = await Promise.all([
+      save.boundingBox(),
+      title.boundingBox(),
+    ]);
+
+    // A real 44 px target, whatever the name does.
+    expect(saveBox?.width ?? 0, slug).toBeGreaterThanOrEqual(44);
+    expect(saveBox?.height ?? 0, slug).toBeGreaterThanOrEqual(44);
+
+    // Before the name horizontally, and never pushed below it: the control's top
+    // stays within the title block rather than dropping under a wrapped line.
+    expect(saveBox!.x, slug).toBeLessThan(titleBox!.x);
+    expect(saveBox!.y, slug).toBeLessThan(titleBox!.y + titleBox!.height);
+  }
+});
+
 test("Save is a bookmark whose name and state change together", async ({ page }) => {
   await page.goto("/shops/pen-house-tainan");
 
@@ -207,29 +244,65 @@ test("the reviewer coordinate note survives a shop with no Getting there", async
   await expect(page.getByText(/Map position/)).toHaveCount(0);
 });
 
-test("an unconfirmed operational status is a visible caution", async ({ page }) => {
-  await page.goto("/shops/skb-kaohsiung");
-
-  const badge = page.getByText("Status not confirmed");
-
-  await expect(badge).toBeVisible();
-
-  // Amber ground and an alert icon, not the neutral treatment it had on staging,
-  // and never the visited or collection colours.
-  const style = await badge.evaluate((node) => {
-    const badgeEl = node.closest("span") ?? node;
-    const computed = window.getComputedStyle(badgeEl);
+/** Reads the rendered treatment of a status badge by its visible label. */
+async function badgeStyle(page: import("@playwright/test").Page, label: string) {
+  return page.getByText(label, { exact: true }).evaluate((node) => {
+    const badge = (node.closest("span[class]") ?? node) as HTMLElement;
+    const computed = window.getComputedStyle(badge);
 
     return {
       background: computed.backgroundColor,
       border: computed.borderTopColor,
-      icons: badgeEl.querySelectorAll("svg").length,
+      icons: badge.querySelectorAll("svg").length,
     };
   });
+}
 
-  expect(style.background).toBe("rgb(247, 235, 215)");
-  expect(style.border).toBe("rgb(154, 101, 29)");
-  expect(style.icons).toBeGreaterThan(0);
+/**
+ * Three levels of attention, asserted as rendered colour.
+ *
+ * The founder's second staging review: strong amber on an unconfirmed status
+ * competed with an actual closure, and `Open` was invisible.
+ */
+test("operational status has a visible hierarchy", async ({ page }) => {
+  // Open: the success green, not the neutral grey it had and not the Teal that
+  // means the reader saved something.
+  await page.goto("/shops/ginza-itoya-main-store");
+  await expect(page.getByText("Open", { exact: true })).toBeVisible();
+
+  const open = await badgeStyle(page, "Open");
+
+  expect(open.background).toBe("rgb(227, 240, 230)");
+  expect(open.border).toBe("rgb(47, 118, 83)");
+  expect(open.icons).toBeGreaterThan(0);
+
+  // Unconfirmed: still amber, still labelled, still carrying the alert icon —
+  // but an outline on the page's own surface rather than a filled badge.
+  await page.goto("/shops/skb-kaohsiung");
+  await expect(page.getByText("Status not confirmed")).toBeVisible();
+
+  const unknown = await badgeStyle(page, "Status not confirmed");
+
+  expect(unknown.background).toBe("rgba(0, 0, 0, 0)");
+  expect(unknown.border).toBe("rgb(207, 169, 111)");
+  expect(unknown.icons).toBeGreaterThan(0);
+
+  // And it is quieter than a confirmed closure, which keeps the filled amber.
+  const closed = await page.evaluate(() => {
+    const probe = document.createElement("div");
+
+    probe.style.background = "var(--warning-surface)";
+    document.body.append(probe);
+
+    const value = window.getComputedStyle(probe).backgroundColor;
+
+    probe.remove();
+
+    return value;
+  });
+
+  expect(closed).toBe("rgb(247, 235, 215)");
+  expect(unknown.background).not.toBe(closed);
 });
 
 test("Collect Stamp is Plum before collection and steps back after it", async ({
@@ -242,7 +315,24 @@ test("Collect Stamp is Plum before collection and steps back after it", async ({
   await expect(collect).toHaveCSS("background-color", "rgb(107, 63, 99)");
 
   await collect.click();
-  await page.getByRole("button", { name: /^i am at this shop$/i }).click();
+
+  /*
+   * The dialog's confirm button is Atlas Navy, not Plum: it confirms an intent
+   * rather than offering the stamp, and it is not a successful verification
+   * either. Cancel stays quiet.
+   */
+  const confirm = page.getByRole("button", { name: /^i am at this shop$/i });
+
+  // The pointer is still where it pressed Collect Stamp, which is where the
+  // dialog's confirm button now is — so it would be read in its hover step.
+  await page.mouse.move(0, 0);
+  await expect(confirm).toHaveCSS("background-color", "rgb(16, 45, 70)");
+  await expect(page.getByRole("button", { name: /^cancel$/i })).toHaveCSS(
+    "background-color",
+    "rgb(255, 255, 255)",
+  );
+
+  await confirm.click();
   await expect(page.getByRole("dialog", { name: /impression collected/i })).toBeVisible();
   await page.keyboard.press("Escape");
 
@@ -253,6 +343,19 @@ test("Collect Stamp is Plum before collection and steps back after it", async ({
   await expect(view).toBeVisible();
   await expect(view).toHaveCSS("background-color", "rgb(243, 222, 212)");
   await expect(page.getByText(/This impression is in your Passport/)).toBeVisible();
+});
+
+test("the reviewer confirm button takes the same primary treatment", async ({
+  page,
+}) => {
+  await page.goto("/shops/juspirit-banqiao?review=1");
+
+  await page.getByRole("button", { name: /collect stamp \(simulated\)/i }).click();
+  await page.mouse.move(0, 0);
+
+  await expect(
+    page.getByRole("button", { name: /simulate: i am at this shop/i }),
+  ).toHaveCSS("background-color", "rgb(16, 45, 70)");
 });
 
 test("Directions hand off to the platform's own maps application", async ({ page }) => {

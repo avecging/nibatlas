@@ -67,9 +67,15 @@ export function ShopIdentityHero({
       </p>
 
       <div className={styles.heroIdentity}>
+        {/*
+          The bookmark leads the row, in its own fixed column.
+          `銀座 伊東屋 横浜元町` wrapped onto two lines and pushed the control
+          below the name when the name came first; a control that moves with the
+          length of a shop's name is not a control anyone can find twice.
+        */}
         <div className={styles.heroNameRow}>
-          <Title className={styles.title}>{shop.name}</Title>
           {save}
+          <Title className={styles.title}>{shop.name}</Title>
         </div>
         <p className={styles.heroPlace}>
           {shop.localityName} ·{" "}

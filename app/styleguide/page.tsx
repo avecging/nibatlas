@@ -183,6 +183,7 @@ export default function StyleguidePage() {
           ))}
           <OperationalStatusBadge status="open" />
           <OperationalStatusBadge status="temporarily_closed" />
+          <OperationalStatusBadge status="permanently_closed" />
           <OperationalStatusBadge status="unknown" />
           <PrototypeBadge />
         </div>
