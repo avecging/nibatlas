@@ -443,19 +443,19 @@ test.describe("a clean normal-mode device starts empty", () => {
     await expectMode(page, "off");
 
     // A real save, made by the person using the device.
-    await page.getByRole("button", { name: /^save$/i }).click();
-    await expect(page.getByRole("button", { name: /^saved$/i })).toBeVisible();
+    await page.getByRole("button", { name: "Save shop" }).click();
+    await expect(page.getByRole("button", { name: "Remove saved shop" })).toBeVisible();
 
     // Into reviewer mode: the demonstration collection appears, and it is not
     // theirs — this shop is not saved in it.
     await page.goto("/shops/juspirit-banqiao?review=1");
     await expectMode(page, "on");
-    await expect(page.getByRole("button", { name: /^save$/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Save shop" })).toBeVisible();
 
     // Back out, and their save is exactly where they left it.
     await exitReviewerMode(page);
     await expectMode(page, "off");
-    await expect(page.getByRole("button", { name: /^saved$/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Remove saved shop" })).toBeVisible();
     await expect(page.getByRole("link", { name: /^Saved \(1\)/ })).toHaveCount(0);
 
     await page.goto("/saved");

@@ -1,6 +1,22 @@
+/*
+ * One reading column, at every width.
+ *
+ * The founder's staging review of WP4: the two-column desktop grid presented a
+ * sparse record as a handful of small boxes with an implied empty cell, which
+ * made a shop that is honestly thin look unfinished instead. A single measured
+ * column has no cell to leave empty — a record with three sections reads as a
+ * short page rather than a broken layout — and it is what the consolidated
+ * *Plan your visit* section was consolidated for.
+ *
+ * Nothing here reserves space: no placeholder cards, no fixed minimum heights,
+ * no filler. What is absent simply is not rendered.
+ */
 .page {
   display: grid;
   gap: var(--space-6);
+  width: 100%;
+  max-width: 46rem;
+  margin-inline: auto;
 }
 
 .back {
@@ -49,7 +65,7 @@
 
 .grid {
   display: grid;
-  gap: var(--space-6);
+  gap: var(--space-5);
 }
 
 .section {
@@ -204,6 +220,27 @@
   gap: var(--space-2);
 }
 
+/*
+ * The shop's name and its Save bookmark, on one line where there is room and
+ * wrapping onto two where there is not. The bookmark keeps its own 44 px target
+ * either way — `flex: none` on the control stops a long name squeezing it.
+ */
+.heroNameRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/*
+ * Beside the name, not pushed to the far edge of the plate: a bookmark two
+ * hundred pixels away from what it bookmarks reads as a page control rather
+ * than as this shop's.
+ */
+.heroNameRow .title {
+  flex: 0 1 auto;
+}
+
 .heroPlace {
   color: var(--text-secondary);
   font-size: var(--type-body-sm-size);
@@ -225,7 +262,23 @@
   line-height: var(--type-caption-line);
 }
 
-/* WP4's value layer: a claim, how it is reached, and any sourced note. */
+/*
+ * A subsection inside a section: the two halves of *Plan your visit*, and the
+ * two labelled groups inside *What you can do there*.
+ *
+ * The heading and its content are one block, so a subsection that has nothing to
+ * say is not rendered at all rather than leaving a heading over empty space.
+ */
+.subsection {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.subsection + .subsection {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-default);
+}
+
 .subheading {
   font-size: var(--type-body-size);
   line-height: var(--type-body-line);
@@ -269,9 +322,19 @@
   background: var(--bg-surface-warm);
 }
 
-.actionBlock {
+/* Nested inside *Getting there*, so it is labelled rather than titled. */
+.nearby {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-2);
+}
+
+.nearbyHeading {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .nearbyList {
@@ -413,10 +476,6 @@
 }
 
 @media (min-width: 768px) {
-  .grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   /*
    * The identity plate becomes a wide banner rather than a tall card: the same
    * treatment a photograph would get in this slot once rights exist.
@@ -432,9 +491,5 @@
 
   .heroPhotos {
     justify-self: end;
-  }
-
-  .wide {
-    grid-column: 1 / -1;
   }
 }

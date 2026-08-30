@@ -9,19 +9,24 @@ function shop(patch: Partial<ShopDetail> & { readonly id: string }): ShopDetail 
   return { ...shopValueSpecimen, ...patch };
 }
 
+/*
+ * `Approx.` replaced `about` in the founder's staging review of WP4: it carries
+ * the qualification on its own, which is what let the separate straight-line
+ * paragraph under the list go.
+ */
 describe("distanceLabel", () => {
   it("rounds to 50 m under a kilometre, because neither point is surveyed", () => {
-    expect(distanceLabel(412)).toBe("about 400 m away");
-    expect(distanceLabel(438)).toBe("about 450 m away");
+    expect(distanceLabel(412)).toBe("Approx. 400 m away");
+    expect(distanceLabel(438)).toBe("Approx. 450 m away");
   });
 
   it("never rounds down to nothing", () => {
-    expect(distanceLabel(4)).toBe("about 50 m away");
+    expect(distanceLabel(4)).toBe("Approx. 50 m away");
   });
 
   it("switches to kilometres with one decimal above a kilometre", () => {
-    expect(distanceLabel(1_240)).toBe("about 1.2 km away");
-    expect(distanceLabel(4_950)).toBe("about 5.0 km away");
+    expect(distanceLabel(1_240)).toBe("Approx. 1.2 km away");
+    expect(distanceLabel(4_950)).toBe("Approx. 5.0 km away");
   });
 });
 

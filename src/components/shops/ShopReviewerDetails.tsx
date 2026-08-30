@@ -66,13 +66,13 @@ export function ShopProvenance({ shop }: { readonly shop: ShopDetail }) {
     // A record with no source gets no line at all. A vague claim of provenance
     // would be worse than none.
     return sentence ? (
-      <p className={`${styles.provenanceLine} ${styles.wide}`}>{sentence}</p>
+      <p className={styles.provenanceLine}>{sentence}</p>
     ) : null;
   }
 
   return (
     <section
-      className={`${styles.provenance} ${styles.wide}`}
+      className={styles.provenance}
       aria-labelledby="provenance"
       data-testid="shop-provenance-detail"
     >

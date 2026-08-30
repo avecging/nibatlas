@@ -48,9 +48,17 @@
   color: var(--text-secondary);
 }
 
+/*
+ * A caution the reader has to notice.
+ *
+ * `Status not confirmed` on the warm paper surface was indistinguishable from
+ * the neutral badge beside it, which made an unverified shop look verified. The
+ * pale amber ground separates it; the label stays primary ink (13.8:1) and the
+ * alert icon carries the state without colour doing the work alone.
+ */
 .warning {
   border-color: var(--warning);
-  background: var(--bg-surface-warm);
+  background: var(--warning-surface);
   color: var(--text-primary);
 }
 

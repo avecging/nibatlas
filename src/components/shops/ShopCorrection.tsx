@@ -17,7 +17,7 @@ import styles from "./ShopDetailView.module.css";
  */
 export function ShopCorrection({ shopName }: { readonly shopName: string }) {
   return (
-    <p className={`${styles.correction} ${styles.wide}`}>
+    <p className={styles.correction}>
       Found something wrong with this listing? Let us know and we&rsquo;ll look
       into it as soon as possible.{" "}
       <a className={styles.inlineLink} href={shopCorrectionHref(shopName)}>

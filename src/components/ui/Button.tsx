@@ -3,7 +3,14 @@ import Link from "next/link";
 
 import styles from "./Button.module.css";
 
-export type ButtonVariant = "primary" | "secondary" | "quiet" | "stamp";
+export type ButtonVariant =
+  | "primary"
+  | "secondary"
+  | "quiet"
+  /** Collect Stamp before collection: solid Plum, `--action-collect`. */
+  | "stamp"
+  /** View Atlas Stamp after collection: the restrained Vermilion visited step. */
+  | "collected";
 
 function classNames(
   variant: ButtonVariant,

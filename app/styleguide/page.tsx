@@ -160,14 +160,18 @@ export default function StyleguidePage() {
         </h2>
         <div className={styles.row}>
           <Button variant="primary">Primary</Button>
-          <Button variant="secondary">
-            <Icon name="bookmark" size={18} />
-            Save
+          <Button variant="secondary">Secondary</Button>
+          <Button variant="quiet">
+            <Icon name="directions" size={18} />
+            Directions
           </Button>
-          <Button variant="quiet">Quiet</Button>
           <Button variant="stamp">
             <Icon name="seal" size={18} />
             Collect Stamp
+          </Button>
+          <Button variant="collected">
+            <Icon name="seal" size={18} />
+            View Atlas Stamp
           </Button>
           <Button variant="primary" disabled>
             Disabled

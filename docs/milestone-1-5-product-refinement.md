@@ -1745,6 +1745,10 @@ the header for now. Keep the approved information order and evaluate it on
 staging; Save and Collect sitting below the first mobile viewport is not
 automatically a defect.
 
+**Superseded 28 August 2026 by the staging review.** Judged on staging, the
+placement was wrong on both mobile and desktop. The actions are in the header,
+and they are not duplicated — see the revisions section below.
+
 ### The data, and the one honest outcome of it
 
 No source in the prototype catalogue publishes a service, an in-store
@@ -1837,6 +1841,76 @@ at 14 px on the warm paper surface, failing AA. A darker step of the same accent
 applied to the two inline links on the shop page, including the reviewer-mode
 source links, which had the same latent failure.
 
+### WP4 revisions after the founder's staging review
+
+Recorded 28 August 2026. The sourced-value and provenance work was accepted; the
+findings were about action hierarchy, redundant information, sparse desktop
+composition, and where visit-planning information sits. The correction link was
+accepted unchanged.
+
+**The actions moved back to the header, and the earlier decision is reversed.**
+The 27 August decision — keep the approved order, judge it on staging — was
+judged on staging and the answer was no: an action block below the practical
+detail was poorly placed on both mobile and desktop. Deciding whether to go and
+being able to act on it belong together. The controls are now, in order: the Save
+bookmark beside the shop's name, then Directions, then Collect Stamp. They are
+not duplicated anywhere.
+
+**Save is a bookmark, not a button.** As a full Atlas Navy button it competed
+with Collect Stamp, which is the action the page is built around. It is now a
+44 × 44 icon control beside the name — outlined unsaved, filled on the existing
+Teal saved surface. State is carried three ways so colour never carries it alone:
+the glyph fills, `aria-pressed` flips, and the accessible name changes between
+*Save shop* and *Remove saved shop*. Behaviour and telemetry are unchanged, and
+it stays a bookmark rather than a heart, per `UX.md`.
+
+**Plum is the collection action; Vermilion stays the outcome.** Collecting was
+Vermilion before anything had been collected, which made an invitation read as a
+warning and collapsed action and outcome into one colour. `--action-collect`
+(`plum-700`, `#6B3F63`, white text at 8.35:1) and `--action-collect-hover`
+(`plum-800`, 10.69:1) are declared once; `plum-700` sits in the core palette and
+is consumed independently by the stamp-ink registry and by the action, so neither
+reads the other. A collection button is never coloured from a shop's own
+`stamp.ink`. After collection, `View Atlas Stamp`, the collected line and the
+impression keep the restrained Vermilion visited treatment. The ceremony,
+preflight, reviewer wording and Passport transition are untouched. `BRAND.md`
+carries the rule.
+
+**The Official site button is gone.** The website was on the page twice. It stays
+once, as a labelled contextual link inside *Before you go*, and the action-layer
+lookup that fed the button went with it.
+
+**`Getting there` became `Plan your visit`.** Payment, languages and a website do
+not belong under a heading about arriving. One section now holds two subsections:
+*Getting there* — station, walking guidance, floor note, address, nearby shops —
+and *Before you go* — hours, appointment, payment, languages, accessibility,
+official website. A subsection with nothing in it does not render, heading
+included. Unknown hours keep their one caution.
+
+**Nearby pen shops moved inside *Getting there*.** Which other shops are within
+reach is part of planning the journey, not a separate topic, and a full-width
+card for one or two links read as a larger feature than it is. Copy is now
+`Approx. 550 m away`; the straight-line paragraph went with the move, because
+`Approx.` carries the qualification and the honesty that matters is in
+`nearbyPenShops`, which still offers no figure at all unless both records were
+placed from a sourced street address. `Also in Kobe` is unchanged. Still no
+route, order, or walking-time estimate.
+
+**Unknown operational status is now a caution.** `Status not confirmed` blended
+into the interface, so a shop nobody has verified read like one that had been. It
+takes the warning semantic with a new pale amber ground (`--warning-surface`,
+`#F7EBD7`; primary ink on it 13.8:1), paired with the alert icon and the same
+wording. Not Vermilion, not Plum. Open is unchanged; the closed statuses keep the
+warning treatment they already had.
+
+**The desktop grid is one reading column.** The two-column grid presented a
+sparse record as a few small boxes with an implied empty cell, which made a shop
+that is honestly thin look unfinished. A single measured column has no cell to
+leave empty. Nothing reserves space for what is absent: no placeholder cards, no
+minimum heights, no filler, and no invented facts. Ginza Itoya still needs a
+sourcing pass — this changes how its thinness reads, not what is known about it.
+This is composition only; WP-D still owns the desktop audit.
+
 ### Deliberately not done in WP4
 
 - **No new sourcing.** This session did no web research, per its brief.
@@ -1868,6 +1942,9 @@ source links, which had the same latent failure.
   requirement, the radius, ordering, the cap, and the real catalogue pairs.
 - `src/components/shops/directions.test.ts` — platform detection and the three
   hrefs, including that no user position is ever carried.
+- `src/components/shops/ShopSaveButton.test.tsx` — the bookmark's toggle
+  behaviour, its two accessible names, the non-colour state cue, that it is a
+  bookmark rather than a heart, and that it writes to the shared store.
 - `src/components/shops/ShopDetailView.test.tsx` — the information order, the
   populated value layer, the gap state, silent omission of ordinary fields, the
   identity treatment, nearby honesty, and the correction subject.

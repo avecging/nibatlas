@@ -33,18 +33,20 @@ export const NEARBY_LIMIT = 4;
 /**
  * Rounded to the precision the coordinates deserve.
  *
- * 50 m steps under a kilometre, one decimal above it. `about` is not decoration:
- * both endpoints are approximate, so a metre-accurate figure would be a lie
- * about the input.
+ * 50 m steps under a kilometre, one decimal above it. `Approx.` is not
+ * decoration: both endpoints are approximate, so a metre-accurate figure would
+ * be a lie about the input. It also carries the qualification on its own, which
+ * is what let the separate straight-line paragraph go after the founder's
+ * staging review.
  */
 export function distanceLabel(metres: number): string {
   if (metres < 1_000) {
     const rounded = Math.max(50, Math.round(metres / 50) * 50);
 
-    return `about ${rounded} m away`;
+    return `Approx. ${rounded} m away`;
   }
 
-  return `about ${(metres / 1_000).toFixed(1)} km away`;
+  return `Approx. ${(metres / 1_000).toFixed(1)} km away`;
 }
 
 function measurable(a: ShopDetail, b: ShopDetail): boolean {

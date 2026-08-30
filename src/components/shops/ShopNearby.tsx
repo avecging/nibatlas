@@ -6,16 +6,21 @@ import { SHOP_TYPE_LABELS } from "@/src/domain/shop-detail";
 import styles from "./ShopDetailView.module.css";
 
 /**
- * Nearby pen shops.
+ * Nearby pen shops, inside *Getting there*.
+ *
+ * The founder's staging review of WP4 moved this out of its own full-width
+ * section at the foot of the page: which other shops are within reach is part of
+ * how you plan getting to this one, not a separate topic, and a standalone card
+ * for one or two links read as a bigger feature than it is.
  *
  * Trip-planning context, not an itinerary: no ordering to follow, no route, no
- * schedule, no named trip. Just which other catalogue shops are in reach, so a
- * traveller can see a Ginza morning or a Kobe afternoon without the product
- * planning one for them.
+ * schedule, no walking-time estimate.
  *
- * A distance appears only where both records were placed from a sourced street
- * address — see `nearbyPenShops`. Where it cannot be measured the entry says
- * where the shop is instead, which is the honest version of the same help.
+ * The straight-line disclaimer went with the move. `Approx.` already says the
+ * figure is approximate, and a paragraph of methodology under two links was
+ * heavier than the fact it qualified — the honesty that matters is in
+ * `nearbyPenShops`, which offers no number at all unless both records were
+ * placed from a sourced street address.
  */
 export function ShopNearby({
   nearby,
@@ -28,14 +33,12 @@ export function ShopNearby({
     return null;
   }
 
-  const anyMeasured = nearby.some((entry) => entry.distanceMeters !== null);
-
   return (
-    <section className={`${styles.section} ${styles.wide}`} aria-labelledby="nearby">
-      <h2 className={styles.sectionTitle} id="nearby">
+    <div className={styles.nearby}>
+      <h4 className={styles.nearbyHeading} id="nearby">
         Nearby pen shops
-      </h2>
-      <ul className={styles.nearbyList}>
+      </h4>
+      <ul className={styles.nearbyList} aria-labelledby="nearby">
         {nearby.map((entry) => (
           <li key={entry.shop.id}>
             <Link className={styles.nearbyRow} href={`/shops/${entry.shop.slug}`}>
@@ -51,12 +54,6 @@ export function ShopNearby({
           </li>
         ))}
       </ul>
-      {anyMeasured ? (
-        <p className={styles.plain}>
-          Distances are straight-line between approximate map points, not walking
-          routes.
-        </p>
-      ) : null}
-    </section>
+    </div>
   );
 }

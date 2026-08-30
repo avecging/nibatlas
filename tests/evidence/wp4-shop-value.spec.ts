@@ -14,6 +14,11 @@ import { seedSampleCollection, useNormalMode } from "../support/local-state";
  * the specimen value layer side by side at the three breakpoints
  * `IMPLEMENTATION-PLAN.md` names.
  *
+ * Revised after the founder's staging review: the actions are in the header, the
+ * Collect Stamp action is Plum before collection and the Vermilion visited step
+ * after it, unknown status is an amber caution, and *Plan your visit* has
+ * replaced the fragmented practical cards.
+ *
  * Opted into with `EVIDENCE=1 pnpm test:e2e --project=evidence`.
  *
  * The 768 × 1024 and 1440 × 900 captures show responsive integrity only.
@@ -65,9 +70,7 @@ for (const breakpoint of BREAKPOINTS) {
       await page.goto("/shops/aesthetic-bay");
       await settled(page, "Aesthetic Bay");
 
-      await expect(
-        page.getByRole("region", { name: "Nearby pen shops" }),
-      ).toBeVisible();
+      await expect(page.getByRole("list", { name: "Nearby pen shops" })).toBeVisible();
       await capture(page, `${breakpoint.name}-shop-nearby`);
     });
 
@@ -81,14 +84,41 @@ for (const breakpoint of BREAKPOINTS) {
       await capture(page, `${breakpoint.name}-shop-gap`);
     });
 
-    /** A collected shop, so the impression's own state is in the frame too. */
+    /**
+     * A collected shop: the post-collection state.
+     *
+     * `View Atlas Stamp` on the restrained Vermilion visited surface, the
+     * collected line beneath it, and the Save bookmark in its saved state — the
+     * outcome colours, none of them the Plum invitation.
+     */
     test("a visited shop", async ({ page }) => {
       await useNormalMode(page);
       await seedSampleCollection(page);
       await page.goto("/shops/pen-house-tainan");
       await settled(page, "Pen House");
 
+      await expect(
+        page.getByRole("button", { name: /view atlas stamp/i }),
+      ).toBeVisible();
       await capture(page, `${breakpoint.name}-shop-visited`);
+    });
+
+    /**
+     * The header, close up.
+     *
+     * What the staging review was about: the Save bookmark beside the name, then
+     * Directions and the Plum Collect Stamp, all above the sections rather than
+     * stranded below the practical detail.
+     */
+    test("the revised header and actions", async ({ page }) => {
+      await useNormalMode(page);
+      await page.goto("/shops/aesthetic-bay");
+      await settled(page, "Aesthetic Bay");
+
+      await expect(
+        page.getByRole("button", { name: /^collect stamp$/i }),
+      ).toBeVisible();
+      await capture(page, `${breakpoint.name}-header-actions`, false);
     });
   });
 }

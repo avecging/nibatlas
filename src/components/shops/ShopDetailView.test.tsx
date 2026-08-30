@@ -28,9 +28,10 @@ function renderShop(shop: ShopDetail, nearby: readonly NearbyShop[] = []) {
       <ShopDetailView
         shop={shop}
         nearby={nearby}
+        save={<button type="button">Save shop</button>}
         back={<span>Back to map</span>}
         statusBadges={<span>Unvisited</span>}
-        actions={<button type="button">Save</button>}
+        actions={<button type="button">Collect Stamp</button>}
       />
     </WithReviewerMode>,
   );
@@ -62,7 +63,7 @@ describe("shop page information order", () => {
     expect(screen.getByText(/stationery specialist that has traded in Ginza/i)).toBeInTheDocument();
   });
 
-  it("puts what you can do there before the practical detail and the actions", () => {
+  it("puts the actions in the header, before what you can do there", () => {
     renderShop(shopValueSpecimen, []);
 
     const order = headingOrder();
@@ -75,30 +76,43 @@ describe("shop page information order", () => {
       "Services",
       "In the shop",
       "Only available here",
+      "Plan your visit",
       "Getting there",
-      "Opening hours",
+      "Before you go",
     ]);
 
-    // The actions come after the practical information, and the provenance and
-    // correction lines after them.
+    /*
+     * The founder's staging review moved the actions back up: deciding whether
+     * to go and being able to act on it belong together. Save is beside the
+     * name, then the rest of the header, then the actions — all of it above the
+     * sections.
+     */
     const page = document.body.textContent ?? "";
 
-    expect(page.indexOf("Getting there")).toBeLessThan(page.indexOf("Save"));
-    expect(page.indexOf("Save")).toBeLessThan(page.indexOf("Found something wrong"));
+    expect(page.indexOf("Save shop")).toBeLessThan(page.indexOf("Collect Stamp"));
+    expect(page.indexOf("Collect Stamp")).toBeLessThan(
+      page.indexOf("What you can do there"),
+    );
+    expect(page.indexOf("Collect Stamp")).toBeLessThan(page.indexOf("Plan your visit"));
   });
 
-  it("keeps nearby pen shops after the actions, as trip context", () => {
+  it("keeps nearby pen shops inside Getting there", () => {
     const aestheticBay = findPrototypeShop("aesthetic-bay")!;
 
     renderShop(aestheticBay, nearbyPenShops(aestheticBay, prototypeShopDetails));
 
     const order = headingOrder();
 
-    expect(order[order.length - 1]).toBe("Nearby pen shops");
+    // Inside the section, between its two subsections — not a section of its own
+    // at the foot of the page.
+    const plan = order.indexOf("Plan your visit");
 
-    const page = document.body.textContent ?? "";
-
-    expect(page.indexOf("Save")).toBeLessThan(page.indexOf("Nearby pen shops"));
+    expect(order.slice(plan, plan + 4)).toEqual([
+      "Plan your visit",
+      "Getting there",
+      "Nearby pen shops",
+      "Before you go",
+    ]);
   });
 });
 
@@ -173,6 +187,7 @@ describe("a material information gap", () => {
     renderShop(shop);
 
     expect(screen.getByText("Address")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Getting there" })).toBeInTheDocument();
     expect(screen.queryByText("Nearest station")).not.toBeInTheDocument();
     expect(screen.queryByText("Payment")).not.toBeInTheDocument();
     expect(screen.queryByText("Languages")).not.toBeInTheDocument();
@@ -181,17 +196,38 @@ describe("a material information gap", () => {
   });
 });
 
-describe("practical visit information", () => {
-  it("names the station, the floor, the payment methods and the languages", () => {
+describe("Plan your visit", () => {
+  it("splits getting there from what to know before you go", () => {
     renderShop(shopValueSpecimen);
 
-    const section = screen.getByRole("region", { name: "Getting there" });
+    const section = screen.getByRole("region", { name: "Plan your visit" });
 
     expect(within(section).getByText(/Specimen Station, exit B2 · 4 minutes on foot/)).toBeInTheDocument();
     expect(within(section).getByText(/Third floor of the Specimen Building/)).toBeInTheDocument();
     expect(within(section).getByText("Cash, Credit card")).toBeInTheDocument();
     expect(within(section).getByText("Japanese, English")).toBeInTheDocument();
     expect(within(section).getByText("Step-free from the lift lobby.")).toBeInTheDocument();
+  });
+
+  it("carries the official website as a contextual link, and only once", () => {
+    renderShop(findPrototypeShop("ginza-itoya-main-store")!);
+
+    // Not a second header button: one labelled link, inside Before you go.
+    expect(screen.getAllByRole("link", { name: "ito-ya.co.jp" })).toHaveLength(1);
+    expect(screen.getByText("Official website")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^official site$/i })).not.toBeInTheDocument();
+  });
+
+  it("renders no heading over a subsection with nothing in it", () => {
+    // SKB has a link and unpublished hours, and no address, station, floor note
+    // or catalogue neighbour in reach.
+    const sparse = findPrototypeShop("skb-kaohsiung")!;
+
+    renderShop(sparse, []);
+
+    expect(screen.getByRole("heading", { name: "Plan your visit" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Before you go" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Getting there" })).not.toBeInTheDocument();
   });
 
   it("says nothing about an appointment that is not required", () => {
@@ -218,13 +254,17 @@ describe("nearby pen shops", () => {
 
     renderShop(aestheticBay, nearbyPenShops(aestheticBay, prototypeShopDetails));
 
-    const section = screen.getByRole("region", { name: "Nearby pen shops" });
+    const list = screen.getByRole("list", { name: "Nearby pen shops" });
 
     expect(
-      within(section).getByRole("link", { name: /Fook Hing Trading Co\./ }),
+      within(list).getByRole("link", { name: /Fook Hing Trading Co\./ }),
     ).toHaveAttribute("href", "/shops/fook-hing-trading");
-    expect(within(section).getByText(/about \d+ m away/)).toBeInTheDocument();
-    expect(within(section).getByText(/straight-line between approximate map points/i)).toBeInTheDocument();
+    expect(within(list).getByText(/Approx\. \d+ m away/)).toBeInTheDocument();
+
+    // `Approx.` carries the qualification; the separate straight-line paragraph
+    // the founder's staging review found heavier than the fact is gone.
+    expect(screen.queryByText(/straight-line/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/approximate map points/i)).not.toBeInTheDocument();
   });
 
   it("says where an unmeasurable neighbour is instead of guessing a number", () => {
@@ -232,14 +272,13 @@ describe("nearby pen shops", () => {
 
     renderShop(nagasawa, nearbyPenShops(nagasawa, prototypeShopDetails));
 
-    const section = screen.getByRole("region", { name: "Nearby pen shops" });
+    const list = screen.getByRole("list", { name: "Nearby pen shops" });
 
-    expect(within(section).getByText(/Also in Kobe/)).toBeInTheDocument();
-    expect(within(section).queryByText(/away/)).not.toBeInTheDocument();
-    expect(within(section).queryByText(/straight-line/i)).not.toBeInTheDocument();
+    expect(within(list).getByText(/Also in Kobe/)).toBeInTheDocument();
+    expect(within(list).queryByText(/away/)).not.toBeInTheDocument();
   });
 
-  it("renders no section at all when there is no neighbour in reach", () => {
+  it("renders no subsection at all when there is no neighbour in reach", () => {
     const skb = findPrototypeShop("skb-kaohsiung")!;
 
     renderShop(skb, nearbyPenShops(skb, prototypeShopDetails));

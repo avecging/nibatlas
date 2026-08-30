@@ -62,7 +62,7 @@ export function ShopWhatYouCanDo({ shop }: { readonly shop: ShopDetail }) {
         section is more useful than a directory's "services" field.
       */}
       {services.length > 0 ? (
-        <>
+        <div className={styles.subsection}>
           <h3 className={styles.subheading} id="services">
             Services
           </h3>
@@ -71,11 +71,11 @@ export function ShopWhatYouCanDo({ shop }: { readonly shop: ShopDetail }) {
               <ServiceRow key={service.label} service={service} />
             ))}
           </ul>
-        </>
+        </div>
       ) : null}
 
       {experiences.length > 0 ? (
-        <>
+        <div className={styles.subsection}>
           <h3 className={styles.subheading} id="experiences">
             In the shop
           </h3>
@@ -94,7 +94,7 @@ export function ShopWhatYouCanDo({ shop }: { readonly shop: ShopDetail }) {
               </li>
             ))}
           </ul>
-        </>
+        </div>
       ) : null}
     </section>
   );

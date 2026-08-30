@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { NibAtlasMark } from "@/src/components/brand/NibAtlasMark";
 import { localeForCountry } from "@/src/components/shops/locale";
 import { STAMP_MOTIF_PATHS } from "@/src/components/stamps/StampArt";
@@ -24,9 +26,18 @@ import styles from "./ShopDetailView.module.css";
  */
 export function ShopIdentityHero({
   shop,
+  save,
   titleAs: Title = "h1",
 }: {
   readonly shop: ShopDetail;
+  /**
+   * The Save bookmark, as a client island.
+   *
+   * It sits beside the name because that is what it applies to, and because the
+   * founder's staging review found it competing with Collect Stamp when it was a
+   * full button in the action row.
+   */
+  readonly save?: ReactNode;
   /**
    * The shop page's identity plate carries the page's `h1`. The styleguide
    * renders the same plate as a specimen inside its own section, where an `h1`
@@ -56,7 +67,10 @@ export function ShopIdentityHero({
       </p>
 
       <div className={styles.heroIdentity}>
-        <Title className={styles.title}>{shop.name}</Title>
+        <div className={styles.heroNameRow}>
+          <Title className={styles.title}>{shop.name}</Title>
+          {save}
+        </div>
         <p className={styles.heroPlace}>
           {shop.localityName} ·{" "}
           {shop.shopTypes.map((type) => SHOP_TYPE_LABELS[type]).join(" · ")}

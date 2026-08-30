@@ -44,8 +44,15 @@ export function OperationalStatusBadge({
 }: {
   readonly status: OperationalStatus;
 }) {
-  const tone: Tone =
-    status === "open" ? "neutral" : status === "unknown" ? "neutral" : "warning";
+  /*
+   * Unknown is a caution, not a neutral fact.
+   *
+   * The founder's staging review of WP4: `Status not confirmed` blended into the
+   * interface, so a shop nobody has verified read like one that had been. It now
+   * shares the warning treatment with the closed statuses — amber, an alert
+   * icon, and the same wording as before.
+   */
+  const tone: Tone = status === "open" ? "neutral" : "warning";
 
   return (
     <Badge tone={tone} icon={status === "open" ? "clock" : "alert"}>

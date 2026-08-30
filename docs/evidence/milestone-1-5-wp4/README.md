@@ -4,6 +4,13 @@ Screenshots of the reordered shop page, the interim identity treatment, the
 material-gap state, and the populated value layer, at the three breakpoints
 `IMPLEMENTATION-PLAN.md` names.
 
+**Regenerated 28 August 2026** after the founder's staging review: the actions are
+back in the header with Save as a bookmark beside the name, `Collect Stamp` is
+Plum before collection and the Vermilion visited step after it, unknown
+operational status is an amber caution, nearby shops sit inside *Getting there*,
+and the fragmented practical cards are one *Plan your visit* section in a single
+reading column.
+
 Regenerate with:
 
 ```sh
@@ -33,10 +40,11 @@ foot of the image.
 
 | Capture | What it shows |
 | --- | --- |
-| `shop-sourced` | Ginza Itoya, the fullest record in the catalogue: identity plate, local-script name, why-visit sentence, the value section, address and official site, published hours, actions, provenance, correction route |
-| `shop-nearby` | Aesthetic Bay, which has a catalogue neighbour placed from a sourced street address: the trip-context section with a straight-line distance and the note saying so |
-| `shop-gap` | SKB, the thinnest record: one caution for the unknown value layer, one for the unpublished hours, no invented address, and nothing else claimed |
-| `shop-visited` | Pen House with an impression already collected, so the visited state and the collected line are in frame |
+| `shop-sourced` | Ginza Itoya, the fullest record in the catalogue, and the sparse-desktop case: identity plate with the Save bookmark, local-script name, why-visit sentence, the actions, the value section, `Plan your visit`, provenance and the correction route — one reading column, with no empty grid cell where an unsourced section would be |
+| `shop-nearby` | Aesthetic Bay, which has a catalogue neighbour placed from a sourced street address: the trip context inside *Getting there*, with `Approx. 550 m away` and no separate distance disclaimer |
+| `shop-gap` | SKB, the thinnest record: the amber `Status not confirmed` caution, one caution for the unknown value layer, one for the unpublished hours, no invented address, and no `Getting there` heading over an empty subsection |
+| `shop-visited` | Pen House with an impression already collected: `View Atlas Stamp` on the restrained Vermilion visited surface, the collected line, and the Visited badge — the outcome colours, none of them the Plum invitation |
+| `header-actions` | The revised header on Aesthetic Bay, above the fold: the Save bookmark beside the name, then Directions and the Plum `Collect Stamp` |
 | `s-value-layer-specimen` | The populated value layer and the empty one, side by side on `/styleguide`. Drawn from a specimen record marked as invented, because no source in the prototype catalogue publishes a service, an in-store experience or a shop-only item |
 
 ## What these are not

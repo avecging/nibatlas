@@ -33,6 +33,14 @@
   --vermilion-100: #f3ded4;
   --indigo-700: #365e88;
   --brass-600: #98723d;
+  /*
+   * Plum, declared once in the core palette because two separate registries
+   * consume it: the stamp-ink palette below, and the collection action. Neither
+   * reads the other — see `--action-collect`.
+   */
+  --plum-700: #6b3f63;
+  /* Darkened Plum step for the collection action's hover and pressed states. */
+  --plum-800: #56324f;
   --white: #ffffff;
 
   /* Semantic surfaces and text */
@@ -52,6 +60,17 @@
   --action-secondary: var(--teal-700);
   /* Text-sized links, where the lighter accent does not clear AA. */
   --action-secondary-text: var(--teal-800);
+  /*
+   * The stamp-collection action.
+   *
+   * Plum, not Vermilion. Vermilion is the *outcome* — the impression, the
+   * collected line, visited status — and using it before collection made the
+   * action read as a warning and collapsed action and outcome into one colour.
+   * Plum is reserved for collection actions and says nothing about country,
+   * rarity, tier, or the ink the shop's own stamp is printed in.
+   */
+  --action-collect: var(--plum-700);
+  --action-collect-hover: var(--plum-800);
   --state-visited: var(--vermilion-700);
   --state-visited-surface: var(--vermilion-100);
   --state-saved: var(--teal-700);
@@ -60,6 +79,8 @@
   --focus-ring: #2477b3;
   --success: #2f7653;
   --warning: #9a651d;
+  /* Pale amber ground for a caution badge, so unknown status is not silent. */
+  --warning-surface: #f7ebd7;
   --error: #b33a32;
   --disabled: #a9aea9;
 
@@ -114,7 +135,7 @@
   --ink-navy: #102d46;
   --ink-teal: #287a78;
   --ink-indigo: #365e88;
-  --ink-plum: #6b3f63;
+  --ink-plum: var(--plum-700);
   --ink-moss: #4f653f;
   --ink-ochre: #846024;
   --ink-brick: #8a4338;

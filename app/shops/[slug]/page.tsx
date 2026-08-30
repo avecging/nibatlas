@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { ShopActions, ShopStatusBadges } from "@/src/components/shops/ShopActions";
+import { ShopSaveButton } from "@/src/components/shops/ShopSaveButton";
 import { ShopBackLink } from "@/src/components/shops/ShopBackLink";
 import { ShopDetailView } from "@/src/components/shops/ShopDetailView";
 import { shopMetaDescription } from "@/src/components/shops/shop-metadata";
@@ -63,6 +64,7 @@ export default async function ShopPage({
           <ShopBackLink className={detailStyles.back} shopSlug={shop.slug} />
         </Suspense>
       }
+      save={<ShopSaveButton shop={shop} />}
       statusBadges={<ShopStatusBadges shop={shop} />}
       actions={<ShopActions shop={shop} />}
     />
