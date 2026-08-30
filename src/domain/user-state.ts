@@ -46,12 +46,12 @@ export function applyUserShopState<T extends ShopMapSummary>(
  * after it has been visited. The marker keeps its documented priority — visited
  * outranks saved — because that is a presentation rule, not a filter rule.
  */
-export function decorateResults<T extends ShopMapSummary>(
+export function filterResults<T extends ShopMapSummary>(
   shops: readonly T[],
   userState: UserShopState,
   filters: ShopFilters,
 ): readonly T[] {
-  return applyUserShopState(shops, userState).filter(
+  return shops.filter(
     (shop) =>
       matchesStatus(
         {
@@ -59,6 +59,18 @@ export function decorateResults<T extends ShopMapSummary>(
           visited: userState.visitedShopIds.has(shop.id),
         },
         filters.status,
-      ) && matchesAvailability(shop.operationalStatus, filters.availability),
+      ) &&
+      matchesAvailability(shop.operationalStatus, filters.availability) &&
+      // A no-op for a committed set the source has already narrowed; it matters
+      // when the drawer counts a draft against the results already loaded.
+      (filters.shopTypes.length === 0 || filters.shopTypes.includes(shop.primaryType)),
   );
+}
+
+export function decorateResults<T extends ShopMapSummary>(
+  shops: readonly T[],
+  userState: UserShopState,
+  filters: ShopFilters,
+): readonly T[] {
+  return filterResults(applyUserShopState(shops, userState), userState, filters);
 }

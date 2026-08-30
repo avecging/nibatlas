@@ -153,8 +153,12 @@
   gap: var(--space-2);
 }
 
+/*
+ * `--text-muted` fails AA at this size and weight on the drawer's surface, and
+ * these are real group labels rather than decoration.
+ */
 .groupLabel {
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: var(--type-caption-size);
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -175,6 +179,7 @@
 
 .drawerFoot {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
@@ -187,7 +192,30 @@
   font-size: var(--type-body-sm-size);
 }
 
-.done {
+.drawerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.clearDraft {
+  min-height: var(--tap-target);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-round);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: var(--type-label-size);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.clearDraft:disabled {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.apply {
   min-height: var(--tap-target);
   padding: 0 var(--space-5);
   border: 0;
@@ -197,6 +225,11 @@
   font-size: var(--type-label-size);
   font-weight: 600;
   cursor: pointer;
+}
+
+/* Unapplied draft changes: the commit is the one thing left to do. */
+.apply[data-unapplied="true"] {
+  box-shadow: 0 0 0 3px var(--action-primary-soft, rgb(20 43 71 / 18%));
 }
 
 /* Desktop: the drawer anchors to the results panel rather than the window. */

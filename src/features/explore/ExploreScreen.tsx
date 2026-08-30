@@ -16,11 +16,13 @@ import { Icon } from "@/src/components/ui/Icon";
 import type { CountryCode, Viewport } from "@/src/domain/geo";
 import { COUNTRY_LABELS } from "@/src/domain/shop-detail";
 import type { ShopMapSummary } from "@/src/domain/shops";
-import { applyUserShopState, decorateResults } from "@/src/domain/user-state";
+import { applyUserShopState, filterResults } from "@/src/domain/user-state";
 import { useCollection } from "@/src/features/collection/collection-store";
 import {
+  canCountDraftMatches,
   createExploreState,
   exploreReducer,
+  hasUnappliedFilters,
   shouldOfferSearchArea,
   type SheetState,
 } from "@/src/features/explore/explore-state";
@@ -111,7 +113,6 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
   );
   const [cameraTarget, setCameraTarget] = useState<CameraTarget | null>(null);
   const [introDismissed, setIntroDismissed] = useState(true);
-  const [filtersOpen, setFiltersOpen] = useState(false);
   /**
    * Transient list-to-map synchronisation. It is not selection: it never
    * survives the pointer leaving, never moves the camera, and never changes what
@@ -271,9 +272,27 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
     }
   }, [state.committed, state.lastCommittedLabel]);
 
+  /** The committed result set with the reader's own state merged, unfiltered. */
+  const mergedResults = useMemo(
+    () => applyUserShopState(state.results, collection.userShopState),
+    [collection.userShopState, state.results],
+  );
+
   const areaResults = useMemo(
-    () => decorateResults(state.results, collection.userShopState, state.filters),
-    [collection.userShopState, state.filters, state.results],
+    () => filterResults(mergedResults, collection.userShopState, state.filters),
+    [collection.userShopState, mergedResults, state.filters],
+  );
+
+  /**
+   * What the drawer can promise. `null` means the loaded set cannot answer the
+   * draft's question exactly, and the drawer says so rather than guessing.
+   */
+  const draftMatchCount = useMemo(
+    () =>
+      state.filtersOpen && canCountDraftMatches(state)
+        ? filterResults(mergedResults, collection.userShopState, state.draftFilters).length
+        : null,
+    [collection.userShopState, mergedResults, state],
   );
 
   /**
@@ -416,17 +435,33 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
     </section>
   );
 
+  /*
+   * A reader who pans and then filters should get one commit, not two. When the
+   * camera has moved far enough to be offering `Search this area`, Apply carries
+   * those bounds with the filters and settles the offer in the same action — and
+   * the button says so rather than doing it silently.
+   */
+  const appliesCamera = mode === "area" && shouldOfferSearchArea(state);
+
   const filterBar = (
     <MapFilters
       filters={state.filters}
-      open={filtersOpen}
-      resultCount={results.length}
-      onOpenChange={setFiltersOpen}
+      draftFilters={state.draftFilters}
+      open={state.filtersOpen}
+      hasUnapplied={hasUnappliedFilters(state)}
+      draftMatchCount={draftMatchCount}
+      appliesCamera={appliesCamera}
+      onOpen={() => dispatch({ type: "openFilters" })}
+      onClose={() => dispatch({ type: "closeFilters" })}
       onStatusChange={(status) => dispatch({ type: "setStatusFilter", status })}
-      onAvailabilityChange={(availability) =>
-        dispatch({ type: "setAvailabilityFilter", availability })
+      onDraftAvailabilityChange={(availability) =>
+        dispatch({ type: "setDraftAvailability", availability })
       }
-      onToggleType={(shopType) => dispatch({ type: "toggleShopType", shopType })}
+      onToggleDraftType={(shopType) => dispatch({ type: "toggleDraftShopType", shopType })}
+      onClearDraft={() => dispatch({ type: "clearDraftFilters" })}
+      onApply={() =>
+        dispatch(appliesCamera ? { type: "applyFilters", viewport: state.camera } : { type: "applyFilters" })
+      }
       onClear={() => dispatch({ type: "clearFilters" })}
     />
   );

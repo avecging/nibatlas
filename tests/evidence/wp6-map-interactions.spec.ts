@@ -10,9 +10,10 @@ import { seedSampleCollection, useNormalMode } from "../support/local-state";
  *
  * Not an assertion suite — `tests/e2e/explore.spec.ts` and
  * `tests/e2e/results-sheet.spec.ts` hold the verdicts. This writes screenshots
- * into `docs/evidence/milestone-1-5-wp6/` so the founder can read the three-way
- * visit segment, the drawer, the active count, the separated card states and the
- * marker highlight at the three breakpoints `IMPLEMENTATION-PLAN.md` names.
+ * into `docs/evidence/milestone-1-5-wp6/` so the founder can read the four-way
+ * visit segment, the drawer as a transaction, the applied count, the separated
+ * card states and the marker highlight at the three breakpoints
+ * `IMPLEMENTATION-PLAN.md` names.
  *
  * Opted into with `EVIDENCE=1 pnpm test:e2e --project=evidence`.
  *
@@ -71,13 +72,20 @@ async function raiseSheet(page: Page) {
   await handle.click();
   await handle.click();
   await expect(page.getByTestId("results-sheet")).toHaveAttribute("data-state", "full");
+
+  // The handle travels up as the sheet grows, leaving the pointer resting over a
+  // card and highlighting it. A capture of the resting state should show the
+  // resting state.
+  await page.mouse.move(0, 0);
 }
+
+const drawer = (page: Page) => page.getByRole("dialog", { name: "Filters" });
 
 for (const breakpoint of BREAKPOINTS) {
   test.describe(breakpoint.name, () => {
     test.use({ viewport: { width: breakpoint.width, height: breakpoint.height } });
 
-    /** The resting state: a three-way visit segment and one labelled button. */
+    /** The resting state: the four-way visit segment and one labelled button. */
     test("the filter row at rest", async ({ page }) => {
       await useNormalMode(page);
       await openMap(page);
@@ -88,7 +96,7 @@ for (const breakpoint of BREAKPOINTS) {
       await capture(page, `${breakpoint.name}-filters-rest`);
     });
 
-    /** The drawer: shop type, availability, and the live count of matches. */
+    /** The drawer: shop type, availability, the honesty note, and the actions. */
     test("the filter drawer open", async ({ page }) => {
       await useNormalMode(page);
       await openMap(page);
@@ -96,27 +104,42 @@ for (const breakpoint of BREAKPOINTS) {
       await raiseSheet(page);
 
       await page.getByRole("button", { name: /^filters/i }).click();
-      await expect(page.getByRole("dialog", { name: "Filters" })).toBeVisible();
+      await expect(drawer(page)).toBeVisible();
 
       await capture(page, `${breakpoint.name}-filters-drawer`);
     });
 
-    /** The active count, and the one-tap clear beside it. */
-    test("a filter applied, counted, and clearable", async ({ page }) => {
+    /** A draft held, counted, and not yet committed to the results behind it. */
+    test("a drafted filter awaiting Apply", async ({ page }) => {
       await useNormalMode(page);
       await openMap(page);
       await searchGinza(page);
       await raiseSheet(page);
 
       await page.getByRole("button", { name: /^filters/i }).click();
-      await page
-        .getByRole("dialog", { name: "Filters" })
-        .getByRole("button", { name: "Confirmed open" })
+      await drawer(page)
+        .getByRole("button", { name: "Stationery Store", exact: true })
         .click();
-      await page
-        .getByRole("dialog", { name: "Filters" })
-        .getByRole("button", { name: /^done$/i })
+      await drawer(page)
+        .getByRole("button", { name: "Recorded as open", exact: true })
         .click();
+      await expect(drawer(page).getByText(/shops? match/)).toBeVisible();
+
+      await capture(page, `${breakpoint.name}-filters-draft`);
+    });
+
+    /** After Apply: the count badge on the button, and the one-tap clear. */
+    test("filters applied, counted, and clearable", async ({ page }) => {
+      await useNormalMode(page);
+      await openMap(page);
+      await searchGinza(page);
+      await raiseSheet(page);
+
+      await page.getByRole("button", { name: /^filters/i }).click();
+      await drawer(page)
+        .getByRole("button", { name: "Recorded as open", exact: true })
+        .click();
+      await drawer(page).getByRole("button", { name: "Apply filters" }).click();
 
       await expect(page.getByTestId("filter-count")).toBeVisible();
       await expect(page.getByRole("button", { name: /clear filters/i })).toBeVisible();
@@ -125,8 +148,9 @@ for (const breakpoint of BREAKPOINTS) {
     });
 
     /**
-     * The separated card states: an operational status, plus visited and saved
-     * as two independent facts rather than one three-position pill.
+     * The separated card states: an operational status about the shop, plus
+     * visited and saved as the reader's own two independent facts — rather than
+     * one three-position pill standing for all of them.
      */
     test("card states as separate facts", async ({ page }) => {
       await useNormalMode(page);

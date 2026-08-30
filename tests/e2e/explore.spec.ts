@@ -43,8 +43,15 @@ async function raiseSheet(page: Page) {
     return;
   }
 
-  await handle.click();
-  await expect(page.getByTestId("results-sheet")).toHaveAttribute("data-state", "half");
+  const sheet = page.getByTestId("results-sheet");
+
+  // Idempotent: a journey that searches twice must not tip the sheet to Full on
+  // the second call.
+  if ((await sheet.getAttribute("data-state")) === "peek") {
+    await handle.click();
+  }
+
+  await expect(sheet).not.toHaveAttribute("data-state", "peek");
 }
 
 /** A stepwise drag so MapLibre sees a real gesture rather than one jump. */
@@ -244,14 +251,27 @@ test("activating the body of a card opens the shop, and Save does not", async ({
   ).toBeVisible();
 });
 
+/** The rendered treatment of a status badge, wherever it sits. */
+async function badgeStyle(badge: import("@playwright/test").Locator) {
+  return badge.evaluate((node) => {
+    const element = (node.closest("span[class]") ?? node) as HTMLElement;
+    const computed = window.getComputedStyle(element);
+
+    return {
+      background: computed.backgroundColor,
+      border: computed.borderTopColor,
+      icons: element.querySelectorAll("svg").length,
+    };
+  });
+}
+
 /*
  * The third staging finding: `Open` had not been obvious enough on the map
- * surfaces. WP4's shared badge changed to a success green — this verifies it in
- * the card context rather than assuming it carried over.
+ * surfaces. WP4's shared badge gained three levels of attention — this confirms
+ * them in the card context rather than assuming they carried over, and confirms
+ * that operational status stays separate from Saved and Visited.
  */
-test("a map card shows Open in the success green, and states as separate facts", async ({
-  page,
-}) => {
+test("a map card renders the three operational-status treatments", async ({ page }) => {
   // A clean device, so the card starts with neither persisted state.
   await openMap(page);
   await searchDestination(page, "Ginza", /^Ginza/);
@@ -262,18 +282,62 @@ test("a map card shows Open in the success green, and states as separate facts",
 
   await expect(open).toBeVisible();
 
-  const style = await open.evaluate((node) => {
-    const badge = (node.closest("span[class]") ?? node) as HTMLElement;
-    const computed = window.getComputedStyle(badge);
+  // Open: the WP4 success green, not the neutral grey it had.
+  const openStyle = await badgeStyle(open);
 
-    return { background: computed.backgroundColor, border: computed.borderTopColor };
+  expect(openStyle.background).toBe("rgb(227, 240, 230)");
+  expect(openStyle.border).toBe("rgb(47, 118, 83)");
+  expect(openStyle.icons).toBeGreaterThan(0);
+
+  // Unconfirmed: the softer amber outline, still labelled and still iconed.
+  await searchDestination(page, "Kaohsiung", /^Kaohsiung/);
+  await raiseSheet(page);
+
+  const unknown = page
+    .getByRole("article", { name: "SKB", exact: true })
+    .getByText("Status not confirmed");
+
+  await expect(unknown).toBeVisible();
+
+  const unknownStyle = await badgeStyle(unknown);
+
+  expect(unknownStyle.background).toBe("rgba(0, 0, 0, 0)");
+  expect(unknownStyle.border).toBe("rgb(207, 169, 111)");
+  expect(unknownStyle.icons).toBeGreaterThan(0);
+
+  // And a confirmed closure keeps the stronger, filled amber, which the
+  // unconfirmed status deliberately does not take.
+  const closed = await page.evaluate(() => {
+    const probe = document.createElement("div");
+
+    probe.style.background = "var(--warning-surface)";
+    document.body.append(probe);
+
+    const value = window.getComputedStyle(probe).backgroundColor;
+
+    probe.remove();
+
+    return value;
   });
 
-  expect(style.background).toBe("rgb(227, 240, 230)");
-  expect(style.border).toBe("rgb(47, 118, 83)");
+  expect(closed).toBe("rgb(247, 235, 215)");
+  expect(unknownStyle.background).not.toBe(closed);
+});
 
-  // Visited, saved and "not visited" were one pill on one axis. They are not:
-  // the absence of a state is drawn as nothing.
+/*
+ * Operational status is about the shop; visited and saved are about the reader.
+ * They were one conflated pill on a card and are now three separate facts.
+ */
+test("a map card keeps operational status separate from the reader's own state", async ({
+  page,
+}) => {
+  await openMap(page);
+  await searchDestination(page, "Ginza", /^Ginza/);
+  await raiseSheet(page);
+
+  const card = page.getByRole("article", { name: "Ginza Itoya Main Store" });
+
+  await expect(card.getByText("Open", { exact: true })).toBeVisible();
   await expect(card.getByText("Not visited")).toHaveCount(0);
   await expect(card.getByText("Visited", { exact: true })).toHaveCount(0);
 
@@ -284,6 +348,7 @@ test("a map card shows Open in the success green, and states as separate facts",
     "true",
   );
   await expect(card.getByText("Visited", { exact: true })).toHaveCount(0);
+  await expect(card.getByText("Open", { exact: true })).toBeVisible();
 });
 
 test("resizing the window neither invents nor erases Search this area", async ({ page }) => {
@@ -328,11 +393,11 @@ test("a gesture during a destination fly leaves the user in control", async ({ p
 });
 
 /*
- * Staging reported the filter buttons as "not functioning": they were waiting
- * for the next committed search, which is indistinguishable from broken. Every
- * filter now applies where it is pressed.
+ * Staging reported the filter buttons as "not functioning": they waited for the
+ * next committed search with no commit action of their own, which is
+ * indistinguishable from broken. The drawer now has one.
  */
-test("a shop-type filter applies as soon as it is pressed", async ({ page }) => {
+test("the filter drawer holds a draft until it is applied", async ({ page }) => {
   await openMap(page);
   await searchDestination(page, "Tokyo", /^Tokyo/);
 
@@ -345,36 +410,177 @@ test("a shop-type filter applies as soon as it is pressed", async ({ page }) => 
   const drawer = page.getByRole("dialog", { name: "Filters" });
   await drawer.getByRole("button", { name: "Vintage / Used", exact: true }).click();
 
-  // No shop in the sourced subset is a vintage dealer, so the honest result is
-  // an empty set plus a way to recover — and no `Search this area` was needed.
-  await expect(page.getByText(/no shops match this area/i)).toBeVisible();
-  await expect(page.getByTestId("filter-count")).toHaveText(/1/);
+  // Drafted, not applied: the results behind the drawer have not moved, and
+  // nothing is badged as applied.
+  await expect(page.getByTestId("filter-count")).toHaveCount(0);
+  await expect(drawer.getByText(/^0 shops match$/)).toBeVisible();
 
-  await drawer.getByRole("button", { name: /^done$/i }).click();
+  await drawer.getByRole("button", { name: "Apply filters" }).click();
+
+  // Committed: the drawer closes, the badge appears, and the results follow. No
+  // shop in the sourced subset is a vintage dealer, so the honest result is an
+  // empty set plus a way to recover.
+  await expect(drawer).toHaveCount(0);
+  await expect(page.getByTestId("filter-count")).toHaveText(/1/);
+  await expect(page.getByText(/no shops match this area/i)).toBeVisible();
+
   await page.getByRole("button", { name: /clear filters/i }).click();
   await expect(
     page.getByRole("link", { name: "Ginza Itoya Main Store", exact: true }),
   ).toBeVisible();
 });
 
-test("the visit segment applies without a round trip", async ({ page }) => {
-  await seedSampleCollection(page);
+test("closing the drawer discards what was not applied", async ({ page }) => {
+  await openMap(page);
+  await searchDestination(page, "Tokyo", /^Tokyo/);
+  await raiseSheet(page);
+
+  await page.getByRole("button", { name: /^filters/i }).click();
+
+  const drawer = page.getByRole("dialog", { name: "Filters" });
+  await drawer.getByRole("button", { name: "Vintage / Used", exact: true }).click();
+  await drawer.getByRole("button", { name: "Recorded as open", exact: true }).click();
+  await drawer.getByRole("button", { name: /close filters without applying/i }).click();
+
+  await expect(drawer).toHaveCount(0);
+  await expect(page.getByTestId("filter-count")).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "Ginza Itoya Main Store", exact: true }),
+  ).toBeVisible();
+
+  // Reopening starts from what is applied, not from the discarded draft.
+  await page.getByRole("button", { name: /^filters/i }).click();
+  await expect(
+    drawer.getByRole("button", { name: "Vintage / Used", exact: true }),
+  ).toHaveAttribute("aria-pressed", "false");
+  await expect(
+    drawer.getByRole("button", { name: "Recorded as open", exact: true }),
+  ).toHaveAttribute("aria-pressed", "false");
+});
+
+/*
+ * One consistent commit: availability must not land while a shop type is still
+ * waiting on a query.
+ */
+test("applying commits every filter dimension together", async ({ page }) => {
+  await openMap(page);
+  await searchDestination(page, "Tokyo", /^Tokyo/);
+  await raiseSheet(page);
+
+  await page.getByRole("button", { name: /^filters/i }).click();
+
+  const drawer = page.getByRole("dialog", { name: "Filters" });
+  await drawer.getByRole("button", { name: "Stationery Store", exact: true }).click();
+  await drawer.getByRole("button", { name: "Recorded as open", exact: true }).click();
+  // The exact number depends on how the renderer resolved the requested bounds
+  // at this breakpoint; that a count is offered at all is the point.
+  await expect(drawer.getByText(/^\d+ shops? match$/)).toBeVisible();
+
+  await drawer.getByRole("button", { name: "Apply filters" }).click();
+
+  await expect(page.getByTestId("filter-count")).toHaveText(/2/);
+  await expect(
+    page.getByRole("link", { name: "Ginza Itoya Main Store", exact: true }),
+  ).toBeVisible();
+});
+
+/* The draft clear is a draft control: applying that cleared state commits it. */
+test("Clear inside the drawer clears the draft, and Apply commits it", async ({ page }) => {
+  await openMap(page);
+  await searchDestination(page, "Tokyo", /^Tokyo/);
+  await raiseSheet(page);
+
+  await page.getByRole("button", { name: /^filters/i }).click();
+
+  const drawer = page.getByRole("dialog", { name: "Filters" });
+  await drawer.getByRole("button", { name: "Stationery Store", exact: true }).click();
+  await drawer.getByRole("button", { name: "Apply filters" }).click();
+  await expect(page.getByTestId("filter-count")).toHaveText(/1/);
+
+  await page.getByRole("button", { name: /^filters/i }).click();
+  await drawer.getByRole("button", { name: /^clear$/i }).click();
+
+  // Cleared in the draft only: what is applied has not changed yet.
+  await expect(
+    drawer.getByRole("button", { name: "Stationery Store", exact: true }),
+  ).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByTestId("filter-count")).toHaveText(/1/);
+
+  await drawer.getByRole("button", { name: "Apply filters" }).click();
+  await expect(page.getByTestId("filter-count")).toHaveCount(0);
+});
+
+/*
+ * The visit segment is a top-level control: pressing it is its commit. All four
+ * choices stay, and they read as independent sets.
+ */
+test("the visit segment commits on press, and Unvisited includes saved shops", async ({
+  page,
+}) => {
   await openMap(page);
   await searchDestination(page, "Ginza", /^Ginza/);
   await raiseSheet(page);
 
   const explore = page.getByTestId("explore");
+  const segment = page.getByRole("group", { name: "Visit status" });
+  const card = page.getByRole("article", { name: "Ginza Itoya Main Store" });
 
-  await page
-    .getByRole("group", { name: "Visit status" })
-    .getByRole("button", { name: "Saved", exact: true })
-    .click();
+  await expect(
+    segment.getByRole("button", { name: "Unvisited", exact: true }),
+  ).toBeVisible();
 
-  // Nothing in Ginza is saved in the sample state, so the segment empties the
-  // list immediately and never asks for a new search.
+  await segment.getByRole("button", { name: "Saved", exact: true }).click();
+
+  // Nothing is saved yet, so the segment empties the list at once and never
+  // asks for a new search.
   await expect(page.getByText(/no shops match this area/i)).toBeVisible();
   await expect(explore).toHaveAttribute("data-search-offer", "hidden");
   await expect(explore).toHaveAttribute("data-explore-status", "idle");
+
+  await segment.getByRole("button", { name: "All", exact: true }).click();
+  await card.getByRole("button", { name: /^save$/i }).click();
+
+  // Saved, and still unvisited: an independent set, not a fourth point on one
+  // axis.
+  await segment.getByRole("button", { name: "Saved", exact: true }).click();
+  await expect(card).toBeVisible();
+
+  await segment.getByRole("button", { name: "Unvisited", exact: true }).click();
+  await expect(card).toBeVisible();
+
+  await segment.getByRole("button", { name: "Visited", exact: true }).click();
+  await expect(page.getByText(/no shops match this area/i)).toBeVisible();
+});
+
+/*
+ * Camera movement keeps its own commit. Applying filters after a pan may carry
+ * the moved camera with it, and the button says so rather than doing it
+ * silently.
+ */
+test("applying after a pan commits the camera and the filters together", async ({
+  page,
+}) => {
+  await openMap(page);
+  await searchDestination(page, "Tokyo", /^Tokyo/);
+  await raiseSheet(page);
+
+  const explore = page.getByTestId("explore");
+
+  await panMap(page, -0.45, -0.3);
+  await expect(explore).toHaveAttribute("data-search-offer", "offer");
+
+  await page.getByRole("button", { name: /^filters/i }).click();
+
+  const drawer = page.getByRole("dialog", { name: "Filters" });
+  const apply = drawer.getByRole("button", { name: "Apply and search this area" });
+
+  await expect(apply).toBeVisible();
+  await drawer.getByRole("button", { name: "Recorded as open", exact: true }).click();
+  await apply.click();
+
+  await expect(drawer).toHaveCount(0);
+  await expect(explore).toHaveAttribute("data-search-offer", "hidden");
+  await expect(page.getByTestId("filter-count")).toHaveText(/1/);
 });
 
 test("global Saved mode reaches shops outside the current viewport", async ({ page }) => {

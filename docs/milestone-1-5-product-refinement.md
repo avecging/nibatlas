@@ -213,6 +213,13 @@ shop type and availability live in the drawer. Cards lead with a shop identity
 block and one *specific* line ("Same-day nib alignment", "Ink wall, 300+
 bottles") rather than a category name. No prototype badge anywhere.
 
+**Amended 30 August 2026, during WP6.** The segment carries **four** choices —
+All / Unvisited / Saved / Visited — not three. WP6's first pass read the staging
+finding about conflated card states as a reason to drop `Unvisited`; the founder
+corrected that. The finding was about how three states were *drawn on a card*,
+not about which filters exist, and the four choices are independent sets rather
+than four points on one axis. See the WP6 implementation record.
+
 ### Shop detail
 
 A visual header, then: identity and local-script name → one line on why it is
@@ -2071,59 +2078,85 @@ and collection seams were left alone.
 
 ### What WP6 changed
 
-**1. Filters apply where they are pressed.** This is finding 2 — *map filter
+**1. Filters have a commit action of their own.** This is finding 2 — *map filter
 buttons are not functioning* — and the diagnosis is that they were functioning
 exactly as Milestone 1 built them. Every filter went into a *draft* set that took
 effect only on the next committed search, so pressing `Saved` moved nothing and
 the only signal was a line of small print reading *Search this area to apply*.
 That is indistinguishable from broken, and a reader is right to call it broken.
 
-**Search this area** exists for *movement*, and a filter is not movement. So the
-draft/committed split is gone and there is one filter set:
+What replaces it is an explicit transaction rather than no transaction at all:
 
-- **Visit status and availability** are decided over the result set already in
-  hand. They apply on the same frame, with no request and no new search.
-- **Shop type** is resolved by the source, so it does re-query — against the
-  bounds *already committed*, never against wherever the camera happens to be.
-  Narrowing the results a reader is looking at must not quietly search somewhere
-  else, and an outstanding **Search this area** for a moved camera survives the
-  round trip untouched.
+- The **visit segment** is a top-level control, decided over the result set
+  already in hand. Pressing it *is* its commit: it lands whole, on the same
+  frame, with no request and no new search.
+- The **drawer is a transaction.** Shop type and availability are edited as a
+  draft and commit together on **Apply filters**, which also closes the drawer.
+  Closing or cancelling discards the draft. **Clear** inside the drawer clears
+  the draft controls, and applying that cleared state is what updates the
+  results.
 
-The committed-bounds camera model of accepted decision 10 is preserved: what
-changed is which criteria a commit is required for, not how bounds are committed.
+The reader never sees one dimension land while another waits on a query, which
+is the failure the split had: availability would apply instantly while shop type
+sat waiting. The drawer's scrim covers the segment while it is open, so a segment
+press can never interleave with a drafted change either.
+
+**Applying may carry the camera.** A reader who pans and then filters should get
+one commit, not two: when the camera has moved far enough to be offering
+**Search this area**, Apply commits those bounds together with the filters and
+settles the offer — and the button reads *Apply and search this area* rather than
+doing it silently. **Search this area** itself is untouched and remains the
+commit for camera movement alone. The committed-bounds camera model of accepted
+decision 10 is preserved.
 
 **2. Segment plus drawer, with an active count and a one-tap clear.** Following
 the founder's prototype `.fsheet`:
 
-- Visit status is a three-way segment — **All / Saved / Visited** — always
-  visible beside the results. There is no `Unvisited` position; see finding 1.
+- Visit status is a segment — **All / Unvisited / Saved / Visited** — always
+  visible beside the results. All four choices are kept: the staging finding was
+  about how three states were *drawn on a card*, not about which filters exist.
 - **Filters** is one labelled button opening a drawer holding shop type and
   availability. On mobile the drawer is a bottom sheet clear of the persistent
   navigation; from 1024 px it anchors to the results panel.
-- The button carries a badge counting the criteria set *inside* the drawer. The
-  segment is not counted there, because counting a choice the reader can already
-  see labels nothing.
-- The drawer names the live number of matching shops, which is the plainest
-  possible evidence that a filter did something.
-- **Clear filters** appears beside the button whenever anything is set, the
-  segment included, and clears everything in one press.
+- The button carries a badge counting the criteria *applied* inside the drawer —
+  never a draft, because the badge describes the results on screen. The segment
+  is not counted there, because counting a choice the reader can already see
+  labels nothing.
+- The drawer names the number of shops the draft matches, which is the plainest
+  possible evidence that a filter will do something. It is shown only when it can
+  be counted **exactly** from the results already loaded, and the drawer says
+  *Apply to see what matches* rather than guessing when it cannot: a draft that
+  *widens* the committed shop types asks about shops the source never returned,
+  and a truncated result set is a lower bound on any question at all.
+- **Clear filters** appears beside the button whenever anything is applied, the
+  segment included, and clears everything in one press from outside the drawer.
 
-**Availability is honest about what it knows.** The three options are *Any
-status*, *Confirmed open* and *Hide closed*, and they filter the operational
-status a shop has been recorded with. The drawer says so in as many words:
-opening hours are not modelled, and an availability filter that implied they were
-would be a claim the catalogue cannot support.
+**Availability is honest about what it knows.** The options are *Any recorded
+status*, *Recorded as open* and *Hide recorded closures* — worded so they cannot
+be read as *Open now* — and they filter the operational status a record carries.
+The drawer repeats it underneath in as many words: opening hours are not
+modelled, current availability is never inferred from partial hours, and an
+availability filter that implied otherwise would be a claim the catalogue cannot
+support.
 
-**3. Visit status reads the reader's own sets, not the collapsed marker state.**
+**3. The visit segment reads the reader's own sets as independent sets.** Saved,
+visited and unvisited are not four points on one axis:
+
+- **Unvisited** is *not in the visited set* — a shop the reader saved but has not
+  been to is in it.
+- **Saved** is *in the saved set*, whether visited or not.
+- **Visited** is *in the visited set*, whether saved or not.
+
 A shop that is both saved and visited has the marker state `visited`, because
-`UX.md` gives visited priority in the marker. That is a *presentation* rule. Used
-as a *filter* rule it dropped saved-and-visited shops out of the Saved segment,
-which is wrong: the reader still saved them. `decorateResults` now reads the
-saved and visited sets directly, and the marker keeps its documented priority.
+`UX.md` gives visited priority in the marker. That is a *presentation* rule.
+Used as a *filter* rule it dropped saved-and-visited shops out of Saved, which is
+wrong: the reader still saved them. The filter reads the saved and visited sets
+directly, and the marker keeps its documented priority.
 
-**4. Card states are separated.** This is finding 1. `Visited`, `Not visited` and
-`Saved` shared one pill treatment, which drew three things as three positions on
-one axis. They are not one axis:
+**4. Card states are separated.** This is finding 1, and it is a *presentation*
+change only — no filter was removed for it. `Visited`, `Not visited` and `Saved`
+shared one pill treatment, which drew three things as three positions on one
+axis. They are not one axis:
 
 - **Visited** is its own badge, drawn only when it applies.
 - **Saved** is carried by the card's own **Save** control, which already states
@@ -2154,10 +2187,22 @@ The card's `Shop details` button is gone. With the body of the card opening the
 shop it was a second control for the same destination, and Milestone 1 only
 needed it because the card itself did nothing a reader could see.
 
-**6. Finding 3 — `Open` on the map surfaces — is verified rather than assumed.**
-WP4's second revision gave `Open` the success green in the shared badge.
-`tests/e2e/explore.spec.ts` now asserts the rendered background and border of the
-badge *on a map card*, alongside the absence of a `Not visited` pill.
+**6. Finding 3 — operational status on the map surfaces — is verified rather than
+assumed.** WP4's second revision gave the shared badge three levels of attention;
+`tests/e2e/explore.spec.ts` now asserts them as rendered colour *on a map card*:
+
+- `Open` — the success green (`rgb(227, 240, 230)` on `rgb(47, 118, 83)`), which
+  is what finding 3 asked for.
+- `Status not confirmed` — the softer amber outline, transparent on
+  `rgb(207, 169, 111)`, still labelled and still carrying its icon.
+- A confirmed closure — the stronger filled amber, asserted as the distinct
+  `--warning-surface` token the unconfirmed status deliberately does not take.
+  No record in the catalogue is closed, so the closed treatment is asserted
+  against the token rather than invented on a fixture.
+
+The same test confirms operational status stays separate from the reader's own
+state: it is about the shop, `Visited` and `Saved` are about the reader, and no
+`Not visited` pill appears alongside either.
 
 ### Interaction consequences worth recording
 
@@ -2174,8 +2219,9 @@ badge *on a map card*, alongside the absence of a `Not visited` pill.
 - **No visual-fidelity work.** The shop identity system, paper and cover texture,
   the stamp at large size and the ceremony material pass are WP5.
 - **No contact or contribution routes.** WP7 owns them.
-- **No new filter criteria beyond the approved set.** No distance, no rating, no
-  price, no opening-hours filter — the last because hours are not modelled.
+- **No new filter criteria beyond the approved set**, and none removed. No
+  distance, no rating, no price, no opening-hours filter — the last because hours
+  are not modelled, and no current availability is inferred from partial ones.
 - **No change to the shop page, Passport, Me, or the collection ceremony.**
   `MarkerStateBadge` keeps its collapsed single-state form where exactly one
   marker state applies by definition.
@@ -2184,26 +2230,37 @@ badge *on a map card*, alongside the absence of a `Not visited` pill.
 
 ### Coverage
 
-- `src/domain/filters.test.ts` — the three-way segment, the two counts, equality
-  including availability, saved and visited as independent states, and
+- `src/domain/filters.test.ts` — all four visit choices, the four choices read as
+  independent sets, the two counts, equality including availability, and
   availability filtering on recorded operational status only.
 - `src/domain/user-state.test.ts` — that a saved-and-visited shop stays in the
-  Saved segment while its marker stays visited, and availability filtering after
-  the merge.
-- `src/features/explore/explore-state.test.ts` — a visit or availability filter
-  applying with no round trip, a shop-type change re-querying the committed
-  bounds while leaving an outstanding `Search this area` intact, and the one-tap
-  clear re-querying only when the source must.
-- `src/components/map/MapFilters.test.tsx` — the segment, what the drawer holds,
-  the badge counting only the drawer's criteria, the one-tap clear, the live
-  match count, and the drawer's focus, Escape and scrim behaviour.
+  Saved segment while its marker stays visited, that a saved-but-unvisited shop
+  stays in Unvisited, and availability filtering after the merge.
+- `src/features/explore/explore-state.test.ts` — the segment committing on press
+  with no round trip; the drawer holding a draft, committing every dimension in
+  one request, discarding on close, and needing no request when nothing the
+  source resolves has changed; the draft clear needing an apply; applying with
+  and without the moved camera; the one-tap clear; and the predicate that decides
+  whether a draft can be counted exactly.
+- `src/components/map/MapFilters.test.tsx` — the four-choice segment, what the
+  drawer holds, drawer controls drawn from the draft, the badge counting only
+  applied criteria, the draft clear, the two Apply labels, the count shown only
+  when it is exact, the one-tap clear, and the drawer's focus, Escape and scrim
+  behaviour.
 - `src/components/shops/ShopList.test.tsx` — the card body as a link, hover
   highlighting only on a fine pointer, keyboard focus giving the equivalent,
   selected and highlighted drawn apart, the separated states, and Save acting
   without opening the shop.
-- `tests/e2e/explore.spec.ts` — the filter journeys at all three breakpoints, the
-  card/marker synchronisation, card activation versus Save, and finding 3's
-  rendered `Open` badge on a map card.
+- `tests/e2e/explore.spec.ts` — the drawer holding a draft until applied,
+  discarding on close, committing every dimension together, the draft clear, the
+  segment committing on press with Unvisited including a saved shop, applying
+  after a pan, the card/marker synchronisation, card activation versus Save, and
+  finding 3's three rendered operational-status treatments on a map card.
+- `tests/e2e/accessibility.spec.ts` — the drawer audited open with axe, plus its
+  keyboard contract: focus in on open, back to the trigger on close, and Escape
+  closing without applying. The audit caught a real contrast failure — the
+  drawer's group labels were `--text-muted` at 12 px bold, 4.35:1 — which is
+  fixed rather than excluded.
 - `tests/e2e/results-sheet.spec.ts` — marker selection still keeping the sheet,
   the summary and the card in step.
 - `tests/evidence/wp6-map-interactions.spec.ts` — the review screenshots in

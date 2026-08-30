@@ -5,6 +5,7 @@ import {
 } from "@/src/domain/geo";
 import {
   EMPTY_FILTERS,
+  filtersEqual,
   toggleShopType,
   type AvailabilityFilter,
   type ShopFilters,
@@ -34,16 +35,26 @@ export interface ExploreState {
   readonly committed: Viewport;
   readonly camera: Viewport;
   /**
-   * One filter set, applied as soon as it is changed.
+   * The filters the displayed results are under.
    *
    * Milestone 1 held a draft set that only took effect on the next committed
-   * search. On staging that made the filter controls look broken: a reader
-   * pressed `Saved` and the results did not move. `Search this area` exists for
-   * *movement* — a filter is not movement, so it applies at once and, when the
-   * source itself resolves the criterion, re-queries the bounds already
-   * committed rather than wherever the camera happens to be.
+   * search, with no commit action of its own — a reader pressed `Saved`, nothing
+   * moved, and small print asked them to search the area. That read as broken.
+   *
+   * What replaces it is an explicit transaction rather than no transaction at
+   * all. The visit segment is a top-level control and commits on press. Shop
+   * type and availability are edited in the drawer as `draftFilters` and commit
+   * together on **Apply filters**, so the reader never sees one dimension land
+   * while another waits on a query.
    */
   readonly filters: ShopFilters;
+  /**
+   * The drawer's working copy. It exists only while the drawer is open, is
+   * seeded from `filters` when it opens, and is discarded when it closes without
+   * applying.
+   */
+  readonly draftFilters: ShopFilters;
+  readonly filtersOpen: boolean;
   /** Public projection for the committed viewport; user state is merged for display. */
   readonly results: readonly ShopMapSummary[];
   readonly truncated: boolean;
@@ -73,8 +84,15 @@ export type ExploreAction =
   | { readonly type: "resultsFailed"; readonly requestId: number }
   | { readonly type: "selectShop"; readonly shopId: string | null }
   | { readonly type: "setStatusFilter"; readonly status: StatusFilter }
-  | { readonly type: "setAvailabilityFilter"; readonly availability: AvailabilityFilter }
-  | { readonly type: "toggleShopType"; readonly shopType: ShopType }
+  | { readonly type: "openFilters" }
+  | { readonly type: "closeFilters" }
+  | {
+      readonly type: "setDraftAvailability";
+      readonly availability: AvailabilityFilter;
+    }
+  | { readonly type: "toggleDraftShopType"; readonly shopType: ShopType }
+  | { readonly type: "clearDraftFilters" }
+  | { readonly type: "applyFilters"; readonly viewport?: Viewport }
   | { readonly type: "clearFilters" }
   | { readonly type: "setSheetState"; readonly sheetState: SheetState };
 
@@ -93,6 +111,8 @@ export function createExploreState({
     committed: viewport,
     camera: viewport,
     filters,
+    draftFilters: filters,
+    filtersOpen: false,
     results: [],
     truncated: false,
     status: "loading",
@@ -110,25 +130,48 @@ export function createExploreState({
 }
 
 /**
- * Re-run the *committed* query under a new filter set.
+ * Commit a filter set, re-running the query when the source has to resolve part
+ * of it and, optionally, over a viewport the caller supplies.
  *
- * Only criteria the source resolves reach this — today, shop type. The reader
- * asked to narrow the results they are looking at, not to search somewhere else,
- * so the bounds are the committed ones and an outstanding `Search this area`
- * for a moved camera survives untouched.
+ * Applying filters may carry the camera with it, which is how a reader who has
+ * panned and then filtered gets one commit rather than two. With no viewport
+ * given the bounds are the ones already committed: narrowing the results a
+ * reader is looking at must never quietly search somewhere else, and an
+ * outstanding `Search this area` survives untouched.
  */
-function requery(state: ExploreState, filters: ShopFilters): ExploreState {
+function commitFilters(
+  state: ExploreState,
+  filters: ShopFilters,
+  viewport?: Viewport,
+): ExploreState {
+  const settled: ExploreState = {
+    ...state,
+    filters,
+    draftFilters: filters,
+    filtersOpen: false,
+  };
+
+  const requeries =
+    viewport !== undefined ||
+    filters.shopTypes.length !== state.query.shopTypes.length ||
+    filters.shopTypes.some((type) => !state.query.shopTypes.includes(type));
+
+  if (!requeries) {
+    return settled;
+  }
+
+  const bounds = viewport ?? state.committed;
   const requestId = state.requestId + 1;
 
   return {
-    ...state,
-    filters,
+    ...settled,
+    ...(viewport === undefined ? {} : { camera: viewport, committed: viewport }),
     status: "loading",
     requestId,
     query: {
       requestId,
-      bounds: state.committed.bounds,
-      zoom: state.committed.zoom,
+      bounds: bounds.bounds,
+      zoom: bounds.zoom,
       shopTypes: filters.shopTypes,
     },
   };
@@ -214,29 +257,52 @@ export function exploreReducer(
       return { ...state, selectedShopId: action.shopId };
     }
 
-    // Visit state and availability are decided over the result set already in
-    // hand, so they need no round trip and take effect on the same frame.
+    /*
+     * The visit segment is a top-level control, decided over the result set
+     * already in hand. Pressing it *is* its commit: it lands whole, on the same
+     * frame, with no round trip and nothing left waiting. The drawer is closed
+     * whenever it is reachable, so a segment press can never land while a
+     * drafted shop type is still waiting on Apply.
+     */
     case "setStatusFilter": {
-      return { ...state, filters: { ...state.filters, status: action.status } };
+      const filters = { ...state.filters, status: action.status };
+
+      return { ...state, filters, draftFilters: filters };
     }
 
-    case "setAvailabilityFilter": {
+    case "openFilters": {
+      return { ...state, filtersOpen: true, draftFilters: state.filters };
+    }
+
+    // Closing without applying discards the draft.
+    case "closeFilters": {
+      return { ...state, filtersOpen: false, draftFilters: state.filters };
+    }
+
+    case "setDraftAvailability": {
       return {
         ...state,
-        filters: { ...state.filters, availability: action.availability },
+        draftFilters: { ...state.draftFilters, availability: action.availability },
       };
     }
 
-    case "toggleShopType": {
-      return requery(state, toggleShopType(state.filters, action.shopType));
+    case "toggleDraftShopType": {
+      return {
+        ...state,
+        draftFilters: toggleShopType(state.draftFilters, action.shopType),
+      };
+    }
+
+    case "clearDraftFilters": {
+      return { ...state, draftFilters: EMPTY_FILTERS };
+    }
+
+    case "applyFilters": {
+      return commitFilters(state, state.draftFilters, action.viewport);
     }
 
     case "clearFilters": {
-      if (state.filters.shopTypes.length === 0) {
-        return { ...state, filters: EMPTY_FILTERS };
-      }
-
-      return requery(state, EMPTY_FILTERS);
+      return commitFilters(state, EMPTY_FILTERS);
     }
 
     case "setSheetState": {
@@ -251,8 +317,11 @@ export function exploreReducer(
 
 /**
  * `Search this area` is offered after meaningful camera movement, and never
- * while a committed query is already in flight. Filters no longer wait on it:
- * they apply where they are changed.
+ * while a committed query is already in flight.
+ *
+ * It is about *movement only*. Filters have their own commit — the segment on
+ * press, the drawer on Apply — so a filter change never raises this prompt, and
+ * an Apply that carries the moved camera settles it in the same action.
  */
 export function shouldOfferSearchArea(state: ExploreState): boolean {
   if (state.status === "loading") {
@@ -264,4 +333,36 @@ export function shouldOfferSearchArea(state: ExploreState): boolean {
     state.camera,
     DEFAULT_MOVEMENT_THRESHOLD,
   );
+}
+
+/** Whether the drawer holds changes the reader has not applied yet. */
+export function hasUnappliedFilters(state: ExploreState): boolean {
+  return !filtersEqual(state.draftFilters, state.filters);
+}
+
+/**
+ * Whether a draft's match count can be counted exactly from the results already
+ * loaded, rather than guessed.
+ *
+ * Visit state and availability are decided over the loaded set, so they always
+ * can be. Shop type is resolved by the source, so a draft that *widens* the
+ * committed type selection would be counted against a set that never contained
+ * the shops it is asking for — and a truncated result set is a lower bound on
+ * any question at all. In both cases the drawer says nothing rather than
+ * something wrong.
+ */
+export function canCountDraftMatches(state: ExploreState): boolean {
+  if (state.truncated || state.status === "loading") {
+    return false;
+  }
+
+  const committed = state.query.shopTypes;
+
+  if (committed.length === 0) {
+    return true;
+  }
+
+  const draft = state.draftFilters.shopTypes;
+
+  return draft.length > 0 && draft.every((type) => committed.includes(type));
 }

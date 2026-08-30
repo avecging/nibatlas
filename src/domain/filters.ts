@@ -3,20 +3,30 @@ import { SHOP_TYPES } from "@/src/domain/shops";
 import { containsPoint, type ViewportBounds } from "@/src/domain/geo";
 
 /**
- * Three-way visit segment, per the approved Map experience.
+ * The visit segment, per the approved Map experience.
  *
- * `Unvisited` is gone deliberately. Visited and saved are two independent things
- * a reader owns; "not visited" is the absence of one of them, not a third state
- * to filter by, and offering it as a peer made the segment read as one axis with
- * four positions.
+ * The staging finding was about *presentation* — `Not visited`, `Saved` and
+ * `Visited` conflated into one pill on a card — not about which filters exist.
+ * All four choices stay, and they read as independent sets rather than as four
+ * points on one axis:
+ *
+ * - `unvisited` — not in the visited set, saved-but-unvisited shops included.
+ * - `saved` — in the saved set, whether visited or not.
+ * - `visited` — in the visited set, whether saved or not.
+ *
+ * Marker priority is a separate, presentation-only rule and is unchanged:
+ * visited outranks saved outranks unvisited.
  */
-export const STATUS_FILTERS = ["all", "saved", "visited"] as const;
+export const STATUS_FILTERS = ["all", "unvisited", "saved", "visited"] as const;
 export type StatusFilter = (typeof STATUS_FILTERS)[number];
 
 /**
- * Availability is about the shop, not the reader. It filters on the operational
- * status the catalogue can actually stand behind — never on opening hours, which
- * are not modelled.
+ * Availability is about the shop, not the reader, and it is about the status a
+ * record *carries* rather than whether a shop is open right now.
+ *
+ * Opening hours are not modelled, so nothing here may read as `Open now`. The
+ * labels and the drawer's note both say "recorded" for that reason, and no
+ * current availability is ever inferred from incomplete hours.
  */
 export const AVAILABILITY_FILTERS = ["any", "open", "not_closed"] as const;
 export type AvailabilityFilter = (typeof AVAILABILITY_FILTERS)[number];
@@ -39,6 +49,12 @@ export interface ShopStateFlags {
   readonly visited: boolean;
 }
 
+/**
+ * A best-effort reading of the independent sets from a single marker state, for
+ * the callers that only have one. It cannot recover a saved shop that has been
+ * visited, because the marker deliberately collapses that; anything filtering on
+ * behalf of a reader should use their own sets instead.
+ */
 export function flagsFromMarkerState(markerState: MarkerState): ShopStateFlags {
   return {
     saved: markerState === "saved",
@@ -86,6 +102,11 @@ export function toggleShopType(filters: ShopFilters, shopType: ShopType): ShopFi
 }
 
 export function matchesStatus(flags: ShopStateFlags, status: StatusFilter): boolean {
+  if (status === "unvisited") {
+    // The absence of a visit, which a saved shop can perfectly well have.
+    return !flags.visited;
+  }
+
   if (status === "saved") {
     return flags.saved;
   }

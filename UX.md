@@ -215,36 +215,58 @@ different and does not persist.
 
 ### Filters
 
-Visit status is a three-way segment, always visible beside the results:
+Visit status is a segment, always visible beside the results:
 
 - All
+- Unvisited
 - Saved
 - Visited
 
-There is no **Unvisited** position. Visited and saved are two independent states
-a reader owns; "not visited" is the absence of one of them, and offering it as a
-peer made the segment read as one axis with four positions.
+The four choices are **independent sets**, not four points on one axis:
+
+- **Unvisited** — not in the visited set. A shop the reader has saved but not yet
+  been to is in it.
+- **Saved** — in the saved set, whether visited or not.
+- **Visited** — in the visited set, whether saved or not.
+
+Marker priority is a separate, presentation-only rule and is unchanged: visited
+outranks saved outranks unvisited. A card draws no "not visited" badge; see
+*Shop card hierarchy*.
 
 Shop type and availability live behind one labelled **Filters** button that opens
 a drawer:
 
 - Shop type — Fountain Pen Specialist, Stationery Store, Vintage / Used,
   Nib / Repair Services.
-- Availability — Any status, Confirmed open, Hide closed. This is the operational
-  status a shop has been recorded with, never live opening hours.
+- Availability — Any recorded status, Recorded as open, Hide recorded closures.
+  This filters the operational status a record carries. Opening hours are not
+  modelled, current availability is never inferred from partial hours, and
+  nothing here may read as *Open now*.
 
-The button carries a badge counting the criteria set inside the drawer. The
+The button carries a badge counting the criteria applied inside the drawer. The
 segment is not counted there because it is already on screen.
 
-**Every filter applies where it is pressed.** Visit status and availability are
-decided over the result set already in hand, so they take effect on the same
-frame. Shop type is resolved by the source, so it re-queries — against the bounds
-already committed, never against wherever the camera happens to be, and without
-disturbing an outstanding **Search this area**. **Search this area** is for
-movement; a filter is not movement, and making one wait for the other made the
-controls read as broken.
+**How a filter commits:**
 
-Clearing every filter, the segment included, is one action.
+- The **visit segment** is a top-level control. Pressing it is its commit: it is
+  decided over the result set already in hand, so it lands whole and at once.
+- The **drawer is a transaction.** Shop type and availability are edited as a
+  draft and commit together on **Apply filters**, which also closes the drawer.
+  Closing or cancelling discards the draft. **Clear** inside the drawer clears
+  the draft controls; applying that cleared state updates the results.
+
+One commit action, never a partial one: availability must not land while a shop
+type is still waiting on a query. The drawer shows the number of matching shops
+for the current draft whenever it can be counted exactly from the results already
+loaded, and says nothing rather than guessing when it cannot — a draft that
+widens the committed shop types, or a truncated result set.
+
+**Search this area** stays for camera movement alone. If the camera has moved,
+applying filters may commit those bounds and the filters together, and the
+button says so.
+
+Clearing every applied filter, the segment included, is one action from outside
+the drawer.
 
 ## Shop discovery
 
@@ -253,10 +275,15 @@ Clearing every filter, the segment included, is one action.
 1. Shop name, which is also the link that opens the shop.
 2. Locality/neighbourhood and primary type.
 3. One useful specialty/service line.
-4. Open/closed/unknown operational cue where reliable.
+4. Operational status, in three levels of attention: a success green for `Open`,
+   the filled amber for a confirmed closure, a softer amber outline for
+   `Status not confirmed`. This is about the shop, and stays separate from the
+   reader's own state below.
 5. Visited, when it applies. Saved is carried by the card's own **Save** control,
    which states it in text, icon and pressed state. Neither is drawn when it does
-   not apply: there is no "not visited" badge.
+   not apply: there is no "not visited" badge. The staging finding was that these
+   two and their absence were conflated into one pill; they are three separate
+   facts, and one of them is an absence.
 6. Primary image where rights are known.
 
 ### Shop page hierarchy

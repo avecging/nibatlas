@@ -22,8 +22,8 @@ function filters(overrides: Partial<ShopFilters> = {}): ShopFilters {
 }
 
 describe("filters", () => {
-  it("offers a three-way visit segment and no Unvisited position", () => {
-    expect([...STATUS_FILTERS]).toEqual(["all", "saved", "visited"]);
+  it("keeps all four visit choices", () => {
+    expect([...STATUS_FILTERS]).toEqual(["all", "unvisited", "saved", "visited"]);
   });
 
   it("counts active filters, and counts only the drawer's for the badge", () => {
@@ -31,7 +31,7 @@ describe("filters", () => {
     expect(drawerFilterCount(EMPTY_FILTERS)).toBe(0);
 
     const set = filters({
-      status: "saved",
+      status: "unvisited",
       shopTypes: ["vintage_used", "stationery_store"],
       availability: "open",
     });
@@ -63,16 +63,26 @@ describe("filters", () => {
   });
 
   /*
-   * Saved and visited are two states a reader owns, not two points on one axis:
-   * a shop that is both must answer to both segments.
+   * Independent sets, not four points on one axis. A shop that is saved and
+   * visited answers to both; a shop that is saved and unvisited is still
+   * unvisited.
    */
-  it("reads saved and visited as independent states", () => {
+  it("reads the four visit choices as independent sets", () => {
     const both = { saved: true, visited: true };
+    const savedOnly = { saved: true, visited: false };
+    const neither = { saved: false, visited: false };
 
     expect(matchesStatus(both, "saved")).toBe(true);
     expect(matchesStatus(both, "visited")).toBe(true);
-    expect(matchesStatus({ saved: false, visited: false }, "all")).toBe(true);
-    expect(matchesStatus({ saved: false, visited: false }, "saved")).toBe(false);
+    expect(matchesStatus(both, "unvisited")).toBe(false);
+
+    expect(matchesStatus(savedOnly, "saved")).toBe(true);
+    expect(matchesStatus(savedOnly, "unvisited")).toBe(true);
+    expect(matchesStatus(savedOnly, "visited")).toBe(false);
+
+    expect(matchesStatus(neither, "all")).toBe(true);
+    expect(matchesStatus(neither, "unvisited")).toBe(true);
+    expect(matchesStatus(neither, "saved")).toBe(false);
   });
 
   it("filters availability on recorded operational status only", () => {

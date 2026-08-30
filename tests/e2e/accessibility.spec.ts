@@ -70,6 +70,46 @@ for (const route of ROUTES) {
 }
 
 /*
+ * The filter drawer is a dialog reached by a control, so the route audit above
+ * never sees it. It is audited open, and its keyboard contract is asserted here
+ * rather than left to the visual review: focus moves in on open and back to the
+ * trigger on close, and Escape closes without applying.
+ */
+test("the filter drawer is accessible and keyboard-complete", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("list", { name: /shops in the searched area/i })).toBeVisible();
+
+  const handle = page.getByRole("button", { name: /results sheet/i });
+
+  if (await handle.isVisible().catch(() => false)) {
+    await handle.click();
+  }
+
+  const trigger = page.getByRole("button", { name: /^filters/i });
+
+  await trigger.click();
+
+  const drawer = page.getByRole("dialog", { name: "Filters" });
+  await expect(drawer).toBeVisible();
+  await settled(page, '[role="dialog"]');
+
+  // The drawer takes focus, so the next Tab lands inside it rather than back at
+  // the top of the results.
+  await expect(drawer).toBeFocused();
+  expect((await analyze(page)).violations).toEqual([]);
+
+  // A drafted change and an Escape: closed, discarded, focus returned.
+  await drawer.getByRole("button", { name: "Vintage / Used", exact: true }).click();
+  await page.keyboard.press("Escape");
+
+  await expect(drawer).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  await expect(page.getByTestId("filter-count")).toHaveCount(0);
+
+  expect((await analyze(page)).violations).toEqual([]);
+});
+
+/*
  * Me's signed-in state carries a form and a destructive confirmation, neither of
  * which exists in the signed-out audit above. It is reachable only through the
  * reviewer preview, so that is how it is audited.

@@ -2,22 +2,32 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { MapFilters } from "@/src/components/map/MapFilters";
-import { EMPTY_FILTERS } from "@/src/domain/filters";
+import { EMPTY_FILTERS, type ShopFilters } from "@/src/domain/filters";
+
+function filters(overrides: Partial<ShopFilters> = {}): ShopFilters {
+  return { ...EMPTY_FILTERS, ...overrides };
+}
 
 function renderFilters(overrides: Partial<Parameters<typeof MapFilters>[0]> = {}) {
   const handlers = {
-    onOpenChange: vi.fn(),
+    onOpen: vi.fn(),
+    onClose: vi.fn(),
     onStatusChange: vi.fn(),
-    onAvailabilityChange: vi.fn(),
-    onToggleType: vi.fn(),
+    onDraftAvailabilityChange: vi.fn(),
+    onToggleDraftType: vi.fn(),
+    onClearDraft: vi.fn(),
+    onApply: vi.fn(),
     onClear: vi.fn(),
   };
 
   const view = render(
     <MapFilters
       filters={EMPTY_FILTERS}
+      draftFilters={EMPTY_FILTERS}
       open={false}
-      resultCount={6}
+      hasUnapplied={false}
+      draftMatchCount={6}
+      appliesCamera={false}
       {...handlers}
       {...overrides}
     />,
@@ -27,7 +37,11 @@ function renderFilters(overrides: Partial<Parameters<typeof MapFilters>[0]> = {}
 }
 
 describe("MapFilters", () => {
-  it("offers a three-way visit segment with no Unvisited position", () => {
+  /*
+   * The staging finding was about presentation on a card, not about which
+   * filters exist. All four visit choices stay.
+   */
+  it("offers all four visit choices as a segment", () => {
     renderFilters();
 
     const segment = screen.getByRole("group", { name: "Visit status" });
@@ -36,16 +50,15 @@ describe("MapFilters", () => {
       within(segment)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["All", "Saved", "Visited"]);
-    expect(screen.queryByRole("button", { name: "Unvisited" })).not.toBeInTheDocument();
+    ).toEqual(["All", "Unvisited", "Saved", "Visited"]);
   });
 
-  it("changes the visit segment on press", () => {
+  it("commits the visit segment on press", () => {
     const { onStatusChange } = renderFilters();
 
-    fireEvent.click(screen.getByRole("button", { name: "Visited" }));
+    fireEvent.click(screen.getByRole("button", { name: "Unvisited" }));
 
-    expect(onStatusChange).toHaveBeenCalledWith("visited");
+    expect(onStatusChange).toHaveBeenCalledWith("unvisited");
   });
 
   it("keeps shop type and availability behind one labelled button", () => {
@@ -55,18 +68,20 @@ describe("MapFilters", () => {
     expect(
       screen.queryByRole("button", { name: "Fountain Pen Specialist" }),
     ).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Confirmed open" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Recorded as open" }),
+    ).not.toBeInTheDocument();
   });
 
   it("opens the drawer and reports it to the caller", () => {
-    const { onOpenChange } = renderFilters();
+    const { onOpen } = renderFilters();
     const trigger = screen.getByRole("button", { name: /filters/i });
 
     expect(trigger).toHaveAttribute("aria-expanded", "false");
 
     fireEvent.click(trigger);
 
-    expect(onOpenChange).toHaveBeenCalledWith(true);
+    expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
   it("shows shop type and availability inside the drawer", () => {
@@ -74,52 +89,122 @@ describe("MapFilters", () => {
 
     const drawer = screen.getByRole("dialog", { name: "Filters" });
 
-    expect(
-      within(drawer).getByRole("group", { name: "Shop type" }),
-    ).toBeInTheDocument();
+    expect(within(drawer).getByRole("group", { name: "Shop type" })).toBeInTheDocument();
     expect(
       within(drawer).getByRole("button", { name: "Fountain Pen Specialist" }),
     ).toBeInTheDocument();
     expect(
-      within(drawer).getByRole("button", { name: "Confirmed open" }),
+      within(drawer).getByRole("button", { name: "Recorded as open" }),
     ).toBeInTheDocument();
   });
 
-  it("toggles a shop type and an availability from the drawer", () => {
-    const { onToggleType, onAvailabilityChange } = renderFilters({ open: true });
+  /*
+   * Availability filters the status a record carries. Nothing here may read as
+   * "Open now".
+   */
+  it("names availability as a recorded status and never as open now", () => {
+    renderFilters({ open: true });
+
+    const drawer = screen.getByRole("dialog", { name: "Filters" });
+
+    for (const label of ["Any recorded status", "Recorded as open", "Hide recorded closures"]) {
+      expect(within(drawer).getByRole("button", { name: label })).toBeInTheDocument();
+    }
+
+    expect(within(drawer).queryByText(/open now/i)).not.toBeInTheDocument();
+    expect(
+      within(drawer).getByText(/not live opening hours/i),
+    ).toBeInTheDocument();
+  });
+
+  it("edits the draft rather than the applied filters", () => {
+    const { onToggleDraftType, onDraftAvailabilityChange } = renderFilters({ open: true });
 
     fireEvent.click(screen.getByRole("button", { name: "Vintage / Used" }));
-    fireEvent.click(screen.getByRole("button", { name: "Hide closed" }));
+    fireEvent.click(screen.getByRole("button", { name: "Hide recorded closures" }));
 
-    expect(onToggleType).toHaveBeenCalledWith("vintage_used");
-    expect(onAvailabilityChange).toHaveBeenCalledWith("not_closed");
+    expect(onToggleDraftType).toHaveBeenCalledWith("vintage_used");
+    expect(onDraftAvailabilityChange).toHaveBeenCalledWith("not_closed");
+  });
+
+  it("draws the drawer controls from the draft, not from what is applied", () => {
+    renderFilters({
+      open: true,
+      filters: EMPTY_FILTERS,
+      draftFilters: filters({ shopTypes: ["vintage_used"], availability: "open" }),
+    });
+
+    expect(screen.getByRole("button", { name: "Vintage / Used" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Recorded as open" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("commits every drawer dimension in one action", () => {
+    const { onApply } = renderFilters({
+      open: true,
+      hasUnapplied: true,
+      draftFilters: filters({ shopTypes: ["vintage_used"], availability: "open" }),
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Apply filters" }));
+
+    expect(onApply).toHaveBeenCalledTimes(1);
+  });
+
+  it("says when applying will also commit the camera the reader moved to", () => {
+    renderFilters({ open: true, appliesCamera: true });
+
+    expect(
+      screen.getByRole("button", { name: "Apply and search this area" }),
+    ).toBeInTheDocument();
+  });
+
+  it("clears the draft controls without applying them", () => {
+    const { onClearDraft, onApply } = renderFilters({
+      open: true,
+      draftFilters: filters({ shopTypes: ["vintage_used"] }),
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^clear$/i }));
+
+    expect(onClearDraft).toHaveBeenCalledTimes(1);
+    expect(onApply).not.toHaveBeenCalled();
   });
 
   /*
-   * The badge counts only what the drawer hides. The visit segment is on screen,
-   * so counting it would label a choice the reader can already see.
+   * The badge counts what is applied. It describes the results on screen, and
+   * the visit segment is not counted there because it is already visible.
    */
-  it("badges the count of criteria set behind the button", () => {
+  it("badges the applied drawer criteria only", () => {
     renderFilters({
-      filters: {
+      filters: filters({
         status: "saved",
         shopTypes: ["vintage_used", "stationery_store"],
         availability: "open",
-      },
+      }),
+      draftFilters: EMPTY_FILTERS,
     });
 
     expect(screen.getByTestId("filter-count")).toHaveTextContent("3");
   });
 
-  it("carries no badge when nothing is set behind the button", () => {
-    renderFilters({ filters: { ...EMPTY_FILTERS, status: "saved" } });
+  it("carries no badge for an unapplied draft", () => {
+    renderFilters({
+      filters: EMPTY_FILTERS,
+      draftFilters: filters({ shopTypes: ["vintage_used"] }),
+    });
 
     expect(screen.queryByTestId("filter-count")).not.toBeInTheDocument();
   });
 
-  it("clears every filter in one action", () => {
+  it("clears every applied filter in one action", () => {
     const { onClear } = renderFilters({
-      filters: { status: "saved", shopTypes: ["vintage_used"], availability: "open" },
+      filters: filters({ status: "saved", shopTypes: ["vintage_used"], availability: "open" }),
     });
 
     fireEvent.click(screen.getByRole("button", { name: /clear filters/i }));
@@ -127,37 +212,43 @@ describe("MapFilters", () => {
     expect(onClear).toHaveBeenCalledTimes(1);
   });
 
-  it("offers no clear when nothing is set", () => {
+  it("offers no clear when nothing is applied", () => {
     renderFilters();
 
-    expect(screen.queryByRole("button", { name: /clear filters/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /clear filters/i }),
+    ).not.toBeInTheDocument();
   });
 
-  /*
-   * A visit-segment choice is a filter too, so it must be clearable without
-   * opening a drawer that holds nothing.
-   */
   it("offers the clear for a visit filter the drawer does not hold", () => {
-    renderFilters({ filters: { ...EMPTY_FILTERS, status: "visited" } });
+    renderFilters({ filters: filters({ status: "unvisited" }) });
 
     expect(screen.getByRole("button", { name: /clear filters/i })).toBeInTheDocument();
   });
 
-  it("reports the live number of matching shops while the drawer is open", () => {
-    renderFilters({ open: true, resultCount: 1 });
+  it("reports the live number of draft matches when it can be counted", () => {
+    renderFilters({ open: true, draftMatchCount: 1 });
 
     expect(screen.getByText("1 shop match")).toBeInTheDocument();
   });
 
-  it("closes on Escape and on the scrim", () => {
-    const { onOpenChange, view } = renderFilters({ open: true });
+  /* A count the loaded set cannot answer exactly is not guessed at. */
+  it("says nothing rather than guessing when the draft cannot be counted", () => {
+    renderFilters({ open: true, draftMatchCount: null });
+
+    expect(screen.getByText("Apply to see what matches.")).toBeInTheDocument();
+    expect(screen.queryByText(/shops? match/)).not.toBeInTheDocument();
+  });
+
+  it("discards the draft on Escape and on the scrim", () => {
+    const { onClose, onApply, view } = renderFilters({ open: true, hasUnapplied: true });
 
     fireEvent.keyDown(document, { key: "Escape" });
-    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(onClose).toHaveBeenCalledTimes(1);
 
-    onOpenChange.mockClear();
     fireEvent.click(view.getByTestId("filter-scrim"));
-    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(onClose).toHaveBeenCalledTimes(2);
+    expect(onApply).not.toHaveBeenCalled();
   });
 
   it("moves focus into the drawer when it opens", () => {
@@ -166,12 +257,18 @@ describe("MapFilters", () => {
     view.rerender(
       <MapFilters
         filters={EMPTY_FILTERS}
+        draftFilters={EMPTY_FILTERS}
         open
-        resultCount={6}
-        onOpenChange={() => {}}
+        hasUnapplied={false}
+        draftMatchCount={6}
+        appliesCamera={false}
+        onOpen={() => {}}
+        onClose={() => {}}
         onStatusChange={() => {}}
-        onAvailabilityChange={() => {}}
-        onToggleType={() => {}}
+        onDraftAvailabilityChange={() => {}}
+        onToggleDraftType={() => {}}
+        onClearDraft={() => {}}
+        onApply={() => {}}
         onClear={() => {}}
       />,
     );

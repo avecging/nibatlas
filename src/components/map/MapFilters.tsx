@@ -20,47 +20,72 @@ import styles from "./MapFilters.module.css";
 
 const STATUS_LABELS: Record<StatusFilter, string> = {
   all: "All",
+  unvisited: "Unvisited",
   saved: "Saved",
   visited: "Visited",
 };
 
+/**
+ * Never `Open now`.
+ *
+ * These filter the operational status a record carries. Nib Atlas does not model
+ * opening hours and does not infer current availability from partial ones, so
+ * every label says "recorded" and the drawer repeats it in full underneath.
+ */
 const AVAILABILITY_LABELS: Record<AvailabilityFilter, string> = {
-  any: "Any status",
-  open: "Confirmed open",
-  not_closed: "Hide closed",
+  any: "Any recorded status",
+  open: "Recorded as open",
+  not_closed: "Hide recorded closures",
 };
 
 interface MapFiltersProps {
+  /** What the displayed results are under. */
   readonly filters: ShopFilters;
+  /** The drawer's working copy, discarded unless applied. */
+  readonly draftFilters: ShopFilters;
   readonly open: boolean;
-  /** Results currently matching, so the drawer can show that a change landed. */
-  readonly resultCount: number;
-  readonly onOpenChange: (open: boolean) => void;
+  readonly hasUnapplied: boolean;
+  /** Exact number of draft matches, or `null` when it cannot be counted. */
+  readonly draftMatchCount: number | null;
+  /** Whether applying will also commit the camera the reader has moved to. */
+  readonly appliesCamera: boolean;
+  readonly onOpen: () => void;
+  readonly onClose: () => void;
   readonly onStatusChange: (status: StatusFilter) => void;
-  readonly onAvailabilityChange: (availability: AvailabilityFilter) => void;
-  readonly onToggleType: (shopType: ShopType) => void;
+  readonly onDraftAvailabilityChange: (availability: AvailabilityFilter) => void;
+  readonly onToggleDraftType: (shopType: ShopType) => void;
+  readonly onClearDraft: () => void;
+  readonly onApply: () => void;
   readonly onClear: () => void;
 }
 
 /**
  * Visit segment in the open, everything else behind one labelled button.
  *
- * The segment is three-way — All, Saved, Visited — because visited and saved are
- * two things a reader owns rather than three points on one axis. Shop type and
- * availability live in the drawer, and the button carries the count of what is
- * set there, so a reader who has collapsed it can still see that something is
- * narrowing their results.
+ * The segment is a top-level control and commits on press: it is decided over
+ * the results already in hand, so it lands whole and at once.
  *
- * Every control here applies on press. Nothing waits for `Search this area`.
+ * The drawer is a transaction. Shop type and availability are edited as a draft
+ * and commit together on **Apply filters**, which also closes the drawer;
+ * closing or cancelling discards the draft. That is what stops a reader seeing
+ * availability land while a shop type is still waiting on a query. The segment
+ * sits behind the drawer's scrim while it is open, so the two can never
+ * interleave.
  */
 export function MapFilters({
   filters,
+  draftFilters,
   open,
-  resultCount,
-  onOpenChange,
+  hasUnapplied,
+  draftMatchCount,
+  appliesCamera,
+  onOpen,
+  onClose,
   onStatusChange,
-  onAvailabilityChange,
-  onToggleType,
+  onDraftAvailabilityChange,
+  onToggleDraftType,
+  onClearDraft,
+  onApply,
   onClear,
 }: MapFiltersProps) {
   const drawerId = useId();
@@ -69,8 +94,11 @@ export function MapFilters({
   const drawerRef = useRef<HTMLDivElement | null>(null);
   const wasOpen = useRef(open);
 
+  // The badge counts what is applied, not what is being drafted: it describes
+  // the results on screen.
   const drawerCount = drawerFilterCount(filters);
   const totalCount = activeFilterCount(filters);
+  const draftCount = drawerFilterCount(draftFilters);
 
   useEffect(() => {
     if (open === wasOpen.current) {
@@ -95,14 +123,14 @@ export function MapFilters({
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        onOpenChange(false);
+        onClose();
       }
     };
 
     document.addEventListener("keydown", onKeyDown);
 
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [onOpenChange, open]);
+  }, [onClose, open]);
 
   return (
     <section className={styles.bar} aria-label="Result filters" data-filters-open={open}>
@@ -128,14 +156,14 @@ export function MapFilters({
           aria-haspopup="dialog"
           aria-controls={drawerId}
           data-active={drawerCount > 0}
-          onClick={() => onOpenChange(!open)}
+          onClick={() => (open ? onClose() : onOpen())}
         >
           <Icon name="filter" size={16} />
           Filters
           {drawerCount > 0 ? (
             <span className={styles.count} data-testid="filter-count">
               {drawerCount}
-              <span className="visually-hidden"> filters set</span>
+              <span className="visually-hidden"> filters applied</span>
             </span>
           ) : null}
         </button>
@@ -151,7 +179,7 @@ export function MapFilters({
           <div
             className={styles.scrim}
             data-testid="filter-scrim"
-            onClick={() => onOpenChange(false)}
+            onClick={onClose}
             aria-hidden="true"
           />
           <div
@@ -170,8 +198,8 @@ export function MapFilters({
               <button
                 type="button"
                 className={styles.close}
-                aria-label="Close filters"
-                onClick={() => onOpenChange(false)}
+                aria-label="Close filters without applying"
+                onClick={onClose}
               >
                 <Icon name="close" size={18} />
               </button>
@@ -182,8 +210,8 @@ export function MapFilters({
                 {SHOP_TYPES.map((shopType) => (
                   <Chip
                     key={shopType}
-                    pressed={filters.shopTypes.includes(shopType)}
-                    onToggle={() => onToggleType(shopType)}
+                    pressed={draftFilters.shopTypes.includes(shopType)}
+                    onToggle={() => onToggleDraftType(shopType)}
                   >
                     {SHOP_TYPE_LABELS[shopType]}
                   </Chip>
@@ -196,30 +224,44 @@ export function MapFilters({
                 {AVAILABILITY_FILTERS.map((availability) => (
                   <Chip
                     key={availability}
-                    pressed={filters.availability === availability}
-                    onToggle={() => onAvailabilityChange(availability)}
+                    pressed={draftFilters.availability === availability}
+                    onToggle={() => onDraftAvailabilityChange(availability)}
                   >
                     {AVAILABILITY_LABELS[availability]}
                   </Chip>
                 ))}
               </div>
               <p className={styles.note}>
-                Availability is the operational status a shop has been recorded
-                with. It is not live opening hours.
+                This is the operational status recorded for a shop, not live
+                opening hours. Nib Atlas does not know whether a shop is open
+                right now.
               </p>
             </FilterGroup>
 
             <div className={styles.drawerFoot}>
               <p className={styles.liveCount} aria-live="polite">
-                {resultCount} shop{resultCount === 1 ? "" : "s"} match
+                {draftMatchCount === null
+                  ? "Apply to see what matches."
+                  : `${draftMatchCount} shop${draftMatchCount === 1 ? "" : "s"} match`}
               </p>
-              <button
-                type="button"
-                className={styles.done}
-                onClick={() => onOpenChange(false)}
-              >
-                Done
-              </button>
+              <div className={styles.drawerActions}>
+                <button
+                  type="button"
+                  className={styles.clearDraft}
+                  disabled={draftCount === 0 && draftFilters.status === "all"}
+                  onClick={onClearDraft}
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  className={styles.apply}
+                  data-unapplied={hasUnapplied}
+                  onClick={onApply}
+                >
+                  {appliesCamera ? "Apply and search this area" : "Apply filters"}
+                </button>
+              </div>
             </div>
           </div>
         </>

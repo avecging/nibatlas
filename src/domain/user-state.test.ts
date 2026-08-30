@@ -62,6 +62,22 @@ describe("user shop state", () => {
     expect(saved[0]?.markerState).toBe("visited");
   });
 
+  /*
+   * `Unvisited` is the absence of a visit, not the absence of every state: a
+   * shop the reader has saved but not yet been to belongs in it.
+   */
+  it("keeps a saved-but-unvisited shop in the Unvisited segment", () => {
+    const unvisited = decorateResults(
+      publicProjection,
+      userState,
+      filters({ status: "unvisited" }),
+    );
+
+    expect(unvisited.map((shop) => shop.id)).toContain(second.id);
+    expect(unvisited.map((shop) => shop.id)).not.toContain(first.id);
+    expect(unvisited.find((shop) => shop.id === second.id)?.markerState).toBe("saved");
+  });
+
   it("filters on recorded availability", () => {
     const open = decorateResults(
       publicProjection,

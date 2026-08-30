@@ -1,8 +1,9 @@
 # Milestone 1.5 WP6 — map filter drawer and card/marker interaction
 
-Screenshots of the three-way visit segment, the filter drawer, the active count
-and one-tap clear, the separated card states, and the card-to-marker highlight,
-at the three breakpoints `IMPLEMENTATION-PLAN.md` names.
+Screenshots of the four-way visit segment, the filter drawer as a transaction,
+the applied count and one-tap clear, the separated card states, and the
+card-to-marker highlight, at the three breakpoints `IMPLEMENTATION-PLAN.md`
+names.
 
 Recorded 30 August 2026, against the WP6 implementation record in
 `docs/milestone-1-5-product-refinement.md`.
@@ -19,8 +20,9 @@ reviews that already happened.
 
 Every capture commits a viewport over Ginza first, so the result set is a real
 committed search rather than the opening world view, and raises the mobile sheet
-to Full because Peek deliberately shows no filters. Animations are disabled at
-capture time. The captures are viewport-sized rather than full-page: the drawer
+to Full because Peek deliberately shows no filters. The pointer is moved off the
+results afterwards, so a resting state is captured resting rather than with a
+card under the cursor. Animations are disabled at capture time. The captures are viewport-sized rather than full-page: the drawer
 and the marker highlight are both positioned against the viewport.
 
 ## Naming
@@ -33,10 +35,11 @@ and the marker highlight are both positioned against the viewport.
 
 | State | What it shows |
 | --- | --- |
-| `filters-rest` | The resting filter row: All / Saved / Visited, and one **Filters** button |
-| `filters-drawer` | The drawer open: shop type, availability, the honesty note, and the live match count |
-| `filters-active` | An availability filter applied, the count badge on the button, and **Clear filters** beside it |
-| `card-states` | A card's states as separate facts: operational status, `Visited` where it applies, and `Saved` carried by its own control |
+| `filters-rest` | The resting filter row: All / Unvisited / Saved / Visited, and one **Filters** button |
+| `filters-drawer` | The drawer open: shop type, availability, the recorded-status note, and **Clear** beside **Apply filters** |
+| `filters-draft` | A draft held but not committed: two dimensions selected, the exact match count, and the results behind still unchanged |
+| `filters-active` | After **Apply filters**: the count badge on the button, and **Clear filters** beside it |
+| `card-states` | A card's states as separate facts: operational status about the shop, `Visited` where it applies, and `Saved` carried by its own control |
 | `card-highlight` | A focused card and its marker highlighted together |
 
 ## What these are not
