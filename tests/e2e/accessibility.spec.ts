@@ -170,15 +170,22 @@ test("both Passport modes, the enlarged stamp and a seal are accessible", async 
   expect((await analyze(page)).violations).toEqual([]);
 });
 
+
 test("the collection dialogs are accessible", async ({ page }) => {
   await page.goto("/shops/juspirit-banqiao");
   await page.getByRole("button", { name: /^collect stamp$/i }).click();
+
   await expect(page.getByRole("dialog", { name: /before you collect/i })).toBeVisible();
+  await settled(page, '[role="dialog"]');
 
   expect((await analyze(page)).violations).toEqual([]);
 
   await page.getByRole("button", { name: /^i am at this shop$/i }).click();
+
   await expect(page.getByRole("dialog", { name: /impression collected/i })).toBeVisible();
+  // The ceremony now shares `ImpressionSheet` with the Passport's overlays, so
+  // it has the same entrance — and the same reason to be audited settled.
+  await settled(page, '[role="dialog"]');
 
   expect((await analyze(page)).violations).toEqual([]);
 });
@@ -252,10 +259,9 @@ test("the Passport book is reachable and operable from the keyboard", async ({ p
   expect((await analyze(page)).violations).toEqual([]);
 });
 
-test("every control meets the minimum touch target size", async ({ page }) => {
-  await page.goto("/shops/ginza-itoya-main-store");
-
-  const undersized = await page.evaluate(() => {
+/** Every standalone control on the page that is under 44 px in either axis. */
+async function undersizedControls(page: Page) {
+  return page.evaluate(() => {
     const failures: string[] = [];
 
     for (const element of document.querySelectorAll("button, a[href]")) {
@@ -267,13 +273,65 @@ test("every control meets the minimum touch target size", async ({ page }) => {
         continue;
       }
 
-      if (rect.height < 44) {
-        failures.push(`${element.tagName}: ${element.textContent?.trim().slice(0, 40)}`);
+      // The scrim behind a modal is a full-bleed dismissal affordance that is
+      // hidden from assistive technology and never the accessible route out.
+      if (element.getAttribute("aria-hidden") === "true") {
+        continue;
+      }
+
+      // Rounded before comparing: a 2.75 rem box measures 43.99 px at some
+      // device pixel ratios, and that is a 44 px target.
+      if (Math.round(rect.height) < 44 || Math.round(rect.width) < 44) {
+        failures.push(
+          `${element.tagName}: ${
+            element.textContent?.trim().slice(0, 40) ||
+            element.getAttribute("aria-label")
+          } (${Math.round(rect.width)}x${Math.round(rect.height)})`,
+        );
       }
     }
 
     return failures;
   });
+}
 
-  expect(undersized).toEqual([]);
+test("every control meets the minimum touch target size", async ({ page }) => {
+  await page.goto("/shops/ginza-itoya-main-store");
+
+  expect(await undersizedControls(page)).toEqual([]);
+});
+
+/**
+ * The same audit across the surfaces WP5 touched.
+ *
+ * The Passport's own List/Book control was 38 px high — the tap target token
+ * less six, so the pill would sit tight inside its track — which put the one
+ * control that switches the Passport's mode under the minimum `BRAND.md` sets
+ * for every control in the product.
+ */
+test("the Passport and its overlays meet it too", async ({ page }) => {
+  await seedSampleCollection(page);
+  await page.goto("/passport");
+  await expect(page.getByRole("group", { name: "Passport view" })).toBeVisible();
+
+  expect(await undersizedControls(page)).toEqual([]);
+
+  await page.getByRole("button", { name: /Ginza Itoya Main Store/ }).first().click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  expect(await undersizedControls(page)).toEqual([]);
+
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: /country seal/i }).first().click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  expect(await undersizedControls(page)).toEqual([]);
+
+  await page.keyboard.press("Escape");
+  await page
+    .getByRole("group", { name: "Passport view" })
+    .getByRole("button", { name: "Book", exact: true })
+    .click();
+  await page.getByRole("button", { name: /open passport/i }).click();
+  await expect(page.getByRole("button", { name: /previous page/i })).toBeVisible();
+
+  expect(await undersizedControls(page)).toEqual([]);
 });

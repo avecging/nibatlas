@@ -1,9 +1,19 @@
+/*
+ * The map fills the frame it is given.
+ *
+ * It used to subtract the chrome itself — `calc(100dvh - var(--nav-height))` on
+ * mobile and `calc(100dvh - 3.5rem)` at desktop — and both were wrong by the
+ * navigation's own 1 px border and by whatever the header actually measured, so
+ * the map document was permanently a pixel or two taller than the viewport.
+ * `AppShell` now owns the available height for every surface; this takes it.
+ */
 .layout {
   position: relative;
   display: grid;
   grid-template-rows: 1fr;
   min-height: 0;
-  height: calc(100dvh - var(--nav-height));
+  height: 100%;
+  overflow: hidden;
   background: var(--bg-canvas);
 }
 
@@ -303,7 +313,6 @@
   .layout {
     grid-template-columns: 65fr 35fr;
     grid-template-rows: 1fr;
-    height: calc(100dvh - 3.5rem);
   }
 
   /* The desktop split has no sheet, so the pill returns to the map's own edge. */

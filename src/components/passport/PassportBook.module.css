@@ -61,7 +61,20 @@
   --book-tilt-y: 0deg;
   --book-tilt-x: 1.5deg;
 
-  position: relative;
+  /*
+   * Centred on the stage by position, not by alignment.
+   *
+   * The object keeps its full leaf geometry in layout — the page-turn maths
+   * depends on it — and only `scale()` makes it fit, so on a short screen the
+   * element is larger than the stage it sits in. A grid item that overflows its
+   * area has its start edge pinned rather than being centred, which put the
+   * scaled book below the stage and behind the pager on a 568 px-tall screen.
+   * Absolute centring is indifferent to which is bigger, so what does not fit is
+   * clipped evenly at both edges instead.
+   */
+  position: absolute;
+  top: 50%;
+  left: 50%;
   width: calc(var(--leaf-width) * 2);
   height: var(--leaf-height);
   /*
@@ -73,8 +86,9 @@
    */
   perspective: 1700px;
   transform-style: flat;
-  transform: scale(var(--book-scale, 1)) translateX(var(--book-shift))
-    rotateY(var(--book-tilt-y)) rotateX(var(--book-tilt-x));
+  transform: translate(-50%, -50%) scale(var(--book-scale, 1))
+    translateX(var(--book-shift)) rotateY(var(--book-tilt-y))
+    rotateX(var(--book-tilt-x));
   transition:
     transform var(--motion-cover-open) var(--ease-paper);
   touch-action: pan-y;
@@ -595,9 +609,17 @@
   --book-tilt-x: 0deg;
 }
 
-.book[data-reduced-motion="true"][data-opened="false"] {
-  --book-shift: calc(var(--leaf-width) / -2);
-}
+/*
+ * The closed shift is the layout's, not the animation's.
+ *
+ * This block used to restate `--book-shift` for a closed book under reduced
+ * motion. It is already set by `[data-opened="false"]` for a spread and cleared
+ * by `[data-mode="single"][data-opened="false"]` for a portrait reader, and
+ * restating it here — at equal specificity, later in the file — put the mobile
+ * closed cover half a leaf to the left of centre whenever motion was reduced.
+ * The reduced-motion block owns the tilts and the transitions; it does not own
+ * where the object sits.
+ */
 
 .book[data-reduced-motion="true"] .cover {
   transition: opacity var(--motion-reduced-fade) linear;

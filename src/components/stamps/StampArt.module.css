@@ -1,15 +1,18 @@
 /*
- * One impression. `mix-blend-mode: multiply` is what makes the ink read as ink
- * sitting in paper rather than a sticker placed on top of it.
+ * One impression.
+ *
+ * `mix-blend-mode: multiply` is what makes the ink read as ink sitting in paper
+ * rather than a sticker placed on top of it, so the impression is always drawn
+ * onto `ImpressionPlate`'s stock rather than onto a surface of its own.
+ *
+ * The figure takes the width it is given. It carries no maximum of its own:
+ * capping it here is what left the enlarged Passport impression at 13 rem in a
+ * dialog with room for far more, which is half of why it did not read as the
+ * same object as the impression a shop page shows.
  */
 .stamp {
   display: block;
   width: 100%;
-  max-width: 13rem;
-}
-
-.small {
-  max-width: 7.5rem;
 }
 
 .canvas {
@@ -26,6 +29,14 @@
   letter-spacing: 4px;
 }
 
+/* The same overline at the size a 4.75 rem impression can actually carry. */
+.tierCompact {
+  font-family: var(--font-sans);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 5px;
+}
+
 .name {
   font-family: var(--font-serif);
   font-weight: 600;
@@ -33,7 +44,6 @@
 
 .local {
   font-family: var(--font-serif);
-  font-size: 26px;
 }
 
 .parent {

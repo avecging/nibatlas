@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useId } from "react";
 
 import { localeForCountry } from "@/src/components/shops/locale";
+import { ImpressionPlate } from "@/src/components/stamps/ImpressionPlate";
 import { StampArt } from "@/src/components/stamps/StampArt";
 import { Icon } from "@/src/components/ui/Icon";
 import type {
@@ -107,12 +108,9 @@ function SealButton({
       type="button"
     >
       <span className={styles.sealArt} aria-hidden="true">
-        <StampArt
-          size="small"
-          stamp={seal.stamp}
-          subtitle={seal.earnedOn}
-          title={name}
-        />
+        <ImpressionPlate size={size === "country" ? "card" : "thumb"}>
+          <StampArt detail="compact" stamp={seal.stamp} title={name} />
+        </ImpressionPlate>
       </span>
       <span className="visually-hidden">
         {seal.scope === "country" ? "Country seal" : "Locality seal"}, {name}, earned{" "}
@@ -138,12 +136,13 @@ function StampRow({
     <li className={styles.stampRow}>
       <button className={styles.stampButton} type="button" onClick={onSelect}>
         <span className={styles.stampThumb} aria-hidden="true">
-          <StampArt
-            stamp={collection.stamp}
-            title={collection.shopNameSnapshot}
-            subtitle={collection.collectedOn}
-            size="small"
-          />
+          <ImpressionPlate size="thumb">
+            <StampArt
+              detail="compact"
+              stamp={collection.stamp}
+              title={collection.shopNameSnapshot}
+            />
+          </ImpressionPlate>
         </span>
         <span className={styles.stampText}>
           <span className={styles.stampName}>{collection.shopNameSnapshot}</span>

@@ -240,6 +240,19 @@
   gap: var(--space-3);
 }
 
+/*
+ * Without the bookmark there is only the name, and it takes the whole row.
+ *
+ * Auto-placement put a lone name into the bookmark's 44 px column, and
+ * `overflow-wrap: anywhere` — which is there so a long name wraps rather than
+ * truncating — then broke it two characters to a line. Only the styleguide
+ * specimen renders the plate without a Save control, which is why the shop page
+ * never showed it.
+ */
+.heroNameRow[data-save="false"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .heroPlace {
   color: var(--text-secondary);
   font-size: var(--type-body-sm-size);

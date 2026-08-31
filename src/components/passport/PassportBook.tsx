@@ -45,6 +45,14 @@ import styles from "./PassportBook.module.css";
 const LEAF_WIDTH = 340;
 const LEAF_HEIGHT = 476;
 const COVER_OPEN_MS = 760;
+/**
+ * The smallest the object may be drawn.
+ *
+ * A floor rather than a target: below this the page furniture stops being type.
+ * On a viewport short enough to hit it the stage clips the object rather than
+ * the frame growing, because the controls are what must stay reachable.
+ */
+const MIN_BOOK_SCALE = 0.3;
 const PAGE_TURN_MS = 560;
 const DRAG_INTENT_PX = 12;
 
@@ -128,6 +136,7 @@ export function PassportBook({
 
   const headingPrefix = useId();
   const fieldRef = useRef<HTMLDivElement | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
   const bookRef = useRef<HTMLDivElement | null>(null);
   const leafRef = useRef<HTMLDivElement | null>(null);
   const turnRef = useRef<ActiveTurn | null>(null);
@@ -213,18 +222,31 @@ export function PassportBook({
   }, [onPlaceChange, opened, placeKey]);
 
 
-  // Fit the book to the field. The object should read as an object, so it keeps
-  // generous negative space rather than filling the panel.
+  /*
+   * Fit the book to the stage, not to the field.
+   *
+   * The stage is the `1fr` row the field gives the object; the pager and the
+   * hint have their own rows below it. Measuring the field meant subtracting
+   * their height back out by hand — a `verticalPad` constant of 132 px that was
+   * right for one arrangement of one control strip and silently wrong for a
+   * strip that had wrapped onto two rows, which is what happens below 480 px.
+   * Measuring the stage asks the layout what the object actually has.
+   *
+   * With the frame now locked to the viewport in Book mode, the stage really is
+   * the space left after the header, the toolbar, the pager and the section
+   * navigation — so on a short device the book scales down instead of pushing
+   * its own pager out of the frame.
+   */
   useLayoutEffect(() => {
-    const field = fieldRef.current;
+    const stage = stageRef.current;
 
-    if (!field) {
+    if (!stage) {
       return;
     }
 
     const measure = () => {
-      const width = field.clientWidth;
-      const height = field.clientHeight;
+      const width = stage.clientWidth;
+      const height = stage.clientHeight;
 
       if (width === 0 || height === 0) {
         return;
@@ -232,8 +254,10 @@ export function PassportBook({
 
       const bookWidth =
         mode === "spread" && opened ? LEAF_WIDTH * 2 : LEAF_WIDTH;
-      const horizontalPad = mode === "spread" ? 96 : 32;
-      const verticalPad = 132;
+      const horizontalPad = mode === "spread" ? 64 : 28;
+      // Enough clearance for the closed book's three-quarter tilt and its cast
+      // shadow, which sit outside the leaf box.
+      const verticalPad = 24;
 
       // What actually fits, with room left over for the object to read as an
       // object rather than as a panel.
@@ -247,17 +271,19 @@ export function PassportBook({
       // `docs/passport-interaction-spec.md` asks for roughly 38-52% of the
       // shorter content dimension. Open, the spread may take the room it needs
       // to stay readable.
-      const closedFraction = mode === "spread" ? 0.46 : 0.62;
+      const closedFraction = mode === "spread" ? 0.52 : 0.7;
       const closedFit =
-        (closedFraction * Math.min(width, height)) / LEAF_HEIGHT;
+        (closedFraction * Math.min(width, height * 1.34)) / LEAF_HEIGHT;
 
-      setScale(Math.max(0.34, opened ? fits : Math.min(fits, closedFit)));
+      setScale(
+        Math.max(MIN_BOOK_SCALE, opened ? fits : Math.min(fits, closedFit)),
+      );
     };
 
     measure();
 
     const observer = new ResizeObserver(measure);
-    observer.observe(field);
+    observer.observe(stage);
 
     return () => observer.disconnect();
   }, [mode, opened]);
@@ -617,6 +643,7 @@ export function PassportBook({
     <div className={styles.field} ref={fieldRef} data-opened={opened ? "true" : "false"}>
       <div
         className={styles.stage}
+        ref={stageRef}
         style={{ "--book-scale": scale } as React.CSSProperties}
       >
         <div
