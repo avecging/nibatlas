@@ -101,7 +101,19 @@
   color: var(--warning);
 }
 
+/*
+ * The prototype notice is the one badge that can hold a sentence rather than a
+ * short status word, so it is the one that wraps. `white-space: nowrap` above
+ * is right for a status pill and wrong for a notice: an un-wrappable sentence
+ * gave the styleguide a 598 px minimum width, which pushed a 360 px layout out
+ * to 614 px and made a mobile browser zoom the whole page out.
+ */
 .prototype {
+  white-space: normal;
+  /* A pill radius on a wrapped sentence reads as a mistake; a card radius does
+     not. */
+  border-radius: var(--radius-md);
+  padding: var(--space-1) var(--space-2);
   border-color: var(--border-strong);
   background: var(--bg-surface-warm);
   color: var(--text-secondary);

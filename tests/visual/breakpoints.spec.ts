@@ -96,6 +96,77 @@ for (const breakpoint of BREAKPOINTS) {
 }
 
 /*
+ * The impression family, as baselines.
+ *
+ * WP5's whole subject is material that has to look like one system, and a
+ * screenshot is the only thing that can regress it. Three states: the Passport's
+ * book open on a locality page, where impressions sit on the leaf itself; the
+ * enlarged shop impression; and the enlarged country seal, which has to stay
+ * recognisably a different artefact on the same paper.
+ */
+for (const breakpoint of BREAKPOINTS) {
+  test(`passport-book-open at ${breakpoint.name}`, async ({ page }) => {
+    await seedPassportView(page, { mode: "book", coverSeen: true });
+    await page.setViewportSize({ width: breakpoint.width, height: breakpoint.height });
+    await page.goto("/passport");
+    await expect(page.getByRole("button", { name: /^cover$/i })).toBeVisible();
+
+    await expect(page).toHaveScreenshot(`passport-book-open-${breakpoint.name}.png`, {
+      animations: "disabled",
+      maxDiffPixelRatio: 0.02,
+    });
+  });
+
+  test(`impression-detail at ${breakpoint.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: breakpoint.width, height: breakpoint.height });
+    await page.goto("/passport");
+    await page
+      .getByRole("button", { name: /Ginza Itoya Main Store/ })
+      .first()
+      .click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+
+    await expect(page).toHaveScreenshot(`impression-detail-${breakpoint.name}.png`, {
+      animations: "disabled",
+      maxDiffPixelRatio: 0.02,
+    });
+  });
+
+  test(`seal-detail at ${breakpoint.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: breakpoint.width, height: breakpoint.height });
+    await page.goto("/passport");
+    await page.getByRole("button", { name: /country seal/i }).first().click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+
+    await expect(page).toHaveScreenshot(`seal-detail-${breakpoint.name}.png`, {
+      animations: "disabled",
+      maxDiffPixelRatio: 0.02,
+    });
+  });
+}
+
+/*
+ * A reduced-height mobile screen.
+ *
+ * The Passport's book took its own intrinsic height rather than the frame's, so
+ * on a viewport shorter than the three breakpoints — which is every real phone
+ * showing its browser chrome — the Passport became a scrolling document and its
+ * pager fell below the fold. This baseline is the one that would show that
+ * coming back.
+ */
+test("passport-book-short at mobile-360x568", async ({ page }) => {
+  await seedPassportView(page, { mode: "book", coverSeen: true });
+  await page.setViewportSize({ width: 360, height: 568 });
+  await page.goto("/passport");
+  await expect(page.getByRole("button", { name: /^cover$/i })).toBeVisible();
+
+  await expect(page).toHaveScreenshot("passport-book-short-mobile-360x568.png", {
+    animations: "disabled",
+    maxDiffPixelRatio: 0.02,
+  });
+});
+
+/*
  * Me's signed-in state is a different screen, not the same screen with extra
  * rows, so it gets its own baseline. It is reachable only through the reviewer
  * preview until Milestone 4 builds authentication, and the reviewer badge and

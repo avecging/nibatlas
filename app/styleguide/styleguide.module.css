@@ -1,5 +1,16 @@
+/*
+ * The styleguide is a page in the same application frame as everything else.
+ *
+ * `minmax(0, 1fr)` rather than an implicit `auto` column: a grid track's
+ * automatic minimum is its content's min-content width, so one specimen with a
+ * wide minimum widened the whole document. At 360 px that pushed the layout to
+ * 614 px, and a mobile browser answered by zooming the page out — which is
+ * literally a different effective viewport from every other screen in the
+ * product, and is what WP5's viewport brief was about.
+ */
 .page {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-8);
 }
 
@@ -26,7 +37,7 @@
 
 .swatches {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(9rem, 100%), 1fr));
   gap: var(--space-3);
 }
 
@@ -50,6 +61,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-4);
+  min-width: 0;
 }
 
 .markerCell {
@@ -60,10 +72,37 @@
   color: var(--text-secondary);
 }
 
+/*
+ * Specimen shelves.
+ *
+ * `auto-fill` with a zero minimum, so a shelf narrows to the column it is in
+ * rather than setting the column's width from its widest specimen.
+ */
 .stamps {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(12rem, 100%), 1fr));
   gap: var(--space-4);
+  align-items: start;
+}
+
+.stamps[data-specimen="compact"],
+.stamps[data-specimen="motif"] {
+  grid-template-columns: repeat(auto-fill, minmax(min(7rem, 100%), 1fr));
+}
+
+.specimen {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.specimenCaption {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 /*
@@ -75,5 +114,11 @@
 .shopValue {
   display: grid;
   gap: var(--space-4);
-  max-width: 34rem;
+  /*
+   * `min()` rather than a bare `34rem`: a max-width alone still lets the
+   * specimen's own minimum size the grid track, which is how a 544 px block
+   * ended up inside a 328 px column.
+   */
+  max-width: min(34rem, 100%);
+  min-width: 0;
 }

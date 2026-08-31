@@ -136,6 +136,35 @@
   --passport-edge-deep: #d8ceb7;
 
   /*
+   * Impression material.
+   *
+   * One physical vocabulary for every Atlas Stamp and every derived seal,
+   * wherever it appears: a List row, a book page, an enlarged overlay, the
+   * collection ceremony, or a styleguide specimen. WP5's brief was that these
+   * had drifted into parallel approximations of the same idea — one surface
+   * put the impression on a bordered paper ground, another on whatever happened
+   * to be behind it — so the stock, the edge, the depth and the press angle are
+   * declared once here and consumed by the shared plate.
+   *
+   * `--impression-tilt` is the single restrained irregularity BRAND.md asks
+   * for at the plate level; the ink's own imperfect edge and pressure mottle
+   * are drawn inside the impression itself.
+   */
+  --impression-paper: var(--passport-page);
+  --impression-paper-shade: #f4ecdc;
+  --impression-edge: rgba(16, 45, 70, 0.13);
+  --impression-contact: rgba(16, 45, 70, 0.16);
+  --impression-tilt: -2.4deg;
+  --impression-grain: rgba(16, 45, 70, 0.028);
+
+  /*
+   * Modal depth. Shared by every dialog that floats over the product — the
+   * enlarged impression, the enlarged seal, the collection ceremony and the
+   * collection preflight — so they read as the same kind of surface.
+   */
+  --shadow-overlay: 0 24px 60px rgba(16, 45, 70, 0.32);
+
+  /*
    * The eight shared global stamp inks. This mirrors `STAMP_INK_HEX` in
    * `src/domain/stamp-palette.ts`. A standard stamp uses exactly one of them,
    * and no ink belongs to a country, locality, tier, rarity, or achievement.

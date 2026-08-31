@@ -7,6 +7,7 @@ import {
   ShopValueGap,
   ShopWhatYouCanDo,
 } from "@/src/components/shops/ShopValueSections";
+import { ImpressionPlate } from "@/src/components/stamps/ImpressionPlate";
 import { StampArt } from "@/src/components/stamps/StampArt";
 import { Button } from "@/src/components/ui/Button";
 import { Icon } from "@/src/components/ui/Icon";
@@ -267,42 +268,152 @@ export default function StyleguidePage() {
           Frame anatomy carries tier, never colour: rounded for a shop, cornered
           for a locality, double-ruled for a country.
         </p>
-        <div className={styles.stamps}>
+        <div className={styles.stamps} data-specimen="tier">
           {(["shop", "locality", "country"] as const).map((tier) => (
-            <StampArt
-              key={tier}
-              stamp={{
-                id: `styleguide-${tier}`,
-                tier,
-                motif: "storefront",
-                ink: inkForStampKey(`styleguide-${tier}`),
-                localityLabel: "Chūō, Tokyo",
-                countryLabel: "Japan",
-                designVersion: PROTOTYPE_DESIGN_VERSION,
-                paletteVersion: STAMP_PALETTE_VERSION,
-              }}
-              title={tier === "country" ? "Japan" : "Ginza Itoya Main Store"}
-              subtitle="2026-03-14"
-            />
+            <figure className={styles.specimen} key={tier}>
+              <ImpressionPlate size="detail">
+                <StampArt
+                  stamp={{
+                    id: `styleguide-${tier}`,
+                    tier,
+                    motif: "storefront",
+                    ink: inkForStampKey(`styleguide-${tier}`),
+                    localityLabel: "Chūō, Tokyo",
+                    countryLabel: "Japan",
+                    designVersion: PROTOTYPE_DESIGN_VERSION,
+                    paletteVersion: STAMP_PALETTE_VERSION,
+                  }}
+                  title={
+                    tier === "country"
+                      ? "Japan"
+                      : tier === "locality"
+                        ? "Chūō, Tokyo"
+                        : "Ginza Itoya Main Store"
+                  }
+                  subtitle="2026-03-14"
+                />
+              </ImpressionPlate>
+              <figcaption className={styles.specimenCaption}>
+                {tier} · enlarged
+              </figcaption>
+            </figure>
           ))}
         </div>
-        <div className={styles.stamps}>
+
+        <p className="type-body-sm">
+          The same three artefacts in the compact composition a List row and a
+          book page give them: the lines that cannot be read at that size are
+          dropped rather than pressed illegibly, and the surface around the
+          impression states them in real text.
+        </p>
+        <div className={styles.stamps} data-specimen="compact">
+          {(["shop", "locality", "country"] as const).map((tier) => (
+            <figure className={styles.specimen} key={tier}>
+              <ImpressionPlate size="thumb">
+                <StampArt
+                  detail="compact"
+                  stamp={{
+                    id: `styleguide-${tier}`,
+                    tier,
+                    motif: "storefront",
+                    ink: inkForStampKey(`styleguide-${tier}`),
+                    localityLabel: "Chūō, Tokyo",
+                    countryLabel: "Japan",
+                    designVersion: PROTOTYPE_DESIGN_VERSION,
+                    paletteVersion: STAMP_PALETTE_VERSION,
+                  }}
+                  title={
+                    tier === "country"
+                      ? "Japan"
+                      : tier === "locality"
+                        ? "Chūō, Tokyo"
+                        : "Ginza Itoya Main Store"
+                  }
+                />
+              </ImpressionPlate>
+              <figcaption className={styles.specimenCaption}>
+                {tier} · compact
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+
+        <p className="type-body-sm">
+          A long name wraps inside the impression rather than being shrunk until
+          it fits on one line or run under the motif.
+        </p>
+        <div className={styles.stamps} data-specimen="long-name">
+          <figure className={styles.specimen}>
+            <ImpressionPlate size="detail">
+              <StampArt
+                stamp={{
+                  id: "styleguide-long-name",
+                  tier: "shop",
+                  motif: "counter",
+                  ink: inkForStampKey("styleguide-long-name"),
+                  localityLabel: "Chūō-ku, Kobe",
+                  countryLabel: "Japan",
+                  designVersion: PROTOTYPE_DESIGN_VERSION,
+                  paletteVersion: STAMP_PALETTE_VERSION,
+                }}
+                title="NAGASAWA Stationery Center Main Store"
+                localTitle="ナガサワ文具センター 本店"
+                subtitle="2026-04-02"
+              />
+            </ImpressionPlate>
+            <figcaption className={styles.specimenCaption}>
+              shop · long name
+            </figcaption>
+          </figure>
+          <figure className={styles.specimen}>
+            <ImpressionPlate size="detail">
+              <StampArt
+                stamp={{
+                  id: "styleguide-long-locality",
+                  tier: "locality",
+                  motif: "shophouse",
+                  ink: inkForStampKey("styleguide-long-locality"),
+                  localityLabel: "East District, Tainan",
+                  countryLabel: "Taiwan",
+                  designVersion: PROTOTYPE_DESIGN_VERSION,
+                  paletteVersion: STAMP_PALETTE_VERSION,
+                }}
+                title="East District, Tainan"
+                subtitle="2026-03-19"
+              />
+            </ImpressionPlate>
+            <figcaption className={styles.specimenCaption}>
+              locality · long name
+            </figcaption>
+          </figure>
+        </div>
+        <p className="type-body-sm">
+          The eight motifs, on an uncollected sheet: the same paper with nothing
+          pressed into it yet. Nowhere in the Passport shows one of these — an
+          impression exists only once it has been collected — and none of them is
+          a locked reward.
+        </p>
+        <div className={styles.stamps} data-specimen="motif">
           {MOTIF_SAMPLES.map((motif) => (
-            <StampArt
-              key={motif}
-              size="small"
-              stamp={{
-                id: `styleguide-motif-${motif}`,
-                tier: "shop",
-                motif,
-                ink: inkForStampKey(`styleguide-motif-${motif}`),
-                localityLabel: "Motif",
-                countryLabel: "Nib Atlas",
-                designVersion: PROTOTYPE_DESIGN_VERSION,
-                paletteVersion: STAMP_PALETTE_VERSION,
-              }}
-              title={motif}
-            />
+            <figure className={styles.specimen} key={motif}>
+              <ImpressionPlate collected={false} size="thumb">
+                <StampArt
+                  detail="compact"
+                  stamp={{
+                    id: `styleguide-motif-${motif}`,
+                    tier: "shop",
+                    motif,
+                    ink: inkForStampKey(`styleguide-motif-${motif}`),
+                    localityLabel: "Motif",
+                    countryLabel: "Nib Atlas",
+                    designVersion: PROTOTYPE_DESIGN_VERSION,
+                    paletteVersion: STAMP_PALETTE_VERSION,
+                  }}
+                  title={motif}
+                />
+              </ImpressionPlate>
+              <figcaption className={styles.specimenCaption}>{motif}</figcaption>
+            </figure>
           ))}
         </div>
       </section>

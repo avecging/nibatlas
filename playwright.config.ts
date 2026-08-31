@@ -56,6 +56,22 @@ export default defineConfig({
       testDir: "./tests/e2e",
       use: { ...devices["Pixel 5"], viewport: { width: 360, height: 800 } },
     },
+    /*
+     * A short mobile screen.
+     *
+     * `IMPLEMENTATION-PLAN.md`'s three breakpoints are all generous in height,
+     * and WP5's viewport defect only appeared below them: a real phone showing
+     * its browser chrome has roughly 640 usable pixels, not 800, and that is
+     * where the Passport's book stopped fitting its own frame. 360 x 568 is the
+     * shortest screen still in use, so it is the one the reduced-height cases
+     * run at. It runs only the tests that are about height, by tag.
+     */
+    {
+      name: "mobile-360x568",
+      testDir: "./tests/e2e",
+      grep: /@short/,
+      use: { ...devices["Pixel 5"], viewport: { width: 360, height: 568 } },
+    },
     {
       name: "tablet-768",
       testDir: "./tests/e2e",

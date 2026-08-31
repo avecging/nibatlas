@@ -73,7 +73,7 @@ export function ShopIdentityHero({
           below the name when the name came first; a control that moves with the
           length of a shop's name is not a control anyone can find twice.
         */}
-        <div className={styles.heroNameRow}>
+        <div className={styles.heroNameRow} data-save={save ? "true" : "false"}>
           {save}
           <Title className={styles.title}>{shop.name}</Title>
         </div>

@@ -1,8 +1,8 @@
 # Nib Atlas Brand and Design Foundation
 
 **Status:** Approved visual direction; implementation-ready and intentionally evolvable
-**Version:** 1.3
-**Last updated:** 26 August 2026
+**Version:** 1.4
+**Last updated:** 31 August 2026
 
 ## Brand idea
 
@@ -229,9 +229,40 @@ support interaction and motion without expanding the primary brand colours.
 | `shadow-nav` | `0 -2px 10px rgba(16, 45, 70, 0.06)` | Subtle separation above mobile navigation |
 | `stamp-pressure-highlight` | `rgba(255, 255, 255, 0.42)` | Light edge of the stamp-pressure animation |
 | `stamp-pressure-fade` | `rgba(255, 255, 255, 0)` | Transparent endpoint of the stamp-pressure animation |
+| `shadow-overlay` | `0 24px 60px rgba(16, 45, 70, 0.32)` | The one depth every modal surface uses |
 
 Keep these values centralized as semantic CSS variables. They are supporting
 interaction values, not standalone colours for arbitrary component use.
+
+### Impression material
+
+Recorded 31 August 2026, from Milestone 1.5 WP5.
+
+An Atlas Stamp is ink on paper, and the paper is part of the artefact. Before
+WP5 each surface supplied its own: the collection ceremony drew a bordered paper
+ground, the Passport's enlarged overlay drew the impression straight onto the
+dialog, and List rows and book pages drew it onto whatever happened to be
+behind. Three approximations of one idea, so the enlarged Passport impression
+and the collected impression a shop page shows did not read as the same object.
+
+The stock is now declared once and consumed by one shared plate.
+
+| Semantic token | Value | Usage |
+| --- | --- | --- |
+| `impression-paper` | `passport-page` | The sheet an impression is pressed onto |
+| `impression-paper-shade` | `#f4ecdc` | The shaded corner of that sheet |
+| `impression-edge` | `rgba(16, 45, 70, 0.13)` | Its hairline edge |
+| `impression-contact` | `rgba(16, 45, 70, 0.16)` | The contact shadow under a stamp being pressed |
+| `impression-grain` | `rgba(16, 45, 70, 0.028)` | Paper tooth. Sub-pixel and widely spaced; never behind text |
+| `impression-tilt` | `-2.4deg` | The one press angle in the system |
+
+Rules:
+
+- No component may put an impression on a ground of its own.
+- Texture stays restrained. A book page is the one exception that carries no
+  plate stock at all, because there the leaf *is* the paper.
+- The tilt is the plate's only irregularity. The imperfect edge, the registration
+  shift and the pressure mottle are drawn inside the impression itself.
 
 ## Map visual language
 
@@ -282,6 +313,36 @@ Atlas Stamps draw from eki stamps, passport impressions, rubber stamps, local ar
 - Once earned, a geographic seal is never revoked because the curated catalogue later expands.
 - Milestone 1 may demonstrate these derived seals with selected real-shop prototype data; it must not imply unversioned global completeness.
 - Dual-ink and spectrum/rainbow impressions are reserved future treatments. They must remain one coherent physical impression with irregular colour boundaries and pressure variation, not gradients or rarity tiers. The Taiwan Sun-Star Coiro reference supplied by the founder is the physical benchmark for this future direction.
+
+### Three anatomies
+
+Recorded 31 August 2026, from Milestone 1.5 WP5, as the working-out of "tier is
+communicated through frame and stamp anatomy".
+
+All three artefacts share one canvas, one tier overline, one foot — the local
+date at the left, `NIB ATLAS` at the right — one ink treatment and one frame
+weight. They differ in composition, and only in composition:
+
+| Artefact | Composition | Frame |
+| --- | --- | --- |
+| Shop stamp | Asymmetric: the shop's name reads from the left, its own motif is pressed to the right | Rounded |
+| Locality seal | Symmetric: the country named above, the locality's name centred, its motif centred beneath | Square, with corner ticks |
+| Country seal | Symmetric, led by the Nib Atlas device | Double rule |
+
+A **country seal carries the mark's own geometry rather than a motif**: a
+simplified circle, meridian grid and nib breather, drawn as strokes at the
+motifs' weight. A country seal is derived from verified visits and issued by Nib
+Atlas, so borrowing a street motif from one of its shops would say something the
+seal does not know. This is exactly the one-colour imprint context the logo
+direction above already asks for simplified artwork in.
+
+An impression drawn smaller than roughly 6 rem uses a **compact composition**:
+the date, the provenance and the place line are dropped rather than pressed
+illegibly, and what remains is set large enough to read. Every surface that uses
+it states those facts in real text beside the impression.
+
+Long shop, locality and country names **wrap inside the impression** rather than
+being shrunk until they fit on one line.
 
 ### Regional respect
 

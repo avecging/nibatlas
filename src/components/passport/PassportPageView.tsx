@@ -1,6 +1,7 @@
 "use client";
 
 import { NibAtlasMark } from "@/src/components/brand/NibAtlasMark";
+import { ImpressionPlate } from "@/src/components/stamps/ImpressionPlate";
 import { StampArt } from "@/src/components/stamps/StampArt";
 import { Icon } from "@/src/components/ui/Icon";
 import type { StampCollection } from "@/src/domain/passport";
@@ -48,12 +49,9 @@ function PageSealButton({
       type="button"
     >
       <span aria-hidden="true">
-        <StampArt
-          size="small"
-          stamp={seal.stamp}
-          subtitle={seal.earnedOn}
-          title={name}
-        />
+        <ImpressionPlate size="page">
+          <StampArt detail="compact" stamp={seal.stamp} title={name} />
+        </ImpressionPlate>
       </span>
       <span className="visually-hidden">
         {seal.scope === "country" ? "Country seal" : "Locality seal"}, {name}, earned{" "}
@@ -302,12 +300,13 @@ export function PassportPageView({
                     type="button"
                     onClick={() => onSelectStamp(collection)}
                   >
-                    <StampArt
-                      stamp={collection.stamp}
-                      title={collection.shopNameSnapshot}
-                      localTitle={collection.shopLocalNameSnapshot}
-                      subtitle={collection.collectedOn}
-                    />
+                    <ImpressionPlate size="page">
+                      <StampArt
+                        detail="compact"
+                        stamp={collection.stamp}
+                        title={collection.shopNameSnapshot}
+                      />
+                    </ImpressionPlate>
                     <span className={styles.stampCaption}>
                       {collection.shopNameSnapshot}
                       <span>{collection.collectedOn}</span>

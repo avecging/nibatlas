@@ -1,9 +1,10 @@
 # Milestone 1.5 — Production-like product refinement
 
-**Status:** Founder-approved direction. **WP1–WP4 and WP6 implemented**, WP3
-including the two corrections from its staging review and WP6 including the three
-staging findings recorded against the map surfaces; WP5, WP7 and WP-D not
-started, with the founder decision for WP5 still recorded below.
+**Status:** Founder-approved direction. **WP1–WP6 implemented**, WP3 including
+the two corrections from its staging review, WP6 including the three staging
+findings recorded against the map surfaces, and WP5 including the impression
+family, the seal anatomies, the overlay consolidation, the application-frame
+correction and the Passport navigation fix; WP7 and WP-D not started.
 **Recorded:** 26 August 2026
 **Owner:** Claude Code (frontend), with founder and Codex on sourcing
 **Depends on:** Milestone 1 (PR #5) landing as the corrected technical foundation
@@ -385,7 +386,7 @@ that feedback exists.
 | **WP2** | Me restructure: signed-out/signed-in split, compact Places Visited linked into Passport, local-data controls, Contribute entries, Danger group | WP1 | **Implemented** |
 | **WP3** | Passport IA: List/Book toggle, opening spread on content, country/locality index and linked routes, stamp detail overlay, first-run-only cover, cover redesign, display name on the identity page | WP1 | **Implemented** |
 | **WP4** | Shop value layer: the data-model extension, sourced content, reordered page, native directions, contextual report | WP1, sourcing | Implemented; content awaits sourcing |
-| **WP5** | Visual fidelity: shop identity system, interim hero, paper and cover texture, stamp at large size, ceremony material pass, and the **one presentation family** for enlarged impressions and seal overlays recorded below | WP3, WP4 | Not started |
+| **WP5** | Visual fidelity: shop identity system, interim hero, paper and cover texture, stamp at large size, ceremony material pass, and the **one presentation family** for enlarged impressions and seal overlays recorded below | WP3, WP4 | Implemented |
 | **WP6** | Filter drawer: segment plus drawer, active count, one-tap clear; and the **card and marker interaction** recorded below, with its documentation update | WP1 | **Implemented** |
 | **WP7** | Contact and contribution routes: the contextual shop-page correction, help and contact, and the `/suggest-shop` page later. *Suggest a pen shop* is routed in WP2 | WP2 | Not started |
 | **WP-D** | **Required desktop audit** across all of the above | Founder desktop feedback | Not started |
@@ -2039,6 +2040,11 @@ The two surfaces that have to converge are `PassportDetailOverlay` and the shop
 page's *Your impression* block; WP3 has already made the Passport side one
 component with one subject union, which is the seam that consolidation plugs into.
 
+**Implemented in WP5.** The shop page's collected impression is the sheet
+**View Atlas Stamp** opens, so `StampCeremony` was the second surface; both are
+now built from `ImpressionSheet` and `ImpressionPlate`. See the WP5
+implementation record below.
+
 What must survive the consolidation, because it is content rather than treatment:
 a shop stamp reports a collection date and leads to its shop; a derived seal
 reports an earned date and leads nowhere. A shared presentation family is not a
@@ -2307,6 +2313,229 @@ Recorded because each was a real defect rather than a preference.
   `docs/evidence/milestone-1-5-wp6/`.
 - `tests/visual/breakpoints.spec.ts-snapshots/` — the map and Saved baselines
   refreshed for the new filter row and card.
+
+## WP5 implementation record
+
+Recorded 31 August 2026. WP5 is the impression and seal material system, the
+detail-overlay consolidation, the application-frame correction, and the Passport
+navigation fix. Scope was WP5 only: nothing in WP7 or WP-D was started, no
+accepted decision above was reopened, private visit notes (issue #11) were not
+implemented in any form, and the map's filter semantics, the shop page's content
+order and the Passport's information architecture were left alone.
+
+### What WP5 changed
+
+#### 1. One impression family
+
+`ImpressionPlate` is the paper an Atlas Stamp is pressed onto, and it is now the
+only thing that supplies one. It owns the stock, the hairline edge, the tooth,
+the pressed depth and the single press angle, all from the new `--impression-*`
+tokens recorded in `BRAND.md`. Four sizes: a List row's thumbnail, a seal beside
+a section heading, a book page — the one case that carries *no* plate stock,
+because there the leaf is the paper — and the enlarged sheet.
+
+`ImpressionSheet` is the surface an enlarged impression is shown on: the scrim,
+the dialog, the tier overline, the close control, the spacing rhythm and the
+`dvh` height cap. The Passport's enlarged shop stamp, its two seal overlays and
+the collection ceremony a shop page opens are all built from it, which is what
+the founder's WP3 decision asked for — the enlarged Passport impression and the
+collected impression a shop page shows are now visibly the same object.
+
+The audit found four approximations of one idea: two scrim opacities, three
+shadows, two paper stocks, two maximum widths, a `vh` cap on one overlay and a
+`dvh` cap on another, and the tier label above the artwork in one place and below
+it in the next.
+
+#### 2. Three anatomies for three artefacts
+
+`BRAND.md` already said tier is carried by frame and anatomy rather than by
+colour. It was carried by the frame alone: a locality seal was a shop stamp with
+square corners, drawn with a street motif borrowed from one of its shops.
+
+- A **shop stamp** stays asymmetric — name from the left, its own motif pressed
+  to the right, rounded frame.
+- A **locality seal** is symmetric: its country named above, its own name
+  centred, its motif centred beneath, cornered frame.
+- A **country seal** is symmetric and led by the Nib Atlas device — a simplified
+  circle, meridian grid and nib breather — rather than by any one shop's motif,
+  because a country seal is derived from verified visits rather than pressed at a
+  place. Double rule.
+
+No fact was added or removed. A shop stamp still reports a collection date and
+leads to its shop; a derived seal still reports an earned date and leads nowhere;
+the explanatory sentence WP3's final review removed from beneath a seal has not
+returned, and `PassportDetailOverlay.test.tsx` asserts that in both seal
+branches.
+
+#### 3. Small impressions are legible, enlarged ones reveal detail
+
+A List row drew the full six-line composition at 4.75 rem, where the 600-unit
+canvas scales by about an eighth: the date, the provenance and the place line
+were mottle rather than type. Impressions below roughly 6 rem now use a
+**compact composition** that drops those three lines and sets what remains large
+enough to read — and every surface that uses it already states them in real text
+beside the impression. The thumbnail itself went from 4.75 rem to 5.5 rem.
+
+At the other end, the enlarged impression was capped at 13 rem by a `max-width`
+on the figure inside a dialog with far more room. The cap is gone; the plate
+sizes the impression.
+
+**Long names wrap.** Milestone 1 stepped the font size down to hold a name on one
+line at any cost, so `NAGASAWA Stationery Center Main Store` ran under the motif.
+`fitStampTitle` now picks a size and a set of lines together, breaking Latin at
+word boundaries and full-width scripts between characters. Width is estimated
+rather than measured, so the same impression draws identically on the server, in
+a test renderer and in the browser.
+
+#### 4. The application frame — the viewport root cause
+
+The founder reported that the effective viewport felt different between Shop and
+Passport. It was, and there were three independent causes.
+
+**Every full-height surface computed the available height for itself.** The map
+subtracted `var(--nav-height)` on mobile — a token that does not include the
+navigation's own 1 px top border, so the map document was permanently one pixel
+taller than the viewport — and a hard-coded `3.5rem` at desktop. The Passport's
+book asked for `height: 100%` from an ancestor whose height was only a
+*minimum*, so it silently fell back to the book's intrinsic height. At the
+360 × 800 screenshot size that happened to fit. On a real phone showing its
+browser chrome, or on any shorter device, it did not: at 360 × 640 the Passport
+document was 791 px tall, the page scrolled, and the pager — the way into the
+book — sat about 140 px below the fold.
+
+`AppShell` now owns the available height. Documents keep `min-height: 100dvh` and
+grow; surfaces that are *objects* rather than documents declare
+`data-app-frame="fixed"` and the frame locks to `100dvh`, so `1fr` means the
+space actually left. The map is always one; the Passport is one in Book mode and
+is not one in List, which is why the shell reads the screen's own declaration
+through `:has()` rather than the route — a browser without `:has()` falls back to
+today's behaviour rather than to anything broken. No surface subtracts chrome by
+hand any more, and the book measures the stage it is given rather than the field
+minus a hand-tuned 132 px constant.
+
+**The shell's rows were auto-placed.** The map hides the header with
+`display: none`, which takes it out of the grid entirely — so every remaining
+child moved up a row and the section navigation, not the screen, took the `1fr`.
+It went unnoticed while the shell was only a minimum height; the moment the frame
+was locked it made the map 192 px tall and the navigation 608. The three rows are
+now named explicitly.
+
+**A specimen with a wide minimum widened the styleguide document.** At 360 px the
+styleguide laid out at 614 px, and a mobile browser answered by zooming the whole
+page out — literally a different effective viewport from every other screen in
+the product. Two causes: a grid track's automatic minimum is its content's
+min-content width, and the shop-value specimen's `max-width: 34rem` clamped that
+minimum at 544 px; and `.badge` sets `white-space: nowrap`, which is right for a
+status pill and wrong for the prototype notice, which holds a sentence.
+
+Also corrected while auditing viewport units: the Passport overlay capped itself
+against `100vh` — the *largest* viewport — so on a mobile browser showing its
+toolbars the sheet could be taller than the space it had. Every modal sheet now
+caps against `100dvh` and pads for the safe area at top and bottom.
+
+#### 5. Passport navigation from the first frame
+
+The affected control was not one control. In Book mode the frame defect put the
+whole Passport chrome outside the initial viewport: at 360 × 640 the List/Book
+toggle had already scrolled off the top by the time the book opened, and the
+pager sat below the fold. Fixing the frame fixed both, with no duplicate control
+and no new floating button — WP3 had already merged the floating opener into the
+pager, and that stays one control.
+
+Two smaller corrections went with it. The List/Book toggle's buttons were
+`--tap-target` less 6 px, so the Passport's own mode control was a 38 px target;
+the track gives up its padding instead. And the book is now centred on its stage
+by position rather than by alignment: a grid item larger than its area has its
+start edge pinned rather than being centred, which put the scaled book below the
+stage and behind the pager on a short screen.
+
+#### 6. Two defects found while auditing, fixed
+
+- **The identity plate broke a lone shop name two characters to a line.**
+  `.heroNameRow` is a two-column grid — the Save bookmark's 44 px, then the name
+  — and auto-placement put a name with no bookmark beside it into the bookmark's
+  column, where `overflow-wrap: anywhere` did the rest. Only the styleguide
+  specimen renders the plate without a Save control, which is why the shop page
+  never showed it.
+- **Reduced motion moved the mobile Passport cover off centre.** The
+  reduced-motion block restated `--book-shift` for a closed book at equal
+  specificity and later in the file, overriding the portrait reader's own
+  `0px` — so with motion reduced the closed cover sat half a leaf to the left.
+  The reduced-motion block owns the tilts and the transitions; it does not own
+  where the object sits.
+
+### Deliberately not done
+
+- **No private visit notes.** Issue #11 depends on authentication, Supabase
+  persistence and owner-only row-level security. Nothing device-local was added,
+  and nothing anywhere presents a note as account-private.
+- **No WP7 contribution routes and no WP-D desktop treatment.** The 768 × 1024
+  and 1440 × 900 work is responsive integrity only; the reading-column comparison
+  in `tests/e2e/app-frame.spec.ts` is skipped at and above 1024 px because the two
+  surfaces take different measures there on purpose, and that is WP-D's to
+  decide.
+- **No new shop research, photography, or stamp commissions.** No shop artwork,
+  logo, photograph or fact was invented; the country seal's device is the Nib
+  Atlas mark's own geometry, which claims nothing about a place.
+- **No API, schema, Supabase, authentication or deployment changes.**
+- **The map's results sheet keeps its own `dvh` fractions.** They are WP6's, they
+  are measured against a frame that is now correct, and reworking them was not
+  what the brief asked for.
+- **The scroll-restoration parallel-load flake was not chased.** This work did not
+  make it consistently reproducible, and the instruction was to leave it.
+
+### Coverage
+
+- `src/components/stamps/stamp-title.test.ts` — the fitting rules in both
+  directions, every catalogue name against its own width budget, full-width
+  script breaking, an unbreakable word, and determinism.
+- `src/components/stamps/StampArt.test.tsx` — one canvas and one foot for all
+  three tiers, ink taken from the design and never from the tier, the three
+  anatomies apart, the compact composition dropping exactly the lines it should
+  while keeping the same accessible description, and long names wrapping.
+- `src/components/passport/PassportDetailOverlay.test.tsx` — the three overlays
+  audited together for dialog semantics, header and dismissal placement, Escape,
+  the close control, the backdrop, the enlarged plate, the fact list and the
+  machine-readable date; then each kind's own content, including the removed
+  explanatory sentence staying removed.
+- `tests/e2e/app-frame.spec.ts` — no route wider than its viewport and no browser
+  zoom-out on any of them, the map and the book filling the frame without
+  scrolling it, Shop and Passport sharing one reading band, the section
+  navigation reachable from the initial viewport at every width, the Passport's
+  toggle and pager in view before any scrolling in both modes, and the same at
+  360 × 568 under the `@short` tag.
+- `tests/e2e/accessibility.spec.ts` — the touch-target audit extended across the
+  Passport, both overlays and Book mode, and the collection dialogs audited after
+  their entrance settles now that the ceremony shares the sheet's animation.
+- `playwright.config.ts` — a `mobile-360x568` project that runs the `@short`
+  cases.
+- `tests/visual/breakpoints.spec.ts` — three new states at each breakpoint
+  (`passport-book-open`, `impression-detail`, `seal-detail`) plus
+  `passport-book-short` at 360 × 568.
+- `tests/evidence/wp5-impression-materials.spec.ts` — the review screenshots in
+  `docs/evidence/milestone-1-5-wp5/`.
+
+### Visual baselines
+
+Every baseline in `tests/visual/breakpoints.spec.ts-snapshots/` was recaptured.
+The container this branch was developed in ships a newer Chromium than the one
+that produced the committed set, and it renders text differently: `privacy` and
+`about`, which this branch does not touch at all, differed by 0.07–0.09 of their
+pixels before any WP5 change was applied. The spec's own header already records
+that a different image needs one `--update-snapshots` pass.
+
+The baselines that changed for WP5 reasons, as opposed to renderer drift:
+
+| Baseline | Why |
+| --- | --- |
+| `passport-list-*` | Impressions on plates, the compact composition, a wider thumbnail, a 44 px toggle |
+| `passport-book-closed-*` | The book measures the stage; the closed fit changed with it |
+| `styleguide-*` | 584 px wide at a 360 px viewport before, 360 px after; new impression specimens |
+| `map-*`, `saved-mode-*` | The map no longer subtracts chrome by hand, so the document is exactly the viewport |
+| `shop-detail-*`, `shop-detail-omitted-*` | The identity plate's name row |
+
+`passport-book-open-*`, `impression-detail-*`, `seal-detail-*` and
+`passport-book-short-mobile-360x568` are new.
 
 ## Open items still needing founder input
 

@@ -1,0 +1,118 @@
+/*
+ * The sheet an impression is shown on.
+ *
+ * One surface for the enlarged shop stamp, the enlarged locality seal, the
+ * enlarged country seal and the collection ceremony. WP5's audit found four
+ * approximations of this: two scrim opacities, three shadows, two paper stocks,
+ * two maximum widths, a `vh` cap on one and a `dvh` cap on another, and the tier
+ * label above the artwork in one place and below it in the next.
+ *
+ * Everything structural lives here. A caller supplies the tier, the artwork and
+ * the facts; it does not get to choose the material.
+ */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  /*
+   * The safe area on both sides, and `dvh` for the height.
+   *
+   * The `100vh` this used to cap against is the *largest* viewport, so on a
+   * mobile browser showing its toolbars the sheet could be taller than the
+   * space it had and its own action would sit under the chrome.
+   */
+  padding-top: calc(var(--space-4) + env(safe-area-inset-top));
+  padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
+  background: var(--overlay-scrim);
+  animation: sheet-scrim-in var(--motion-panel) var(--ease-paper);
+}
+
+.scrimButton {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.dialog {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: 28rem;
+  max-height: calc(100dvh - var(--space-8) - env(safe-area-inset-bottom));
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface-warm);
+  box-shadow: var(--shadow-overlay);
+  animation: sheet-in var(--motion-panel) var(--ease-paper);
+}
+
+/* Header ----------------------------------------------------------------- */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  /* The close control has its own 44 px target, so the row is pulled back to
+     the sheet's own rhythm rather than padded out by it. */
+  margin: calc(var(--space-2) * -1) calc(var(--space-2) * -1) 0 0;
+}
+
+.tier {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--tap-target);
+  height: var(--tap-target);
+  border: 0;
+  border-radius: var(--radius-round);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+@keyframes sheet-scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* The sheet still appears and still contains focus; only the movement goes. */
+@media (prefers-reduced-motion: reduce) {
+  .scrim,
+  .dialog {
+    animation: none;
+  }
+}

@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 
 import { useDialogFocus } from "@/src/components/hooks/useDialogFocus";
+import { ImpressionPlate } from "@/src/components/stamps/ImpressionPlate";
+import { ImpressionSheet } from "@/src/components/stamps/ImpressionSheet";
 import { StampArt } from "@/src/components/stamps/StampArt";
 import { Button, ButtonLink } from "@/src/components/ui/Button";
 import type { StampCollection } from "@/src/domain/passport";
@@ -29,7 +31,7 @@ function usesReducedMotion(): boolean {
 }
 
 /**
- * The collection ceremony.
+ * The collection ceremony — and the collected impression a shop page shows.
  *
  * Restrained by instruction: a poised stamp, a short press, the ink settling,
  * and then the place and date. No confetti, no points, no rarity reveal, no
@@ -37,6 +39,13 @@ function usesReducedMotion(): boolean {
  *
  * Under reduced motion the completed impression is simply there, with a fade
  * under 150 ms and no press at all.
+ *
+ * This is one half of WP5's impression family. **View Atlas Stamp** on a
+ * collected shop opens this sheet, and a reader who then goes to the Passport
+ * and enlarges the same impression has to recognise it as the same object — so
+ * the sheet is `ImpressionSheet` and the paper is `ImpressionPlate`, exactly as
+ * in `PassportDetailOverlay`. Only the press animation, which belongs to the act
+ * of collecting, is this component's own.
  */
 export function StampCeremony({
   collection,
@@ -71,65 +80,62 @@ export function StampCeremony({
   }, [phase]);
 
   return (
-    <div className={styles.backdrop} data-testid="stamp-ceremony">
+    <ImpressionSheet
+      closeLabel="Close impression"
+      dialogRef={dialogRef}
+      labelledBy="stamp-ceremony-title"
+      onClose={onClose}
+      testId="stamp-ceremony"
+      tier="Shop stamp"
+    >
+      <h2 className={styles.title} id="stamp-ceremony-title">
+        {alreadyCollected ? "Already in your Passport" : "Impression collected"}
+      </h2>
+      {/*
+        The ceremony has to stay honest without becoming a bulletin. Normal mode
+        says the one thing a tester needs — the impression is a preview, their
+        position was not checked — and says it once. The implementation detail
+        behind that sentence belongs to reviewers.
+      */}
+      <p className={styles.lede}>
+        {reviewer
+          ? "Simulated collection. This build does not use your location and issues no real stamp."
+          : "A preview impression. Your location was not checked, so this is not a verified visit yet."}
+      </p>
+
       <div
-        ref={dialogRef}
-        className={styles.dialog}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="stamp-ceremony-title"
-        tabIndex={-1}
+        className={styles.press}
+        data-phase={phase}
+        data-reduced={reduced ? "true" : "false"}
       >
-        <h2 className={styles.title} id="stamp-ceremony-title">
-          {alreadyCollected ? "Already in your Passport" : "Impression collected"}
-        </h2>
-        {/*
-          The ceremony has to stay honest without becoming a bulletin. Normal mode
-          says the one thing a tester needs — the impression is a preview, their
-          position was not checked — and says it once. The implementation detail
-          behind that sentence belongs to reviewers.
-        */}
-        <p className={styles.lede}>
-          {reviewer
-            ? "Simulated collection. This build does not use your location and issues no real stamp."
-            : "A preview impression. Your location was not checked, so this is not a verified visit yet."}
-        </p>
-
-        <div
-          className={styles.plate}
-          data-phase={phase}
-          data-reduced={reduced ? "true" : "false"}
-        >
-          <span className={styles.paper} aria-hidden="true" />
-          <span className={styles.contactShadow} aria-hidden="true" />
-          <div className={styles.impression}>
-            <StampArt
-              stamp={collection.stamp}
-              title={collection.shopNameSnapshot}
-              {...(collection.shopLocalNameSnapshot === undefined
-                ? {}
-                : { localTitle: collection.shopLocalNameSnapshot })}
-              subtitle={collection.collectedOn}
-            />
-          </div>
-          <span className={styles.pressFlash} aria-hidden="true" />
-        </div>
-
-        <p className={styles.meta} role="status">
-          {collection.shopNameSnapshot} · {collection.localityName},{" "}
-          {collection.countryLabel} · {collection.collectedOn} (
-          {collection.shopTimezone})
-        </p>
-
-        <div className={styles.actions}>
-          <ButtonLink href={passportHref} variant="primary" fullWidth>
-            Open in Passport
-          </ButtonLink>
-          <Button variant="quiet" fullWidth onClick={onClose}>
-            Back to shop
-          </Button>
-        </div>
+        <span className={styles.contactShadow} aria-hidden="true" />
+        <ImpressionPlate className={styles.plate} size="detail">
+          <StampArt
+            stamp={collection.stamp}
+            title={collection.shopNameSnapshot}
+            {...(collection.shopLocalNameSnapshot === undefined
+              ? {}
+              : { localTitle: collection.shopLocalNameSnapshot })}
+            subtitle={collection.collectedOn}
+          />
+        </ImpressionPlate>
+        <span className={styles.pressFlash} aria-hidden="true" />
       </div>
-    </div>
+
+      <p className={styles.meta} role="status">
+        {collection.shopNameSnapshot} · {collection.localityName},{" "}
+        {collection.countryLabel} · {collection.collectedOn} (
+        {collection.shopTimezone})
+      </p>
+
+      <div className={styles.actions}>
+        <ButtonLink href={passportHref} variant="primary" fullWidth>
+          Open in Passport
+        </ButtonLink>
+        <Button variant="quiet" fullWidth onClick={onClose}>
+          Back to shop
+        </Button>
+      </div>
+    </ImpressionSheet>
   );
 }

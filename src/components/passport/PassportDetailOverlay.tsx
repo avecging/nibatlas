@@ -5,9 +5,10 @@ import { useCallback, useId } from "react";
 import { useDialogFocus } from "@/src/components/hooks/useDialogFocus";
 import { localeForCountry } from "@/src/components/shops/locale";
 import { passportHrefWithAnchor } from "@/src/components/shops/ShopBackLink";
+import { ImpressionPlate } from "@/src/components/stamps/ImpressionPlate";
+import { ImpressionSheet } from "@/src/components/stamps/ImpressionSheet";
 import { StampArt } from "@/src/components/stamps/StampArt";
 import { ButtonLink } from "@/src/components/ui/Button";
-import { Icon } from "@/src/components/ui/Icon";
 import type { StampCollection } from "@/src/domain/passport";
 import type { EarnedSeal } from "@/src/domain/seals";
 
@@ -60,7 +61,7 @@ export interface PassportDetailOverlayProps {
   readonly returnHref?: string | undefined;
 }
 
-/** The impression, at a size worth looking at. */
+/** The impression, at a size worth looking at, on the paper it was pressed onto. */
 function ImpressionDetail({
   collection,
   headingId,
@@ -72,16 +73,16 @@ function ImpressionDetail({
 }) {
   return (
     <>
-      <div className={styles.impression} data-no-drag="true">
-        <StampArt
-          stamp={collection.stamp}
-          title={collection.shopNameSnapshot}
-          localTitle={collection.shopLocalNameSnapshot}
-          subtitle={collection.collectedOn}
-        />
+      <div className={styles.plate} data-no-drag="true">
+        <ImpressionPlate size="detail">
+          <StampArt
+            stamp={collection.stamp}
+            title={collection.shopNameSnapshot}
+            localTitle={collection.shopLocalNameSnapshot}
+            subtitle={collection.collectedOn}
+          />
+        </ImpressionPlate>
       </div>
-
-      <p className={styles.tier}>{TIER_LABEL[collection.stamp.tier]}</p>
 
       <h2 className={styles.name} id={headingId}>
         {collection.shopNameSnapshot}
@@ -112,28 +113,35 @@ function ImpressionDetail({
         </div>
       </dl>
 
-      <ButtonLink
-        href={`/shops/${collection.shopSlug}?from=passport&back=${encodeURIComponent(
-          // The anchor, not just the route: a stamp opened from a locality's
-          // second page has to come back to that page.
-          passportHrefWithAnchor(returnHref, collection.id),
-        )}`}
-        variant="primary"
-        fullWidth
-      >
-        Open shop
-      </ButtonLink>
+      <div className={styles.actions}>
+        <ButtonLink
+          href={`/shops/${collection.shopSlug}?from=passport&back=${encodeURIComponent(
+            // The anchor, not just the route: a stamp opened from a locality's
+            // second page has to come back to that page.
+            passportHrefWithAnchor(returnHref, collection.id),
+          )}`}
+          variant="primary"
+          fullWidth
+        >
+          Open shop
+        </ButtonLink>
+      </div>
     </>
   );
 }
 
 /**
- * A derived geographic seal, at the same size.
+ * A derived geographic seal, at the same size, on the same paper.
  *
  * No shop fields and no **Open shop**. A seal falls out of verified visits
  * rather than being one: a country seal derives from five stamps or a complete
  * curated set, and a locality seal from the first stamp there, so there is no
  * single shop for it to lead to. Offering one would misreport what the seal is.
+ *
+ * The sheet ends on the earned date with nothing in its place. The line that
+ * used to explain why there is no shop to open was removed in WP3's final review
+ * and does not come back: the interface does not narrate why an inapplicable
+ * action is absent.
  */
 function SealDetail({
   seal,
@@ -147,11 +155,11 @@ function SealDetail({
 
   return (
     <>
-      <div className={styles.impression} data-no-drag="true">
-        <StampArt stamp={seal.stamp} title={name} subtitle={seal.earnedOn} />
+      <div className={styles.plate} data-no-drag="true">
+        <ImpressionPlate size="detail">
+          <StampArt stamp={seal.stamp} title={name} subtitle={seal.earnedOn} />
+        </ImpressionPlate>
       </div>
-
-      <p className={styles.tier}>{TIER_LABEL[seal.stamp.tier]}</p>
 
       <h2 className={styles.name} id={headingId}>
         {name}
@@ -193,8 +201,11 @@ function SealDetail({
  * own kind records and nothing more — no rating, no note, no sharing, no visit
  * history.
  *
- * WP5 owns making the two share one visual presentation family with the
- * collected impression on a shop page; this is the interaction, not that pass.
+ * WP5 made the sheet itself shared material rather than a second approximation
+ * of one. `ImpressionSheet` owns the surface, the header and the dismissal;
+ * `ImpressionPlate` owns the paper; and the collection ceremony a shop page
+ * opens is built from the same two, so an enlarged Passport impression and the
+ * collected impression on a shop page are visibly the same object.
  */
 export function PassportDetailOverlay({
   subject,
@@ -209,48 +220,30 @@ export function PassportDetailOverlay({
     return null;
   }
 
-  return (
-    <div className={styles.scrim} data-testid="passport-detail">
-      {/*
-        A click on the scrim closes, like every other dismissible surface in the
-        product. It is not the only way out: the close control and Escape both
-        work, and the scrim itself is never the accessible route.
-      */}
-      <button
-        className={styles.scrimButton}
-        type="button"
-        tabIndex={-1}
-        aria-hidden="true"
-        onClick={close}
-      />
-      <div
-        className={styles.dialog}
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={headingId}
-        tabIndex={-1}
-        data-detail-kind={subject.kind}
-      >
-        <button
-          className={styles.close}
-          type="button"
-          onClick={close}
-          aria-label={subject.kind === "seal" ? "Close seal" : "Close stamp"}
-        >
-          <Icon name="close" size={18} />
-        </button>
+  const tier =
+    subject.kind === "impression"
+      ? TIER_LABEL[subject.collection.stamp.tier]
+      : TIER_LABEL[subject.seal.stamp.tier];
 
-        {subject.kind === "impression" ? (
-          <ImpressionDetail
-            collection={subject.collection}
-            headingId={headingId}
-            returnHref={returnHref}
-          />
-        ) : (
-          <SealDetail headingId={headingId} seal={subject.seal} />
-        )}
-      </div>
-    </div>
+  return (
+    <ImpressionSheet
+      closeLabel={subject.kind === "seal" ? "Close seal" : "Close stamp"}
+      dialogProps={{ "data-detail-kind": subject.kind }}
+      dialogRef={dialogRef}
+      labelledBy={headingId}
+      onClose={close}
+      testId="passport-detail"
+      tier={tier}
+    >
+      {subject.kind === "impression" ? (
+        <ImpressionDetail
+          collection={subject.collection}
+          headingId={headingId}
+          returnHref={returnHref}
+        />
+      ) : (
+        <SealDetail headingId={headingId} seal={subject.seal} />
+      )}
+    </ImpressionSheet>
   );
 }

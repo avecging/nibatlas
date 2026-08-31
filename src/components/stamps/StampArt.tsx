@@ -1,4 +1,5 @@
 import type { ShopStampDesign, StampMotif } from "@/src/domain/shop-detail";
+import { fitStampTitle } from "@/src/components/stamps/stamp-title";
 import { STAMP_INK_LABELS } from "@/src/domain/stamp-palette";
 
 import styles from "./StampArt.module.css";
@@ -66,11 +67,48 @@ export const STAMP_MOTIF_PATHS: Record<StampMotif, readonly string[]> = {
   ],
 };
 
+/**
+ * The device a country seal carries, in place of a motif.
+ *
+ * A country seal is not a portrait of a place: it is derived from verified
+ * visits and issued by Nib Atlas, so a street motif borrowed from one of its
+ * shops would say something the seal does not know. It carries the mark's own
+ * geometry instead — the circle `BRAND.md` says reads equally as globe, seal and
+ * stamp boundary, a restrained meridian grid, and the nib breather at the centre
+ * that joins the mark's two halves.
+ *
+ * Drawn as strokes at the motifs' weight rather than as the full duotone
+ * artwork: `BRAND.md` asks for simplified geometry at small sizes rather than
+ * visual mud, and a one-colour imprint is exactly that context.
+ */
+export const SEAL_DEVICE_PATHS: readonly string[] = [
+  "M60 16a44 44 0 1 1 0 88 44 44 0 0 1 0-88z",
+  "M60 16c13 12 20 27 20 44s-7 32-20 44",
+  "M60 16c-13 12-20 27-20 44s7 32 20 44",
+  "M22 46h76",
+  "M22 74h76",
+  "M60 16v88",
+  "M60 52a8 8 0 1 0 0 16 8 8 0 0 0 0-16z",
+];
+
 const TIER_LABEL = {
   shop: "Shop",
   locality: "Locality",
   country: "Country",
 } as const;
+
+/**
+ * How much of the impression is drawn.
+ *
+ * `full` is every line the artefact records. `compact` is the same artefact at
+ * the size a List row or a book page gives it — roughly 4.75 rem, where the
+ * 600-unit canvas scales by about an eighth and the date, the provenance and the
+ * place line become mottle rather than type. Those lines are dropped and the
+ * ones that remain are set large enough to read, which is what
+ * "small impressions must remain legible" asks for; every surface that uses
+ * `compact` states the date and the place in real text beside the impression.
+ */
+export type StampArtDetail = "full" | "compact";
 
 interface StampArtProps {
   readonly stamp: ShopStampDesign;
@@ -79,7 +117,28 @@ interface StampArtProps {
   readonly localTitle?: string | undefined;
   /** Local collection date, or nothing when the stamp has not been pressed. */
   readonly subtitle?: string | undefined;
-  readonly size?: "default" | "small";
+  readonly detail?: StampArtDetail;
+}
+
+/** Every impression is drawn in this box, whatever it is rendered at. */
+const CANVAS = { width: 600, height: 400 } as const;
+const MIDDLE = CANVAS.width / 2;
+
+/**
+ * The one foot rhythm: date at the left, Nib Atlas provenance at the right.
+ *
+ * A locality seal's cornered frame reaches into that line, so its foot is set
+ * one step in and one step up — the same rhythm, clear of its own frame.
+ */
+const FOOT_BASELINE = 352;
+const SEAL_FOOT_BASELINE = 344;
+const FOOT_INSET = 42;
+const SEAL_FOOT_INSET = 70;
+
+function motifPaths(stamp: ShopStampDesign): readonly string[] {
+  return stamp.tier === "country"
+    ? SEAL_DEVICE_PATHS
+    : STAMP_MOTIF_PATHS[stamp.motif];
 }
 
 /**
@@ -89,37 +148,123 @@ interface StampArtProps {
  * decides it and never mixes two. Dual-ink and spectrum impressions are a future
  * edition and have no code path here.
  *
- * Frame anatomy carries tier — rounded for a shop, cornered for a locality,
- * double-ruled for a country — because `BRAND.md` requires tier to be legible
- * without colour doing the work.
+ * ## Three anatomies, one material
+ *
+ * WP5's brief was that a seal must belong to the same family as a shop stamp
+ * while staying recognisably a different kind of artefact — and that the
+ * difference be carried by anatomy, framing, typography and hierarchy rather
+ * than by colour, because no ink in this system is allowed to mean anything.
+ *
+ * - **A shop stamp** is asymmetric: the shop's own name reads from the left, its
+ *   motif is pressed to the right. Rounded frame.
+ * - **A locality seal** is symmetric: the country named above, the locality's
+ *   own name centred, its motif centred beneath. Cornered frame.
+ * - **A country seal** is symmetric and led by the Nib Atlas device rather than
+ *   by any one shop's motif, because a country seal is derived rather than
+ *   pressed at a place. Double rule.
+ *
+ * All three share the tier overline, the foot rhythm, the ink treatment and the
+ * frame weight. The paper they are pressed onto belongs to `ImpressionPlate`,
+ * not to them.
  */
 export function StampArt({
   stamp,
   title,
   localTitle,
   subtitle,
-  size = "default",
+  detail = "full",
 }: StampArtProps) {
   const ink = `var(--ink-${stamp.ink})`;
   const filterId = `stamp-edge-${stamp.id}`;
   const grainId = `stamp-grain-${stamp.id}`;
-  const nameLength = title.length;
-  const nameSize = nameLength > 26 ? 26 : nameLength > 18 ? 31 : 37;
+  const isShop = stamp.tier === "shop";
+  const compact = detail === "compact";
+
+  /*
+   * The name, fitted rather than merely shrunk.
+   *
+   * A shop stamp's text column stops short of its motif, so its name gets 340 of
+   * the 600 units; a seal is centred and gets the full measure less the frame. A
+   * name that does not fit wraps onto a second line rather than running under
+   * the motif or out through the frame — the responsive brief asks for long
+   * shop, locality and country names to wrap intentionally.
+   */
+  const fitted = fitStampTitle({
+    title,
+    maxWidth: compact ? (isShop ? 320 : 470) : isShop ? 340 : 500,
+    sizes: compact
+      ? isShop
+        ? [62, 54, 46, 40, 34]
+        : [58, 50, 44, 38, 32]
+      : isShop
+        ? [37, 33, 29, 25, 22]
+        : [40, 35, 30, 26, 22],
+  });
+
+  const localFitted =
+    localTitle && !compact
+      ? fitStampTitle({ title: localTitle, maxWidth: 340, sizes: [26, 23, 20] })
+      : null;
 
   const description = [
     `${TIER_LABEL[stamp.tier]} stamp`,
     title,
-    stamp.tier === "shop" ? stamp.localityLabel : null,
+    isShop ? stamp.localityLabel : null,
     subtitle ? `collected ${subtitle}` : "not yet collected",
     `${STAMP_INK_LABELS[stamp.ink]} ink`,
   ]
     .filter(Boolean)
     .join(", ");
 
+  /* Where the name block starts, and how the rest of the composition follows. */
+  const nameTop = compact
+    ? isShop
+      ? 200
+      : // Centred tiers hang their name block around a fixed optical centre, so
+        // a second line grows in both directions instead of pushing down onto
+        // the device below it.
+        (stamp.tier === "country" ? 300 : 292) -
+        ((fitted.lines.length - 1) * fitted.lineHeight) / 2
+    : isShop
+      ? 152
+      : stamp.tier === "country"
+        ? 268
+        : 178;
+  const nameBottom = nameTop + (fitted.lines.length - 1) * fitted.lineHeight;
+  const localTop = nameBottom + 42;
+  const localBottom = localFitted
+    ? localTop + (localFitted.lines.length - 1) * localFitted.lineHeight
+    : nameBottom;
+
+  /* A locality's motif is pressed under its name in the full composition. */
+  const localityDeviceTop = nameBottom + 20;
+
+  const isCornered = stamp.tier === "locality";
+  const footBaseline = isCornered ? SEAL_FOOT_BASELINE : FOOT_BASELINE;
+  const footInset = isCornered ? SEAL_FOOT_INSET : FOOT_INSET;
+
+  const device = motifPaths(stamp);
+  const deviceTransform = compact
+    ? isShop
+      ? "translate(392 130) scale(1.42)"
+      : stamp.tier === "country"
+        ? "translate(246 92) scale(0.94)"
+        : "translate(255 104) scale(0.76)"
+    : isShop
+      ? "translate(400 132)"
+      : stamp.tier === "country"
+        ? "translate(225 82) scale(1.25)"
+        : `translate(258 ${localityDeviceTop}) scale(0.72)`;
+
   return (
-    <figure className={`${styles.stamp} ${size === "small" ? styles.small : ""}`} data-ink={stamp.ink}>
+    <figure
+      className={styles.stamp}
+      data-ink={stamp.ink}
+      data-tier={stamp.tier}
+      data-detail={detail}
+    >
       <svg
-        viewBox="0 0 600 400"
+        viewBox={`0 0 ${CANVAS.width} ${CANVAS.height}`}
         className={styles.canvas}
         role="img"
         aria-label={description}
@@ -167,7 +312,7 @@ export function StampArt({
 
         <g filter={`url(#${filterId})`} opacity="0.97">
           <g filter={`url(#${grainId})`} fill="none" stroke={ink}>
-            {stamp.tier === "shop" ? (
+            {isShop ? (
               <rect x="16" y="16" width="568" height="368" rx="34" strokeWidth="7" />
             ) : null}
             {stamp.tier === "locality" ? (
@@ -187,66 +332,115 @@ export function StampArt({
             ) : null}
 
             <text
-              x="42"
-              y="76"
-              className={styles.tier}
+              x={isShop ? 42 : MIDDLE}
+              y={compact ? (isShop ? 92 : 88) : isShop ? 76 : 70}
+              textAnchor={isShop ? undefined : "middle"}
+              className={compact ? styles.tierCompact : styles.tier}
               fill={ink}
               stroke="none"
               opacity="0.8"
             >
               {TIER_LABEL[stamp.tier].toUpperCase()}
             </text>
-            <text
-              x="42"
-              y="152"
-              className={styles.name}
-              fontSize={nameSize}
-              fill={ink}
-              stroke="none"
-            >
-              {title}
-            </text>
-            {localTitle ? (
-              <text x="42" y="196" className={styles.local} fill={ink} stroke="none">
-                {localTitle}
+
+            {/*
+              A locality seal names its country before it names itself: the
+              country is the wider thing, and naming it first is what makes the
+              centred block read as a place inside a hierarchy rather than as a
+              shop. Dropped in the compact composition, where the surface around
+              the impression already says it in readable text.
+            */}
+            {stamp.tier === "locality" && !compact ? (
+              <text
+                x={MIDDLE}
+                y="118"
+                textAnchor="middle"
+                className={styles.parent}
+                fill={ink}
+                stroke="none"
+                opacity="0.85"
+              >
+                {stamp.countryLabel.toUpperCase()}
               </text>
             ) : null}
-            <text
-              x="42"
-              y="258"
-              className={styles.parent}
-              fill={ink}
-              stroke="none"
-              opacity="0.85"
-            >
-              {(stamp.tier === "country"
-                ? "NIB ATLAS"
-                : `${stamp.localityLabel} · ${stamp.countryLabel}`
-              ).toUpperCase()}
-            </text>
 
-            <g strokeWidth="8" transform="translate(400 132)">
-              {STAMP_MOTIF_PATHS[stamp.motif].map((d) => (
+            <g
+              strokeWidth={compact && isShop ? 8 : stamp.tier === "locality" && !compact ? 9 : 7.4}
+              transform={deviceTransform}
+            >
+              {device.map((d) => (
                 <path key={d} d={d} strokeLinecap="round" strokeLinejoin="round" />
               ))}
             </g>
 
-            {subtitle ? (
-              <text x="42" y="352" className={styles.date} fill={ink} stroke="none">
+            {fitted.lines.map((line, index) => (
+              <text
+                key={`name-${String(index)}`}
+                x={isShop ? 42 : MIDDLE}
+                y={nameTop + index * fitted.lineHeight}
+                textAnchor={isShop ? undefined : "middle"}
+                className={styles.name}
+                fontSize={fitted.fontSize}
+                fill={ink}
+                stroke="none"
+              >
+                {line}
+              </text>
+            ))}
+
+            {localFitted
+              ? localFitted.lines.map((line, index) => (
+                  <text
+                    key={`local-${String(index)}`}
+                    x="42"
+                    y={localTop + index * localFitted.lineHeight}
+                    className={styles.local}
+                    fontSize={localFitted.fontSize}
+                    fill={ink}
+                    stroke="none"
+                  >
+                    {line}
+                  </text>
+                ))
+              : null}
+
+            {isShop && !compact ? (
+              <text
+                x="42"
+                y={Math.min(localBottom + 56, 300)}
+                className={styles.parent}
+                fill={ink}
+                stroke="none"
+                opacity="0.85"
+              >
+                {`${stamp.localityLabel} · ${stamp.countryLabel}`.toUpperCase()}
+              </text>
+            ) : null}
+
+            {subtitle && !compact ? (
+              <text
+                x={footInset}
+                y={footBaseline}
+                className={styles.date}
+                fill={ink}
+                stroke="none"
+              >
                 {subtitle}
               </text>
             ) : null}
-            <text
-              x="558"
-              y="352"
-              textAnchor="end"
-              className={styles.provenance}
-              fill={ink}
-              stroke="none"
-              opacity="0.85"
-            >
-              NIB ATLAS
-            </text>
+            {compact ? null : (
+              <text
+                x={CANVAS.width - footInset}
+                y={footBaseline}
+                textAnchor="end"
+                className={styles.provenance}
+                fill={ink}
+                stroke="none"
+                opacity="0.85"
+              >
+                NIB ATLAS
+              </text>
+            )}
           </g>
         </g>
       </svg>

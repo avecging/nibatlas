@@ -1,9 +1,48 @@
+/*
+ * The application frame.
+ *
+ * One box owns the available height for every surface: the header, then the
+ * screen, then the mobile section navigation. Nothing inside may work out how
+ * much room it has by subtracting the chrome for itself.
+ *
+ * That rule is WP5's viewport correction. Before it, three surfaces computed the
+ * same thing three ways and none of them agreed: the map subtracted
+ * `var(--nav-height)` — a token that does not include the navigation's own 1 px
+ * top border, so the map document was permanently one pixel taller than the
+ * viewport — and a hard-coded `3.5rem` at desktop, while the Passport's book
+ * asked for `height: 100%` from an ancestor whose height was only a *minimum*,
+ * so it silently fell back to the book's intrinsic height. On a 360 x 800 test
+ * viewport that happened to fit. On a real phone showing its browser chrome, or
+ * on any shorter device, it did not: the Passport became a scrolling document
+ * around a fixed-size object, and its pager — the way into the book — sat below
+ * the fold.
+ *
+ * So `1fr` has to mean "the space actually left", which it only does when the
+ * container's height is definite. Documents keep `min-height` and grow; surfaces
+ * that are *objects* rather than documents declare `data-app-frame="fixed"` and
+ * the frame locks to the viewport.
+ */
 .shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto 1fr auto;
   min-height: 100dvh;
   background: var(--bg-canvas);
+}
+
+/*
+ * A locked frame.
+ *
+ * The map is always one. The Passport is one in Book mode and is not one in List
+ * mode, which is why this is keyed on the screen's own declaration rather than
+ * on the route: `:has()` lets the frame follow a choice the reader makes inside
+ * it, without the shell importing the Passport's state or the Passport reaching
+ * up into the shell. A browser without `:has()` falls back to today's behaviour
+ * — a document that scrolls — rather than to anything broken.
+ */
+.shell[data-shell-variant="map"],
+.shell:has([data-app-frame="fixed"]) {
+  height: 100dvh;
 }
 
 .header {
@@ -15,6 +54,18 @@
   padding: var(--space-2) var(--space-4);
   border-bottom: 1px solid var(--border-default);
   background: var(--bg-surface);
+  /*
+   * Placed explicitly, and so are the two below it.
+   *
+   * The map hides this header with `display: none`, which takes it out of the
+   * grid altogether — so with auto placement every remaining child moved up a
+   * row and the section navigation, not the screen, took the `1fr`. It went
+   * unnoticed while the shell was only a *minimum* height and the map set its
+   * own; with the frame locked it made the map 192 px tall and the navigation
+   * 608. Naming the rows means a hidden header costs its own row and nothing
+   * else's.
+   */
+  grid-row: 1;
 }
 
 .headerMapVariant {
@@ -47,6 +98,7 @@
 }
 
 .main {
+  grid-row: 2;
   min-width: 0;
   max-width: 100%;
   min-height: 0;
@@ -58,6 +110,18 @@
   min-height: 0;
 }
 
+/*
+ * Inside a locked frame the screen fills the row and manages its own overflow,
+ * so nothing it draws can extend the document and turn the frame back into a
+ * scrolling page. Applied only when the frame is locked: List mode's sticky
+ * toolbar depends on the window being the scroll container, and making `main` a
+ * scroll container unconditionally would take that away.
+ */
+.shell[data-shell-variant="map"] .mainFullVariant,
+.shell:has([data-app-frame="fixed"]) .mainFullVariant {
+  overflow: hidden;
+}
+
 .mainContentVariant {
   width: 100%;
   max-width: var(--content-max);
@@ -66,6 +130,7 @@
 }
 
 .bottomNav {
+  grid-row: 3;
   position: sticky;
   bottom: 0;
   z-index: 30;
@@ -109,9 +174,12 @@
 }
 
 @media (min-width: 1024px) {
+  /* No section navigation at the foot: the header carries the sections. The
+     third row stays declared so the explicit placement above still resolves. */
   .shell {
-    grid-template-rows: auto 1fr;
+    grid-template-rows: auto 1fr 0;
   }
+
 
   .headerMapVariant {
     display: flex;

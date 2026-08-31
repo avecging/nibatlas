@@ -525,7 +525,22 @@ export function PassportScreen({ target }: { readonly target: PassportTarget }) 
         : ({ kind: "all" } as const);
 
   return (
-    <div className={styles.screen} data-passport-mode={view.mode}>
+    <div
+      className={styles.screen}
+      data-passport-mode={view.mode}
+      /*
+       * Which kind of surface this is, for the application frame.
+       *
+       * Book mode is an object in a field that must not scroll, so it asks the
+       * shell to lock the frame to the viewport and then takes exactly the room
+       * that leaves. List mode is a document and flows. Before WP5 the book
+       * asked for `height: 100%` of an ancestor that only had a *minimum*
+       * height, so on any viewport shorter than its intrinsic height — a real
+       * phone showing browser chrome, or a short device — the Passport became a
+       * scrolling page and its pager fell below the fold.
+       */
+      data-app-frame={view.mode === "book" ? "fixed" : "flow"}
+    >
       <div className={styles.toolbar}>
         {/*
           List on the left, Book on the right. Two buttons rather than a
