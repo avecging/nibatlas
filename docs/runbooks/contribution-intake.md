@@ -151,21 +151,22 @@ so check in this order:
 
 ## 4. Worker secrets
 
-Three, for each environment. Run these yourself; none of these values needs to be
-shared with anyone working on the frontend.
+Three, on `nibatlas-staging`. Run these yourself; none of these values needs to
+be shared with anyone working on the frontend.
 
 ```
 pnpm exec wrangler secret put CONTRIBUTE_SCRIPT_URL
 pnpm exec wrangler secret put CONTRIBUTE_SHARED_SECRET
 pnpm exec wrangler secret put TURNSTILE_SECRET_KEY
-
-pnpm exec wrangler secret put CONTRIBUTE_SCRIPT_URL --env production
-pnpm exec wrangler secret put CONTRIBUTE_SHARED_SECRET --env production
-pnpm exec wrangler secret put TURNSTILE_SECRET_KEY --env production
 ```
 
 `CONTRIBUTE_SHARED_SECRET` must be byte-identical to the Script Property from
 step 2. `CONTRIBUTE_SCRIPT_URL` is the `/exec` URL.
+
+**Staging is the only Worker that exists.** `nibatlas-production` has not been
+created, so there is nothing to configure with `--env production` and no
+production run of this setup to do. See *Later, when production exists* at the
+foot of this runbook.
 
 **Never prefix any of these with `NEXT_PUBLIC_`.** That prefix is what puts a
 value into the browser bundle, and `.env.example` keeps the browser-safe and
@@ -184,20 +185,40 @@ The sheet's own notification is the recommended one.
 
 ## Verifying it works
 
-From a machine that can reach the deployment, with the secret to hand:
+Two checks, in order. The first needs nothing but the URL.
+
+**Is it deployed?** A `GET` should come back as a refusal from the script itself:
 
 ```
-curl -sS -L -X POST "$CONTRIBUTE_SCRIPT_URL" \
+curl -sS -L "$CONTRIBUTE_SCRIPT_URL"
+```
+
+Expect `{"ok":false,"error":"method_not_allowed","status":405}`. Anything else —
+an HTML page, a login redirect — means the deployment or its access setting is
+wrong, and nothing further will work.
+
+**Does it accept a submission?** With the shared secret to hand:
+
+```
+curl -sS -L "$CONTRIBUTE_SCRIPT_URL" \
   -H 'Content-Type: application/json' \
   -d '{"secret":"…","type":"correction","fields":{
         "shop_slug":"runbook-check","shop_name":"Runbook check",
         "correction_type":"other","what_is_wrong":"Verifying intake."}}'
 ```
 
-`-L` matters: Apps Script answers a Web App POST with a redirect to
-`script.googleusercontent.com`, and a client that does not follow it sees an
-empty response and reads it as a failure. The Worker route follows redirects for
-the same reason.
+**Do not add `-X POST`.** `-d` already makes it a POST, and `-X` *forces* the
+method to be reused on the redirect — which is the one way to make a correctly
+deployed script look broken. Apps Script answers a Web App POST with a `302` to
+`script.googleusercontent.com`, which must then be fetched with `GET`; curl does
+that switch by itself, and `-X POST` overrides it. Re-POSTing to that address
+returns a Google Drive error page reading *"Sorry, unable to open the file at
+this time"*, which looks like a permissions problem and is not one.
+
+`-L` matters for the same reason: a client that does not follow the redirect sees
+an empty response and reads it as a failure. The Worker route uses
+`redirect: "follow"`, and the Fetch standard makes the same `POST` → `GET` switch
+on a 302, so it is unaffected by the curl trap above.
 
 Expect `{"ok":true,"row":2,"status":200}` and a row in `corrections`. Delete the
 row afterwards.
@@ -224,3 +245,24 @@ The data lives in Google Sheets, under the Google account that owns the
 spreadsheet — which makes that account's owner the party responsible for it. The
 privacy policy names Google as the recipient and states the retention period. If
 that account changes, the privacy policy has to change with it.
+
+## Later, when production exists
+
+Nothing in this runbook creates or assumes a production Worker. When
+`nibatlas-production` is actually created, this becomes a deployment step rather
+than a setup step:
+
+1. Add the production hostname to the Turnstile widget's hostname list. A widget
+   renders on listed hosts only, so this has to happen before the first
+   production build, not after it.
+2. Decide whether production shares this spreadsheet and Apps Script deployment
+   or gets its own. Sharing is simpler and keeps one review queue; separating
+   keeps test submissions out of the real one. Either way the shared secret
+   should differ between environments, so a leak from one does not write to the
+   other.
+3. Set the same three secrets with `--env production`, plus
+   `NEXT_PUBLIC_TURNSTILE_SITE_KEY` wherever the production build runs — it is
+   read at build time, so a runtime secret alone leaves the widget absent and
+   every submission refused.
+4. Confirm the production privacy copy still names the right Google account as
+   the recipient, if the spreadsheet's owner changed.

@@ -2679,6 +2679,15 @@ were already live on Privacy** (*"Collect Stampwhile you are at a shop"* and
 `tests/e2e/prose-integrity.spec.ts` now asserts no prose route renders two words
 run together across an inline element, so this cannot come back unseen.
 
+**The site key never reached the browser.** The form read it as
+`process.env["NEXT_PUBLIC_..."]`. Next inlines a `NEXT_PUBLIC_` value by matching
+the literal dot-access expression, and the bracket form is not matched — so it
+compiled, would have deployed, and was `undefined` in the browser: no widget, and
+every production submission refused with nothing on screen explaining why. Found
+by loading the page with Cloudflare's always-passes test key, not by any test,
+which is why the staging job now asserts the value reached the built bundle. The
+staging deploy was not passing the key to the build either.
+
 **Six contrast failures on the optional markers.** `--text-muted` measured 4.3:1
 against the page ground at label size, under the 4.5:1 small-text minimum. Caught
 by the axe audit, which the three new routes were added to; the marker is
@@ -2697,6 +2706,11 @@ by the axe audit, which the three new routes were added to; the marker is
   there is something to do about them and that contact details are cleared after.
   A stated period needs a founder decision and can be added in one line.
 - **About was not reworked.** Issue #17.
+- **No production Worker configuration.** Only `nibatlas-staging` exists.
+  Nothing here creates or assumes `nibatlas-production`, and the runbook records
+  the production steps as a future deployment task rather than part of this
+  setup — the Turnstile hostname, whether production shares this spreadsheet, and
+  the build-time site key wherever that build runs.
 - **The country expansion was not started.** Scheduled after WP7.
 - **No desktop treatment.** WP-D still awaits founder feedback.
 
