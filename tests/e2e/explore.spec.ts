@@ -43,8 +43,15 @@ async function raiseSheet(page: Page) {
     return;
   }
 
-  await handle.click();
-  await expect(page.getByTestId("results-sheet")).toHaveAttribute("data-state", "half");
+  const sheet = page.getByTestId("results-sheet");
+
+  // Idempotent: a journey that searches twice must not tip the sheet to Full on
+  // the second call.
+  if ((await sheet.getAttribute("data-state")) === "peek") {
+    await handle.click();
+  }
+
+  await expect(sheet).not.toHaveAttribute("data-state", "peek");
 }
 
 /** A stepwise drag so MapLibre sees a real gesture rather than one jump. */
@@ -100,7 +107,7 @@ test("place search commits a viewport and lists shops", async ({ page }) => {
   const list = page.getByRole("list", { name: /shops in the searched area/i });
   await expect(list).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Ginza Itoya Main Store", exact: true }),
+    page.getByRole("link", { name: "Ginza Itoya Main Store", exact: true }),
   ).toBeVisible();
 });
 
@@ -166,11 +173,11 @@ test("panning offers Search this area instead of refetching", async ({ page }) =
   await expect(page.getByRole("button", { name: /search this area/i })).toBeVisible();
   // Movement alone must not requery: the previous results are still listed.
   await expect(
-    page.getByRole("button", { name: "Ginza Itoya Main Store", exact: true }),
+    page.getByRole("link", { name: "Ginza Itoya Main Store", exact: true }),
   ).toBeVisible();
 });
 
-test("selecting a card never looks like the user moved the map", async ({ page }) => {
+test("selecting a marker never looks like the user moved the map", async ({ page }) => {
   await openMap(page);
   await searchDestination(page, "Tokyo", /^Tokyo/);
 
@@ -179,13 +186,200 @@ test("selecting a card never looks like the user moved the map", async ({ page }
 
   // Selection can pan the map to reveal a marker. That is an application move,
   // so it must not offer a new search.
-  const cards = page.getByRole("article");
-  const count = await cards.count();
+  const markers = page.locator("[data-shop-id][data-marker-state]");
+  const count = await markers.count();
+  expect(count).toBeGreaterThan(0);
 
   for (let index = 0; index < Math.min(count, 5); index += 1) {
-    await cards.nth(index).getByRole("button").first().click();
+    await markers.nth(index).click();
     await expect(explore).toHaveAttribute("data-search-offer", "hidden");
   }
+});
+
+/*
+ * The approved card interaction. Hovering or focusing a card synchronises its
+ * marker without selecting it, and activating the body of the card opens the
+ * shop rather than merely selecting it.
+ */
+test("a card synchronises its marker on hover and on keyboard focus", async ({
+  page,
+}, testInfo) => {
+  await openMap(page);
+  await searchDestination(page, "Ginza", /^Ginza/);
+  await raiseSheet(page);
+
+  const card = page.getByRole("article", { name: "Ginza Itoya Main Store" });
+  const marker = page
+    .getByRole("button", { name: /^Ginza Itoya Main Store, Chūō, Tokyo\./ })
+    .first();
+
+  await expect(marker).toHaveAttribute("data-highlighted", "false");
+
+  // Hover synchronisation is for a pointer-capable device only; the touch
+  // project gets the focus equivalent below and nothing else.
+  if (testInfo.project.name !== "mobile-360") {
+    await card.hover();
+    await expect(marker).toHaveAttribute("data-highlighted", "true");
+    // A highlight is not a selection, and it never moves the camera.
+    await expect(card).toHaveAttribute("data-selected", "false");
+    await expect(page.getByTestId("explore")).toHaveAttribute("data-search-offer", "hidden");
+
+    await page.mouse.move(0, 0);
+    await expect(marker).toHaveAttribute("data-highlighted", "false");
+  }
+
+  await card.getByRole("link", { name: "Ginza Itoya Main Store" }).focus();
+  await expect(marker).toHaveAttribute("data-highlighted", "true");
+  await expect(card).toHaveAttribute("data-selected", "false");
+});
+
+/*
+ * A shop whose own marker is clustered away at this zoom still answers. Without
+ * this, the documented synchronisation silently does nothing wherever the map is
+ * dense — which is most of the opening view.
+ */
+test("a clustered shop highlights the cluster standing for it", async ({ page }) => {
+  await openMap(page);
+
+  // The opening world view clusters everything, so no single-shop marker exists.
+  const clusters = page.locator("[data-cluster-count]");
+  await expect(clusters.first()).toBeVisible();
+  await expect(page.locator("[data-shop-id][data-marker-state]")).toHaveCount(0);
+
+  await raiseSheet(page);
+
+  const card = page.getByRole("article").first();
+  const name = await card.getByRole("link").first().textContent();
+
+  await card.getByRole("link", { name: name ?? "" }).focus();
+
+  await expect(page.locator('[data-cluster-count][data-highlighted="true"]')).toHaveCount(
+    1,
+  );
+
+  // And it lets go again, like any other highlight.
+  await page.getByRole("combobox", { name: /search shops or places/i }).focus();
+  await expect(page.locator('[data-cluster-count][data-highlighted="true"]')).toHaveCount(
+    0,
+  );
+});
+
+test("activating the body of a card opens the shop, and Save does not", async ({ page }) => {
+  await openMap(page);
+  await searchDestination(page, "Ginza", /^Ginza/);
+  await raiseSheet(page);
+
+  const card = page.getByRole("article", { name: "Ginza Itoya Main Store" });
+
+  // An explicit control performs its own action and never opens the shop.
+  await card.getByRole("button", { name: /^save$/i }).click();
+  await expect(card.getByRole("button", { name: /^saved$/i })).toBeVisible();
+  await expect(page.getByTestId("explore")).toBeVisible();
+
+  await card.getByRole("link", { name: "Ginza Itoya Main Store" }).click();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Ginza Itoya Main Store" }),
+  ).toBeVisible();
+});
+
+/** The rendered treatment of a status badge, wherever it sits. */
+async function badgeStyle(badge: import("@playwright/test").Locator) {
+  return badge.evaluate((node) => {
+    const element = (node.closest("span[class]") ?? node) as HTMLElement;
+    const computed = window.getComputedStyle(element);
+
+    return {
+      background: computed.backgroundColor,
+      border: computed.borderTopColor,
+      icons: element.querySelectorAll("svg").length,
+    };
+  });
+}
+
+/*
+ * The third staging finding: `Open` had not been obvious enough on the map
+ * surfaces. WP4's shared badge gained three levels of attention — this confirms
+ * them in the card context rather than assuming they carried over, and confirms
+ * that operational status stays separate from Saved and Visited.
+ */
+test("a map card renders the three operational-status treatments", async ({ page }) => {
+  // A clean device, so the card starts with neither persisted state.
+  await openMap(page);
+  await searchDestination(page, "Ginza", /^Ginza/);
+  await raiseSheet(page);
+
+  const card = page.getByRole("article", { name: "Ginza Itoya Main Store" });
+  const open = card.getByText("Open", { exact: true });
+
+  await expect(open).toBeVisible();
+
+  // Open: the WP4 success green, not the neutral grey it had.
+  const openStyle = await badgeStyle(open);
+
+  expect(openStyle.background).toBe("rgb(227, 240, 230)");
+  expect(openStyle.border).toBe("rgb(47, 118, 83)");
+  expect(openStyle.icons).toBeGreaterThan(0);
+
+  // Unconfirmed: the softer amber outline, still labelled and still iconed.
+  await searchDestination(page, "Kaohsiung", /^Kaohsiung/);
+  await raiseSheet(page);
+
+  const unknown = page
+    .getByRole("article", { name: "SKB", exact: true })
+    .getByText("Status not confirmed");
+
+  await expect(unknown).toBeVisible();
+
+  const unknownStyle = await badgeStyle(unknown);
+
+  expect(unknownStyle.background).toBe("rgba(0, 0, 0, 0)");
+  expect(unknownStyle.border).toBe("rgb(207, 169, 111)");
+  expect(unknownStyle.icons).toBeGreaterThan(0);
+
+  // And a confirmed closure keeps the stronger, filled amber, which the
+  // unconfirmed status deliberately does not take.
+  const closed = await page.evaluate(() => {
+    const probe = document.createElement("div");
+
+    probe.style.background = "var(--warning-surface)";
+    document.body.append(probe);
+
+    const value = window.getComputedStyle(probe).backgroundColor;
+
+    probe.remove();
+
+    return value;
+  });
+
+  expect(closed).toBe("rgb(247, 235, 215)");
+  expect(unknownStyle.background).not.toBe(closed);
+});
+
+/*
+ * Operational status is about the shop; visited and saved are about the reader.
+ * They were one conflated pill on a card and are now three separate facts.
+ */
+test("a map card keeps operational status separate from the reader's own state", async ({
+  page,
+}) => {
+  await openMap(page);
+  await searchDestination(page, "Ginza", /^Ginza/);
+  await raiseSheet(page);
+
+  const card = page.getByRole("article", { name: "Ginza Itoya Main Store" });
+
+  await expect(card.getByText("Open", { exact: true })).toBeVisible();
+  await expect(card.getByText("Not visited")).toHaveCount(0);
+  await expect(card.getByText("Visited", { exact: true })).toHaveCount(0);
+
+  // Saved is carried by its own labelled control, not repeated as a pill.
+  await card.getByRole("button", { name: /^save$/i }).click();
+  await expect(card.getByRole("button", { name: /^saved$/i })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(card.getByText("Visited", { exact: true })).toHaveCount(0);
+  await expect(card.getByText("Open", { exact: true })).toBeVisible();
 });
 
 test("resizing the window neither invents nor erases Search this area", async ({ page }) => {
@@ -229,7 +423,12 @@ test("a gesture during a destination fly leaves the user in control", async ({ p
   await expect(explore).toHaveAttribute("data-search-offer", "hidden");
 });
 
-test("filters apply only when the viewport query is committed", async ({ page }) => {
+/*
+ * Staging reported the filter buttons as "not functioning": they waited for the
+ * next committed search with no commit action of their own, which is
+ * indistinguishable from broken. The drawer now has one.
+ */
+test("the filter drawer holds a draft until it is applied", async ({ page }) => {
   await openMap(page);
   await searchDestination(page, "Tokyo", /^Tokyo/);
 
@@ -237,18 +436,182 @@ test("filters apply only when the viewport query is committed", async ({ page })
   await expect(list).toBeVisible();
 
   await raiseSheet(page);
-  await page.getByRole("button", { name: "Vintage / Used", exact: true }).click();
-  await expect(page.getByText(/search this area to apply/i)).toBeVisible();
-  // Uncommitted: the existing results are untouched.
+  await page.getByRole("button", { name: /^filters/i }).click();
+
+  const drawer = page.getByRole("dialog", { name: "Filters" });
+  await drawer.getByRole("button", { name: "Vintage / Used", exact: true }).click();
+
+  // Drafted, not applied: the results behind the drawer have not moved, and
+  // nothing is badged as applied.
+  await expect(page.getByTestId("filter-count")).toHaveCount(0);
+  await expect(drawer.getByText(/^0 shops match$/)).toBeVisible();
+
+  await drawer.getByRole("button", { name: "Apply filters" }).click();
+
+  // Committed: the drawer closes, the badge appears, and the results follow. No
+  // shop in the sourced subset is a vintage dealer, so the honest result is an
+  // empty set plus a way to recover.
+  await expect(drawer).toHaveCount(0);
+  await expect(page.getByTestId("filter-count")).toHaveText(/1/);
+  await expect(page.getByText(/no shops match this area/i)).toBeVisible();
+
+  await page.getByRole("button", { name: /clear filters/i }).click();
   await expect(
-    page.getByRole("button", { name: "Ginza Itoya Main Store", exact: true }),
+    page.getByRole("link", { name: "Ginza Itoya Main Store", exact: true }),
+  ).toBeVisible();
+});
+
+test("closing the drawer discards what was not applied", async ({ page }) => {
+  await openMap(page);
+  await searchDestination(page, "Tokyo", /^Tokyo/);
+  await raiseSheet(page);
+
+  await page.getByRole("button", { name: /^filters/i }).click();
+
+  const drawer = page.getByRole("dialog", { name: "Filters" });
+  await drawer.getByRole("button", { name: "Vintage / Used", exact: true }).click();
+  await drawer.getByRole("button", { name: "Recorded as open", exact: true }).click();
+  await drawer.getByRole("button", { name: /close filters without applying/i }).click();
+
+  await expect(drawer).toHaveCount(0);
+  await expect(page.getByTestId("filter-count")).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "Ginza Itoya Main Store", exact: true }),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: /search this area/i }).click();
-  await expect(page.getByText(/search this area to apply/i)).toHaveCount(0);
-  // No shop in the sourced subset is a vintage dealer, so the honest result is
-  // an empty set plus a way to recover.
+  // Reopening starts from what is applied, not from the discarded draft.
+  await page.getByRole("button", { name: /^filters/i }).click();
+  await expect(
+    drawer.getByRole("button", { name: "Vintage / Used", exact: true }),
+  ).toHaveAttribute("aria-pressed", "false");
+  await expect(
+    drawer.getByRole("button", { name: "Recorded as open", exact: true }),
+  ).toHaveAttribute("aria-pressed", "false");
+});
+
+/*
+ * One consistent commit: availability must not land while a shop type is still
+ * waiting on a query.
+ */
+test("applying commits every filter dimension together", async ({ page }) => {
+  await openMap(page);
+  await searchDestination(page, "Tokyo", /^Tokyo/);
+  await raiseSheet(page);
+
+  await page.getByRole("button", { name: /^filters/i }).click();
+
+  const drawer = page.getByRole("dialog", { name: "Filters" });
+  await drawer.getByRole("button", { name: "Stationery Store", exact: true }).click();
+  await drawer.getByRole("button", { name: "Recorded as open", exact: true }).click();
+  // The exact number depends on how the renderer resolved the requested bounds
+  // at this breakpoint; that a count is offered at all is the point.
+  await expect(drawer.getByText(/^\d+ shops? match$/)).toBeVisible();
+
+  await drawer.getByRole("button", { name: "Apply filters" }).click();
+
+  await expect(page.getByTestId("filter-count")).toHaveText(/2/);
+  await expect(
+    page.getByRole("link", { name: "Ginza Itoya Main Store", exact: true }),
+  ).toBeVisible();
+});
+
+/* The draft clear is a draft control: applying that cleared state commits it. */
+test("Clear inside the drawer clears the draft, and Apply commits it", async ({ page }) => {
+  await openMap(page);
+  await searchDestination(page, "Tokyo", /^Tokyo/);
+  await raiseSheet(page);
+
+  await page.getByRole("button", { name: /^filters/i }).click();
+
+  const drawer = page.getByRole("dialog", { name: "Filters" });
+  await drawer.getByRole("button", { name: "Stationery Store", exact: true }).click();
+  await drawer.getByRole("button", { name: "Apply filters" }).click();
+  await expect(page.getByTestId("filter-count")).toHaveText(/1/);
+
+  await page.getByRole("button", { name: /^filters/i }).click();
+  await drawer.getByRole("button", { name: /^clear$/i }).click();
+
+  // Cleared in the draft only: what is applied has not changed yet.
+  await expect(
+    drawer.getByRole("button", { name: "Stationery Store", exact: true }),
+  ).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByTestId("filter-count")).toHaveText(/1/);
+
+  await drawer.getByRole("button", { name: "Apply filters" }).click();
+  await expect(page.getByTestId("filter-count")).toHaveCount(0);
+});
+
+/*
+ * The visit segment is a top-level control: pressing it is its commit. All four
+ * choices stay, and they read as independent sets.
+ */
+test("the visit segment commits on press, and Unvisited includes saved shops", async ({
+  page,
+}) => {
+  await openMap(page);
+  await searchDestination(page, "Ginza", /^Ginza/);
+  await raiseSheet(page);
+
+  const explore = page.getByTestId("explore");
+  const segment = page.getByRole("group", { name: "Visit status" });
+  const card = page.getByRole("article", { name: "Ginza Itoya Main Store" });
+
+  await expect(
+    segment.getByRole("button", { name: "Unvisited", exact: true }),
+  ).toBeVisible();
+
+  await segment.getByRole("button", { name: "Saved", exact: true }).click();
+
+  // Nothing is saved yet, so the segment empties the list at once and never
+  // asks for a new search.
   await expect(page.getByText(/no shops match this area/i)).toBeVisible();
+  await expect(explore).toHaveAttribute("data-search-offer", "hidden");
+  await expect(explore).toHaveAttribute("data-explore-status", "idle");
+
+  await segment.getByRole("button", { name: "All", exact: true }).click();
+  await card.getByRole("button", { name: /^save$/i }).click();
+
+  // Saved, and still unvisited: an independent set, not a fourth point on one
+  // axis.
+  await segment.getByRole("button", { name: "Saved", exact: true }).click();
+  await expect(card).toBeVisible();
+
+  await segment.getByRole("button", { name: "Unvisited", exact: true }).click();
+  await expect(card).toBeVisible();
+
+  await segment.getByRole("button", { name: "Visited", exact: true }).click();
+  await expect(page.getByText(/no shops match this area/i)).toBeVisible();
+});
+
+/*
+ * Camera movement keeps its own commit. Applying filters after a pan may carry
+ * the moved camera with it, and the button says so rather than doing it
+ * silently.
+ */
+test("applying after a pan commits the camera and the filters together", async ({
+  page,
+}) => {
+  await openMap(page);
+  await searchDestination(page, "Tokyo", /^Tokyo/);
+  await raiseSheet(page);
+
+  const explore = page.getByTestId("explore");
+
+  await panMap(page, -0.45, -0.3);
+  await expect(explore).toHaveAttribute("data-search-offer", "offer");
+
+  await page.getByRole("button", { name: /^filters/i }).click();
+
+  const drawer = page.getByRole("dialog", { name: "Filters" });
+  const apply = drawer.getByRole("button", { name: "Apply and search this area" });
+
+  await expect(apply).toBeVisible();
+  await drawer.getByRole("button", { name: "Recorded as open", exact: true }).click();
+  await apply.click();
+
+  await expect(drawer).toHaveCount(0);
+  await expect(explore).toHaveAttribute("data-search-offer", "hidden");
+  await expect(page.getByTestId("filter-count")).toHaveText(/1/);
 });
 
 test("global Saved mode reaches shops outside the current viewport", async ({ page }) => {
@@ -279,7 +642,7 @@ test("a saved shop returns to the map with that shop selected", async ({ page })
 
   await page
     .getByRole("article", { name: "TY Lee Pen Shop" })
-    .getByRole("link", { name: "Shop details" })
+    .getByRole("link", { name: "TY Lee Pen Shop" })
     .click();
 
   await expect(page.getByRole("heading", { level: 1, name: "TY Lee Pen Shop" })).toBeVisible();
@@ -297,7 +660,7 @@ test("explore to simulated collection to Passport", async ({ page }) => {
   await raiseSheet(page);
   await page
     .getByRole("article", { name: "Pen House" })
-    .getByRole("link", { name: "Shop details" })
+    .getByRole("link", { name: "Pen House" })
     .click();
 
   await expect(page.getByRole("heading", { level: 1, name: "Pen House" })).toBeVisible();

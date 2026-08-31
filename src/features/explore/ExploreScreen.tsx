@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 
 import { DestinationSearch } from "@/src/components/map/DestinationSearch";
-import { FilterBar } from "@/src/components/map/FilterBar";
+import { MapFilters } from "@/src/components/map/MapFilters";
 import type { CameraMoveSource, CameraTarget } from "@/src/components/map/MapCanvas";
 import { ResultsSheet } from "@/src/components/map/ResultsSheet";
 import { SearchThisArea } from "@/src/components/map/SearchThisArea";
@@ -16,12 +16,13 @@ import { Icon } from "@/src/components/ui/Icon";
 import type { CountryCode, Viewport } from "@/src/domain/geo";
 import { COUNTRY_LABELS } from "@/src/domain/shop-detail";
 import type { ShopMapSummary } from "@/src/domain/shops";
-import { applyUserShopState, decorateResults } from "@/src/domain/user-state";
+import { applyUserShopState, filterResults } from "@/src/domain/user-state";
 import { useCollection } from "@/src/features/collection/collection-store";
 import {
+  canCountDraftMatches,
   createExploreState,
   exploreReducer,
-  hasUncommittedFilters,
+  hasUnappliedFilters,
   shouldOfferSearchArea,
   type SheetState,
 } from "@/src/features/explore/explore-state";
@@ -112,6 +113,12 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
   );
   const [cameraTarget, setCameraTarget] = useState<CameraTarget | null>(null);
   const [introDismissed, setIntroDismissed] = useState(true);
+  /**
+   * Transient list-to-map synchronisation. It is not selection: it never
+   * survives the pointer leaving, never moves the camera, and never changes what
+   * the results summary calls selected.
+   */
+  const [highlightedShopId, setHighlightedShopId] = useState<string | null>(null);
 
   const pendingCommit = useRef<{ readonly label: string | null } | null>(null);
   const cameraToken = useRef(0);
@@ -265,10 +272,27 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
     }
   }, [state.committed, state.lastCommittedLabel]);
 
+  /** The committed result set with the reader's own state merged, unfiltered. */
+  const mergedResults = useMemo(
+    () => applyUserShopState(state.results, collection.userShopState),
+    [collection.userShopState, state.results],
+  );
+
   const areaResults = useMemo(
+    () => filterResults(mergedResults, collection.userShopState, state.filters),
+    [collection.userShopState, mergedResults, state.filters],
+  );
+
+  /**
+   * What the drawer can promise. `null` means the loaded set cannot answer the
+   * draft's question exactly, and the drawer says so rather than guessing.
+   */
+  const draftMatchCount = useMemo(
     () =>
-      decorateResults(state.results, collection.userShopState, state.committedFilters.status),
-    [collection.userShopState, state.committedFilters.status, state.results],
+      state.filtersOpen && canCountDraftMatches(state)
+        ? filterResults(mergedResults, collection.userShopState, state.draftFilters).length
+        : null,
+    [collection.userShopState, mergedResults, state],
   );
 
   /**
@@ -317,26 +341,16 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
     dispatch({ type: "selectShop", shopId });
   }, []);
 
+  const handleHighlight = useCallback((shopId: string | null) => {
+    setHighlightedShopId(shopId);
+  }, []);
+
   const handleToggleSaved = useCallback(
     (shopId: string) => {
       const saved = collection.toggleSaved(shopId);
       noopTelemetry.record("shop_saved", { outcome: saved ? "saved" : "unsaved" });
     },
     [collection],
-  );
-
-  /** Selecting a saved shop brings the camera to it without leaving Saved mode. */
-  const handleSelectSaved = useCallback(
-    (shopId: string) => {
-      const shop = savedResults.find((candidate) => candidate.id === shopId);
-
-      dispatch({ type: "selectShop", shopId });
-
-      if (shop) {
-        moveCamera(shopViewport(shop), shop.name);
-      }
-    },
-    [moveCamera, savedResults],
   );
 
   const offerMode =
@@ -421,12 +435,33 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
     </section>
   );
 
+  /*
+   * A reader who pans and then filters should get one commit, not two. When the
+   * camera has moved far enough to be offering `Search this area`, Apply carries
+   * those bounds with the filters and settles the offer in the same action — and
+   * the button says so rather than doing it silently.
+   */
+  const appliesCamera = mode === "area" && shouldOfferSearchArea(state);
+
   const filterBar = (
-    <FilterBar
-      filters={state.draftFilters}
-      uncommitted={hasUncommittedFilters(state)}
+    <MapFilters
+      filters={state.filters}
+      draftFilters={state.draftFilters}
+      open={state.filtersOpen}
+      hasUnapplied={hasUnappliedFilters(state)}
+      draftMatchCount={draftMatchCount}
+      appliesCamera={appliesCamera}
+      onOpen={() => dispatch({ type: "openFilters" })}
+      onClose={() => dispatch({ type: "closeFilters" })}
       onStatusChange={(status) => dispatch({ type: "setStatusFilter", status })}
-      onToggleType={(shopType) => dispatch({ type: "toggleShopType", shopType })}
+      onDraftAvailabilityChange={(availability) =>
+        dispatch({ type: "setDraftAvailability", availability })
+      }
+      onToggleDraftType={(shopType) => dispatch({ type: "toggleDraftShopType", shopType })}
+      onClearDraft={() => dispatch({ type: "clearDraftFilters" })}
+      onApply={() =>
+        dispatch(appliesCamera ? { type: "applyFilters", viewport: state.camera } : { type: "applyFilters" })
+      }
       onClear={() => dispatch({ type: "clearFilters" })}
     />
   );
@@ -437,7 +472,8 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
         <Icon name="bookmark-filled" size={18} />
         <span>
           <strong>Saved — all locations.</strong> Every shop you have saved, wherever
-          it is. Selecting one moves the map to it.
+          it is. Its marker lights up as you move through the list, and opening a
+          card opens the shop.
         </span>
       </p>
       {/*
@@ -474,11 +510,13 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
             <ShopList
               shops={group.shops}
               selectedShopId={state.selectedShopId}
+              highlightedShopId={highlightedShopId}
               savedShopIds={collection.savedShopIds}
+              visitedShopIds={collection.userShopState.visitedShopIds}
               truncated={false}
               listLabel={`Saved shops in ${group.label}`}
               detailFrom="saved"
-              onSelect={handleSelectSaved}
+              onHighlight={handleHighlight}
               onToggleSaved={handleToggleSaved}
               onOpenDetail={(shop) =>
                 noopTelemetry.record("shop_opened", { shopSlug: shop.slug, surface: "saved" })
@@ -504,9 +542,11 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
       <ShopList
         shops={results}
         selectedShopId={state.selectedShopId}
+        highlightedShopId={highlightedShopId}
         savedShopIds={collection.savedShopIds}
+        visitedShopIds={collection.userShopState.visitedShopIds}
         truncated={state.truncated}
-        onSelect={(shopId) => handleSelect(shopId)}
+        onHighlight={handleHighlight}
         onToggleSaved={handleToggleSaved}
         onOpenDetail={(shop) =>
           noopTelemetry.record("shop_opened", { shopSlug: shop.slug, surface: "list" })
@@ -580,6 +620,7 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
         <MapCanvas
           shops={results}
           selectedShopId={state.selectedShopId}
+          highlightedShopId={highlightedShopId}
           initialViewport={INITIAL_VIEWPORT}
           styleProvider={styleProvider}
           cameraTarget={cameraTarget}

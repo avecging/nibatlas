@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import type { Viewport } from "@/src/domain/geo";
 import {
+  canCountDraftMatches,
   createExploreState,
   exploreReducer,
-  hasUncommittedFilters,
+  hasUnappliedFilters,
   shouldOfferSearchArea,
   type ExploreState,
 } from "@/src/features/explore/explore-state";
@@ -74,16 +75,282 @@ describe("explore reducer", () => {
     expect(shouldOfferSearchArea(committed)).toBe(false);
   });
 
-  it("keeps filter changes uncommitted until the next search", () => {
+  /*
+   * Staging reported the filter buttons as "not functioning". They were doing
+   * exactly what Milestone 1 built — waiting for the next committed search, with
+   * no commit action of their own — which is indistinguishable from broken.
+   *
+   * The replacement is an explicit transaction. The visit segment is a top-level
+   * control and commits on press; the drawer drafts and commits on Apply.
+   */
+  it("commits a visit filter on press, with no round trip", () => {
     const initial = loaded(createExploreState({ viewport: tokyo }));
     const filtered = exploreReducer(initial, { type: "setStatusFilter", status: "saved" });
 
-    expect(hasUncommittedFilters(filtered)).toBe(true);
-    expect(filtered.committedFilters.status).toBe("all");
-    expect(shouldOfferSearchArea(filtered)).toBe(true);
+    expect(filtered.filters.status).toBe("saved");
+    expect(filtered.draftFilters.status).toBe("saved");
+    expect(filtered.requestId).toBe(initial.requestId);
+    expect(filtered.status).toBe("idle");
+    expect(hasUnappliedFilters(filtered)).toBe(false);
+    expect(shouldOfferSearchArea(filtered)).toBe(false);
+  });
 
-    const committed = exploreReducer(filtered, { type: "commitSearch" });
-    expect(committed.committedFilters.status).toBe("saved");
+  it("keeps drawer edits in draft until they are applied", () => {
+    const opened = exploreReducer(loaded(createExploreState({ viewport: tokyo })), {
+      type: "openFilters",
+    });
+    const drafted = exploreReducer(
+      exploreReducer(opened, { type: "setDraftAvailability", availability: "open" }),
+      { type: "toggleDraftShopType", shopType: "vintage_used" },
+    );
+
+    // Nothing has moved: not the results, not the query, not the filter set.
+    expect(drafted.filters).toEqual(opened.filters);
+    expect(drafted.query).toBe(opened.query);
+    expect(hasUnappliedFilters(drafted)).toBe(true);
+
+    const applied = exploreReducer(drafted, { type: "applyFilters" });
+
+    expect(applied.filters.availability).toBe("open");
+    expect(applied.filters.shopTypes).toEqual(["vintage_used"]);
+    expect(applied.filtersOpen).toBe(false);
+    expect(hasUnappliedFilters(applied)).toBe(false);
+  });
+
+  /*
+   * One commit action, not two. Availability must never land while a shop type
+   * is still waiting on the source.
+   */
+  it("commits every dimension together, in one request", () => {
+    const opened = exploreReducer(loaded(createExploreState({ viewport: tokyo })), {
+      type: "openFilters",
+    });
+    const drafted = exploreReducer(
+      exploreReducer(opened, { type: "setDraftAvailability", availability: "open" }),
+      { type: "toggleDraftShopType", shopType: "vintage_used" },
+    );
+    const applied = exploreReducer(drafted, { type: "applyFilters" });
+
+    expect(applied.requestId).toBe(opened.requestId + 1);
+    expect(applied.query.shopTypes).toEqual(["vintage_used"]);
+    expect(applied.query.bounds).toEqual(tokyo.bounds);
+    expect(applied.status).toBe("loading");
+  });
+
+  it("closing the drawer discards an unapplied draft", () => {
+    const opened = exploreReducer(loaded(createExploreState({ viewport: tokyo })), {
+      type: "openFilters",
+    });
+    const drafted = exploreReducer(opened, {
+      type: "toggleDraftShopType",
+      shopType: "vintage_used",
+    });
+    const closed = exploreReducer(drafted, { type: "closeFilters" });
+
+    expect(closed.filtersOpen).toBe(false);
+    expect(closed.draftFilters).toEqual(closed.filters);
+    expect(closed.requestId).toBe(opened.requestId);
+  });
+
+  it("applies no request when the draft changes nothing the source resolves", () => {
+    const opened = exploreReducer(loaded(createExploreState({ viewport: tokyo })), {
+      type: "openFilters",
+    });
+    const drafted = exploreReducer(opened, {
+      type: "setDraftAvailability",
+      availability: "not_closed",
+    });
+    const applied = exploreReducer(drafted, { type: "applyFilters" });
+
+    expect(applied.filters.availability).toBe("not_closed");
+    expect(applied.query).toBe(opened.query);
+    expect(applied.status).toBe("idle");
+  });
+
+  it("clears the draft controls, which then need applying like any other draft", () => {
+    const opened = exploreReducer(loaded(createExploreState({ viewport: tokyo })), {
+      type: "openFilters",
+    });
+    const drafted = exploreReducer(
+      exploreReducer(opened, { type: "setDraftAvailability", availability: "open" }),
+      { type: "toggleDraftShopType", shopType: "vintage_used" },
+    );
+    const applied = exploreReducer(drafted, { type: "applyFilters" });
+
+    const reopened = exploreReducer(applied, { type: "openFilters" });
+    const cleared = exploreReducer(reopened, { type: "clearDraftFilters" });
+
+    expect(cleared.draftFilters.shopTypes).toEqual([]);
+    expect(cleared.draftFilters.availability).toBe("any");
+    // Still a draft: the results are untouched until it is applied.
+    expect(cleared.filters.shopTypes).toEqual(["vintage_used"]);
+
+    const settled = exploreReducer(cleared, { type: "applyFilters" });
+
+    expect(settled.filters.shopTypes).toEqual([]);
+    expect(settled.query.shopTypes).toEqual([]);
+  });
+
+  /*
+   * The drawer's Clear is for the drawer's own controls. The visit segment lives
+   * outside it, and clearing shop type must not silently reset a choice made out
+   * there — the bar's `Clear filters` is what clears everything.
+   */
+  it("leaves the visit segment alone when the drawer's controls are cleared", () => {
+    const withStatus = exploreReducer(loaded(createExploreState({ viewport: tokyo })), {
+      type: "setStatusFilter",
+      status: "saved",
+    });
+    const drafted = exploreReducer(
+      exploreReducer(withStatus, { type: "openFilters" }),
+      { type: "toggleDraftShopType", shopType: "vintage_used" },
+    );
+    const cleared = exploreReducer(drafted, { type: "clearDraftFilters" });
+
+    expect(cleared.draftFilters.status).toBe("saved");
+    expect(cleared.draftFilters.shopTypes).toEqual([]);
+
+    const applied = exploreReducer(cleared, { type: "applyFilters" });
+
+    expect(applied.filters.status).toBe("saved");
+    expect(applied.filters.shopTypes).toEqual([]);
+  });
+
+  /*
+   * A reader who pans and then filters gets one commit, not two: applying may
+   * carry the moved camera with it, which settles the outstanding offer.
+   */
+  it("can commit the moved camera together with the filters", () => {
+    const initial = loaded(createExploreState({ viewport: tokyo }));
+    const moved = exploreReducer(initial, { type: "cameraMoved", camera: kyoto });
+
+    expect(shouldOfferSearchArea(moved)).toBe(true);
+
+    const drafted = exploreReducer(
+      exploreReducer(moved, { type: "openFilters" }),
+      { type: "toggleDraftShopType", shopType: "vintage_used" },
+    );
+    const applied = exploreReducer(drafted, {
+      type: "applyFilters",
+      viewport: kyoto,
+    });
+
+    expect(applied.committed).toEqual(kyoto);
+    expect(applied.query.bounds).toEqual(kyoto.bounds);
+    expect(applied.query.shopTypes).toEqual(["vintage_used"]);
+
+    const settled = exploreReducer(applied, {
+      type: "resultsLoaded",
+      requestId: applied.requestId,
+      shops: [shop],
+      truncated: false,
+    });
+
+    expect(shouldOfferSearchArea(settled)).toBe(false);
+  });
+
+  /** Camera-only movement still goes through `Search this area`. */
+  it("leaves Search this area to camera movement alone", () => {
+    const initial = loaded(createExploreState({ viewport: tokyo }));
+    const moved = exploreReducer(initial, { type: "cameraMoved", camera: kyoto });
+    const drafted = exploreReducer(
+      exploreReducer(moved, { type: "openFilters" }),
+      { type: "setDraftAvailability", availability: "open" },
+    );
+    // Applying without a viewport narrows what is on screen and nothing else.
+    const applied = exploreReducer(drafted, { type: "applyFilters" });
+
+    expect(applied.committed).toEqual(initial.committed);
+    expect(shouldOfferSearchArea(applied)).toBe(true);
+  });
+
+  it("clears every applied filter in one action from outside the drawer", () => {
+    const initial = loaded(createExploreState({ viewport: tokyo }));
+    const withStatus = exploreReducer(initial, {
+      type: "setStatusFilter",
+      status: "visited",
+    });
+    const withType = exploreReducer(
+      exploreReducer(exploreReducer(withStatus, { type: "openFilters" }), {
+        type: "toggleDraftShopType",
+        shopType: "vintage_used",
+      }),
+      { type: "applyFilters" },
+    );
+
+    const cleared = exploreReducer(withType, { type: "clearFilters" });
+
+    expect(cleared.filters).toEqual({ status: "all", shopTypes: [], availability: "any" });
+    expect(cleared.draftFilters).toEqual(cleared.filters);
+    expect(cleared.query.shopTypes).toEqual([]);
+    expect(cleared.requestId).toBe(withType.requestId + 1);
+  });
+
+  /*
+   * The drawer promises a count only when the loaded set can answer the draft's
+   * question exactly.
+   */
+  describe("the draft match count", () => {
+    it("counts against the loaded set when no shop type is committed", () => {
+      const opened = exploreReducer(loaded(createExploreState({ viewport: tokyo })), {
+        type: "openFilters",
+      });
+
+      expect(canCountDraftMatches(opened)).toBe(true);
+      expect(
+        canCountDraftMatches(
+          exploreReducer(opened, { type: "toggleDraftShopType", shopType: "vintage_used" }),
+        ),
+      ).toBe(true);
+    });
+
+    it("declines to count a draft that widens the committed shop types", () => {
+      const narrowed = exploreReducer(
+        exploreReducer(exploreReducer(loaded(createExploreState({ viewport: tokyo })), {
+          type: "openFilters",
+        }), { type: "toggleDraftShopType", shopType: "vintage_used" }),
+        { type: "applyFilters" },
+      );
+      const settled = loaded(narrowed);
+      const reopened = exploreReducer(settled, { type: "openFilters" });
+
+      // Narrowing further is still countable.
+      expect(canCountDraftMatches(reopened)).toBe(true);
+
+      // Removing the only committed type asks about shops never loaded.
+      expect(
+        canCountDraftMatches(
+          exploreReducer(reopened, {
+            type: "toggleDraftShopType",
+            shopType: "vintage_used",
+          }),
+        ),
+      ).toBe(false);
+
+      // So does adding one alongside it.
+      expect(
+        canCountDraftMatches(
+          exploreReducer(reopened, {
+            type: "toggleDraftShopType",
+            shopType: "stationery_store",
+          }),
+        ),
+      ).toBe(false);
+    });
+
+    it("declines to count against a truncated result set", () => {
+      const state = createExploreState({ viewport: tokyo });
+      const truncated = exploreReducer(state, {
+        type: "resultsLoaded",
+        requestId: state.requestId,
+        shops: [shop],
+        truncated: true,
+      });
+
+      expect(canCountDraftMatches(exploreReducer(truncated, { type: "openFilters" }))).toBe(
+        false,
+      );
+    });
   });
 
   it("ignores stale responses", () => {

@@ -1,26 +1,86 @@
-import type { MarkerState, ShopMapSummary, ShopType } from "@/src/domain/shops";
+import type { MarkerState, OperationalStatus, ShopMapSummary, ShopType } from "@/src/domain/shops";
 import { SHOP_TYPES } from "@/src/domain/shops";
 import { containsPoint, type ViewportBounds } from "@/src/domain/geo";
 
-export const STATUS_FILTERS = ["all", "unvisited", "visited", "saved"] as const;
+/**
+ * The visit segment, per the approved Map experience.
+ *
+ * The staging finding was about *presentation* — `Not visited`, `Saved` and
+ * `Visited` conflated into one pill on a card — not about which filters exist.
+ * All four choices stay, and they read as independent sets rather than as four
+ * points on one axis:
+ *
+ * - `unvisited` — not in the visited set, saved-but-unvisited shops included.
+ * - `saved` — in the saved set, whether visited or not.
+ * - `visited` — in the visited set, whether saved or not.
+ *
+ * Marker priority is a separate, presentation-only rule and is unchanged:
+ * visited outranks saved outranks unvisited.
+ */
+export const STATUS_FILTERS = ["all", "unvisited", "saved", "visited"] as const;
 export type StatusFilter = (typeof STATUS_FILTERS)[number];
+
+/**
+ * Availability is about the shop, not the reader, and it is about the status a
+ * record *carries* rather than whether a shop is open right now.
+ *
+ * Opening hours are not modelled, so nothing here may read as `Open now`. The
+ * labels and the drawer's note both say "recorded" for that reason, and no
+ * current availability is ever inferred from incomplete hours.
+ */
+export const AVAILABILITY_FILTERS = ["any", "open", "not_closed"] as const;
+export type AvailabilityFilter = (typeof AVAILABILITY_FILTERS)[number];
 
 export interface ShopFilters {
   readonly status: StatusFilter;
   readonly shopTypes: readonly ShopType[];
+  readonly availability: AvailabilityFilter;
 }
 
 export const EMPTY_FILTERS: ShopFilters = {
   status: "all",
   shopTypes: [],
+  availability: "any",
 };
 
+/** What the reader owns, kept separate so a saved shop stays saved once visited. */
+export interface ShopStateFlags {
+  readonly saved: boolean;
+  readonly visited: boolean;
+}
+
+/**
+ * A best-effort reading of the independent sets from a single marker state, for
+ * the callers that only have one. It cannot recover a saved shop that has been
+ * visited, because the marker deliberately collapses that; anything filtering on
+ * behalf of a reader should use their own sets instead.
+ */
+export function flagsFromMarkerState(markerState: MarkerState): ShopStateFlags {
+  return {
+    saved: markerState === "saved",
+    visited: markerState === "visited",
+  };
+}
+
 export function activeFilterCount(filters: ShopFilters): number {
-  return (filters.status === "all" ? 0 : 1) + filters.shopTypes.length;
+  return (filters.status === "all" ? 0 : 1) + drawerFilterCount(filters);
+}
+
+/**
+ * What the filter button's badge counts: the criteria that live behind it. The
+ * visit segment is always on screen, so counting it there would label a choice
+ * the reader can already see.
+ */
+export function drawerFilterCount(filters: ShopFilters): number {
+  return filters.shopTypes.length + (filters.availability === "any" ? 0 : 1);
 }
 
 export function filtersEqual(a: ShopFilters, b: ShopFilters): boolean {
-  if (a.status !== b.status || a.shopTypes.length !== b.shopTypes.length) {
+  if (
+    a.status !== b.status ||
+    a.availability !== b.availability ||
+    a.shopTypes.length !== b.shopTypes.length
+  ) {
     return false;
   }
 
@@ -41,12 +101,47 @@ export function toggleShopType(filters: ShopFilters, shopType: ShopType): ShopFi
   };
 }
 
-export function matchesStatus(markerState: MarkerState, status: StatusFilter): boolean {
-  return status === "all" || status === markerState;
+export function matchesStatus(flags: ShopStateFlags, status: StatusFilter): boolean {
+  if (status === "unvisited") {
+    // The absence of a visit, which a saved shop can perfectly well have.
+    return !flags.visited;
+  }
+
+  if (status === "saved") {
+    return flags.saved;
+  }
+
+  if (status === "visited") {
+    return flags.visited;
+  }
+
+  return true;
+}
+
+export function matchesAvailability(
+  operationalStatus: OperationalStatus,
+  availability: AvailabilityFilter,
+): boolean {
+  if (availability === "open") {
+    return operationalStatus === "open";
+  }
+
+  if (availability === "not_closed") {
+    return (
+      operationalStatus !== "temporarily_closed" &&
+      operationalStatus !== "permanently_closed"
+    );
+  }
+
+  return true;
 }
 
 export function matchesFilters(shop: ShopMapSummary, filters: ShopFilters): boolean {
-  if (!matchesStatus(shop.markerState, filters.status)) {
+  if (!matchesStatus(flagsFromMarkerState(shop.markerState), filters.status)) {
+    return false;
+  }
+
+  if (!matchesAvailability(shop.operationalStatus, filters.availability)) {
     return false;
   }
 

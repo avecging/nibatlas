@@ -51,6 +51,7 @@
 }
 
 .marker {
+  position: relative;
   display: grid;
   place-items: center;
   width: 44px;
@@ -82,7 +83,45 @@
   transform: scale(1.12);
 }
 
+/*
+ * List-to-map synchronisation.
+ *
+ * A card being hovered or focused marks its marker. It is deliberately lighter
+ * than selection — a ring rather than the selected halo — because it is
+ * transient and does not change what the map and list agree is selected.
+ */
+.marker[data-highlighted="true"],
+.cluster[data-highlighted="true"] {
+  z-index: 2;
+}
+
+.marker[data-highlighted="true"] .markerGlyph,
+.cluster[data-highlighted="true"] .markerGlyph {
+  transform: scale(1.12);
+  filter: drop-shadow(0 2px 6px rgb(0 0 0 / 30%));
+}
+
+/*
+ * A shop whose own marker is clustered away at this zoom still answers: its
+ * cluster takes the ring, because that is where the shop is.
+ */
+.marker[data-highlighted="true"]::before,
+.cluster[data-highlighted="true"]::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border: 2px solid var(--focus-ring);
+  border-radius: var(--radius-round);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .markerGlyph {
+    transition: none;
+  }
+}
+
 .cluster {
+  position: relative;
   display: grid;
   place-items: center;
   width: 44px;

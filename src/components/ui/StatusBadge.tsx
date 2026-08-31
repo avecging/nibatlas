@@ -51,6 +51,32 @@ export function MarkerStateBadge({ state }: { readonly state: MarkerState }) {
 }
 
 /**
+ * Visited, on its own.
+ *
+ * The map card used to carry one pill for all three of `Visited`, `Saved` and
+ * `Not visited`, which made them read as three positions on one axis. They are
+ * not: visited and saved are two independent states a reader owns, and "not
+ * visited" is the absence of one rather than a state — so it is drawn as
+ * nothing at all. Saved has its own labelled control on the same card, which
+ * carries its state in text, icon and `aria-pressed`; repeating it as a pill
+ * beside that control said the same thing twice.
+ *
+ * `MarkerStateBadge` above keeps the collapsed single-state form for the marker
+ * legend and the shop page, where exactly one marker state applies by definition.
+ */
+export function VisitedBadge({ visited }: { readonly visited: boolean }) {
+  if (!visited) {
+    return null;
+  }
+
+  return (
+    <Badge tone="visited" icon="seal">
+      Visited
+    </Badge>
+  );
+}
+
+/**
  * How much attention each operational status is allowed to take.
  *
  * Exported so the hierarchy can be asserted directly: CSS modules are not
