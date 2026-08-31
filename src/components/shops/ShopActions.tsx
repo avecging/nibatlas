@@ -80,6 +80,30 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
     prototypeLocalitySlugById.get(shop.id) ?? shop.localityName.toLowerCase();
   const localityHref = `/passport/${countrySlug(shop.countryCode)}/${localitySlug}`;
 
+  /*
+   * Viewing a collected impression and collecting a new one are two different
+   * acts, so they take two different paths.
+   *
+   * A stamp already in the Passport has nothing to confirm: the label already
+   * says *View Atlas Stamp*, so the preflight that followed it asked the reader
+   * to agree to something they had already done, and its confirm button ran a
+   * collection that the store then declined. One tap now opens the impression
+   * the reader asked for. Nothing is issued, `collectedOn` is untouched, and
+   * `StampCeremony` suppresses the press for an impression it did not just take.
+   */
+  function viewCollectedImpression(collected: StampCollection) {
+    setWasAlreadyCollected(true);
+    setCeremony(collected);
+  }
+
+  /*
+   * Reached only when nothing was collected at the moment the preflight opened.
+   *
+   * The duplicate outcome survives for the one case that can still produce it:
+   * another tab collecting this shop while the preflight is open. The store is
+   * idempotent, so that resolves to the impression that already exists rather
+   * than a second one, and the event says so.
+   */
   function confirmCollection() {
     const alreadyCollected = existing !== undefined;
     const issued = collection.collectStamp(shop);
@@ -125,7 +149,9 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
         */}
         <Button
           variant={existing ? "collected" : "stamp"}
-          onClick={() => setPreflightOpen(true)}
+          onClick={() =>
+            existing ? viewCollectedImpression(existing) : setPreflightOpen(true)
+          }
         >
           <Icon name="seal" size={18} />
           {existing
@@ -157,7 +183,7 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
             tabIndex={-1}
           >
             <h2 className={styles.dialogTitle} id="collect-preflight-title">
-              {existing ? "You already have this stamp" : "Before you collect"}
+              Before you collect
             </h2>
             <div className={styles.dialogBody}>
               {/*
@@ -167,30 +193,20 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
                 yet. The full plain-language account lives on Privacy, which is
                 linked from here rather than reproduced.
               */}
-              {existing ? null : (
-                <>
-                  <p>
-                    Nib Atlas asks for your location once, here at the shop, to
-                    confirm you are there. It is checked and discarded, never stored
-                    and never read in the background.{" "}
-                    <Link className={styles.dialogLink} href="/privacy">
-                      How location is used
-                    </Link>
-                    .
-                  </p>
-                  <p>
-                    <strong>That check is not running yet.</strong> Confirming keeps
-                    a preview impression on this device so you can see how the
-                    Passport works; it is not a verified visit.
-                  </p>
-                </>
-              )}
-              {existing ? (
-                <p>
-                  You collected this impression on {existing.collectedOn}. Opening it
-                  again does not issue a second stamp.
-                </p>
-              ) : null}
+              <p>
+                Nib Atlas asks for your location once, here at the shop, to
+                confirm you are there. It is checked and discarded, never stored
+                and never read in the background.{" "}
+                <Link className={styles.dialogLink} href="/privacy">
+                  How location is used
+                </Link>
+                .
+              </p>
+              <p>
+                <strong>That check is not running yet.</strong> Confirming keeps a
+                preview impression on this device so you can see how the Passport
+                works; it is not a verified visit.
+              </p>
               {reviewer ? (
                 <p className={styles.dialogDiagnostic}>
                   Reviewer note: this build never calls the Geolocation API. The
@@ -209,11 +225,7 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
                 confirm button the same colour made the two read as the same step.
               */}
               <Button variant="primary" fullWidth onClick={confirmCollection}>
-                {existing
-                  ? "Show the impression"
-                  : reviewer
-                    ? "Simulate: I am at this shop"
-                    : "I am at this shop"}
+                {reviewer ? "Simulate: I am at this shop" : "I am at this shop"}
               </Button>
               <Button variant="quiet" fullWidth onClick={closePreflight}>
                 Cancel
