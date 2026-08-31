@@ -344,7 +344,7 @@ export function ShopDetailView({
 
         {/* 7 — quiet provenance, then the correction route. */}
         <ShopProvenance shop={shop} />
-        <ShopCorrection shopName={shop.name} />
+        <ShopCorrection shopSlug={shop.slug} />
       </div>
     </div>
   );

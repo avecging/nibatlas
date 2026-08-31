@@ -390,12 +390,23 @@ button {
 }
 
 .prose-page h1,
-.prose-page h2 {
+.prose-page h2,
+.prose-page h3 {
   color: var(--text-primary);
 }
 
 .prose-page h2 {
   margin-top: var(--space-4);
+}
+
+/*
+ * A question in a list of questions. It sits closer to the answer under it than
+ * to the answer above it, so the pair reads as one block rather than as a run of
+ * evenly spaced lines.
+ */
+.prose-page h3 {
+  margin-top: var(--space-3);
+  margin-bottom: calc(var(--space-2) * -1);
 }
 
 .prose-page strong {

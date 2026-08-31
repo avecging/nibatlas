@@ -55,22 +55,21 @@ test.describe("signed out", () => {
     await expect(page.getByRole("button", { name: /sign out/i })).toHaveCount(0);
   });
 
-  test("routes Suggest a pen shop to the contribution mailbox", async ({ page }) => {
+  test("routes Suggest a pen shop to the real form", async ({ page }) => {
     await page.goto("/me");
 
     const contribute = page.getByRole("region", { name: /contribute/i });
     const suggest = contribute.getByRole("link", { name: /suggest a pen shop/i });
 
-    await expect(suggest).toHaveAttribute(
-      "href",
-      "mailto:hello@nibatlas.com?subject=%5BSuggest%20shop%5D",
+    // WP7 replaces the mailto with the page. The address it replaced is not gone
+    // — it is what the form offers when it cannot deliver — but nothing links to
+    // it from here any more.
+    await expect(suggest).toHaveAttribute("href", "/suggest-shop");
+
+    await suggest.click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Suggest a pen shop",
     );
-
-    // The subject tag has to arrive at the mailbox exactly as accepted decision
-    // 8 writes it, so it is asserted decoded as well as encoded.
-    const href = await suggest.getAttribute("href");
-
-    expect(new URL(href!).searchParams.get("subject")).toBe("[Suggest shop]");
 
     /*
      * One entry, and it works. The founder's staging review removed the
@@ -94,8 +93,19 @@ test.describe("signed out", () => {
     await page.goto("/me");
 
     await expect(page.getByText(/not open yet/i)).toHaveCount(0);
-    await expect(page.getByText(/help and contact/i)).toHaveCount(0);
-    await expect(page.getByRole("region", { name: /help and about/i })).toHaveCount(0);
+
+    /*
+     * "Help and about" is back, and so is the row it was named for. The heading
+     * was removed for naming help that did not exist; it is accurate again now
+     * that the help does, which satisfies that reasoning rather than reversing
+     * it.
+     */
+    const about = page.getByRole("region", { name: /help and about/i });
+
+    await expect(about.getByRole("link", { name: /^help/i })).toHaveAttribute(
+      "href",
+      "/help",
+    );
   });
 
   /** The three destinations that do work are untouched by the removals. */
@@ -112,7 +122,11 @@ test.describe("signed out", () => {
     );
     await expect(
       page.getByRole("link", { name: /suggest a pen shop/i }),
-    ).toHaveAttribute("href", "mailto:hello@nibatlas.com?subject=%5BSuggest%20shop%5D");
+    ).toHaveAttribute("href", "/suggest-shop");
+    await expect(page.getByRole("link", { name: /^help/i })).toHaveAttribute(
+      "href",
+      "/help",
+    );
 
     // And they still arrive.
     await page.getByRole("link", { name: /about nib atlas/i }).click();

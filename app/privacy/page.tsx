@@ -41,9 +41,10 @@ export default function PrivacyPage() {
       <h2 className="type-h2">When location is used</h2>
       <p>
         Location is requested once, in the foreground, at the moment you tap{" "}
-        <strong>Collect Stamp</strong> while you are at a shop. Your browser asks
-        you first, and you can decline. The position is checked against that
-        shop&rsquo;s location and then discarded.
+        <strong>Collect Stamp</strong>{" "}
+        while you are at a shop. Your browser asks you first, and you can
+        decline. The position is checked against that shop&rsquo;s location and
+        then discarded.
       </p>
       <p>
         <strong>Raw coordinates are never stored</strong> — not in the database,
@@ -61,11 +62,11 @@ export default function PrivacyPage() {
         saving a shop or keeping an impression. Neither needs an account.
       </p>
       <p>
-        <strong>What you save stays on this device.</strong> It is held in this
-        browser&rsquo;s storage, it is not sent to Nib Atlas, it does not appear on
-        your other devices, and clearing this browser&rsquo;s data clears it. An
-        account will later carry saved shops and verified visits between your
-        devices; nothing needs one today.
+        <strong>What you save stays on this device.</strong>{" "}
+        It is held in this browser&rsquo;s storage, it is not sent to Nib Atlas,
+        it does not appear on your other devices, and clearing this
+        browser&rsquo;s data clears it. An account will later carry saved shops
+        and verified visits between your devices; nothing needs one today.
       </p>
 
       <h2 className="type-h2">Your Passport is private</h2>
@@ -81,8 +82,8 @@ export default function PrivacyPage() {
 
       <h2 className="type-h2">Your data, your call</h2>
       <p>
-        Nothing Nib Atlas holds for you today leaves this browser, and two
-        controls act on it. <strong>Download local data</strong> hands you a
+        Nothing Nib Atlas holds for you today leaves this browser on its own, and
+        two controls act on it. <strong>Download local data</strong> hands you a
         machine-readable copy of your saved shops and collected impressions, and{" "}
         <strong>Clear data on this device</strong> removes those same two things
         from this browser. Both are in{" "}
@@ -94,6 +95,40 @@ export default function PrivacyPage() {
         Once accounts exist, the same two things apply to an account: a
         machine-readable export, and deleting the account along with everything
         collected against it.
+      </p>
+
+      <h2 className="type-h2">When you send us something</h2>
+      <p>
+        Two things on Nib Atlas send information away from your browser, and both
+        are ones you choose to use:{" "}
+        <Link href="/suggest-shop">suggesting a pen shop</Link>, and reporting
+        something wrong with a listing from that shop&rsquo;s own page. Nothing
+        else does.
+      </p>
+      <p>
+        <strong>What is sent is what you typed</strong> — the shop, and what you
+        know about it. A correction also carries which listing it is about,
+        because you opened it from that listing.
+      </p>
+      <p>
+        <strong>Your name and email address are optional.</strong> Give an email
+        only if you are happy to be asked a follow-up question; we ask for a name
+        alongside it so a reply has someone to address. Leave both blank and the
+        submission is simply anonymous — it is not treated differently.
+      </p>
+      <p>
+        Submissions are received in a Google spreadsheet the people who maintain
+        the catalogue read, which means Google processes them on our behalf. They
+        are kept while there is still something to do about them and while they
+        are useful as a record of where a listing came from; contact details are
+        cleared once we no longer need them. They are never published, never
+        shown on a shop page, and never used to send you anything you did not ask
+        for.
+      </p>
+      <p>
+        Each form checks that a person is filling it in, using Cloudflare
+        Turnstile. It is not an advertising or tracking product and it does not
+        follow you around the web.
       </p>
 
       <h2 className="type-h2">Location is not switched on yet</h2>

@@ -164,10 +164,9 @@ describe("a material information gap", () => {
       name: "Know this shop? Help us improve this listing.",
     });
 
-    expect(invitation).toHaveAttribute(
-      "href",
-      "mailto:hello@nibatlas.com?subject=%5BShop%20correction%5D%20Juspirit",
-    );
+    // The invitation opens the same correction form the page foot does, and
+    // the listing is in the path — nobody is asked which shop they mean.
+    expect(invitation).toHaveAttribute("href", "/shops/juspirit-banqiao/report");
   });
 
   it("does not list the fields that are missing, or apologise for them", () => {
@@ -288,15 +287,24 @@ describe("nearby pen shops", () => {
 });
 
 describe("the correction route", () => {
-  it("carries the shop's name in the subject, so a reply is actionable", () => {
+  it("carries the listing, so nobody has to identify it", () => {
     renderShop(findPrototypeShop("ty-lee-pen-shop")!);
 
     expect(
       screen.getByRole("link", { name: "Report incorrect information" }),
-    ).toHaveAttribute(
-      "href",
-      "mailto:hello@nibatlas.com?subject=%5BShop%20correction%5D%20TY%20Lee%20Pen%20Shop",
-    );
+    ).toHaveAttribute("href", "/shops/ty-lee-pen-shop/report");
+  });
+
+  it("routes every catalogue shop to its own correction form", () => {
+    for (const shop of prototypeShopDetails) {
+      const { unmount } = renderShop(shop);
+
+      expect(
+        screen.getByRole("link", { name: "Report incorrect information" }),
+      ).toHaveAttribute("href", `/shops/${shop.slug}/report`);
+
+      unmount();
+    }
   });
 });
 
