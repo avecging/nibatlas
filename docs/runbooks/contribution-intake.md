@@ -85,14 +85,69 @@ new URL and silently orphans the one Cloudflare is holding.
 
 ## 3. Turnstile
 
-Cloudflare dashboard → Turnstile → Add site. Add the staging and production
-hostnames. You get two keys:
+Cloudflare dashboard → **Turnstile** in the left sidebar → **Add widget**.
 
-- **Site key** — public. It ships in the page. Add it as a repository variable
-  named `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (GitHub → Settings → Secrets and
-  variables → Actions → Variables) so builds pick it up, and put it in your local
-  `.env` from `.env.example`.
+**Widget name.** Anything; it is only a label. `Nib Atlas contributions`.
+
+**Hostnames.** The domains the widget may run on. A listed domain covers its
+subdomains, and the widget refuses to render anywhere unlisted — which is the
+step that usually goes wrong, because the staging Worker's hostname is not
+obvious. Add:
+
+- the production domain, once there is one;
+- the staging Worker's hostname — the `*.workers.dev` address the deploy job
+  prints, or the custom domain in front of it;
+- `localhost`, if you want the widget locally. Not needed: with no site key the
+  form renders without a widget, and outside production the route skips the
+  check.
+
+**Widget mode.** **Managed.** The form renders the widget explicitly and expects
+a token from a `callback`, which Managed provides. Invisible would also return a
+token, but Managed is the mode the copy and the layout were built against.
+
+**Pre-clearance.** Leave off. It is for gating whole routes at the edge, which is
+not what this does.
+
+Create it, and Cloudflare shows two keys:
+
+- **Site key** — public, and it ships in the page. It is read at **build time**,
+  not at runtime, so it has to exist wherever the app is built:
+  - GitHub → Settings → Secrets and variables → Actions → **Secrets** →
+    `NEXT_PUBLIC_TURNSTILE_SITE_KEY`. A repository *secret*, not a variable, to
+    sit alongside `NEXT_PUBLIC_MAPTILER_KEY`, which is public in exactly the same
+    way. The staging deploy fails fast if it is missing rather than shipping a
+    form that cannot send.
+  - Your local `.env`, copied from `.env.example`.
 - **Secret key** — never leaves Cloudflare. It goes in step 4.
+
+### Testing without creating a widget
+
+Cloudflare publishes dummy keys that work on any domain, including `localhost`,
+and let the whole path be verified before a real widget exists. Use them in pairs
+— a production secret rejects a dummy token, and the reverse.
+
+| Site key | Secret key | Result |
+| --- | --- | --- |
+| `1x00000000000000000000AA` | `1x0000000000000000000000000000000AA` | Always passes |
+| `2x00000000000000000000AB` | `2x0000000000000000000000000000000AA` | Always fails |
+| `3x00000000000000000000FF` | `1x0000000000000000000000000000000AA` | Forces the interactive challenge |
+
+The always-fails pair is the one worth running once: it proves the route refuses
+a submission whose challenge did not verify, which is the control that matters.
+
+### If the widget does not appear
+
+The site key is inlined into the client bundle at build time by matching the
+literal expression `process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY`. It fails
+silently when it is absent — no widget, and every production submission refused —
+so check in this order:
+
+1. **Was the key set when the app was built**, not just when it was started? The
+   staging job fails fast if the secret is missing, and a later step asserts the
+   value actually reached the bundle.
+2. **Is the hostname listed on the widget?** An unlisted host renders nothing.
+3. **Can the browser reach `challenges.cloudflare.com`?** Behind a restrictive
+   network it cannot, and the form says the spam check could not load.
 
 ## 4. Worker secrets
 

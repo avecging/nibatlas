@@ -51,7 +51,16 @@ export function ContributeForm({
   const confirmationRef = useRef<HTMLDivElement | null>(null);
   const tokenRef = useRef("");
 
-  const siteKey = process.env["NEXT_PUBLIC_TURNSTILE_SITE_KEY"];
+  /*
+   * Dot access, not `process.env["..."]`.
+   *
+   * Next inlines a `NEXT_PUBLIC_` value at build time by matching the literal
+   * member expression, and the bracket form is not matched — it compiles, ships,
+   * and is `undefined` in the browser, so no widget renders and every production
+   * submission is refused. Nothing fails loudly; it was found by loading the
+   * page. The rest of the codebase reads its public keys the same way.
+   */
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
   const update = useCallback((name: string, value: string) => {
     setValues((current) => ({ ...current, [name]: value }));
