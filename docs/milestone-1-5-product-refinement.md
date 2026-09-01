@@ -2771,7 +2771,7 @@ accepts ISO alpha-2-shaped country codes, derives display labels with
 explicitly. It does not infer language from country, and seals remain generic
 over `CountryCode`. Public coverage copy is derived from the catalogue and
 describes only what it currently contains; it makes no promise about future
-countries, starting cities, or national completeness. No Korean or Malaysian
+geographic rollout or national completeness. No Korean or Malaysian
 shop data was added by this infrastructure change.
 
 ### Two defects found on the way
