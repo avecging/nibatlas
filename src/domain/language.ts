@@ -15,3 +15,32 @@ export function isLanguageTag(value: string): value is LanguageTag {
     return false;
   }
 }
+
+
+const RTL_SCRIPTS = new Set([
+  "Adlm",
+  "Arab",
+  "Hebr",
+  "Mand",
+  "Mend",
+  "Nkoo",
+  "Rohg",
+  "Samr",
+  "Syrc",
+  "Thaa",
+]);
+
+/**
+ * Text direction implied by a BCP 47 tag's maximised script.
+ *
+ * HTML can use `dir="auto"`; SVG text needs an explicit presentation direction.
+ * Invalid or unknown tags fail safely to the application's left-to-right default.
+ */
+export function languageDirection(languageTag: LanguageTag): "ltr" | "rtl" {
+  try {
+    const script = new Intl.Locale(languageTag).maximize().script;
+    return script !== undefined && RTL_SCRIPTS.has(script) ? "rtl" : "ltr";
+  } catch {
+    return "ltr";
+  }
+}
