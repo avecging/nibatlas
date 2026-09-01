@@ -45,7 +45,7 @@ const MapCanvas = dynamic(
   { ssr: false },
 );
 
-/** Opens on the three launch countries so the prototype shows clusters immediately. */
+/** Opens on the current prototype catalogue so its clusters are visible immediately. */
 const INITIAL_VIEWPORT: Viewport = {
   bounds: { west: 96, south: -4, east: 149, north: 46 },
   zoom: 3,
