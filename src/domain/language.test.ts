@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isLanguageTag } from "@/src/domain/language";
+import { isLanguageTag, languageDirection } from "@/src/domain/language";
 
 describe("isLanguageTag", () => {
   it.each(["en", "ja", "ko", "ms", "ta", "zh-Hans", "zh-Hant", "ar"])(
@@ -12,5 +12,26 @@ describe("isLanguageTag", () => {
 
   it.each(["", "not_a_language", "zh--Hant"])("rejects %j", (tag) => {
     expect(isLanguageTag(tag)).toBe(false);
+  });
+});
+
+
+describe("languageDirection", () => {
+  it.each(["ar", "fa", "he", "ur", "az-Arab"])(
+    "recognises the RTL script used by %s",
+    (tag) => {
+      expect(languageDirection(tag)).toBe("rtl");
+    },
+  );
+
+  it.each(["en", "ja", "ko", "ms", "ta", "zh-Hans", "zh-Hant"])(
+    "keeps %s left-to-right",
+    (tag) => {
+      expect(languageDirection(tag)).toBe("ltr");
+    },
+  );
+
+  it("fails safely for an invalid tag", () => {
+    expect(languageDirection("not_a_language")).toBe("ltr");
   });
 });
