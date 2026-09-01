@@ -13,8 +13,7 @@ import { SearchThisArea } from "@/src/components/map/SearchThisArea";
 import { ShopList } from "@/src/components/shops/ShopList";
 import { useMediaQuery } from "@/src/components/hooks/useMediaQuery";
 import { Icon } from "@/src/components/ui/Icon";
-import type { CountryCode, Viewport } from "@/src/domain/geo";
-import { COUNTRY_LABELS } from "@/src/domain/shop-detail";
+import { countryLabel, type CountryCode, type Viewport } from "@/src/domain/geo";
 import type { ShopMapSummary } from "@/src/domain/shops";
 import { applyUserShopState, filterResults } from "@/src/domain/user-state";
 import { useCollection } from "@/src/features/collection/collection-store";
@@ -324,7 +323,7 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
     return [...byCountry.entries()]
       .map(([countryCode, shops]) => ({
         countryCode,
-        label: COUNTRY_LABELS[countryCode],
+        label: countryLabel(countryCode),
         shops: [...shops].sort((a, b) => a.localityName.localeCompare(b.localityName)),
       }))
       .sort((a, b) => a.label.localeCompare(b.label));
@@ -419,15 +418,22 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
       </h3>
       <p className={styles.promptsNote}>
         {reviewer
-          ? "Jump the map to a committed viewport in one of the three launch countries."
-          : "Somewhere in Singapore, Japan, or Taiwan to start from."}
+          ? "Jump the map to one of the catalogue’s current destination fixtures."
+          : "Choose one of the places currently in the catalogue."}
       </p>
       <ul className={styles.promptList}>
         {prototypeDestinations.slice(0, 8).map((destination) => (
           <li key={destination.id}>
             <Link className={styles.promptChip} href={`/?destination=${destination.id}`}>
               {destination.name}
-              {destination.localName ? ` · ${destination.localName}` : ""}
+              {destination.localName ? (
+                <>
+                  {" · "}
+                  <span lang={destination.localNameLang} dir="auto">
+                    {destination.localName}
+                  </span>
+                </>
+              ) : null}
             </Link>
           </li>
         ))}
