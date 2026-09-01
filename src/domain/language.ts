@@ -6,7 +6,11 @@
  * belongs at fixture/import boundaries because TypeScript cannot model the full
  * BCP 47 grammar usefully.
  */
-export type LanguageTag = string;
+declare const LANGUAGE_TAG_BRAND: unique symbol;
+
+export type LanguageTag = string & {
+  readonly [LANGUAGE_TAG_BRAND]: "LanguageTag";
+};
 
 export function isLanguageTag(value: string): value is LanguageTag {
   try {
@@ -16,6 +20,15 @@ export function isLanguageTag(value: string): value is LanguageTag {
   }
 }
 
+
+/** Validates untrusted or fixture data and returns a typed BCP 47 tag. */
+export function languageTag(value: string): LanguageTag {
+  if (!isLanguageTag(value)) {
+    throw new RangeError(`Invalid BCP 47 language tag: ${value}`);
+  }
+
+  return value;
+}
 
 const RTL_SCRIPTS = new Set([
   "Adlm",
