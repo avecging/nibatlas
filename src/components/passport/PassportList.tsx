@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useId } from "react";
 
-import { localeForCountry } from "@/src/components/shops/locale";
 import { ImpressionPlate } from "@/src/components/stamps/ImpressionPlate";
 import { StampArt } from "@/src/components/stamps/StampArt";
 import { Icon } from "@/src/components/ui/Icon";
@@ -149,7 +148,7 @@ function StampRow({
           {collection.shopLocalNameSnapshot ? (
             <span
               className={styles.stampLocalName}
-              lang={localeForCountry(collection.countryCode)}
+              lang={collection.shopLocalNameLangSnapshot} dir="auto"
             >
               {collection.shopLocalNameSnapshot}
             </span>
