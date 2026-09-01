@@ -1,3 +1,4 @@
+import { languageTag } from "@/src/domain/language";
 import type { ShopMapSummary } from "@/src/domain/shops";
 
 const fixtureNotice = "Demo fixture — not a verified business listing";
@@ -22,7 +23,7 @@ export const demoShops = [
     slug: "demo-japan-ink-counter",
     name: "Demo Japan Ink Counter",
     localName: "デモ万年筆店",
-    localNameLang: "ja",
+    localNameLang: languageTag("ja"),
     countryCode: "JP",
     localityName: "Demo locality",
     position: { latitude: 35.6812, longitude: 139.7671 },
@@ -38,7 +39,7 @@ export const demoShops = [
     slug: "demo-taiwan-nib-workshop",
     name: "Demo Taiwan Nib Workshop",
     localName: "示範鋼筆工作室",
-    localNameLang: "zh-Hant",
+    localNameLang: languageTag("zh-Hant"),
     countryCode: "TW",
     localityName: "Demo locality",
     position: { latitude: 23.6978, longitude: 120.9605 },
