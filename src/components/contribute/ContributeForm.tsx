@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import { Field } from "@/src/components/contribute/Field";
-import { Turnstile } from "@/src/components/contribute/Turnstile";
+import { Turnstile, type TurnstileHandle } from "@/src/components/contribute/Turnstile";
 import { Button } from "@/src/components/ui/Button";
 import {
   fieldsFor,
@@ -56,6 +56,7 @@ export function ContributeForm({
   const summaryRef = useRef<HTMLDivElement | null>(null);
   const confirmationRef = useRef<HTMLDivElement | null>(null);
   const tokenRef = useRef("");
+  const turnstileRef = useRef<TurnstileHandle | null>(null);
 
   /*
    * Dot access, not `process.env["..."]`.
@@ -163,12 +164,26 @@ export function ContributeForm({
         return;
       }
 
-      setStatus("failed");
+      failWithStaleToken();
     } catch {
-      setStatus("failed");
+      failWithStaleToken();
     }
 
     window.requestAnimationFrame(() => summaryRef.current?.focus());
+  }
+
+  /*
+   * A Turnstile token is single-use. Reaching here means the server may
+   * already have consumed it — verified, then lost to a forwarding failure or
+   * a response the browser never saw — so retrying with the same token would
+   * be rejected as a duplicate even once the intake has recovered. Clearing
+   * it and re-running the challenge is what makes the retry the failure
+   * message promises actually possible.
+   */
+  function failWithStaleToken() {
+    setStatus("failed");
+    tokenRef.current = "";
+    turnstileRef.current?.reset();
   }
 
   if (status === "sent") {
@@ -251,7 +266,7 @@ export function ContributeForm({
         />
       ))}
 
-      <Turnstile siteKey={siteKey} onToken={onToken} />
+      <Turnstile ref={turnstileRef} siteKey={siteKey} onToken={onToken} />
 
       <div className={styles.actions}>
         <Button type="submit" variant="primary" disabled={submitting} aria-busy={submitting}>

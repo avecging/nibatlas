@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 
 import styles from "./ContributeForm.module.css";
 
@@ -20,6 +20,20 @@ interface TurnstileApi {
     },
   ): string;
   remove(widgetId: string): void;
+  reset(widgetId: string): void;
+}
+
+/** What a caller can ask the widget to do once it exists. */
+export interface TurnstileHandle {
+  /**
+   * Discards the current token and re-runs the challenge for a fresh one.
+   *
+   * Needed after a submission whose token was already consumed — verified by
+   * Turnstile but not delivered to the intake — since a Turnstile token is
+   * single-use and resending it is rejected as a duplicate even once the
+   * intake has recovered.
+   */
+  reset(): void;
 }
 
 declare global {
@@ -41,20 +55,29 @@ declare global {
  * in production without a verified token, so an unconfigured deployment fails
  * closed rather than quietly accepting unverified submissions.
  */
-export function Turnstile({
-  siteKey,
-  onToken,
-}: {
-  readonly siteKey: string | undefined;
-  readonly onToken: (token: string) => void;
-}) {
+export const Turnstile = forwardRef<
+  TurnstileHandle,
+  {
+    readonly siteKey: string | undefined;
+    readonly onToken: (token: string) => void;
+  }
+>(function Turnstile({ siteKey, onToken }, ref) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const onTokenRef = useRef(onToken);
+  const widgetIdRef = useRef<string | undefined>(undefined);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     onTokenRef.current = onToken;
   });
+
+  useImperativeHandle(ref, () => ({
+    reset() {
+      if (widgetIdRef.current && window.turnstile) {
+        window.turnstile.reset(widgetIdRef.current);
+      }
+    },
+  }));
 
   useEffect(() => {
     if (!siteKey) {
@@ -67,7 +90,6 @@ export function Turnstile({
       return;
     }
 
-    let widgetId: string | undefined;
     let cancelled = false;
 
     function renderWidget() {
@@ -75,7 +97,7 @@ export function Turnstile({
         return;
       }
 
-      widgetId = window.turnstile.render(container, {
+      widgetIdRef.current = window.turnstile.render(container, {
         sitekey: siteKey,
         callback: (token) => {
           setFailed(false);
@@ -113,9 +135,11 @@ export function Turnstile({
     return () => {
       cancelled = true;
 
-      if (widgetId && window.turnstile) {
-        window.turnstile.remove(widgetId);
+      if (widgetIdRef.current && window.turnstile) {
+        window.turnstile.remove(widgetIdRef.current);
       }
+
+      widgetIdRef.current = undefined;
     };
   }, [siteKey]);
 
@@ -134,4 +158,4 @@ export function Turnstile({
       ) : null}
     </div>
   );
-}
+});

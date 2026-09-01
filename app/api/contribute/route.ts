@@ -22,7 +22,12 @@ import { findPrototypeShop } from "@/src/fixtures/prototype-catalogue";
  * Setup and secrets: `docs/runbooks/contribution-intake.md`.
  */
 
-/** Larger than any honest submission; small enough that nothing is buffered. */
+/**
+ * Larger than any honest submission. Reading stops the instant a request
+ * exceeds it, so an oversized body is never fully held in memory — the cap
+ * is enforced against the stream as it arrives, not against a buffer already
+ * built from it.
+ */
 const MAX_BODY_BYTES = 16_384;
 
 const TURNSTILE_VERIFY_URL =
@@ -31,16 +36,82 @@ const TURNSTILE_VERIFY_URL =
 /** The upstream is a Google redirect chain; do not let it hang the request. */
 const UPSTREAM_TIMEOUT_MS = 10_000;
 
-interface ContributeRequest {
-  readonly kind: ContributionKind;
-  readonly values: SubmissionValues;
-  readonly turnstileToken?: string;
-  /** Correction only. The listing the reader came from. */
-  readonly shopSlug?: string;
-}
-
 function fail(status: number, error: string, extra: object = {}) {
   return Response.json({ ok: false, error, ...extra }, { status });
+}
+
+/**
+ * Reads the body a chunk at a time and gives up the moment it is too big.
+ *
+ * This endpoint is public and unauthenticated, and Turnstile is checked only
+ * after the body is parsed — so `request.text()`, which buffers the whole
+ * request before anything can be measured, would let an oversized request
+ * consume the isolate's memory before the size check ever runs. Returns
+ * `undefined` once the cap is exceeded, rather than the bytes read so far.
+ */
+async function readBoundedBody(
+  request: Request,
+  maxBytes: number,
+): Promise<string | undefined> {
+  const reader = request.body?.getReader();
+
+  if (!reader) {
+    return "";
+  }
+
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+
+  for (;;) {
+    const { done, value } = await reader.read();
+
+    if (done) {
+      break;
+    }
+
+    total += value.byteLength;
+
+    if (total > maxBytes) {
+      await reader.cancel().catch(() => {});
+
+      return undefined;
+    }
+
+    chunks.push(value);
+  }
+
+  const combined = new Uint8Array(total);
+  let offset = 0;
+
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  return new TextDecoder().decode(combined);
+}
+
+/**
+ * `JSON.parse` only proves the body is valid JSON, not that it is the shape
+ * this route expects — `null`, an array, or a string all parse cleanly and
+ * would otherwise throw the moment a field on them is read. Field values are
+ * kept only when they are strings, so a caller cannot smuggle a number or
+ * object past `.trim()` in the schema either.
+ */
+function stringValues(input: unknown): SubmissionValues {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    return {};
+  }
+
+  const values: Record<string, string> = {};
+
+  for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
+    if (typeof value === "string") {
+      values[key] = value;
+    }
+  }
+
+  return values;
 }
 
 export async function POST(request: Request) {
@@ -61,29 +132,40 @@ export async function POST(request: Request) {
     return fail(503, "unavailable");
   }
 
-  let raw: string;
+  let raw: string | undefined;
 
   try {
-    raw = await request.text();
+    raw = await readBoundedBody(request, MAX_BODY_BYTES);
   } catch {
     return fail(400, "unreadable");
   }
 
-  if (raw.length > MAX_BODY_BYTES) {
+  if (raw === undefined) {
     return fail(413, "too_large");
   }
 
-  let body: ContributeRequest;
+  let parsed: unknown;
 
   try {
-    body = JSON.parse(raw) as ContributeRequest;
+    parsed = JSON.parse(raw);
   } catch {
     return fail(400, "invalid_json");
   }
 
-  if (body.kind !== "suggestion" && body.kind !== "correction") {
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return fail(400, "invalid_json");
+  }
+
+  const body = parsed as Record<string, unknown>;
+
+  if (body["kind"] !== "suggestion" && body["kind"] !== "correction") {
     return fail(400, "unknown_kind");
   }
+
+  const kind = body["kind"] as ContributionKind;
+  const shopSlug = typeof body["shopSlug"] === "string" ? body["shopSlug"] : undefined;
+  const turnstileToken =
+    typeof body["turnstileToken"] === "string" ? body["turnstileToken"] : "";
 
   /*
    * A correction carries its listing, and the listing's name is resolved here
@@ -93,8 +175,8 @@ export async function POST(request: Request) {
    */
   const context: Record<string, string> = {};
 
-  if (body.kind === "correction") {
-    const shop = body.shopSlug ? findPrototypeShop(body.shopSlug) : undefined;
+  if (kind === "correction") {
+    const shop = shopSlug ? findPrototypeShop(shopSlug) : undefined;
 
     if (!shop) {
       return fail(400, "unknown_shop");
@@ -104,10 +186,8 @@ export async function POST(request: Request) {
     context["shop_name"] = shop.name;
   }
 
-  const submitted = typeof body.values === "object" && body.values !== null
-    ? body.values
-    : {};
-  const fieldErrors = validateSubmission(body.kind, submitted);
+  const submitted = stringValues(body["values"]);
+  const fieldErrors = validateSubmission(kind, submitted);
 
   if (hasErrors(fieldErrors)) {
     return fail(400, "invalid", { fieldErrors });
@@ -124,7 +204,7 @@ export async function POST(request: Request) {
   if (turnstileSecret) {
     const passed = await verifyTurnstile(
       turnstileSecret,
-      body.turnstileToken ?? "",
+      turnstileToken,
       request.headers.get("CF-Connecting-IP"),
     );
 
@@ -143,12 +223,12 @@ export async function POST(request: Request) {
    * listing a correction is filed against is the one the route resolved.
    */
   const fields = {
-    ...normaliseSubmission(body.kind, submitted),
+    ...normaliseSubmission(kind, submitted),
     ...context,
   };
 
   try {
-    const delivered = await forward(scriptUrl, sharedSecret, body.kind, fields);
+    const delivered = await forward(scriptUrl, sharedSecret, kind, fields);
 
     return delivered ? Response.json({ ok: true }) : fail(502, "not_delivered");
   } catch (error) {
