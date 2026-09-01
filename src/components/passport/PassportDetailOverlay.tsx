@@ -3,7 +3,6 @@
 import { useCallback, useId } from "react";
 
 import { useDialogFocus } from "@/src/components/hooks/useDialogFocus";
-import { localeForCountry } from "@/src/components/shops/locale";
 import { passportHrefWithAnchor } from "@/src/components/shops/ShopBackLink";
 import { ImpressionPlate } from "@/src/components/stamps/ImpressionPlate";
 import { ImpressionSheet } from "@/src/components/stamps/ImpressionSheet";
@@ -79,6 +78,7 @@ function ImpressionDetail({
             stamp={collection.stamp}
             title={collection.shopNameSnapshot}
             localTitle={collection.shopLocalNameSnapshot}
+            localTitleLang={collection.shopLocalNameLangSnapshot}
             subtitle={collection.collectedOn}
           />
         </ImpressionPlate>
@@ -90,7 +90,7 @@ function ImpressionDetail({
       {collection.shopLocalNameSnapshot ? (
         <p
           className={styles.localName}
-          lang={localeForCountry(collection.countryCode)}
+          lang={collection.shopLocalNameLangSnapshot} dir="auto"
         >
           {collection.shopLocalNameSnapshot}
         </p>
