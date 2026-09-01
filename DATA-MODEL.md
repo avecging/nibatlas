@@ -2,7 +2,7 @@
 
 **Status:** Production-shaped MVP model
 **Version:** 1.0
-**Last updated:** 11 August 2026
+**Last updated:** 1 September 2026
 
 ## Modelling principles
 
@@ -12,7 +12,9 @@
 - Structured/filterable attributes are relational; flexible display snapshots may use `jsonb`.
 - Publication state and real-world operational state are separate.
 - Provenance and last verification are first-class.
-- Locality modelling must support Japanese wards, Taiwanese municipalities/districts, and Singapore.
+- Locality modelling must support country-specific wards, municipalities, districts, city-states, and parent relationships without a Western-city assumption.
+- Content language is explicit BCP 47 metadata and is separate from a user's interface locale.
+- Country codes use ISO 3166-1 alpha-2; canonical membership is validated at the import boundary, not by a frontend launch allowlist.
 - Raw user collection coordinates are never persisted.
 - Future merchant/campaign work must not distort the MVP schema.
 
@@ -54,7 +56,8 @@ Normalized geographic grouping for Passport and search.
 | `country_code` | `char(2)` | Indexed |
 | `admin_area_code` / `admin_area_name` | `text null` | Optional normalized parent area |
 | `name` | `text` | Default English/romanized display |
-| `name_local` | `text null` | Local script |
+| `name_local` | `text null` | Local-script or locally used name |
+| `name_local_language_tag` | `text null` | Valid BCP 47 tag paired with `name_local`; never inferred from country |
 | `locality_type` | `text` | `city`, `ward`, `district`, `municipality`, `region`, `other` |
 | `parent_locality_id` | `uuid null` | Self-FK |
 | `slug` | `text` | Unique within country/parent |
@@ -70,7 +73,7 @@ Normalized geographic grouping for Passport and search.
 | `short_description` | `text` | Factual visit-oriented summary |
 | `address_line_1` / `address_line_2` | `text` | |
 | `postal_code` | `text null` | String, never numeric |
-| `country_code` | `char(2)` | Launch allowlist at application layer |
+| `country_code` | `char(2)` | ISO 3166-1 alpha-2; canonical membership validated on import |
 | `admin_area_code` / `admin_area_name` | `text null` | |
 | `locality_id` | `uuid null` | FK to `localities` |
 | `city_display` | `text null` | Search/display snapshot, not grouping identity |
@@ -102,9 +105,11 @@ Public reads expose only published projections. Admin-only provenance must not l
 
 ### `shop_aliases`
 
-`id`, `shop_id`, `alias`, `locale`, `alias_type`, timestamps.
+`id`, `shop_id`, `alias`, `language_tag`, `alias_type`, timestamps.
 
-Supports local-script names, romanizations, former names, and search synonyms. Unique normalized alias per shop.
+Supports local-script names, romanizations, former names, and search synonyms.
+`language_tag` is a valid BCP 47 tag for the alias content; it is not inferred
+from the shop's country. Unique normalized alias per shop.
 
 ### `shop_links`
 
