@@ -15,7 +15,7 @@ import {
 
 import styles from "./ContributeForm.module.css";
 
-type Status = "idle" | "submitting" | "sent" | "failed";
+type Status = "idle" | "submitting" | "sent" | "failed" | "uncertain";
 
 /**
  * The one form both contribution flows use.
@@ -164,9 +164,15 @@ export function ContributeForm({
         return;
       }
 
-      failWithStaleToken();
+      failWithConsumedToken();
     } catch {
-      failWithStaleToken();
+      /*
+       * A network exception is ambiguous: the row may already have been
+       * appended even though the browser never received the response. Do not
+       * mint a fresh token and invite a duplicate submission. The person keeps
+       * their text and can use the human-triaged email fallback instead.
+       */
+      setStatus("uncertain");
     }
 
     window.requestAnimationFrame(() => summaryRef.current?.focus());
@@ -180,7 +186,7 @@ export function ContributeForm({
    * it and re-running the challenge is what makes the retry the failure
    * message promises actually possible.
    */
-  function failWithStaleToken() {
+  function failWithConsumedToken() {
     setStatus("failed");
     tokenRef.current = "";
     turnstileRef.current?.reset();
@@ -207,6 +213,7 @@ export function ContributeForm({
 
   const invalid = fields.filter((field) => errors[field.name]);
   const submitting = status === "submitting";
+  const deliveryUncertain = status === "uncertain";
 
   return (
     <form className={styles.form} noValidate onSubmit={submit}>
@@ -250,6 +257,27 @@ export function ContributeForm({
         </div>
       ) : null}
 
+      {status === "uncertain" ? (
+        <div
+          className={styles.summary}
+          data-testid="contribute-problem"
+          ref={summaryRef}
+          role="alert"
+          tabIndex={-1}
+        >
+          <p className={styles.summaryTitle}>
+            We could not confirm whether that sent.
+          </p>
+          <p>
+            Everything you wrote is still here. To avoid sending the same
+            contribution twice, this form cannot retry it. If you need to make
+            sure it reaches us,{" "}
+            <a href={fallbackHref}>send it by email</a> and mention that the
+            form&rsquo;s result was unclear.
+          </p>
+        </div>
+      ) : null}
+
       <p className={styles.legend}>
         Fields marked{" "}
         <span className={styles.required}>*</span> are required.
@@ -269,8 +297,17 @@ export function ContributeForm({
       <Turnstile ref={turnstileRef} siteKey={siteKey} onToken={onToken} />
 
       <div className={styles.actions}>
-        <Button type="submit" variant="primary" disabled={submitting} aria-busy={submitting}>
-          {submitting ? "Sending…" : submitLabel}
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={submitting || deliveryUncertain}
+          aria-busy={submitting}
+        >
+          {submitting
+            ? "Sending…"
+            : deliveryUncertain
+              ? "Delivery unconfirmed"
+              : submitLabel}
         </Button>
       </div>
     </form>
