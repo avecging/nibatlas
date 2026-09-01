@@ -72,7 +72,7 @@ export const SUGGESTION_FIELDS: readonly FieldDefinition[] = [
   {
     name: "local_name",
     label: "Local name",
-    hint: "The name on the shopfront, if it isn\u2019t in English \u2014 like \u6fc0\u58a8 or \u30ca\u30ac\u30b5\u30ef\u6587\u5177\u30bb\u30f3\u30bf\u30fc.",
+    hint: "The name on the shopfront, if it isn’t in English — like 激墨 or ナガサワ文具センター.",
     control: "text",
     required: false,
     maxLength: 200,
@@ -120,23 +120,32 @@ export const SUGGESTION_FIELDS: readonly FieldDefinition[] = [
 /**
  * Correction categories.
  *
- * Deliberately short and about the listing, not about the shop's quality. There
- * is no *bad experience* option: this route corrects the record, and a review
- * surface is not being built here.
+ * About the listing, never about the shop's quality. There is no *bad
+ * experience* option: this route corrects the record, and a review surface is
+ * not being built here.
+ *
+ * **Not every entry is a fault.** The first draft read as a complaint form —
+ * six ways for the reader to tell us we were wrong and nothing else — so two
+ * entries cover the happier cases: a shop that does more than the listing says,
+ * and something we simply never had. Those are the reports that make a listing
+ * better rather than merely less wrong, and a list that cannot express them
+ * discourages them.
  */
 export const CORRECTION_TYPES = [
-  { value: "closed", label: "It has closed" },
-  { value: "moved", label: "It has moved" },
+  { value: "missing", label: "Something's missing that should be here" },
+  { value: "more", label: "They do more than we've listed" },
   { value: "hours", label: "The opening hours are wrong" },
   { value: "address", label: "The address or location is wrong" },
-  { value: "details", label: "Something about what it offers is wrong" },
+  { value: "details", label: "Something listed here is wrong" },
+  { value: "moved", label: "It has moved" },
+  { value: "closed", label: "It has closed down" },
   { value: "other", label: "Something else" },
 ] as const;
 
 export const CORRECTION_FIELDS: readonly FieldDefinition[] = [
   {
     name: "correction_type",
-    label: "What kind of thing is wrong",
+    label: "What needs to be fixed?",
     control: "select",
     required: true,
     maxLength: 60,
@@ -144,7 +153,8 @@ export const CORRECTION_FIELDS: readonly FieldDefinition[] = [
   },
   {
     name: "what_is_wrong",
-    label: "What we have wrong, and what it should say",
+    label: "Tell us more",
+    hint: "What we’ve got wrong, or what we’ve missed.",
     control: "textarea",
     required: true,
     maxLength: 2000,

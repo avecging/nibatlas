@@ -27,7 +27,7 @@ export async function generateMetadata({
 
   return {
     title: `Report incorrect information — ${shop.name}`,
-    description: `Tell us what is wrong with the Nib Atlas listing for ${shop.name}.`,
+    description: `Tell us what needs fixing on the Nib Atlas listing for ${shop.name}.`,
     // A correction form has nothing to offer a search result, and indexing one
     // per listing would put a form between a reader and the shop they searched
     // for.
@@ -65,8 +65,8 @@ export default async function ShopReportPage({
       <p className="type-overline">Report incorrect information</p>
       <h1 className="type-h1">{shop.name}</h1>
       <p className="type-body-lg">
-        Tell us what is wrong with this listing and we&rsquo;ll look into it as
-        soon as possible.
+        Tell us what needs fixing &mdash; or what we&rsquo;ve missed &mdash; and
+        we&rsquo;ll look into it as soon as possible.
       </p>
 
       <p>
@@ -80,7 +80,8 @@ export default async function ShopReportPage({
         shopSlug={shop.slug}
         fallbackHref={shopCorrectionHref(shop.name)}
         submitLabel="Send this correction"
-        confirmation="Someone will check this against the shop's own sources and update the listing if it needs it. If you left an email address, we may come back to you with a question."
+        confirmationTitle="Thanks for reporting!"
+        confirmation="We’ll take a look and get the listing updated. If you left an email, we might write if we have a question."
         anotherLabel="Report something else"
       />
     </article>

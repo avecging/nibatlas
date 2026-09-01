@@ -34,6 +34,7 @@ export function ContributeForm({
   shopSlug,
   fallbackHref,
   submitLabel,
+  confirmationTitle,
   confirmation,
   anotherLabel,
 }: {
@@ -42,6 +43,8 @@ export function ContributeForm({
   /** Where to send someone when the submission cannot be delivered. */
   readonly fallbackHref: string;
   readonly submitLabel: string;
+  /** The warm line at the head of the confirmation. */
+  readonly confirmationTitle: string;
   readonly confirmation: string;
   /** The control the confirmation offers, for sending a second one. */
   readonly anotherLabel: string;
@@ -176,7 +179,7 @@ export function ContributeForm({
         role="status"
         tabIndex={-1}
       >
-        <h2 className={styles.confirmationTitle}>Thank you — that reached us.</h2>
+        <h2 className={styles.confirmationTitle}>{confirmationTitle}</h2>
         <p>{confirmation}</p>
         <div className={styles.actions}>
           <Button variant="secondary" onClick={sendAnother}>

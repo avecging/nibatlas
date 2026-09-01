@@ -39,13 +39,21 @@ describe("what a contribution asks for", () => {
   });
 
   it("offers no category that turns a correction into a review", () => {
-    const categories = fieldsFor("correction").find(
-      (field) => field.name === "correction_type",
-    );
-
-    for (const option of categories?.options ?? []) {
+    for (const option of correctionTypes()) {
       expect(option.label).not.toMatch(/rude|bad|poor|rating|review|experience/i);
     }
+  });
+
+  /*
+   * The first draft was six ways to tell us we were wrong and nothing else,
+   * which reads as a complaint form. The reports that make a listing better
+   * rather than merely less wrong need somewhere to go.
+   */
+  it("lets a reader report something good, not only something broken", () => {
+    const values = correctionTypes().map((option) => option.value);
+
+    expect(values).toContain("missing");
+    expect(values).toContain("more");
   });
 
   it("keeps a contact pair on both kinds, and neither is required", () => {
@@ -62,6 +70,13 @@ describe("what a contribution asks for", () => {
     }
   });
 });
+
+function correctionTypes() {
+  return (
+    fieldsFor("correction").find((field) => field.name === "correction_type")
+      ?.options ?? []
+  );
+}
 
 describe("validation", () => {
   it("accepts the minimum, anonymously", () => {

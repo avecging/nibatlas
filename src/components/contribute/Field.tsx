@@ -75,7 +75,15 @@ export function Field({
         <textarea className={styles.textarea} rows={5} {...shared} />
       ) : definition.control === "select" ? (
         <select className={styles.select} {...shared}>
-          <option value="">Choose one</option>
+          {/*
+            The prompt is the starting state, not a choice. `disabled` keeps it
+            unselectable once the reader has moved off it, so "Choose one" can
+            never be submitted as an answer — and `required` on the control makes
+            the empty value fail validation rather than pass silently.
+          */}
+          <option value="" disabled>
+            Choose one
+          </option>
           {(definition.options ?? []).map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}

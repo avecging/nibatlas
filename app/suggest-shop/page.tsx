@@ -42,7 +42,8 @@ export default function SuggestShopPage() {
         kind="suggestion"
         fallbackHref={suggestShopHref()}
         submitLabel="Send this suggestion"
-        confirmation="Someone will look into this shop and check what can be confirmed about it. If you left an email address, we may come back to you with a question."
+        confirmationTitle="Thanks for contributing!"
+        confirmation="We’ll look this one up and see what we can confirm. If you left an email, we might write if we have a question."
         anotherLabel="Suggest another shop"
       />
     </article>

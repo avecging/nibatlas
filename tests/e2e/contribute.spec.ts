@@ -44,7 +44,7 @@ test("suggesting a shop, from Me to a confirmation", async ({ page }) => {
   await page.getByLabel(/^country/i).fill("South Korea");
   await page.getByRole("button", { name: /send this suggestion/i }).click();
 
-  await expect(page.getByRole("status")).toContainText(/thank you/i);
+  await expect(page.getByRole("status")).toContainText(/thanks for contributing/i);
 
   expect(sent).toHaveLength(1);
   expect(sent[0]).toMatchObject({
@@ -96,12 +96,21 @@ test("correcting a listing carries the shop, and never asks which one", async ({
   // Nothing on this form asks the reader to identify the listing.
   await expect(page.getByLabel(/shop name/i)).toHaveCount(0);
 
-  await page.getByLabel(/what kind of thing is wrong/i).selectOption("hours");
-  await page.getByLabel(/what we have wrong/i).fill("It opens at 11, not 10.");
+  // "Choose one" is the starting state, not a choice: it cannot be selected.
+  await expect(
+    page.getByLabel(/what needs to be fixed/i).locator('option[value=""]'),
+  ).toBeDisabled();
+
+  await page.getByLabel(/what needs to be fixed/i).selectOption("missing");
+  await page.getByLabel(/tell us more/i).fill("They repair nibs, which isn’t listed.");
   await page.getByRole("button", { name: /send this correction/i }).click();
 
-  await expect(page.getByRole("status")).toContainText(/thank you/i);
-  expect(sent[0]).toMatchObject({ kind: "correction", shopSlug: "ty-lee-pen-shop" });
+  await expect(page.getByRole("status")).toContainText(/thanks for reporting/i);
+  expect(sent[0]).toMatchObject({
+    kind: "correction",
+    shopSlug: "ty-lee-pen-shop",
+    values: { correction_type: "missing" },
+  });
 });
 
 test("a correction for a listing that does not exist is not a page", async ({ page }) => {

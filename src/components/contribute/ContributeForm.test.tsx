@@ -11,7 +11,8 @@ function renderSuggestion() {
       kind="suggestion"
       fallbackHref={FALLBACK}
       submitLabel="Send this suggestion"
-      confirmation="Someone will look into this shop."
+      confirmationTitle="Thanks for contributing!"
+      confirmation="We’ll look this one up."
       anotherLabel="Suggest another shop"
     />,
   );
@@ -24,7 +25,8 @@ function renderCorrection() {
       shopSlug="ty-lee-pen-shop"
       fallbackHref="mailto:hello@nibatlas.com"
       submitLabel="Send this correction"
-      confirmation="Someone will check this."
+      confirmationTitle="Thanks for reporting!"
+      confirmation="We’ll take a look."
       anotherLabel="Report something else"
     />,
   );
@@ -149,7 +151,7 @@ describe("validation before anything is sent", () => {
     send();
 
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent(/thank you/i),
+      expect(screen.getByRole("status")).toHaveTextContent(/thanks for contributing/i),
     );
   });
 
@@ -171,10 +173,10 @@ describe("what is posted", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     renderCorrection();
-    fireEvent.change(screen.getByLabelText(/what kind of thing is wrong/i), {
+    fireEvent.change(screen.getByLabelText(/what needs to be fixed/i), {
       target: { value: "hours" },
     });
-    type(/what we have wrong/i, "It opens at 11.");
+    type(/tell us more/i, "It opens at 11.");
     send(/send this correction/i);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
@@ -215,7 +217,7 @@ describe("when the submission cannot be delivered", () => {
     expect(screen.getByLabelText(/what makes it worth a visit/i)).toHaveValue(
       "Enormous nib wall.",
     );
-    expect(screen.queryByText(/thank you/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/thanks for/i)).not.toBeInTheDocument();
   });
 
   it("treats a network failure the same way", async () => {
@@ -253,7 +255,7 @@ describe("when the submission cannot be delivered", () => {
     await waitFor(() =>
       expect(screen.getByRole("alert")).toHaveTextContent(/country is needed/i),
     );
-    expect(screen.queryByText(/thank you/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/thanks for/i)).not.toBeInTheDocument();
   });
 });
 
@@ -267,8 +269,8 @@ describe("when it works", () => {
 
     const confirmation = await screen.findByRole("status");
 
-    expect(confirmation).toHaveTextContent(/thank you/i);
-    expect(confirmation).toHaveTextContent(/someone will look into this shop/i);
+    expect(confirmation).toHaveTextContent(/thanks for contributing/i);
+    expect(confirmation).toHaveTextContent(/we’ll look this one up/i);
     expect(screen.queryByRole("button", { name: /send this suggestion/i })).not.toBeInTheDocument();
   });
 

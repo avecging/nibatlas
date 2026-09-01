@@ -2623,6 +2623,36 @@ substitutions:
   often knows two, and *Suggest another shop* clears the previous answers so the
   second is not the first one edited.
 
+### The second review: the voice, and a form that only knew how to complain
+
+**The confirmations were corporate, and `BRAND.md` already forbids it.** *"Thank
+you — that reached us"* over *"Someone will check this against the shop's own
+sources"* is the register of a support-ticket auto-reply, and the personality
+list names *corporate SaaS* as something Nib Atlas is not. They are now
+**Thanks for contributing!** and **Thanks for reporting!**, and the body speaks
+as us rather than about an unnamed someone: *"We'll take a look and get the
+listing updated. If you left an email, we might write if we have a question."*
+
+**The correction list only knew how to complain.** Six entries, every one of
+them a fault. A reader who had just found something *good* — a service the
+listing never mentioned, a shop doing more than we knew — had nowhere to put it
+except *Something else*, which frames a gift as a grievance. Two entries now
+cover those: **Something's missing that should be here** and **They do more than
+we've listed**, and they lead the list rather than trailing it. The order runs
+from the additions through the corrections to the closure, so the first thing a
+reader sees is not a way to tell us we were wrong.
+
+The page lede follows: *"Tell us what needs fixing — or what we've missed."* The
+founder-approved entry-point copy on the shop page is untouched.
+
+**Two labels, and one control that lied.** *What kind of thing is wrong* became
+**What needs to be fixed?**, and *What we have wrong, and what it should say*
+became **Tell us more**, with the specifics moved into a hint — neither label
+works once the answer might be an addition. The select's *Choose one* prompt was
+a selectable option, so the placeholder could be submitted as an answer; it is
+`disabled` now, and the control's `required` makes the empty value fail
+validation.
+
 **The correction lives at `/shops/[slug]/report`.** The listing is in the route,
 so the page resolves the shop and names it in the heading — not in a prefilled
 field somebody has to read and verify. The reader never identifies the listing,
