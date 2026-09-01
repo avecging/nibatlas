@@ -43,6 +43,21 @@ Milestone 1 added these modules:
 populates it from the shop's own summary line and cards read it directly from the
 public projection.
 
+### Approved international-content contract change
+
+`ShopMapSummary` and `ShopDetail` now carry
+`localNameLang?: LanguageTag` alongside `localName`. When a local name is
+present, fixture/import validation requires a valid BCP 47 language tag. The
+viewport and shop-detail APIs must preserve the pair so cards, search, shop
+identity, Passport snapshots, and stamp artwork can apply the correct language,
+line breaking, and text direction. The API must not infer this tag from
+`countryCode`.
+
+Country codes accept the ISO 3166-1 alpha-2 wire shape without a frontend
+country allowlist; canonical ISO membership is validated during import. Country
+display labels come from `Intl.DisplayNames`. Shop timezones remain explicit
+IANA zones per record and are not inferred from country.
+
 ## Milestone 1 refinement notes
 
 ### `ShopDetail` fields are optional
@@ -61,11 +76,11 @@ Two frontend-owned additions carry the honesty:
 - `positionPrecision: "street" | "locality"` — how precise the mapped coordinate
   is. No Milestone 1 coordinate is surveyed.
 
-Both live on `ShopDetail` only. **`ShopMapSummary` is unchanged**: it is the
-shared Codex-owned projection, and adding to it is a contract change rather than
-a frontend decision. If markers or cards should ever state coordinate precision
-or provenance, that needs an explicit contract change and belongs in Milestone 2
-or 3, not here.
+Both live on `ShopDetail` only. `ShopMapSummary` remains the shared
+Codex-owned projection; its approved additions are `specialtyLine` and
+`localNameLang`. Coordinate precision and provenance still belong only to
+`ShopDetail`; exposing either on markers or cards would require another
+explicit contract change.
 
 ### `PassportOverview.recent` was removed
 
@@ -87,8 +102,7 @@ frontend renders, that is a coordination point, not a silent change.
 ## Milestone 1.5 WP4 — the shop value layer
 
 `ShopDetail` gains the optional pen-specific fields root cause D in
-`docs/milestone-1-5-product-refinement.md` asks for. **`ShopMapSummary` is
-unchanged**, so this is a frontend projection change under accepted decision 4
+`docs/milestone-1-5-product-refinement.md` asks for. WP4 did not otherwise change `ShopMapSummary`, so this is a frontend projection change under accepted decision 4
 ("Claude Code may define the optional schema and the sourcing rules"), not a
 change to the Codex-owned marker/card contract.
 

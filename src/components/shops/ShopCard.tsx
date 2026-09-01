@@ -8,7 +8,6 @@ import {
   OperationalStatusBadge,
   VisitedBadge,
 } from "@/src/components/ui/StatusBadge";
-import { localeForCountry } from "@/src/components/shops/locale";
 import { SHOP_TYPE_LABELS } from "@/src/domain/shop-detail";
 import type { ShopMapSummary } from "@/src/domain/shops";
 
@@ -100,7 +99,7 @@ export function ShopCard({
             </Link>
           </h3>
           {shop.localName ? (
-            <p className={styles.localName} lang={localeForCountry(shop.countryCode)}>
+            <p className={styles.localName} lang={shop.localNameLang} dir="auto">
               {shop.localName}
             </p>
           ) : null}

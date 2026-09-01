@@ -82,6 +82,38 @@ describe("collection scopes", () => {
     expect(window.localStorage.getItem(COLLECTION_STORAGE_KEYS.reviewer)).toBeNull();
   });
 
+  it("backfills a missing local-name language on an existing stamp", () => {
+    const current = prototypeSeedCollections.find(
+      (collection) => collection.shopLocalNameLangSnapshot !== undefined,
+    );
+
+    expect(current).toBeDefined();
+
+    const {
+      shopLocalNameLangSnapshot: removedLanguage,
+      ...legacyCollection
+    } = current!;
+
+    expect(removedLanguage).toBeDefined();
+
+    window.localStorage.setItem(
+      COLLECTION_STORAGE_KEYS.normal,
+      JSON.stringify({
+        savedShopIds: [],
+        collections: [legacyCollection],
+        seals: [],
+      }),
+    );
+
+    const { result } = renderStore(false);
+    const hydrated = result.current.collection.collections[0];
+
+    expect(hydrated?.shopSlug).toBe(current?.shopSlug);
+    expect(hydrated?.shopLocalNameLangSnapshot).toBe(
+      current?.shopLocalNameLangSnapshot,
+    );
+  });
+
   it("does not let a trip through reviewer mode touch a tester's own saves", () => {
     const { result } = renderStore(false);
 

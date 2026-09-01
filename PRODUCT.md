@@ -19,17 +19,18 @@ The long-term emotional promise is twofold:
 - Before a trip: **“Let’s see what pen shops are around here.”**
 - Years later: **“Look at all the places I’ve been.”**
 
-## Launch geography
+## Catalogue geography
 
-The launch catalogue covers three countries:
+The current prototype catalogue contains a small, sourced set of entries in
+Singapore, Japan, and Taiwan. Those countries describe the data currently
+present; they are not a launch promise, a national-coverage claim, or a published
+rollout order.
 
-- Singapore
-- Japan
-- Taiwan
-
-Coverage is nationwide in intent, not restricted to a few flagship cities. Taiwan must include credible destinations beyond Taipei and Taichung, explicitly including Changhua, Tainan, and Kaohsiung. Japan must include prominent regional destinations beyond Tokyo and Osaka.
-
-“Country coverage” does not claim that every relevant shop is known on launch day. Nib Atlas favours accurate, sourced listings and transparent freshness over superficial completeness.
+Future shops may be added in any country when their records meet the sourcing
+standard. Nib Atlas publishes no future geographic rollout. Public coverage is
+always derived from the catalogue itself and
+favours accurate, sourced listings and transparent freshness over superficial
+completeness.
 
 ## Target users
 
@@ -102,7 +103,7 @@ The loop must remain useful before merchant partnerships exist. Standard Atlas S
 
 - Private by default.
 - Overview with total stamps and geographic groupings.
-- Country → locality hierarchy that accommodates Japanese wards, Taiwanese municipalities/districts, and Singapore without forcing a rigid Western city model.
+- Country → locality hierarchy that accommodates wards, municipalities, districts, city-states, and other local structures without forcing a rigid Western city model.
 - Browsable stamp impressions showing shop, place, and local collection date.
 - Direct transition from newly collected stamp into the relevant Passport section.
 - A locality seal is derived when the first verified shop stamp in that locality is acquired. If a separate check-in concept is introduced later, it must use the same canonical verified-visit event rather than create a second source of truth.
@@ -156,7 +157,7 @@ Time spent, feed depth, and daily streaks are not north-star measures.
 - Named trips, route optimization, turn-by-turn navigation, or itinerary scheduling.
 - Offline map packs or native iOS/Android applications.
 - Historic self-attested visits mixed with verified Atlas Stamps.
-- Listings outside Singapore, Japan, and Taiwan merely to imply worldwide scale.
+- Listings added merely to imply worldwide scale, satisfy a country count, or fulfil a public rollout promise.
 - Monetary or redeemable value attached to stamps.
 
 ## Phase 2 candidates
@@ -192,4 +193,4 @@ Changes require an explicit product decision if they alter any of these:
 - Map movement is user-controlled and uses **Search this area**.
 - Physical visits—not passive app engagement—create the collection.
 - Atlas Stamps remain meaningful, private-by-default memories.
-- MVP launch coverage remains Singapore, Japan, and Taiwan.
+- Public geography describes only the sourced catalogue currently present; it never promises national completeness or a future rollout order.

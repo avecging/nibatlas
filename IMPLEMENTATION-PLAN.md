@@ -372,17 +372,17 @@ Make the catalogue maintainable without code deployments.
 - Public contribution forms.
 - General-purpose CMS.
 
-### Milestone 7 — Verified three-country pilot data and field test
+### Milestone 7 — Verified catalogue data and field test
 
 **Owners:** ChatGPT Work/founder for research criteria; Codex pipeline; Claude Code presentation fixes
 
 **Objective**
 
-Populate credible pilot coverage and test the core loop in real conditions.
+Populate a credible sourced catalogue and test the core loop in real conditions.
 
 **Scope**
 
-- Sourced shop data across Singapore, Japan, and Taiwan, including relevant regional destinations.
+- Validate and expand sourced shop records from the catalogue actually available at implementation time. The existing Singapore, Japan, and Taiwan fixture is a starting dataset, not a coverage promise or rollout boundary.
 - Coordinate, official-link, hours, status, type, service, and provenance checks.
 - Authorized/rights-cleared imagery only.
 - Field collection tests on Android/iOS and difficult indoor locations.
@@ -396,7 +396,7 @@ Populate credible pilot coverage and test the core loop in real conditions.
 **Acceptance criteria**
 
 - No demo listing is represented as verified.
-- Coverage limitations are transparent.
+- Public catalogue scope is derived from actual records and framed as incomplete, without future-country or national-coverage promises.
 - Founder can refresh/correct data through operations tooling.
 - Field collection succeeds reliably enough to be trusted.
 - Users understand **Search this area**, Saved, and Passport without coaching.

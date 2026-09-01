@@ -1,4 +1,5 @@
 import type { CountryCode, ViewportBounds } from "@/src/domain/geo";
+import { languageTag, type LanguageTag } from "@/src/domain/language";
 
 /**
  * Prototype place-search results for Milestone 1.
@@ -11,6 +12,7 @@ export interface PrototypeDestination {
   readonly id: string;
   readonly name: string;
   readonly localName?: string;
+  readonly localNameLang?: LanguageTag;
   readonly countryCode: CountryCode;
   readonly context: string;
   readonly bounds: ViewportBounds;
@@ -38,6 +40,7 @@ export const prototypeDestinations: readonly PrototypeDestination[] = [
     id: "dest-tokyo",
     name: "Tokyo",
     localName: "東京",
+    localNameLang: languageTag("ja"),
     countryCode: "JP",
     context: "Metropolis · Japan",
     bounds: { west: 139.6, south: 35.58, east: 139.85, north: 35.78 },
@@ -47,6 +50,7 @@ export const prototypeDestinations: readonly PrototypeDestination[] = [
     id: "dest-ginza",
     name: "Ginza",
     localName: "銀座",
+    localNameLang: languageTag("ja"),
     countryCode: "JP",
     context: "Neighbourhood · Chūō, Tokyo",
     bounds: { west: 139.755, south: 35.663, east: 139.775, north: 35.68 },
@@ -56,6 +60,7 @@ export const prototypeDestinations: readonly PrototypeDestination[] = [
     id: "dest-yokohama",
     name: "Yokohama",
     localName: "横浜",
+    localNameLang: languageTag("ja"),
     countryCode: "JP",
     context: "City · Kanagawa, Japan",
     bounds: { west: 139.6, south: 35.42, east: 139.68, north: 35.48 },
@@ -65,6 +70,7 @@ export const prototypeDestinations: readonly PrototypeDestination[] = [
     id: "dest-motomachi-yokohama",
     name: "Motomachi",
     localName: "元町",
+    localNameLang: languageTag("ja"),
     countryCode: "JP",
     context: "Shopping street · Naka, Yokohama",
     bounds: { west: 139.636, south: 35.437, east: 139.65, north: 35.448 },
@@ -74,6 +80,7 @@ export const prototypeDestinations: readonly PrototypeDestination[] = [
     id: "dest-kobe",
     name: "Kobe",
     localName: "神戸",
+    localNameLang: languageTag("ja"),
     countryCode: "JP",
     context: "City · Hyōgo, Japan",
     bounds: { west: 135.15, south: 34.66, east: 135.24, north: 34.72 },
@@ -83,6 +90,7 @@ export const prototypeDestinations: readonly PrototypeDestination[] = [
     id: "dest-kyoto",
     name: "Kyoto",
     localName: "京都",
+    localNameLang: languageTag("ja"),
     countryCode: "JP",
     context: "City · Japan",
     bounds: { west: 135.68, south: 34.94, east: 135.83, north: 35.08 },
@@ -92,6 +100,7 @@ export const prototypeDestinations: readonly PrototypeDestination[] = [
     id: "dest-osaka",
     name: "Osaka",
     localName: "大阪",
+    localNameLang: languageTag("ja"),
     countryCode: "JP",
     context: "City · Japan",
     bounds: { west: 135.42, south: 34.61, east: 135.58, north: 34.74 },
@@ -101,6 +110,7 @@ export const prototypeDestinations: readonly PrototypeDestination[] = [
     id: "dest-sapporo",
     name: "Sapporo",
     localName: "札幌",
+    localNameLang: languageTag("ja"),
     countryCode: "JP",
     context: "City · Hokkaidō, Japan",
     bounds: { west: 141.29, south: 43.02, east: 141.42, north: 43.1 },
@@ -110,6 +120,7 @@ export const prototypeDestinations: readonly PrototypeDestination[] = [
     id: "dest-taipei",
     name: "Taipei",
     localName: "臺北",
+    localNameLang: languageTag("zh-Hant"),
     countryCode: "TW",
     context: "City · Taiwan",
     bounds: { west: 121.48, south: 25.0, east: 121.6, north: 25.09 },
@@ -119,6 +130,7 @@ export const prototypeDestinations: readonly PrototypeDestination[] = [
     id: "dest-daan-taipei",
     name: "Da'an",
     localName: "大安",
+    localNameLang: languageTag("zh-Hant"),
     countryCode: "TW",
     context: "District · Taipei",
     bounds: { west: 121.52, south: 25.015, east: 121.56, north: 25.04 },
@@ -128,6 +140,7 @@ export const prototypeDestinations: readonly PrototypeDestination[] = [
     id: "dest-banqiao",
     name: "Banqiao",
     localName: "板橋",
+    localNameLang: languageTag("zh-Hant"),
     countryCode: "TW",
     context: "District · New Taipei City",
     bounds: { west: 121.44, south: 25.0, east: 121.49, north: 25.03 },
@@ -137,6 +150,7 @@ export const prototypeDestinations: readonly PrototypeDestination[] = [
     id: "dest-taichung",
     name: "Taichung",
     localName: "臺中",
+    localNameLang: languageTag("zh-Hant"),
     countryCode: "TW",
     context: "City · Taiwan",
     bounds: { west: 120.6, south: 24.1, east: 120.73, north: 24.19 },
@@ -146,6 +160,7 @@ export const prototypeDestinations: readonly PrototypeDestination[] = [
     id: "dest-tainan",
     name: "Tainan",
     localName: "臺南",
+    localNameLang: languageTag("zh-Hant"),
     countryCode: "TW",
     context: "City · Taiwan",
     bounds: { west: 120.15, south: 22.95, east: 120.26, north: 23.03 },
@@ -155,6 +170,7 @@ export const prototypeDestinations: readonly PrototypeDestination[] = [
     id: "dest-kaohsiung",
     name: "Kaohsiung",
     localName: "高雄",
+    localNameLang: languageTag("zh-Hant"),
     countryCode: "TW",
     context: "City · Taiwan",
     bounds: { west: 120.23, south: 22.58, east: 120.35, north: 22.67 },
@@ -164,6 +180,7 @@ export const prototypeDestinations: readonly PrototypeDestination[] = [
     id: "dest-changhua",
     name: "Changhua",
     localName: "彰化",
+    localNameLang: languageTag("zh-Hant"),
     countryCode: "TW",
     context: "County seat · Taiwan",
     bounds: { west: 120.5, south: 24.05, east: 120.59, north: 24.11 },

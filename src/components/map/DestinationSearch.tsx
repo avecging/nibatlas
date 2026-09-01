@@ -13,7 +13,16 @@ import type {
 import styles from "./DestinationSearch.module.css";
 
 type Option =
-  | { readonly kind: "destination"; readonly id: string; readonly title: string; readonly subtitle: string; readonly viewport: Viewport }
+  | {
+      readonly kind: "destination";
+      readonly id: string;
+      readonly title: string;
+      readonly localTitle?: string;
+      readonly localTitleLang?: string;
+      readonly searchLabel: string;
+      readonly subtitle: string;
+      readonly viewport: Viewport;
+    }
   | { readonly kind: "shop"; readonly id: string; readonly title: string; readonly subtitle: string; readonly viewport: Viewport; readonly shop: ShopMapSummary };
 
 interface DestinationSearchProps {
@@ -107,7 +116,16 @@ export function DestinationSearch({
       ...activeResults.destinations.map<Option>((destination) => ({
         kind: "destination",
         id: destination.id,
-        title: destination.localName
+        title: destination.name,
+        ...(destination.localName === undefined
+          ? {}
+          : {
+              localTitle: destination.localName,
+              ...(destination.localNameLang === undefined
+                ? {}
+                : { localTitleLang: destination.localNameLang }),
+            }),
+        searchLabel: destination.localName
           ? `${destination.name} · ${destination.localName}`
           : destination.name,
         subtitle: destination.context,
@@ -126,9 +144,11 @@ export function DestinationSearch({
   );
 
   function choose(option: Option) {
-    appliedQuery.current = option.title.trim();
+    const label = option.kind === "destination" ? option.searchLabel : option.title;
+
+    appliedQuery.current = label.trim();
     setOpen(false);
-    setQuery(option.kind === "destination" ? option.title : option.title);
+    setQuery(label);
     inputRef.current?.blur();
 
     if (option.kind === "destination") {
@@ -223,7 +243,17 @@ export function DestinationSearch({
                   <span className={styles.optionIcon} aria-hidden="true">
                     <Icon name="map" size={18} />
                   </span>
-                  <span className={styles.optionTitle}>{option.title}</span>
+                  <span className={styles.optionTitle}>
+                    {option.title}
+                    {option.localTitle ? (
+                      <>
+                        {" · "}
+                        <span lang={option.localTitleLang} dir="auto">
+                          {option.localTitle}
+                        </span>
+                      </>
+                    ) : null}
+                  </span>
                   <span className={styles.optionMeta}>Place · {option.subtitle}</span>
                 </li>
               ))}

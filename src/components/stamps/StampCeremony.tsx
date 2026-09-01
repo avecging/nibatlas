@@ -115,7 +115,10 @@ export function StampCeremony({
             title={collection.shopNameSnapshot}
             {...(collection.shopLocalNameSnapshot === undefined
               ? {}
-              : { localTitle: collection.shopLocalNameSnapshot })}
+              : {
+                  localTitle: collection.shopLocalNameSnapshot,
+                  localTitleLang: collection.shopLocalNameLangSnapshot,
+                })}
             subtitle={collection.collectedOn}
           />
         </ImpressionPlate>

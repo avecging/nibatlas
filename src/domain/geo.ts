@@ -1,4 +1,59 @@
-export type CountryCode = "SG" | "JP" | "TW";
+type UppercaseAsciiLetter =
+  | "A"
+  | "B"
+  | "C"
+  | "D"
+  | "E"
+  | "F"
+  | "G"
+  | "H"
+  | "I"
+  | "J"
+  | "K"
+  | "L"
+  | "M"
+  | "N"
+  | "O"
+  | "P"
+  | "Q"
+  | "R"
+  | "S"
+  | "T"
+  | "U"
+  | "V"
+  | "W"
+  | "X"
+  | "Y"
+  | "Z";
+
+/**
+ * ISO 3166-1 alpha-2-shaped country code.
+ *
+ * The application contract accepts any two uppercase ASCII letters instead of
+ * enumerating countries in frontend code. Canonical ISO membership belongs at
+ * the data-import boundary; this type keeps fixtures and API projections honest
+ * about the wire format without requiring a code release for every new country.
+ */
+export type CountryCode = `${UppercaseAsciiLetter}${UppercaseAsciiLetter}`;
+
+const COUNTRY_CODE_PATTERN = /^[A-Z]{2}$/;
+const regionNamesByLocale = new Map<string, Intl.DisplayNames>();
+
+export function isCountryCode(value: string): value is CountryCode {
+  return COUNTRY_CODE_PATTERN.test(value);
+}
+
+/** Localised country name supplied by the runtime's CLDR data. */
+export function countryLabel(countryCode: CountryCode, locale = "en"): string {
+  let displayNames = regionNamesByLocale.get(locale);
+
+  if (!displayNames) {
+    displayNames = new Intl.DisplayNames([locale], { type: "region" });
+    regionNamesByLocale.set(locale, displayNames);
+  }
+
+  return displayNames.of(countryCode) ?? countryCode;
+}
 
 export interface GeoPoint {
   readonly latitude: number;

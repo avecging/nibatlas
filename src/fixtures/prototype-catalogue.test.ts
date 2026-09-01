@@ -6,7 +6,11 @@ import {
 } from "@/src/domain/shop-evidence";
 import { STAMP_INKS, STAMP_PALETTE_VERSION } from "@/src/domain/stamp-palette";
 import { COUNTRY_SEAL_STAMP_THRESHOLD } from "@/src/domain/seals";
+import { countryLabel } from "@/src/domain/geo";
+import { isLanguageTag } from "@/src/domain/language";
 import { demoShops } from "@/src/fixtures/demo-shops";
+import { prototypeDestinations } from "@/src/fixtures/prototype-destinations";
+import { shopValueSpecimen } from "@/src/fixtures/shop-value-specimen";
 import {
   PROTOTYPE_CATALOGUE_NOTICE,
   prototypeCoverageSets,
@@ -20,7 +24,7 @@ describe("prototype catalogue", () => {
     expect(prototypeShopDetails.length).toBeLessThanOrEqual(20);
   });
 
-  it("covers the three launch countries, including Taiwan beyond Taipei", () => {
+  it("covers the current three-country fixture, including Taiwan beyond Taipei", () => {
     expect(new Set(prototypeShopDetails.map((shop) => shop.countryCode))).toEqual(
       new Set(["SG", "JP", "TW"]),
     );
@@ -44,6 +48,41 @@ describe("prototype catalogue", () => {
 
     expect(japanLocalities.size).toBeGreaterThan(1);
     expect([...japanLocalities].some((name) => !name.includes("Tokyo"))).toBe(true);
+  });
+
+  it("uses real country codes rather than merely alpha-2-shaped values", () => {
+    const countryCodes = new Set(
+      prototypeShopDetails.map((shop) => shop.countryCode),
+    );
+
+    for (const countryCode of countryCodes) {
+      const label = countryLabel(countryCode);
+
+      expect(label).not.toBe(countryCode);
+      expect(label).not.toMatch(/unknown region/i);
+    }
+  });
+
+  it("pairs every fixture local name with a validated language tag", () => {
+    const records = [
+      ...prototypeShopDetails,
+      ...prototypeDestinations,
+      ...demoShops,
+      shopValueSpecimen,
+    ].map((record) => ({
+      localName: "localName" in record ? record.localName : undefined,
+      localNameLang:
+        "localNameLang" in record ? record.localNameLang : undefined,
+    }));
+
+    for (const record of records) {
+      if (record.localName === undefined) {
+        expect(record.localNameLang).toBeUndefined();
+      } else {
+        expect(record.localNameLang).toBeDefined();
+        expect(isLanguageTag(record.localNameLang ?? "")).toBe(true);
+      }
+    }
   });
 
   it("attributes every record to at least one source", () => {

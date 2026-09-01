@@ -88,10 +88,10 @@ Do not stretch, rotate, add gradients, add drop shadows, place on noisy photogra
 
 | Role | Primary | CJK fallback | System fallback |
 | --- | --- | --- | --- |
-| Editorial headings, Passport, collection dates | Source Serif 4 | Noto Serif JP, Noto Serif TC | Georgia, serif |
-| UI, map labels, controls, body, metadata | Inter | Noto Sans JP, Noto Sans TC | system-ui, sans-serif |
+| Editorial headings, Passport, collection dates | Source Serif 4 | Noto Serif JP, Noto Serif TC for the current fixture; add a locale-appropriate serif only when another script ships | Georgia, serif |
+| UI, map labels, controls, body, metadata | Inter | Noto Sans JP, Noto Sans TC for the current fixture; add a locale-appropriate sans only when another script ships | system-ui, sans-serif |
 
-Use variable font files where practical and self-host production webfonts to reduce layout shift and external dependencies.
+Use variable font files where practical and self-host production webfonts to reduce layout shift and external dependencies. Do not ship font families for speculative interface languages; add and subset them with the language or script that actually needs them.
 
 ### Typography rules
 
@@ -99,7 +99,7 @@ Use variable font files where practical and self-host production webfonts to red
 - Sans-serif handles dense, interactive, multilingual, and small text.
 - Do not use serif for map controls, filters, form fields, long utility copy, or tiny metadata.
 - Use uppercase sparingly for short country labels, stamp text, and overlines; never for paragraphs.
-- Support Japanese and Traditional Chinese line breaking; never force letter spacing onto CJK text.
+- Respect the line-breaking and direction rules of each element's tagged language; never force letter spacing onto CJK text.
 - Test long local shop names before approving layouts.
 
 ### Type scale
@@ -454,6 +454,6 @@ Avoid excessive rounded “SaaS card” styling. Passport stamp frames may use s
 - All map operations must have non-map/list equivalents.
 - Touch targets are at least 44 × 44 px.
 - Support keyboard selection between list and markers where technically practical.
-- Test English, Japanese, and Traditional Chinese shop names.
+- Treat English, Japanese, and Traditional Chinese as the minimum current fixture set. Test every additional shipped language and script, including right-to-left direction when introduced.
 - Do not place texture behind maps, inputs, small text, or dense data.
 - Implement all values as semantic CSS variables/design tokens; do not scatter literal hex values.

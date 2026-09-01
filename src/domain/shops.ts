@@ -1,4 +1,5 @@
 import type { CountryCode, GeoPoint, ViewportBounds } from "@/src/domain/geo";
+import type { LanguageTag } from "@/src/domain/language";
 
 export const SHOP_TYPES = [
   "fountain_pen_specialist",
@@ -21,6 +22,8 @@ export interface ShopMapSummary {
   readonly slug: string;
   readonly name: string;
   readonly localName?: string;
+  /** BCP 47 tag for `localName`; never inferred from country. */
+  readonly localNameLang?: LanguageTag;
   readonly countryCode: CountryCode;
   readonly localityName: string;
   readonly position: GeoPoint;
