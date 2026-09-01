@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 
 import { NibAtlasMark } from "@/src/components/brand/NibAtlasMark";
-import { localeForCountry } from "@/src/components/shops/locale";
 import { STAMP_MOTIF_PATHS } from "@/src/components/stamps/StampArt";
 import { Icon } from "@/src/components/ui/Icon";
 import { SHOP_TYPE_LABELS, type ShopDetail } from "@/src/domain/shop-detail";
@@ -98,7 +97,7 @@ export function ShopLocalName({ shop }: { readonly shop: ShopDetail }) {
   }
 
   return (
-    <p className={styles.localTitle} lang={localeForCountry(shop.countryCode)}>
+    <p className={styles.localTitle} lang={shop.localNameLang} dir="auto">
       {shop.localName}
     </p>
   );
