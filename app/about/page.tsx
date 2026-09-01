@@ -2,14 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AboutReviewerNote } from "@/src/features/reviewer/ReviewerNotes";
-import { COUNTRY_LABELS } from "@/src/domain/shop-detail";
-import type { CountryCode } from "@/src/domain/geo";
+import { countryLabel, type CountryCode } from "@/src/domain/geo";
 import { prototypeShopDetails } from "@/src/fixtures/prototype-catalogue";
 
 export const metadata: Metadata = {
   title: "About Nib Atlas",
   description:
-    "What Nib Atlas is, what its catalogue contains, and the countries it covers today.",
+    "What Nib Atlas is and what its carefully sourced catalogue currently contains.",
 };
 
 /**
@@ -42,7 +41,7 @@ function coverageByCountry(): readonly {
   return [...byCountry.entries()]
     .map(([countryCode, entry]) => ({
       countryCode,
-      countryLabel: COUNTRY_LABELS[countryCode],
+      countryLabel: countryLabel(countryCode),
       shopCount: entry.shops,
       localities: [...entry.localities].sort((a, b) => a.localeCompare(b)),
     }))
@@ -95,10 +94,9 @@ export default function AboutPage() {
 
       <h2 className="type-h2">Where it covers today</h2>
       <p>
-        Nib Atlas covers <strong>Singapore, Japan, and Taiwan</strong>. Coverage is
-        nationwide in intent — regional shops matter as much as the flagship stores
-        — but it is still being built out, and today the catalogue holds{" "}
-        {totalShops} shops:
+        Today the catalogue holds {totalShops} shop{totalShops === 1 ? "" : "s"}
+        across the places below. This is a snapshot of the entries currently
+        included, not a promise of national coverage or completeness:
       </p>
       <ul>
         {coverage.map((country) => (
