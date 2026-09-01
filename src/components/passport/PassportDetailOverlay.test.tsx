@@ -26,6 +26,7 @@ const COLLECTION: StampCollection = {
   shopSlug: "ginza-itoya-main-store",
   shopNameSnapshot: "Ginza Itoya Main Store",
   shopLocalNameSnapshot: "銀座 伊東屋 本店",
+  shopLocalNameLangSnapshot: "ja",
   collectedOn: "2026-03-14",
   shopTimezone: "Asia/Tokyo",
   countryCode: "JP",
@@ -204,6 +205,7 @@ describe("what each kind records", () => {
 
     expect(localName).toHaveTextContent("銀座 伊東屋 本店");
     expect(localName).toHaveAttribute("lang", "ja");
+    expect(localName).toHaveAttribute("dir", "auto");
 
     const link = within(dialog).getByRole("link", { name: /open shop/i });
 
