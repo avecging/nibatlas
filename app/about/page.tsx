@@ -94,7 +94,7 @@ export default function AboutPage() {
 
       <h2 className="type-h2">Where it covers today</h2>
       <p>
-        Today the catalogue holds {totalShops} shop{totalShops === 1 ? "" : "s"}
+        Today the catalogue holds {totalShops} shop{totalShops === 1 ? "" : "s"}{" "}
         across the places below. This is a snapshot of the entries currently
         included, not a promise of national coverage or completeness:
       </p>
