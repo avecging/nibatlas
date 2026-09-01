@@ -49,7 +49,7 @@ const RTL_SCRIPTS = new Set([
  * HTML can use `dir="auto"`; SVG text needs an explicit presentation direction.
  * Invalid or unknown tags fail safely to the application's left-to-right default.
  */
-export function languageDirection(languageTag: LanguageTag): "ltr" | "rtl" {
+export function languageDirection(languageTag: string): "ltr" | "rtl" {
   try {
     const script = new Intl.Locale(languageTag).maximize().script;
     return script !== undefined && RTL_SCRIPTS.has(script) ? "rtl" : "ltr";
