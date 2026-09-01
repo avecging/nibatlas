@@ -256,26 +256,32 @@ describe("when the submission cannot be delivered", () => {
     expect(screen.queryByText(/thanks for/i)).not.toBeInTheDocument();
   });
 
-  it("resets a consumed challenge after a network failure", async () => {
+  it("blocks an automatic retry when network delivery is uncertain", async () => {
     const challenge = installTurnstile();
+    const fetchMock = vi.fn(async () => {
+      throw new Error("offline");
+    });
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => {
-        throw new Error("offline");
-      }),
-    );
+    vi.stubGlobal("fetch", fetchMock);
 
     renderSuggestion();
     await waitFor(() => expect(challenge.renderWidget).toHaveBeenCalled());
-    challenge.issue("consumed-token");
+    challenge.issue("possibly-consumed-token");
     fillMinimum();
     send();
 
-    await waitFor(() =>
-      expect(screen.getByRole("alert")).toHaveTextContent(/did not send/i),
-    );
-    expect(challenge.reset).toHaveBeenCalledWith("turnstile-widget");
+    const failure = await screen.findByRole("alert");
+
+    expect(failure).toHaveTextContent(/could not confirm whether that sent/i);
+    expect(failure).toHaveTextContent(/avoid sending the same contribution twice/i);
+    expect(challenge.reset).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/^shop name/i)).toHaveValue("Pen and Paper");
+
+    const submit = screen.getByRole("button", { name: /delivery unconfirmed/i });
+    expect(submit).toBeDisabled();
+
+    fireEvent.click(submit);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("retries a failed delivery with a fresh challenge token", async () => {
