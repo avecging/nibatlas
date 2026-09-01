@@ -1,4 +1,5 @@
 import { countryLabel } from "@/src/domain/geo";
+import { languageTag } from "@/src/domain/language";
 import type { ShopDetail } from "@/src/domain/shop-detail";
 import {
   ACCESS_EVIDENCE_TOKENS,
@@ -40,7 +41,7 @@ export const shopValueSpecimen: ShopDetail = {
   slug: "specimen-shop-value",
   name: "Specimen Pen Bench",
   localName: "見本万年筆店",
-  localNameLang: "ja",
+  localNameLang: languageTag("ja"),
   countryCode: "JP",
   localityName: "Specimen locality",
   position: { latitude: 35.6721, longitude: 139.7669 },
