@@ -6,6 +6,7 @@ import {
   PassportDetailOverlay,
   sealSubject,
 } from "@/src/components/passport/PassportDetailOverlay";
+import { languageTag } from "@/src/domain/language";
 import type { StampCollection } from "@/src/domain/passport";
 import type { EarnedSeal } from "@/src/domain/seals";
 import { PROTOTYPE_DESIGN_VERSION } from "@/src/fixtures/prototype-catalogue";
@@ -26,7 +27,7 @@ const COLLECTION: StampCollection = {
   shopSlug: "ginza-itoya-main-store",
   shopNameSnapshot: "Ginza Itoya Main Store",
   shopLocalNameSnapshot: "銀座 伊東屋 本店",
-  shopLocalNameLangSnapshot: "ja",
+  shopLocalNameLangSnapshot: languageTag("ja"),
   collectedOn: "2026-03-14",
   shopTimezone: "Asia/Tokyo",
   countryCode: "JP",
