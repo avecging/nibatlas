@@ -64,7 +64,10 @@ describe("prototype catalogue", () => {
   });
 
   it("pairs every fixture local name with a validated language tag", () => {
-    const records = [
+    const records: readonly {
+      readonly localName?: string;
+      readonly localNameLang?: string;
+    }[] = [
       ...prototypeShopDetails,
       ...prototypeDestinations,
       ...demoShops,
