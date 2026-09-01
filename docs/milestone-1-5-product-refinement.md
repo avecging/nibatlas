@@ -2760,11 +2760,10 @@ its own, raised as issue #17 and deliberately left alone here.
 Help does not restate which countries are covered. *Where does Nib Atlas cover*
 links to About, which derives its list from the catalogue.
 
-This is not tidiness. The prose on About currently reads "Singapore, Japan, and
-Taiwan" while the counts beneath it are derived, and research has since added
-Seoul and Malaysia — so the two halves of one section already disagree. Two
-pages both naming the countries would be two places to be wrong. An end-to-end
-test asserts Help names no country list.
+This is not tidiness. A written country list can drift from catalogue-derived
+counts as soon as sourced records change. Two pages both naming countries would
+be two places to be wrong. An end-to-end test asserts Help names no country
+list.
 
 **The underlying fix is not WP7's.** The international-content foundation now
 accepts ISO alpha-2-shaped country codes, derives display labels with
@@ -2844,11 +2843,6 @@ by the axe audit, which the three new routes were added to; the marker is
 - **A retention period for contributions**, if Privacy should state one in
   figures rather than in the terms WP7 wrote (kept while there is something to do
   about them; contact details cleared after). One line either way.
-- **International content compatibility**, implemented after WP7: country labels
-  are data-driven, local-name language is explicit, and public coverage wording
-  follows the catalogue without promising future countries or starting cities.
-  Adding Korean or Malaysian shops is now a sourcing decision rather than a
-  frontend country-code change.
 - Desktop feedback, before WP-D can be designed.
 - Whether a permission request to the ten shops for storefront photography should
   be drafted, and by whom.
