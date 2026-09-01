@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { isLanguageTag, languageDirection } from "@/src/domain/language";
+import {
+  isLanguageTag,
+  languageDirection,
+  languageTag,
+} from "@/src/domain/language";
 
 describe("isLanguageTag", () => {
   it.each(["en", "ja", "ko", "ms", "ta", "zh-Hans", "zh-Hant", "ar"])(
@@ -15,6 +19,16 @@ describe("isLanguageTag", () => {
   });
 });
 
+
+describe("languageTag", () => {
+  it("returns a validated tag", () => {
+    expect(languageTag("zh-Hant")).toBe("zh-Hant");
+  });
+
+  it("rejects invalid fixture or import data", () => {
+    expect(() => languageTag("not_a_language")).toThrow(RangeError);
+  });
+});
 
 describe("languageDirection", () => {
   it.each(["ar", "fa", "he", "ur", "az-Arab"])(
