@@ -1,4 +1,5 @@
-import type { CountryCode } from "@/src/domain/geo";
+import { countryLabel, type CountryCode } from "@/src/domain/geo";
+import type { LanguageTag } from "@/src/domain/language";
 import type { CountryCoverageSet, SealDesignInput } from "@/src/domain/seals";
 import type {
   OpeningHoursEntry,
@@ -9,7 +10,6 @@ import type {
   ShopStampDesign,
   StampMotif,
 } from "@/src/domain/shop-detail";
-import { COUNTRY_LABELS } from "@/src/domain/shop-detail";
 import type {
   OperationalStatus,
   ShopMapSummary,
@@ -191,6 +191,7 @@ interface PrototypeSeed {
   readonly slug: string;
   readonly name: string;
   readonly localName?: string;
+  readonly localNameLang?: LanguageTag;
   readonly countryCode: CountryCode;
   readonly localityName: string;
   readonly localitySlug: string;
@@ -271,6 +272,7 @@ const seeds: readonly PrototypeSeed[] = [
     slug: "ginza-itoya-main-store",
     name: "Ginza Itoya Main Store",
     localName: "銀座 伊東屋 本店",
+    localNameLang: "ja",
     countryCode: "JP",
     localityName: "Chūō, Tokyo",
     localitySlug: "chuo-tokyo",
@@ -296,6 +298,7 @@ const seeds: readonly PrototypeSeed[] = [
     slug: "ginza-itoya-yokohama-motomachi",
     name: "Ginza Itoya Yokohama Motomachi",
     localName: "銀座 伊東屋 横浜元町",
+    localNameLang: "ja",
     countryCode: "JP",
     localityName: "Naka, Yokohama",
     localitySlug: "naka-yokohama",
@@ -318,6 +321,7 @@ const seeds: readonly PrototypeSeed[] = [
     slug: "nagasawa-stationery-center-main-store",
     name: "NAGASAWA Stationery Center Main Store",
     localName: "ナガサワ文具センター 本店",
+    localNameLang: "ja",
     countryCode: "JP",
     localityName: "Kobe",
     localitySlug: "kobe",
@@ -365,6 +369,7 @@ const seeds: readonly PrototypeSeed[] = [
     slug: "pen-house-tainan",
     name: "Pen House",
     localName: "文寶房名品",
+    localNameLang: "zh-Hant",
     countryCode: "TW",
     localityName: "East District, Tainan",
     localitySlug: "east-tainan",
@@ -390,6 +395,7 @@ const seeds: readonly PrototypeSeed[] = [
     slug: "skb-kaohsiung",
     name: "SKB",
     localName: "SKB文明鋼筆",
+    localNameLang: "zh-Hant",
     countryCode: "TW",
     localityName: "Kaohsiung",
     localitySlug: "kaohsiung",
@@ -412,6 +418,7 @@ const seeds: readonly PrototypeSeed[] = [
     slug: "ty-lee-pen-shop",
     name: "TY Lee Pen Shop",
     localName: "小品雅集",
+    localNameLang: "zh-Hant",
     countryCode: "TW",
     localityName: "Da'an, Taipei",
     localitySlug: "daan-taipei",
@@ -436,6 +443,7 @@ const seeds: readonly PrototypeSeed[] = [
     slug: "juspirit-banqiao",
     name: "Juspirit",
     localName: "激墨",
+    localNameLang: "zh-Hant",
     countryCode: "TW",
     localityName: "Banqiao, New Taipei",
     localitySlug: "banqiao-new-taipei",
@@ -470,7 +478,7 @@ function shopStamp(seed: PrototypeSeed): ShopStampDesign {
     // into it, and nothing reads meaning back out of it.
     ink: inkForStampKey(`stamp-${seed.slug}`),
     localityLabel: seed.localityName,
-    countryLabel: COUNTRY_LABELS[seed.countryCode],
+    countryLabel: countryLabel(seed.countryCode),
     designVersion: PROTOTYPE_DESIGN_VERSION,
     paletteVersion: STAMP_PALETTE_VERSION,
   };
@@ -495,7 +503,9 @@ function toDetail(seed: PrototypeSeed): ShopDetail {
     id: seed.id,
     slug: seed.slug,
     name: seed.name,
-    ...(seed.localName === undefined ? {} : { localName: seed.localName }),
+    ...(seed.localName === undefined
+      ? {}
+      : { localName: seed.localName, localNameLang: seed.localNameLang }),
     countryCode: seed.countryCode,
     localityName: seed.localityName,
     position: { latitude: seed.latitude, longitude: seed.longitude },
@@ -531,7 +541,9 @@ export const prototypeShopSummaries: readonly ShopMapSummary[] = prototypeShopDe
     id: shop.id,
     slug: shop.slug,
     name: shop.name,
-    ...(shop.localName === undefined ? {} : { localName: shop.localName }),
+    ...(shop.localName === undefined
+      ? {}
+      : { localName: shop.localName, localNameLang: shop.localNameLang }),
     countryCode: shop.countryCode,
     localityName: shop.localityName,
     position: shop.position,
