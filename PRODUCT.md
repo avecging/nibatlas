@@ -27,8 +27,8 @@ present; they are not a launch promise, a national-coverage claim, or a publishe
 rollout order.
 
 Future shops may be added in any country when their records meet the sourcing
-standard. Nib Atlas does not name beachheads, starting cities, or future country
-commitments. Public coverage is always derived from the catalogue itself and
+standard. Nib Atlas publishes no future geographic rollout. Public coverage is
+always derived from the catalogue itself and
 favours accurate, sourced listings and transparent freshness over superficial
 completeness.
 
@@ -193,4 +193,4 @@ Changes require an explicit product decision if they alter any of these:
 - Map movement is user-controlled and uses **Search this area**.
 - Physical visits—not passive app engagement—create the collection.
 - Atlas Stamps remain meaningful, private-by-default memories.
-- Public geography describes only the sourced catalogue currently present; it never promises national completeness, starting cities, or a future rollout order.
+- Public geography describes only the sourced catalogue currently present; it never promises national completeness or a future rollout order.
