@@ -2766,13 +2766,14 @@ Seoul and Malaysia — so the two halves of one section already disagree. Two
 pages both naming the countries would be two places to be wrong. An end-to-end
 test asserts Help names no country list.
 
-**The underlying fix is not WP7's.** `CountryCode` in `src/domain/geo.ts` is a
-closed union of `"SG" | "JP" | "TW"`, so the application cannot represent a
-Korean or Malaysian shop at all: the union, `COUNTRY_LABELS`, and
-`localeForCountry` (Korean needs `ko` for correct line breaking) all need
-extending, and `PRODUCT.md` lists as a non-goal exactly what has now been done.
-Seals are generic over `CountryCode` and need nothing. The founder scheduled
-that package after WP7.
+**The underlying fix is not WP7's.** The international-content foundation now
+accepts ISO alpha-2-shaped country codes, derives display labels with
+`Intl.DisplayNames`, and stores each local shop name's BCP 47 language tag
+explicitly. It does not infer language from country, and seals remain generic
+over `CountryCode`. Public coverage copy is derived from the catalogue and
+describes only what it currently contains; it makes no promise about future
+countries, starting cities, or national completeness. No Korean or Malaysian
+shop data was added by this infrastructure change.
 
 ### Two defects found on the way
 
@@ -2843,10 +2844,11 @@ by the axe audit, which the three new routes were added to; the marker is
 - **A retention period for contributions**, if Privacy should state one in
   figures rather than in the terms WP7 wrote (kept while there is something to do
   about them; contact details cleared after). One line either way.
-- **South Korea and Malaysia**, scheduled after WP7: Seoul is a locality with
-  districts under it in the way Taipei is, and Malaysia is Kuala Lumpur and Johor
-  Bahru with the list expanding. Needs the `CountryCode` union, `COUNTRY_LABELS`,
-  a `ko` locale case, and the coverage claims on About and the map's empty state.
+- **International content compatibility**, implemented after WP7: country labels
+  are data-driven, local-name language is explicit, and public coverage wording
+  follows the catalogue without promising future countries or starting cities.
+  Adding Korean or Malaysian shops is now a sourcing decision rather than a
+  frontend country-code change.
 - Desktop feedback, before WP-D can be designed.
 - Whether a permission request to the ten shops for storefront photography should
   be drafted, and by whom.
