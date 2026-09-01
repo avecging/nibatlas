@@ -6,6 +6,7 @@ import {
 } from "@/src/domain/shop-evidence";
 import { STAMP_INKS, STAMP_PALETTE_VERSION } from "@/src/domain/stamp-palette";
 import { COUNTRY_SEAL_STAMP_THRESHOLD } from "@/src/domain/seals";
+import { isLanguageTag } from "@/src/domain/language";
 import { demoShops } from "@/src/fixtures/demo-shops";
 import {
   PROTOTYPE_CATALOGUE_NOTICE,
@@ -44,6 +45,17 @@ describe("prototype catalogue", () => {
 
     expect(japanLocalities.size).toBeGreaterThan(1);
     expect([...japanLocalities].some((name) => !name.includes("Tokyo"))).toBe(true);
+  });
+
+  it("tags every local-script name explicitly rather than inferring from country", () => {
+    for (const shop of prototypeShopDetails) {
+      if (shop.localName === undefined) {
+        expect(shop.localNameLang).toBeUndefined();
+      } else {
+        expect(shop.localNameLang).toBeDefined();
+        expect(isLanguageTag(shop.localNameLang ?? "")).toBe(true);
+      }
+    }
   });
 
   it("attributes every record to at least one source", () => {
