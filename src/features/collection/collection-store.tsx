@@ -26,7 +26,11 @@ import {
 import type { ShopDetail } from "@/src/domain/shop-detail";
 import type { CountryCode } from "@/src/domain/geo";
 import type { UserShopState } from "@/src/domain/user-state";
-import { designSeal, prototypeCoverageSets } from "@/src/fixtures/prototype-catalogue";
+import {
+  designSeal,
+  prototypeCoverageSets,
+  prototypeShopDetails,
+} from "@/src/fixtures/prototype-catalogue";
 import {
   prototypeSeedCollections,
   prototypeSeedSavedShopIds,
@@ -162,6 +166,34 @@ export interface CollectionStore {
 
 const CollectionContext = createContext<CollectionStore | null>(null);
 
+const localNameLanguageByShopSlug = new Map(
+  prototypeShopDetails.flatMap((shop) =>
+    shop.localNameLang === undefined ? [] : [[shop.slug, shop.localNameLang] as const],
+  ),
+);
+
+/**
+ * Backfills language metadata introduced after collections were already stored.
+ *
+ * A collection is a durable snapshot, so current records never overwrite an
+ * existing snapshot. Only the missing field is recovered, by stable shop slug,
+ * from the sourced catalogue that originally issued the prototype stamp.
+ */
+function enrichLegacyCollection(collection: StampCollection): StampCollection {
+  if (
+    collection.shopLocalNameSnapshot === undefined ||
+    collection.shopLocalNameLangSnapshot !== undefined
+  ) {
+    return collection;
+  }
+
+  const language = localNameLanguageByShopSlug.get(collection.shopSlug);
+
+  return language === undefined
+    ? collection
+    : { ...collection, shopLocalNameLangSnapshot: language };
+}
+
 function parsePersisted(raw: string | null): PersistedState | null {
   if (!raw) {
     return null;
@@ -179,7 +211,12 @@ function parsePersisted(raw: string | null): PersistedState | null {
       return null;
     }
 
-    return parsed as PersistedState;
+    const state = parsed as PersistedState;
+
+    return {
+      ...state,
+      collections: state.collections.map(enrichLegacyCollection),
+    };
   } catch {
     return null;
   }
