@@ -177,6 +177,31 @@ describe("legible at the size it is given", () => {
   });
 });
 
+describe("local-name language", () => {
+  it("applies explicit RTL direction to Arabic stamp text", () => {
+    const svg = svgFor("shop", {
+      localTitle: "متجر أقلام",
+      localTitleLang: "ar",
+    });
+    const localName = svg.querySelector('text[lang="ar"]');
+
+    expect(localName).toHaveAttribute("direction", "rtl");
+    expect(localName).toHaveAttribute("unicode-bidi", "plaintext");
+  });
+
+  it("keeps Japanese stamp text left-to-right", () => {
+    const svg = svgFor("shop", {
+      localTitle: "銀座 伊東屋 本店",
+      localTitleLang: "ja",
+    });
+
+    expect(svg.querySelector('text[lang="ja"]')).toHaveAttribute(
+      "direction",
+      "ltr",
+    );
+  });
+});
+
 describe("long names wrap rather than overrun", () => {
   it("splits a long shop name onto a second line", () => {
     const svg = svgFor("shop", {
