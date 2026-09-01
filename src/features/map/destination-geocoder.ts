@@ -1,4 +1,5 @@
 import type { Viewport } from "@/src/domain/geo";
+import type { LanguageTag } from "@/src/domain/language";
 import { prototypeDestinations, type PrototypeDestination } from "@/src/fixtures/prototype-destinations";
 import { prototypeShopSummaries } from "@/src/fixtures/prototype-catalogue";
 import type { ShopMapSummary } from "@/src/domain/shops";
@@ -7,6 +8,7 @@ export interface DestinationResult {
   readonly id: string;
   readonly name: string;
   readonly localName?: string;
+  readonly localNameLang?: LanguageTag;
   readonly context: string;
   readonly viewport: Viewport;
 }
@@ -86,7 +88,12 @@ export function createFixtureGeocoder(
           name: destination.name,
           ...(destination.localName === undefined
             ? {}
-            : { localName: destination.localName }),
+            : {
+                localName: destination.localName,
+                ...(destination.localNameLang === undefined
+                  ? {}
+                  : { localNameLang: destination.localNameLang }),
+              }),
           context: destination.context,
           viewport: destinationViewport(destination),
         }));
