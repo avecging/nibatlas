@@ -1,4 +1,5 @@
-import { COUNTRY_LABELS, type ShopDetail } from "@/src/domain/shop-detail";
+import { countryLabel } from "@/src/domain/geo";
+import type { ShopDetail } from "@/src/domain/shop-detail";
 import {
   ACCESS_EVIDENCE_TOKENS,
   exclusiveEvidenceToken,
@@ -39,6 +40,7 @@ export const shopValueSpecimen: ShopDetail = {
   slug: "specimen-shop-value",
   name: "Specimen Pen Bench",
   localName: "見本万年筆店",
+  localNameLang: "ja",
   countryCode: "JP",
   localityName: "Specimen locality",
   position: { latitude: 35.6721, longitude: 139.7669 },
@@ -144,7 +146,7 @@ export const shopValueSpecimen: ShopDetail = {
     motif: "workbench",
     ink: inkForStampKey("stamp-specimen-shop-value"),
     localityLabel: "Specimen locality",
-    countryLabel: COUNTRY_LABELS.JP,
+    countryLabel: countryLabel("JP"),
     designVersion: PROTOTYPE_DESIGN_VERSION,
     paletteVersion: STAMP_PALETTE_VERSION,
   },
