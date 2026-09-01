@@ -127,8 +127,9 @@ export default function HelpPage() {
 
       <h3 className="type-h3">A shop is missing.</h3>
       <p>
-        <Link href="/suggest-shop">Suggest a pen shop</Link>. The name and the
-        city are the parts we need; everything else helps.
+        <Link href="/suggest-shop">Suggest a pen shop</Link>. The shop&rsquo;s
+        name and country are the parts we need; the city is welcome but
+        optional, and everything else helps.
       </p>
 
       <h3 className="type-h3">Is there a review or rating on here anywhere?</h3>

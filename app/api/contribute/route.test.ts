@@ -171,6 +171,67 @@ describe("what is refused", () => {
     expect(response.status).toBe(413);
   });
 
+  it("stops reading the request stream as soon as the byte cap is exceeded", async () => {
+    const totalChunks = 10;
+    let pulls = 0;
+    let cancelled = false;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulls += 1;
+
+        if (pulls > totalChunks) {
+          controller.close();
+
+          return;
+        }
+
+        controller.enqueue(new Uint8Array(4_096));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const request = new Request("https://nibatlas.test/api/contribute", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: stream,
+      duplex: "half",
+    } as RequestInit & { duplex: "half" });
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(413);
+    expect(cancelled).toBe(true);
+    expect(pulls).toBeLessThan(totalChunks);
+  });
+
+  it.each([null, [], JSON.stringify("valid JSON, wrong outer shape")])(
+    "refuses a syntactically valid non-object JSON body: %j",
+    async (body) => {
+      const response = await post(body);
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toMatchObject({ error: "invalid_json" });
+    },
+  );
+
+  it("refuses non-string submitted fields without throwing or forwarding", async () => {
+    const fetchMock = intakeAccepts();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await post({
+      kind: "suggestion",
+      values: { shop_name: 42, country: "South Korea" },
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "invalid",
+      fieldErrors: { shop_name: "Shop name is needed." },
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("refuses a body that is not JSON", async () => {
     const response = await post("not json at all");
 
