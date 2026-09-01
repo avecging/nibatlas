@@ -34,10 +34,10 @@ browser it stays at the foot of the viewport and the form scrolls under it.
 
 | State | What it shows |
 | --- | --- |
-| `suggest-shop` | The suggestion form. What the catalogue does with a lead is stated before the fields, not after them, and *optional* is marked rather than *required* — six of the nine fields are optional, so asterisks would decorate the page and still leave the reader counting |
+| `suggest-shop` | The suggestion form, after the founder's staging review. Two sentences of context, then the fields; the two required ones carry an asterisk and a legend says what it means |
 | `report-listing` | The correction form for TY Lee Pen Shop. The listing is the page's heading, not a field: the reader arrived from it, so nothing here asks which shop they mean |
 | `submission-failed` | An intake that could not be reached. It says so, keeps every character that was typed, and offers the pre-addressed email — which has no service behind it to be unavailable |
-| `submission-sent` | The confirmation, which replaces the form only after the route answered `ok` |
+| `submission-sent` | The confirmation, which replaces the form only after the route answered `ok`, and offers a blank form for a second suggestion |
 | `help` | The walkthrough and the questions. Coverage is not restated here: *Where does Nib Atlas cover* links to About, which derives its list from the catalogue |
 
 The 768 × 1024 and 1440 × 900 captures show responsive integrity only.

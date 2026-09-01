@@ -2586,16 +2586,42 @@ source of truth and `docs/runbooks/contribution-intake.md` is its setup.
 
 ### What WP7 changed
 
-**`/suggest-shop` is a real page with a real form.** Nine fields, of which three
-are required — the shop's name, its city, its country. A name and a place can be
-researched; a rich description of a shop nobody can find cannot. What the
-catalogue does with a lead, and that not every suggestion becomes a listing, are
-stated *before* the fields: they are the two questions a person has while
-deciding whether to bother, and answering them afterwards answers them too late.
+**`/suggest-shop` is a real page with a real form.** Nine fields, of which two
+are required — the shop's name and its country. Two sentences of context sit
+before the fields, saying that listings are checked by hand and that not every
+suggestion becomes one.
 
-**Optional is marked, not required.** Six of the nine fields are optional, so
-asterisking the three would decorate the page and still leave the reader
-counting.
+**Required is marked, and the legend says what the mark means.** The first draft
+marked *optional* instead, on the argument that six of nine fields are optional
+so asterisks would decorate the page. The founder's staging review rejected it:
+the convention a reader already knows beats a cleverer inversion, and *optional*
+repeated six times reads as a form apologising for itself. Each required control
+also carries `required`, so assistive technology announces it rather than relying
+on a character a screen reader may skip.
+
+**The city stopped being required**, in the same review. A form that refuses a
+lead over a missing field loses the lead, and a shop name with a country is
+researchable.
+
+### The staging review of the form
+
+The founder's verdict on the first draft was that it read as machine-written
+rather than human. Five changes, all of them removals or plain-language
+substitutions:
+
+- **Two paragraphs of justification are gone** — the one explaining what
+  research does with a suggestion at length, and *"The shop's name and where it
+  is are the parts we need… a detailed description of a shop we cannot find, we
+  cannot"*, which lectured the reader about their own submission.
+- **The closing paragraph is gone**, which explained that a correction is a
+  different job and linked to About. Someone who came here to name a missing shop
+  does not need routing elsewhere at the end of it.
+- **"Name in the local script" became "Local name"**, and its hint gives two
+  real examples from the catalogue — 激墨 and ナガサワ文具センター — rather than
+  describing the concept.
+- **The confirmation offers a blank form.** Somebody who knows one missing shop
+  often knows two, and *Suggest another shop* clears the previous answers so the
+  second is not the first one edited.
 
 **The correction lives at `/shops/[slug]/report`.** The listing is in the route,
 so the page resolves the shop and names it in the heading — not in a prefilled

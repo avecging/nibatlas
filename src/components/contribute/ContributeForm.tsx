@@ -35,6 +35,7 @@ export function ContributeForm({
   fallbackHref,
   submitLabel,
   confirmation,
+  anotherLabel,
 }: {
   readonly kind: ContributionKind;
   readonly shopSlug?: string;
@@ -42,6 +43,8 @@ export function ContributeForm({
   readonly fallbackHref: string;
   readonly submitLabel: string;
   readonly confirmation: string;
+  /** The control the confirmation offers, for sending a second one. */
+  readonly anotherLabel: string;
 }) {
   const fields = useMemo(() => fieldsFor(kind), [kind]);
   const [values, setValues] = useState<Record<string, string>>({});
@@ -84,6 +87,19 @@ export function ContributeForm({
 
   const onToken = useCallback((token: string) => {
     tokenRef.current = token;
+  }, []);
+
+  /*
+   * Somebody who knows one missing shop often knows two. The confirmation offers
+   * a blank form rather than making them find their way back to the page, and
+   * clears the previous answers so the second suggestion is not the first one
+   * edited.
+   */
+  const sendAnother = useCallback(() => {
+    setValues({});
+    setErrors({});
+    setStatus("idle");
+    tokenRef.current = "";
   }, []);
 
   async function submit(event: React.FormEvent) {
@@ -162,6 +178,11 @@ export function ContributeForm({
       >
         <h2 className={styles.confirmationTitle}>Thank you — that reached us.</h2>
         <p>{confirmation}</p>
+        <div className={styles.actions}>
+          <Button variant="secondary" onClick={sendAnother}>
+            {anotherLabel}
+          </Button>
+        </div>
       </div>
     );
   }
@@ -210,6 +231,11 @@ export function ContributeForm({
           </p>
         </div>
       ) : null}
+
+      <p className={styles.legend}>
+        Fields marked{" "}
+        <span className={styles.required}>*</span> are required.
+      </p>
 
       {fields.map((field) => (
         <Field

@@ -81,6 +81,7 @@ export default async function ShopReportPage({
         fallbackHref={shopCorrectionHref(shop.name)}
         submitLabel="Send this correction"
         confirmation="Someone will check this against the shop's own sources and update the listing if it needs it. If you left an email address, we may come back to you with a question."
+        anotherLabel="Report something else"
       />
     </article>
   );

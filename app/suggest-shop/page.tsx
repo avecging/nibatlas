@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { ContributeForm } from "@/src/components/contribute/ContributeForm";
 import { suggestShopHref } from "@/src/features/contribute/contribute-links";
@@ -34,16 +33,9 @@ export default function SuggestShopPage() {
       </p>
 
       <p>
-        Every listing is entered by hand from a source we can point to, so a
-        suggestion is the start of that work rather than the end of it — someone
-        checks the shop exists, that it is still trading, and what it actually
-        offers before it appears. That takes a while, and it means not every
-        suggestion becomes a listing.
-      </p>
-      <p>
-        <strong>The shop&rsquo;s name and where it is are the parts we need.</strong>{" "}
-        Everything else helps and none of it is required. A name and a city we can
-        research; a detailed description of a shop we cannot find, we cannot.
+        Every listing is checked by hand before it appears, so this is the start
+        of that work rather than the end of it. Not every suggestion becomes a
+        listing.
       </p>
 
       <ContributeForm
@@ -51,15 +43,8 @@ export default function SuggestShopPage() {
         fallbackHref={suggestShopHref()}
         submitLabel="Send this suggestion"
         confirmation="Someone will look into this shop and check what can be confirmed about it. If you left an email address, we may come back to you with a question."
+        anotherLabel="Suggest another shop"
       />
-
-      <p className="type-body-sm">
-        A shop that is already on the map but has something wrong with it is a
-        different job — use <strong>Report incorrect information</strong>{" "}
-        at the foot of that shop&rsquo;s own page, which carries the listing
-        with it.
-        More about the catalogue: <Link href="/about">About Nib Atlas</Link>.
-      </p>
     </article>
   );
 }

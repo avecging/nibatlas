@@ -41,7 +41,6 @@ test("suggesting a shop, from Me to a confirmation", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Suggest a pen shop");
 
   await page.getByLabel(/^shop name/i).fill("Pen and Paper");
-  await page.getByLabel(/^city/i).fill("Seoul");
   await page.getByLabel(/^country/i).fill("South Korea");
   await page.getByRole("button", { name: /send this suggestion/i }).click();
 
@@ -50,8 +49,13 @@ test("suggesting a shop, from Me to a confirmation", async ({ page }) => {
   expect(sent).toHaveLength(1);
   expect(sent[0]).toMatchObject({
     kind: "suggestion",
-    values: { shop_name: "Pen and Paper", city: "Seoul", country: "South Korea" },
+    values: { shop_name: "Pen and Paper", country: "South Korea" },
   });
+
+  // Somebody who knows one missing shop often knows two, and the second starts
+  // blank rather than as the first one edited.
+  await page.getByRole("button", { name: /suggest another shop/i }).click();
+  await expect(page.getByLabel(/^shop name/i)).toHaveValue("");
 });
 
 test("the form does not post until it has what it needs", async ({ page }) => {
@@ -66,13 +70,13 @@ test("the form does not post until it has what it needs", async ({ page }) => {
   await page.getByRole("button", { name: /send this suggestion/i }).click();
 
   await expect(page.getByTestId("contribute-problem")).toContainText(
-    /3 things need a look/i,
+    /2 things need a look/i,
   );
   expect(calls).toBe(0);
 
   // The summary is a route into the field it is about.
-  await page.getByRole("link", { name: /city is needed/i }).click();
-  await expect(page.getByLabel(/^city/i)).toBeFocused();
+  await page.getByRole("link", { name: /country is needed/i }).click();
+  await expect(page.getByLabel(/^country/i)).toBeFocused();
 });
 
 test("correcting a listing carries the shop, and never asks which one", async ({ page }) => {
@@ -116,6 +120,7 @@ test("an intake that is down is reported, not papered over", async ({ page }) =>
   await page.getByLabel(/^shop name/i).fill("Pen and Paper");
   await page.getByLabel(/^city/i).fill("Kuala Lumpur");
   await page.getByLabel(/^country/i).fill("Malaysia");
+  await page.getByLabel(/^local name/i).fill("激墨");
   await page.getByLabel(/what makes it worth a visit/i).fill("A wall of nibs.");
   await page.getByRole("button", { name: /send this suggestion/i }).click();
 

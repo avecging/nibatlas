@@ -27,15 +27,24 @@
 }
 
 /*
- * Secondary, not muted.
- *
- * `--text-muted` measured 4.3:1 against the page ground at this size, under the
- * 4.5:1 small-text minimum, and the axe audit caught it on all six optional
- * fields. It is a de-emphasis inside a label, so it has to stay readable rather
- * than merely quieter than the label it sits in.
+ * No margin. In a label the marker should sit against the word it belongs to —
+ * `Shop name*` — and in the legend the space is written into the sentence, so a
+ * margin here would double it in one place and be wrong in the other.
  */
-.optional {
-  font-weight: 400;
+.required {
+  color: var(--error);
+}
+
+/*
+ * The legend that says what the asterisk means, once, above the fields.
+ *
+ * Secondary rather than muted: `--text-muted` measures 4.3:1 against the page
+ * ground at this size, under the 4.5:1 small-text minimum.
+ */
+.legend {
+  margin: 0;
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
   color: var(--text-secondary);
 }
 

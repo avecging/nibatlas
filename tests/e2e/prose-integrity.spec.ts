@@ -22,7 +22,16 @@ const PROSE_ROUTES = [
   "/me",
 ];
 
-/** A closing inline tag followed immediately by a word character, or the reverse. */
+/**
+ * A closing inline tag followed immediately by a word character, or the reverse.
+ *
+ * `span` is deliberately not in this list. A span is as often used to style a
+ * character that *should* touch the word beside it — the required marker on the
+ * contribution forms is `Shop name<span>*</span>` — so flagging it reports the
+ * intended thing as a defect. Spans inside a sentence are covered where it
+ * matters by asserting the rendered line, as `ContributeForm.test.tsx` does for
+ * the required-fields legend.
+ */
 const GLUED = /<\/(strong|a|em)>[A-Za-z0-9]|[A-Za-z0-9]<(strong|a|em)[ >]/g;
 
 for (const path of PROSE_ROUTES) {

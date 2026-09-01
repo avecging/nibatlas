@@ -13,7 +13,7 @@ const CORRECTION = {
 
 const SUGGESTION = {
   kind: "suggestion",
-  values: { shop_name: "Pen and Paper", city: "Seoul", country: "South Korea" },
+  values: { shop_name: "Pen and Paper", country: "South Korea" },
 };
 
 function post(body: unknown, headers: Record<string, string> = {}) {
@@ -141,11 +141,7 @@ describe("what is refused", () => {
 
     expect(response.status).toBe(400);
     expect(payload.error).toBe("invalid");
-    expect(Object.keys(payload.fieldErrors).sort()).toEqual([
-      "city",
-      "country",
-      "shop_name",
-    ]);
+    expect(Object.keys(payload.fieldErrors).sort()).toEqual(["country", "shop_name"]);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

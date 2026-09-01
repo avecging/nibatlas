@@ -71,8 +71,8 @@ export const SUGGESTION_FIELDS: readonly FieldDefinition[] = [
   },
   {
     name: "local_name",
-    label: "Name in the local script",
-    hint: "If it has one, and you know it.",
+    label: "Local name",
+    hint: "The name on the shopfront, if it isn\u2019t in English \u2014 like \u6fc0\u58a8 or \u30ca\u30ac\u30b5\u30ef\u6587\u5177\u30bb\u30f3\u30bf\u30fc.",
     control: "text",
     required: false,
     maxLength: 200,
@@ -81,7 +81,7 @@ export const SUGGESTION_FIELDS: readonly FieldDefinition[] = [
     name: "city",
     label: "City",
     control: "text",
-    required: true,
+    required: false,
     maxLength: 120,
   },
   {

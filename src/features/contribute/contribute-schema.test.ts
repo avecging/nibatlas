@@ -12,7 +12,6 @@ import {
 /** The minimum each kind accepts, so a test says what it is varying. */
 const SUGGESTION = {
   shop_name: "Pen and Paper",
-  city: "Seoul",
   country: "South Korea",
 };
 
@@ -22,14 +21,14 @@ const CORRECTION = {
 };
 
 describe("what a contribution asks for", () => {
-  it("requires only the parts that make a lead researchable", () => {
+  it("requires only a name and a country", () => {
     const required = SUGGESTION_FIELDS.filter((field) => field.required).map(
       (field) => field.name,
     );
 
-    // A name and a place can be researched. A description of a shop nobody can
-    // find cannot, which is why nothing else is compulsory.
-    expect(required).toEqual(["shop_name", "city", "country"]);
+    // Two. Everything else, the city included, helps and is offered — but a
+    // form that refuses a lead over a missing field is a form that loses leads.
+    expect(required).toEqual(["shop_name", "country"]);
   });
 
   it("never asks a correction which listing it is about", () => {
@@ -71,10 +70,19 @@ describe("validation", () => {
   });
 
   it("names each missing required field rather than failing as a whole", () => {
-    const errors = validateSubmission("suggestion", { shop_name: "Pen and Paper" });
+    const errors = validateSubmission("suggestion", { local_name: "激墨" });
 
-    expect(Object.keys(errors).sort()).toEqual(["city", "country"]);
-    expect(errors["city"]).toMatch(/city is needed/i);
+    expect(Object.keys(errors).sort()).toEqual(["country", "shop_name"]);
+    expect(errors["country"]).toMatch(/country is needed/i);
+  });
+
+  it("accepts a lead with no city", () => {
+    expect(
+      validateSubmission("suggestion", {
+        shop_name: "Pen and Paper",
+        country: "South Korea",
+      }),
+    ).toEqual({});
   });
 
   it("treats whitespace as empty", () => {
@@ -166,6 +174,7 @@ describe("what is handed on", () => {
     const normalised = normaliseSubmission("suggestion", {
       ...SUGGESTION,
       shop_name: "  Pen and Paper  ",
+      city: "Seoul",
       local_name: "",
       // Neither of these is a field on this form.
       status: "applied",

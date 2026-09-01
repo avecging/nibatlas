@@ -13,10 +13,9 @@ import styles from "./ContributeForm.module.css";
  * label, because the label is the field's name and should not change as the
  * person types.
  *
- * Optional is marked, not required. Almost every field on the suggestion form is
- * optional, so marking the required ones would decorate the page with asterisks
- * and still leave the reader counting. Saying *Optional* on the few that are is
- * quieter and answers the question they actually have.
+ * Required is marked with an asterisk, and the form says once what the asterisk
+ * means. The control also carries `required`, so assistive technology announces
+ * it rather than depending on a character a screen reader may skip.
  */
 export function Field({
   definition,
@@ -42,6 +41,7 @@ export function Field({
     value,
     disabled,
     maxLength: definition.maxLength,
+    required: definition.required,
     "aria-invalid": error ? (true as const) : undefined,
     "aria-describedby": describedBy,
     ...(definition.autoComplete === undefined
@@ -58,9 +58,11 @@ export function Field({
     <div className={styles.field} data-invalid={error ? "true" : undefined}>
       <label className={styles.label} htmlFor={id}>
         {definition.label}
-        {definition.required ? null : (
-          <span className={styles.optional}> — optional</span>
-        )}
+        {definition.required ? (
+          <span aria-hidden="true" className={styles.required}>
+            *
+          </span>
+        ) : null}
       </label>
 
       {definition.hint ? (

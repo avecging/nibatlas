@@ -12,6 +12,7 @@ function renderSuggestion() {
       fallbackHref={FALLBACK}
       submitLabel="Send this suggestion"
       confirmation="Someone will look into this shop."
+      anotherLabel="Suggest another shop"
     />,
   );
 }
@@ -24,6 +25,7 @@ function renderCorrection() {
       fallbackHref="mailto:hello@nibatlas.com"
       submitLabel="Send this correction"
       confirmation="Someone will check this."
+      anotherLabel="Report something else"
     />,
   );
 }
@@ -32,10 +34,9 @@ function type(label: RegExp, value: string) {
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
 }
 
-/** Fills the three fields a suggestion cannot do without. */
+/** Fills the two fields a suggestion cannot do without. */
 function fillMinimum() {
   type(/^shop name/i, "Pen and Paper");
-  type(/^city/i, "Seoul");
   type(/^country/i, "South Korea");
 }
 
@@ -64,14 +65,23 @@ afterEach(() => {
 });
 
 describe("the form a person sees", () => {
-  it("marks what is optional rather than decorating what is required", () => {
+  it("marks the required fields, and says once what the mark means", () => {
     renderSuggestion();
 
-    // Almost everything here is optional, so asterisking the three required
-    // fields would decorate the page and still leave the reader counting.
-    expect(screen.getByLabelText(/^shop name/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/name in the local script — optional/i)).toBeInTheDocument();
-    expect(screen.getByText(/^shop name$/i)).toBeInTheDocument();
+    // The legend spans an element, so it is matched on the whole line rather
+    // than on a text node — which is also what asserts the spacing around the
+    // marker survived JSX.
+    expect(
+      screen.getByText(
+        (_, element) => element?.textContent === "Fields marked * are required.",
+      ),
+    ).toBeInTheDocument();
+
+    // The asterisk is decoration; `required` is what a screen reader announces.
+    expect(screen.getByLabelText(/^shop name/i)).toBeRequired();
+    expect(screen.getByLabelText(/^country/i)).toBeRequired();
+    expect(screen.getByLabelText(/^city/i)).not.toBeRequired();
+    expect(screen.getByLabelText(/^local name/i)).not.toBeRequired();
   });
 
   it("never asks a correction which listing it is about", () => {
@@ -92,11 +102,10 @@ describe("validation before anything is sent", () => {
 
     const summary = await screen.findByRole("alert");
 
-    expect(summary).toHaveTextContent(/3 things need a look/i);
-    expect(within(summary).getByRole("link", { name: /city is needed/i })).toHaveAttribute(
-      "href",
-      "#contribute-city",
-    );
+    expect(summary).toHaveTextContent(/2 things need a look/i);
+    expect(
+      within(summary).getByRole("link", { name: /country is needed/i }),
+    ).toHaveAttribute("href", "#contribute-country");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -107,10 +116,10 @@ describe("validation before anything is sent", () => {
     send();
     await screen.findByRole("alert");
 
-    const city = screen.getByLabelText(/^city/i);
+    const country = screen.getByLabelText(/^country/i);
 
-    expect(city).toHaveAttribute("aria-invalid", "true");
-    expect(city).toHaveAccessibleDescription(/city is needed/i);
+    expect(country).toHaveAttribute("aria-invalid", "true");
+    expect(country).toHaveAccessibleDescription(/country is needed/i);
   });
 
   it("clears a field's error as soon as that field is touched", async () => {
@@ -120,9 +129,9 @@ describe("validation before anything is sent", () => {
     send();
     await screen.findByRole("alert");
 
-    type(/^city/i, "Seoul");
+    type(/^country/i, "South Korea");
 
-    expect(screen.getByLabelText(/^city/i)).not.toHaveAttribute("aria-invalid");
+    expect(screen.getByLabelText(/^country/i)).not.toHaveAttribute("aria-invalid");
   });
 
   it("asks for a name once an email is given, and not before", async () => {
@@ -231,7 +240,7 @@ describe("when the submission cannot be delivered", () => {
       "fetch",
       vi.fn(async () =>
         Response.json(
-          { ok: false, error: "invalid", fieldErrors: { city: "City is needed." } },
+          { ok: false, error: "invalid", fieldErrors: { country: "Country is needed." } },
           { status: 400 },
         ),
       ),
@@ -242,7 +251,7 @@ describe("when the submission cannot be delivered", () => {
     send();
 
     await waitFor(() =>
-      expect(screen.getByRole("alert")).toHaveTextContent(/city is needed/i),
+      expect(screen.getByRole("alert")).toHaveTextContent(/country is needed/i),
     );
     expect(screen.queryByText(/thank you/i)).not.toBeInTheDocument();
   });
@@ -261,5 +270,27 @@ describe("when it works", () => {
     expect(confirmation).toHaveTextContent(/thank you/i);
     expect(confirmation).toHaveTextContent(/someone will look into this shop/i);
     expect(screen.queryByRole("button", { name: /send this suggestion/i })).not.toBeInTheDocument();
+  });
+
+  /*
+   * Somebody who knows one missing shop often knows two. The second one starts
+   * blank rather than as the first one edited.
+   */
+  it("offers a blank form for a second suggestion", async () => {
+    vi.stubGlobal("fetch", accepted());
+
+    renderSuggestion();
+    fillMinimum();
+    send();
+    await screen.findByRole("status");
+
+    fireEvent.click(screen.getByRole("button", { name: /suggest another shop/i }));
+
+    expect(screen.getByLabelText(/^shop name/i)).toHaveValue("");
+    expect(screen.getByLabelText(/^country/i)).toHaveValue("");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /send this suggestion/i }),
+    ).toBeInTheDocument();
   });
 });
