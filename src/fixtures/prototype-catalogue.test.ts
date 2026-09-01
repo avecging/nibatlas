@@ -9,6 +9,8 @@ import { COUNTRY_SEAL_STAMP_THRESHOLD } from "@/src/domain/seals";
 import { countryLabel } from "@/src/domain/geo";
 import { isLanguageTag } from "@/src/domain/language";
 import { demoShops } from "@/src/fixtures/demo-shops";
+import { prototypeDestinations } from "@/src/fixtures/prototype-destinations";
+import { shopValueSpecimen } from "@/src/fixtures/shop-value-specimen";
 import {
   PROTOTYPE_CATALOGUE_NOTICE,
   prototypeCoverageSets,
@@ -61,13 +63,20 @@ describe("prototype catalogue", () => {
     }
   });
 
-  it("tags every local-script name explicitly rather than inferring from country", () => {
-    for (const shop of prototypeShopDetails) {
-      if (shop.localName === undefined) {
-        expect(shop.localNameLang).toBeUndefined();
+  it("pairs every fixture local name with a validated language tag", () => {
+    const records = [
+      ...prototypeShopDetails,
+      ...prototypeDestinations,
+      ...demoShops,
+      shopValueSpecimen,
+    ];
+
+    for (const record of records) {
+      if (record.localName === undefined) {
+        expect(record.localNameLang).toBeUndefined();
       } else {
-        expect(shop.localNameLang).toBeDefined();
-        expect(isLanguageTag(shop.localNameLang ?? "")).toBe(true);
+        expect(record.localNameLang).toBeDefined();
+        expect(isLanguageTag(record.localNameLang ?? "")).toBe(true);
       }
     }
   });
