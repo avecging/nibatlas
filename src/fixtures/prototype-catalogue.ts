@@ -505,7 +505,10 @@ function toDetail(seed: PrototypeSeed): ShopDetail {
     name: seed.name,
     ...(seed.localName === undefined
       ? {}
-      : { localName: seed.localName, localNameLang: seed.localNameLang }),
+      : {
+          localName: seed.localName,
+          ...(seed.localNameLang === undefined ? {} : { localNameLang: seed.localNameLang }),
+        }),
     countryCode: seed.countryCode,
     localityName: seed.localityName,
     position: { latitude: seed.latitude, longitude: seed.longitude },
@@ -543,7 +546,10 @@ export const prototypeShopSummaries: readonly ShopMapSummary[] = prototypeShopDe
     name: shop.name,
     ...(shop.localName === undefined
       ? {}
-      : { localName: shop.localName, localNameLang: shop.localNameLang }),
+      : {
+          localName: shop.localName,
+          ...(shop.localNameLang === undefined ? {} : { localNameLang: shop.localNameLang }),
+        }),
     countryCode: shop.countryCode,
     localityName: shop.localityName,
     position: shop.position,
