@@ -21,7 +21,7 @@ describe("prototype catalogue", () => {
     expect(prototypeShopDetails.length).toBeLessThanOrEqual(20);
   });
 
-  it("covers the three launch countries, including Taiwan beyond Taipei", () => {
+  it("covers the current three-country fixture, including Taiwan beyond Taipei", () => {
     expect(new Set(prototypeShopDetails.map((shop) => shop.countryCode))).toEqual(
       new Set(["SG", "JP", "TW"]),
     );
