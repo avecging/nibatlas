@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ContributeForm } from "@/src/components/contribute/ContributeForm";
@@ -50,6 +50,41 @@ function accepted() {
   return vi.fn(async () => Response.json({ ok: true }));
 }
 
+/** A controllable stand-in for the explicitly rendered Cloudflare widget. */
+function installTurnstile() {
+  let deliverToken: ((token: string) => void) | undefined;
+  const reset = vi.fn();
+  const renderWidget = vi.fn(
+    (
+      _element: HTMLElement,
+      options: { readonly callback: (token: string) => void },
+    ) => {
+      deliverToken = options.callback;
+
+      return "turnstile-widget";
+    },
+  );
+
+  vi.stubEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY", "test-site-key");
+  vi.stubGlobal("turnstile", {
+    render: renderWidget,
+    remove: vi.fn(),
+    reset,
+  });
+
+  return {
+    renderWidget,
+    reset,
+    issue(token: string) {
+      if (!deliverToken) {
+        throw new Error("Turnstile was not rendered");
+      }
+
+      act(() => deliverToken?.(token));
+    },
+  };
+}
+
 beforeEach(() => {
   vi.stubGlobal(
     "requestAnimationFrame",
@@ -62,6 +97,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -220,7 +256,9 @@ describe("when the submission cannot be delivered", () => {
     expect(screen.queryByText(/thanks for/i)).not.toBeInTheDocument();
   });
 
-  it("treats a network failure the same way", async () => {
+  it("resets a consumed challenge after a network failure", async () => {
+    const challenge = installTurnstile();
+
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {
@@ -229,12 +267,49 @@ describe("when the submission cannot be delivered", () => {
     );
 
     renderSuggestion();
+    await waitFor(() => expect(challenge.renderWidget).toHaveBeenCalled());
+    challenge.issue("consumed-token");
     fillMinimum();
     send();
 
     await waitFor(() =>
       expect(screen.getByRole("alert")).toHaveTextContent(/did not send/i),
     );
+    expect(challenge.reset).toHaveBeenCalledWith("turnstile-widget");
+  });
+
+  it("retries a failed delivery with a fresh challenge token", async () => {
+    const challenge = installTurnstile();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({ ok: false, error: "not_delivered" }, { status: 502 }),
+      )
+      .mockResolvedValueOnce(Response.json({ ok: true }));
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderSuggestion();
+    await waitFor(() => expect(challenge.renderWidget).toHaveBeenCalled());
+    challenge.issue("consumed-token");
+    fillMinimum();
+    send();
+
+    await screen.findByRole("alert");
+    expect(challenge.reset).toHaveBeenCalledWith("turnstile-widget");
+
+    challenge.issue("fresh-token");
+    send();
+
+    await screen.findByRole("status");
+
+    const [, firstInit] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const [, secondInit] = fetchMock.mock.calls[1] as unknown as [string, RequestInit];
+    const firstBody = JSON.parse(String(firstInit.body));
+    const secondBody = JSON.parse(String(secondInit.body));
+
+    expect(firstBody.turnstileToken).toBe("consumed-token");
+    expect(secondBody.turnstileToken).toBe("fresh-token");
   });
 
   it("shows the server's own field errors when it disagrees with the browser", async () => {
