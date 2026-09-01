@@ -1,6 +1,6 @@
 # Nib Atlas
 
-Nib Atlas is a map-first, mobile-first application for discovering physical fountain pen shops and collecting location-verified Atlas Stamps. Initial launch scope is Singapore, Japan, and Taiwan.
+Nib Atlas is a map-first, mobile-first application for discovering physical fountain pen shops and collecting location-verified Atlas Stamps. The current prototype contains a small sourced catalogue in Singapore, Japan, and Taiwan; that is a description of present data, not a geographic launch promise or claim of completeness.
 
 This repository is the source of truth. Start with:
 
