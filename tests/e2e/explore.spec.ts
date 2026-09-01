@@ -665,12 +665,14 @@ test("explore to simulated collection to Passport", async ({ page }) => {
 
   await expect(page.getByRole("heading", { level: 1, name: "Pen House" })).toBeVisible();
 
+  // An impression already in the Passport opens in one tap: the button says
+  // *View Atlas Stamp*, so what follows it is the stamp, not a confirmation of a
+  // collection the reader already made.
   await page.getByRole("button", { name: /view atlas stamp/i }).click();
-  await expect(page.getByRole("dialog", { name: /already have this stamp/i })).toBeVisible();
-  await page.getByRole("button", { name: /show the impression/i }).click();
 
   const ceremony = page.getByRole("dialog", { name: /already in your passport/i });
   await expect(ceremony).toBeVisible();
+  await expect(page.getByRole("dialog", { name: /before you collect/i })).toHaveCount(0);
   await ceremony.getByRole("link", { name: /open in passport/i }).click();
 
   // The ceremony opens the Passport at the impression that was just pressed, so
@@ -697,9 +699,8 @@ test("collecting once updates Visited everywhere, and only once", async ({ page 
   // Shop page.
   await expect(page.getByText(/Visited/).first()).toBeVisible();
 
-  // Collecting again is idempotent.
+  // Viewing it again opens the same impression and issues nothing.
   await page.getByRole("button", { name: /view atlas stamp/i }).click();
-  await page.getByRole("button", { name: /show the impression/i }).click();
   await expect(page.getByRole("dialog", { name: /already in your passport/i })).toBeVisible();
   await page.getByRole("button", { name: /back to shop/i }).click();
 

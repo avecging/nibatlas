@@ -4,9 +4,9 @@
 the two corrections from its staging review, WP6 including the three staging
 findings recorded against the map surfaces, and WP5 including the impression
 family, the seal anatomies, the overlay consolidation, the application-frame
-correction and the Passport navigation fix, and WP7 including the two real
-forms, the help page and the amendment to accepted decision 8 recorded below;
-WP-D not started.
+correction and the Passport navigation fix; one interaction correction recorded
+after WP5; and WP7 including the two real forms, the help page and the amendment
+to accepted decision 8 recorded below. WP-D not started.
 **Recorded:** 26 August 2026
 **Owner:** Claude Code (frontend), with founder and Codex on sourcing
 **Depends on:** Milestone 1 (PR #5) landing as the corrected technical foundation
@@ -2538,6 +2538,55 @@ The baselines that changed for WP5 reasons, as opposed to renderer drift:
 
 `passport-book-open-*`, `impression-detail-*`, `seal-detail-*` and
 `passport-book-short-mobile-360x568` are new.
+
+## Correction after WP5 — viewing an impression already collected
+
+**Implemented:** 31 August 2026 · Claude Code · standalone, outside any work
+package. Raised by the founder from staging.
+
+**The defect.** After WP4 the shop-page action correctly reads **View Atlas
+Stamp** once an impression exists. Tapping it opened the collection preflight
+anyway, retitled *You already have this stamp*, whose confirm button read *Show
+the impression* — so a control that announced it would show the stamp asked the
+reader to confirm a collection they had already made, and then showed it. Three
+taps for a thing the button had already named.
+
+Worse than the extra tap: that confirm button called `collectStamp` on a shop
+that was already collected. The store is idempotent — it finds the existing
+collection and returns it before constructing anything — so nothing was
+corrupted and no date moved. But the product was routing a read through a write
+path, and recording a `stamp_collected` event with `outcome: "duplicate"` for
+something that was not a collection attempt at all.
+
+**The correction.** Viewing and collecting are two acts and now take two paths.
+An owned impression opens its `ImpressionSheet` directly from the button, in one
+tap. The preflight is once again only ever the pre-collection dialog, so its
+`existing` branches — the alternate title, the *Opening it again does not issue a
+second stamp* paragraph, and the *Show the impression* label — are gone rather
+than left unreachable.
+
+**What did not change.** First-time collection is untouched: the same preflight,
+the same location copy, the same reviewer diagnostic, the same ceremony with its
+press. `StampCeremony` needed no modification — `alreadyCollected` already
+suppresses the press and already titles the sheet *Already in your Passport* —
+and WP5's `ImpressionPlate` and `ImpressionSheet` primitives are not modified at
+all. No second stamp is issued, `collectedOn` does not move, and the impression
+the sheet reports is the same object the Passport holds.
+
+**The duplicate outcome survives, narrowed.** `confirmCollection` can still be
+reached with an impression in place, by one route only: another tab collecting
+this shop while the preflight is open. The cross-tab listener the WP2 store owns
+makes that reachable, the store resolves it to the impression that already
+exists, and the event still says `duplicate`. What no longer happens is a
+collection event for a reader who only pressed *View*.
+
+**Coverage.** `src/components/shops/ShopActions.test.tsx` gains five assertions:
+one tap with no dialog in between, no second impression and no moved date, no
+press replay, focus taken and handed back, and first-time collection unchanged.
+`tests/e2e/explore.spec.ts` loses the two removed steps from both collection
+journeys and gains an assertion that the preflight does not appear.
+`tests/evidence/wp5-impression-materials.spec.ts` reaches the same WP5 specimen
+in one tap; the baseline it captures is unchanged.
 
 ## WP7 implementation record
 

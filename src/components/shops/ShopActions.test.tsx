@@ -195,3 +195,121 @@ describe("collection copy outside reviewer mode", () => {
     ).toBeInTheDocument();
   });
 });
+
+/**
+ * A stamp that is already in the Passport opens straight onto its impression.
+ *
+ * The button says *View Atlas Stamp*, so what follows it has to be the stamp.
+ * The confirmation that used to sit in between asked the reader to agree to a
+ * collection they had already made, and its confirm button ran a collection the
+ * store declined — a dialog and a write that both existed to do nothing.
+ */
+describe("viewing an impression that is already collected", () => {
+  beforeEach(() => {
+    window.sessionStorage.clear();
+    clearReviewerMode();
+  });
+
+  /** Collects once through the real journey, then dismisses the ceremony. */
+  function collectThenClose(mode: "normal" | "reviewer" = "normal") {
+    const { trigger, dialog } = openPreflight(mode);
+
+    fireEvent.click(
+      within(dialog).getByRole("button", {
+        name: mode === "reviewer" ? /simulate: i am at this shop/i : /^i am at this shop$/i,
+      }),
+    );
+
+    const impressionFacts = within(
+      screen.getByRole("dialog", { name: /impression collected/i }),
+    ).getByRole("status").textContent;
+
+    fireEvent.click(screen.getByRole("button", { name: /back to shop/i }));
+    trigger.focus();
+
+    return { trigger, impressionFacts };
+  }
+
+  it("opens the impression in one tap, with no confirmation in between", () => {
+    const { trigger } = collectThenClose();
+
+    expect(trigger).toHaveAccessibleName(/view atlas stamp/i);
+
+    fireEvent.click(trigger);
+
+    expect(
+      screen.getByRole("dialog", { name: /already in your passport/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: /before you collect/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /show the impression/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("issues no second stamp and does not move the collection date", () => {
+    const { trigger, impressionFacts } = collectThenClose();
+    const collectedLine = screen.getByText(/this impression is in your passport/i)
+      .textContent;
+
+    fireEvent.click(trigger);
+
+    const sheet = screen.getByRole("dialog", { name: /already in your passport/i });
+
+    // The same impression, reporting the same place, date and timezone. Only the
+    // title differs, because this sheet is not announcing a collection.
+    expect(within(sheet).getByRole("status").textContent).toEqual(impressionFacts);
+    fireEvent.click(within(sheet).getByRole("button", { name: /back to shop/i }));
+    expect(
+      screen.getByText(/this impression is in your passport/i).textContent,
+    ).toEqual(collectedLine);
+
+    // And exactly one impression, not two.
+    expect(screen.getAllByText(/this impression is in your passport/i)).toHaveLength(1);
+  });
+
+  it("never replays the press for an impression it did not just take", () => {
+    const { trigger } = collectThenClose();
+
+    fireEvent.click(trigger);
+
+    expect(screen.getByTestId("stamp-ceremony").querySelector('[data-phase]')).toHaveAttribute(
+      "data-phase",
+      "settled",
+    );
+  });
+
+  it("takes focus and hands it back to the control that opened it", () => {
+    const { trigger } = collectThenClose();
+
+    fireEvent.click(trigger);
+
+    const sheet = screen.getByRole("dialog", { name: /already in your passport/i });
+    expect(sheet).toHaveFocus();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(
+      screen.queryByRole("dialog", { name: /already in your passport/i }),
+    ).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it("leaves first-time collection untouched", () => {
+    const { dialog } = openPreflight("normal");
+
+    // The preflight is now only ever the pre-collection dialog.
+    expect(dialog).toHaveAccessibleName(/before you collect/i);
+    expect(dialog.textContent).toMatch(/not running yet/i);
+    expect(
+      within(dialog).getByRole("button", { name: /^i am at this shop$/i }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: /^i am at this shop$/i }));
+
+    expect(
+      screen.getByRole("dialog", { name: /impression collected/i }),
+    ).toBeInTheDocument();
+  });
+});

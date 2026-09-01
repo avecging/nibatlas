@@ -175,7 +175,6 @@ for (const breakpoint of BREAKPOINTS) {
       );
 
       await page.getByRole("button", { name: /view atlas stamp/i }).click();
-      await page.getByRole("button", { name: /show the impression/i }).click();
       await expect(
         page.getByRole("dialog", { name: /already in your passport/i }),
       ).toBeVisible();
