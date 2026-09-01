@@ -47,7 +47,14 @@ export function toStampCollection(
     shopId: shop.id,
     shopSlug: shop.slug,
     shopNameSnapshot: shop.name,
-    ...(shop.localName === undefined ? {} : { shopLocalNameSnapshot: shop.localName }),
+    ...(shop.localName === undefined
+      ? {}
+      : {
+          shopLocalNameSnapshot: shop.localName,
+          ...(shop.localNameLang === undefined
+            ? {}
+            : { shopLocalNameLangSnapshot: shop.localNameLang }),
+        }),
     collectedOn,
     shopTimezone: shop.timezone,
     countryCode: shop.countryCode,
