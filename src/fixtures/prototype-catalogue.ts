@@ -44,12 +44,6 @@ export const PROTOTYPE_CATALOGUE_NOTICE =
 
 export const PROTOTYPE_DESIGN_VERSION = 1;
 
-const TIMEZONES: Record<CountryCode, string> = {
-  SG: "Asia/Singapore",
-  JP: "Asia/Tokyo",
-  TW: "Asia/Taipei",
-};
-
 /* --------------------------------------------------------------------------
  * Sources
  * ----------------------------------------------------------------------- */
@@ -193,6 +187,8 @@ interface PrototypeSeed {
   readonly localName?: string;
   readonly localNameLang?: LanguageTag;
   readonly countryCode: CountryCode;
+  /** IANA timezone for this shop; never inferred from country. */
+  readonly timezone: string;
   readonly localityName: string;
   readonly localitySlug: string;
   readonly neighbourhood?: string;
@@ -221,6 +217,7 @@ const seeds: readonly PrototypeSeed[] = [
     slug: "aesthetic-bay",
     name: "Aesthetic Bay",
     countryCode: "SG",
+    timezone: "Asia/Singapore",
     localityName: "Singapore",
     localitySlug: "singapore",
     neighbourhood: "Coleman Street",
@@ -247,6 +244,7 @@ const seeds: readonly PrototypeSeed[] = [
     slug: "fook-hing-trading",
     name: "Fook Hing Trading Co.",
     countryCode: "SG",
+    timezone: "Asia/Singapore",
     localityName: "Singapore",
     localitySlug: "singapore",
     neighbourhood: "Bras Basah Complex",
@@ -274,6 +272,7 @@ const seeds: readonly PrototypeSeed[] = [
     localName: "銀座 伊東屋 本店",
     localNameLang: "ja",
     countryCode: "JP",
+    timezone: "Asia/Tokyo",
     localityName: "Chūō, Tokyo",
     localitySlug: "chuo-tokyo",
     neighbourhood: "Ginza",
@@ -300,6 +299,7 @@ const seeds: readonly PrototypeSeed[] = [
     localName: "銀座 伊東屋 横浜元町",
     localNameLang: "ja",
     countryCode: "JP",
+    timezone: "Asia/Tokyo",
     localityName: "Naka, Yokohama",
     localitySlug: "naka-yokohama",
     neighbourhood: "Motomachi",
@@ -323,6 +323,7 @@ const seeds: readonly PrototypeSeed[] = [
     localName: "ナガサワ文具センター 本店",
     localNameLang: "ja",
     countryCode: "JP",
+    timezone: "Asia/Tokyo",
     localityName: "Kobe",
     localitySlug: "kobe",
     latitude: 34.69,
@@ -346,6 +347,7 @@ const seeds: readonly PrototypeSeed[] = [
     slug: "nagasawa-penstyle-den",
     name: "NAGASAWA PenStyle DEN",
     countryCode: "JP",
+    timezone: "Asia/Tokyo",
     localityName: "Kobe",
     localitySlug: "kobe",
     latitude: 34.6925,
@@ -371,6 +373,7 @@ const seeds: readonly PrototypeSeed[] = [
     localName: "文寶房名品",
     localNameLang: "zh-Hant",
     countryCode: "TW",
+    timezone: "Asia/Taipei",
     localityName: "East District, Tainan",
     localitySlug: "east-tainan",
     neighbourhood: "Beimen Road",
@@ -397,6 +400,7 @@ const seeds: readonly PrototypeSeed[] = [
     localName: "SKB文明鋼筆",
     localNameLang: "zh-Hant",
     countryCode: "TW",
+    timezone: "Asia/Taipei",
     localityName: "Kaohsiung",
     localitySlug: "kaohsiung",
     latitude: 22.6273,
@@ -420,6 +424,7 @@ const seeds: readonly PrototypeSeed[] = [
     localName: "小品雅集",
     localNameLang: "zh-Hant",
     countryCode: "TW",
+    timezone: "Asia/Taipei",
     localityName: "Da'an, Taipei",
     localitySlug: "daan-taipei",
     latitude: 25.0284,
@@ -445,6 +450,7 @@ const seeds: readonly PrototypeSeed[] = [
     localName: "激墨",
     localNameLang: "zh-Hant",
     countryCode: "TW",
+    timezone: "Asia/Taipei",
     localityName: "Banqiao, New Taipei",
     localitySlug: "banqiao-new-taipei",
     latitude: 25.01,
@@ -523,7 +529,7 @@ function toDetail(seed: PrototypeSeed): ShopDetail {
       : { shortDescription: seed.shortDescription }),
     ...(seed.addressLines === undefined ? {} : { addressLines: seed.addressLines }),
     ...(seed.neighbourhood === undefined ? {} : { neighbourhood: seed.neighbourhood }),
-    timezone: TIMEZONES[seed.countryCode],
+    timezone: seed.timezone,
     shopTypes: [seed.primaryType, ...(seed.extraTypes ?? [])],
     ...(seed.brands === undefined ? {} : { brands: seed.brands }),
     ...(seed.openingHours === undefined ? {} : { openingHours: seed.openingHours }),
