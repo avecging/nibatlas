@@ -5,7 +5,8 @@ the two corrections from its staging review, WP6 including the three staging
 findings recorded against the map surfaces, and WP5 including the impression
 family, the seal anatomies, the overlay consolidation, the application-frame
 correction and the Passport navigation fix; one interaction correction recorded
-after WP5; WP7 and WP-D not started.
+after WP5; and WP7 including the two real forms, the help page and the amendment
+to accepted decision 8 recorded below. WP-D not started.
 **Recorded:** 26 August 2026
 **Owner:** Claude Code (frontend), with founder and Codex on sourcing
 **Depends on:** Milestone 1 (PR #5) landing as the corrected technical foundation
@@ -389,7 +390,7 @@ that feedback exists.
 | **WP4** | Shop value layer: the data-model extension, sourced content, reordered page, native directions, contextual report | WP1, sourcing | Implemented; content awaits sourcing |
 | **WP5** | Visual fidelity: shop identity system, interim hero, paper and cover texture, stamp at large size, ceremony material pass, and the **one presentation family** for enlarged impressions and seal overlays recorded below | WP3, WP4 | Implemented |
 | **WP6** | Filter drawer: segment plus drawer, active count, one-tap clear; and the **card and marker interaction** recorded below, with its documentation update | WP1 | **Implemented** |
-| **WP7** | Contact and contribution routes: the contextual shop-page correction, help and contact, and the `/suggest-shop` page later. *Suggest a pen shop* is routed in WP2 | WP2 | Not started |
+| **WP7** | Contact and contribution routes: the contextual shop-page correction, help and contact, and the `/suggest-shop` page later. *Suggest a pen shop* is routed in WP2 | WP2 | **Implemented**, with decision 8 amended below |
 | **WP-D** | **Required desktop audit** across all of the above | Founder desktop feedback | Not started |
 
 WP1 is the smallest package with the largest effect on testability: it is what
@@ -2587,9 +2588,265 @@ journeys and gains an assertion that the preflight does not appear.
 `tests/evidence/wp5-impression-materials.spec.ts` reaches the same WP5 specimen
 in one tap; the baseline it captures is unchanged.
 
+## WP7 implementation record
+
+**Implemented:** 31 August 2026 · Claude Code · branch
+`claude/nibatlas-wp7-contribute`
+
+### Accepted decision 8, amended again
+
+The 27 August amendment fixed `mailto:` as the destination "until Milestone 6"
+and called the dedicated `/suggest-shop` form "a later implementation". The
+founder settled otherwise: **both contribution routes are real forms now.**
+
+Two things changed the arithmetic. The catalogue is not small — 280+ known
+businesses researched, against the ten fixtures the prototype carries — and
+correction volume scales with listings, not with visitors. And a `mailto:` fails
+silently for anyone on webmail, which is not a rare configuration.
+
+**The email addresses stay, and are not vestigial.** They are what each form
+offers when it cannot deliver, because an address has no service behind it to be
+unavailable. Nothing else links to them, and both are still asserted exactly.
+
+**Help and contact is settled.** Decision 8 recorded it as never having been
+decided — destination, subject line and copy all open, and "an address may not
+be the right answer at all". The founder's answer is a page: a short walkthrough
+of how the product works, then the questions people actually ask, with the
+address as the last line rather than the headline. A person who can find their
+answer would rather not write to anyone.
+
+### Where a submission goes, and what this repository owns
+
+The browser posts to `POST /api/contribute` on the Nib Atlas Worker; the Worker
+verifies a Cloudflare Turnstile token and forwards to a Google Apps Script Web
+App; the script appends a row to a spreadsheet the research team reads.
+
+**The Worker exists to keep the browser out of it.** An Apps Script Web App set
+to *Anyone* is a public, unauthenticated write endpoint, so a page posting to it
+directly would publish both the deployment URL and the shared secret to whoever
+opened the network tab. The URL and both secrets are Worker secrets and never
+reach a build.
+
+**This is not the backend, and it is not Supabase.** Nothing here writes to a
+database, defines a schema, or commits the project to the `contributions` table
+`DATA-MODEL.md` reserves for Phase 2. When the real pipeline arrives, the sheet
+becomes an import source. `scripts/apps-script/contribute.gs` is the script's
+source of truth and `docs/runbooks/contribution-intake.md` is its setup.
+
+### What WP7 changed
+
+**`/suggest-shop` is a real page with a real form.** Nine fields, of which two
+are required — the shop's name and its country. Two sentences of context sit
+before the fields, saying that listings are checked by hand and that not every
+suggestion becomes one.
+
+**Required is marked, and the legend says what the mark means.** The first draft
+marked *optional* instead, on the argument that six of nine fields are optional
+so asterisks would decorate the page. The founder's staging review rejected it:
+the convention a reader already knows beats a cleverer inversion, and *optional*
+repeated six times reads as a form apologising for itself. Each required control
+also carries `required`, so assistive technology announces it rather than relying
+on a character a screen reader may skip.
+
+**The city stopped being required**, in the same review. A form that refuses a
+lead over a missing field loses the lead, and a shop name with a country is
+researchable.
+
+### The staging review of the form
+
+The founder's verdict on the first draft was that it read as machine-written
+rather than human. Five changes, all of them removals or plain-language
+substitutions:
+
+- **Two paragraphs of justification are gone** — the one explaining what
+  research does with a suggestion at length, and *"The shop's name and where it
+  is are the parts we need… a detailed description of a shop we cannot find, we
+  cannot"*, which lectured the reader about their own submission.
+- **The closing paragraph is gone**, which explained that a correction is a
+  different job and linked to About. Someone who came here to name a missing shop
+  does not need routing elsewhere at the end of it.
+- **"Name in the local script" became "Local name"**, and its hint gives two
+  real examples from the catalogue — 激墨 and ナガサワ文具センター — rather than
+  describing the concept.
+- **The confirmation offers a blank form.** Somebody who knows one missing shop
+  often knows two, and *Suggest another shop* clears the previous answers so the
+  second is not the first one edited.
+
+### The second review: the voice, and a form that only knew how to complain
+
+**The confirmations were corporate, and `BRAND.md` already forbids it.** *"Thank
+you — that reached us"* over *"Someone will check this against the shop's own
+sources"* is the register of a support-ticket auto-reply, and the personality
+list names *corporate SaaS* as something Nib Atlas is not. They are now
+**Thanks for contributing!** and **Thanks for reporting!**, and the body speaks
+as us rather than about an unnamed someone: *"We'll take a look and get the
+listing updated. If you left an email, we might write if we have a question."*
+
+**The correction list only knew how to complain.** Six entries, every one of
+them a fault. A reader who had just found something *good* — a service the
+listing never mentioned, a shop doing more than we knew — had nowhere to put it
+except *Something else*, which frames a gift as a grievance. Two entries now
+cover those: **Something's missing that should be here** and **They do more than
+we've listed**, and they lead the list rather than trailing it. The order runs
+from the additions through the corrections to the closure, so the first thing a
+reader sees is not a way to tell us we were wrong.
+
+The page lede follows: *"Tell us what needs fixing — or what we've missed."* The
+founder-approved entry-point copy on the shop page is untouched.
+
+**Two labels, and one control that lied.** *What kind of thing is wrong* became
+**What needs to be fixed?**, and *What we have wrong, and what it should say*
+became **Tell us more**, with the specifics moved into a hint — neither label
+works once the answer might be an addition. The select's *Choose one* prompt was
+a selectable option, so the placeholder could be submitted as an answer; it is
+`disabled` now, and the control's `required` makes the empty value fail
+validation.
+
+**The correction lives at `/shops/[slug]/report`.** The listing is in the route,
+so the page resolves the shop and names it in the heading — not in a prefilled
+field somebody has to read and verify. The reader never identifies the listing,
+which is what decision 8 asks for and what the `mailto:` could only approximate.
+Both existing entry points — the foot of the page and the material-gap
+invitation — go to the same form. The approved copy is unchanged, word for word.
+
+**The listing is resolved server-side.** `POST /api/contribute` looks the slug up
+in the catalogue and supplies `shop_slug` and `shop_name` itself;
+`normaliseSubmission` drops both if a request names them. A correction filed
+against a shop that does not exist is refused. This was found by its own test,
+which is the argument for having written it: the first implementation spread the
+request over the resolved context, and a client could have chosen the listing.
+
+**A name is required exactly when an email is given.** Both are optional; an
+address with nobody to address is not useful. Neither is required for a
+submission to be accepted, and an anonymous one is not treated differently. When
+accounts land, the pair fills from the profile instead.
+
+**Nothing reports a success it did not get.** The confirmation replaces the form
+only after the route answered `ok`. Every failure — the intake down, the network
+gone, the challenge unverified — keeps every character that was typed exactly
+where it was typed, says plainly that it did not send, and offers the email.
+
+**Turnstile cannot be switched off by omission.** A production build with no
+`TURNSTILE_SECRET_KEY` refuses submissions rather than accepting unverified
+ones; locally and in the end-to-end suite there is no key, no widget, and the
+check is skipped. The failure mode of a misconfigured deployment is that nothing
+arrives, never that anything arrives unchecked.
+
+**Everything is validated twice, from one definition.**
+`src/features/contribute/contribute-schema.ts` is what the form renders from,
+what the browser checks against, and what the route checks against. The third is
+the control; the first two are a courtesy to the person typing.
+
+**Help returns to Me, and the section is renamed with it.** Revision 22 removed
+the help row for carrying *Not open yet* and renamed the group from "Help and
+about" to "About", on the grounds that a heading naming help that does not exist
+is the same inaccuracy one level up. Both halves now run the other way. The
+anchor stays `#me-about`: `/account` links to it, and renaming a heading is not
+a reason to break a route.
+
+**Privacy says what leaves the browser.** A new section names what is sent, that
+Google processes it, that name and email are optional, and that Turnstile is not
+an advertising product. *"Nothing Nib Atlas holds for you today leaves this
+browser"* became *"leaves this browser on its own"* — the claim was about saved
+shops and impressions and is still true of them, but a page with two send
+buttons on it cannot state it unqualified.
+
+**About's promise is redeemed.** *"a way to do that is coming"* is now the two
+routes. Nothing else on that page was touched — its content needs a rework of
+its own, raised as issue #17 and deliberately left alone here.
+
+### Coverage is named in one place
+
+Help does not restate which countries are covered. *Where does Nib Atlas cover*
+links to About, which derives its list from the catalogue.
+
+This is not tidiness. The prose on About currently reads "Singapore, Japan, and
+Taiwan" while the counts beneath it are derived, and research has since added
+Seoul and Malaysia — so the two halves of one section already disagree. Two
+pages both naming the countries would be two places to be wrong. An end-to-end
+test asserts Help names no country list.
+
+**The underlying fix is not WP7's.** `CountryCode` in `src/domain/geo.ts` is a
+closed union of `"SG" | "JP" | "TW"`, so the application cannot represent a
+Korean or Malaysian shop at all: the union, `COUNTRY_LABELS`, and
+`localeForCountry` (Korean needs `ko` for correct line breaking) all need
+extending, and `PRODUCT.md` lists as a non-goal exactly what has now been done.
+Seals are generic over `CountryCode` and need nothing. The founder scheduled
+that package after WP7.
+
+### Two defects found on the way
+
+**Four places where JSX ate a space.** `</strong>` followed by a word wrapped
+onto the next source line renders as `informationat`. It is invisible in review —
+the source reads correctly and only the output is wrong. Two were WP7's; **two
+were already live on Privacy** (*"Collect Stampwhile you are at a shop"* and
+*"on this device.It is held"*). All four are fixed with an explicit `{" "}`, and
+`tests/e2e/prose-integrity.spec.ts` now asserts no prose route renders two words
+run together across an inline element, so this cannot come back unseen.
+
+**The site key never reached the browser.** The form read it as
+`process.env["NEXT_PUBLIC_..."]`. Next inlines a `NEXT_PUBLIC_` value by matching
+the literal dot-access expression, and the bracket form is not matched — so it
+compiled, would have deployed, and was `undefined` in the browser: no widget, and
+every production submission refused with nothing on screen explaining why. Found
+by loading the page with Cloudflare's always-passes test key, not by any test,
+which is why the staging job now asserts the value reached the built bundle. The
+staging deploy was not passing the key to the build either.
+
+**Six contrast failures on the optional markers.** `--text-muted` measured 4.3:1
+against the page ground at label size, under the 4.5:1 small-text minimum. Caught
+by the axe audit, which the three new routes were added to; the marker is
+`--text-secondary` now.
+
+### Deliberately not done in WP7
+
+- **No public reviews, comments, community profiles, merchant tooling or
+  moderation platform.** The correction categories are about the listing and
+  there is deliberately no *bad experience* option; a test asserts none appears.
+- **No Supabase, no migration, no `contributions` table.** Phase 2 owns that.
+- **No rate limiting beyond Turnstile.** A per-IP limit needs a KV or Durable
+  Object binding, which is infrastructure this stage does not need. Recorded as
+  the next control if the challenge proves insufficient.
+- **No retention period in figures.** Privacy says submissions are kept while
+  there is something to do about them and that contact details are cleared after.
+  A stated period needs a founder decision and can be added in one line.
+- **About was not reworked.** Issue #17.
+- **No production Worker configuration.** Only `nibatlas-staging` exists.
+  Nothing here creates or assumes `nibatlas-production`, and the runbook records
+  the production steps as a future deployment task rather than part of this
+  setup — the Turnstile hostname, whether production shares this spreadsheet, and
+  the build-time site key wherever that build runs.
+- **The country expansion was not started.** Scheduled after WP7.
+- **No desktop treatment.** WP-D still awaits founder feedback.
+
+### Coverage
+
+- `src/features/contribute/contribute-schema.test.ts` — what each kind asks for,
+  the conditional contact rule, and that neither the reviewing team's columns nor
+  a client-named listing can be written.
+- `app/api/contribute/route.test.ts` — the shared secret, the followed redirect,
+  server-side revalidation, the unknown shop, the oversized body, all four
+  Turnstile paths, and failing closed in production.
+- `src/components/contribute/ContributeForm.test.tsx` — validation before
+  posting, per-field errors and the summary that links to them, the contact rule,
+  the failure that keeps what was typed, and the confirmation that appears only
+  on `ok`.
+- `tests/e2e/contribute.spec.ts` — both journeys end to end, the 404 for an
+  unknown listing, the unavailable intake, and Help pointing at About.
+- `tests/e2e/prose-integrity.spec.ts` — the JSX spacing guard.
+- `tests/e2e/accessibility.spec.ts` — the three new routes.
+- `tests/evidence/wp7-contribution-routes.spec.ts` — the review captures.
+
 ## Open items still needing founder input
 
 - Which pen-specific fields exist for each of the ten catalogue shops (WP4).
+- **A retention period for contributions**, if Privacy should state one in
+  figures rather than in the terms WP7 wrote (kept while there is something to do
+  about them; contact details cleared after). One line either way.
+- **South Korea and Malaysia**, scheduled after WP7: Seoul is a locality with
+  districts under it in the way Taipei is, and Malaysia is Kuala Lumpur and Johor
+  Bahru with the list expanding. Needs the `CountryCode` union, `COUNTRY_LABELS`,
+  a `ko` locale case, and the coverage claims on About and the map's empty state.
 - Desktop feedback, before WP-D can be designed.
 - Whether a permission request to the ten shops for storefront photography should
   be drafted, and by whom.

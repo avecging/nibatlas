@@ -109,8 +109,10 @@ export default function AboutPage() {
         ))}
       </ul>
       <p>
-        If a shop you know is missing, or a detail here is wrong, that is worth
-        telling us about — a way to do that is coming.
+        If a shop you know is missing,{" "}
+        <Link href="/suggest-shop">tell us about it</Link>. If a detail here is
+        wrong, the shop&rsquo;s own page has a way to report it that carries the
+        listing with it.
       </p>
 
       <h2 className="type-h2">Stamps and your Passport</h2>

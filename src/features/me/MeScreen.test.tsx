@@ -106,16 +106,13 @@ describe("Me, signed out", () => {
 
     expect(
       within(contribute).getByRole("link", { name: /suggest a pen shop/i }),
-    ).toHaveAttribute(
-      "href",
-      "mailto:hello@nibatlas.com?subject=%5BSuggest%20shop%5D",
-    );
+    ).toHaveAttribute("href", "/suggest-shop");
 
     /*
-     * The founder's staging review removed the correction row: a visible
-     * control carrying "Not open yet" is prototype scaffolding, not a feature
-     * preview. WP7 gives the correction its real home on the shop page, where
-     * the mail can name the shop.
+     * The correction is still not here, and now for a stronger reason than when
+     * the founder's staging review removed it. It exists and it works — on the
+     * shop page, where the form carries the listing the reader came from. A
+     * global Me row has no listing to carry.
      */
     expect(
       within(contribute).queryByText(/report incorrect information/i),
@@ -134,10 +131,20 @@ describe("Me, signed out", () => {
     renderMe({ collection: "seeded" });
 
     expect(screen.queryByText(/not open yet/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/help and contact/i)).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("region", { name: /help and about/i }),
-    ).not.toBeInTheDocument();
+
+    /*
+     * "Help and about" is back, and so is the row it was named for. Revision 22
+     * removed both because the help row carried *Not open yet* and a group
+     * called "Help and about" with no help in it is the same inaccuracy one
+     * level up. WP7 satisfies that reasoning rather than reversing it: the
+     * heading is accurate because the help it names now exists and works.
+     */
+    const about = screen.getByRole("region", { name: /help and about/i });
+
+    expect(within(about).getByRole("link", { name: /^help/i })).toHaveAttribute(
+      "href",
+      "/help",
+    );
   });
 
   /** The three destinations that do work are untouched by the removals. */
@@ -154,8 +161,9 @@ describe("Me, signed out", () => {
     );
     expect(screen.getByRole("link", { name: /suggest a pen shop/i })).toHaveAttribute(
       "href",
-      "mailto:hello@nibatlas.com?subject=%5BSuggest%20shop%5D",
+      "/suggest-shop",
     );
+    expect(screen.getByRole("link", { name: /^help/i })).toHaveAttribute("href", "/help");
   });
 
   /*

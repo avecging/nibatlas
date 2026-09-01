@@ -11,7 +11,10 @@ import {
 } from "@/src/features/account/account-session";
 import { useAccountSession } from "@/src/features/account/AccountSessionProvider";
 import { useCollection } from "@/src/features/collection/collection-store";
-import { suggestShopHref } from "@/src/features/contribute/contribute-links";
+import {
+  HELP_PATH,
+  SUGGEST_SHOP_PATH,
+} from "@/src/features/contribute/contribute-links";
 import { exportLocalData } from "@/src/features/me/local-data";
 import { ReviewerModeBadge } from "@/src/features/reviewer/ReviewerModeBadge";
 import { useReviewerMode } from "@/src/features/reviewer/ReviewerModeProvider";
@@ -475,17 +478,14 @@ function PlacesVisited() {
 /**
  * Contribute.
  *
- * One entry, because one is routed. **Suggest a pen shop** opens a pre-addressed
- * email with the subject tag accepted decision 8 fixes, built in
- * `src/features/contribute/contribute-links.ts` so the address and tag exist
- * once and can be asserted exactly.
+ * One entry, still. **Suggest a pen shop** now opens the real form at
+ * `/suggest-shop` rather than a mail client; the email route it replaced stays
+ * in `contribute-links.ts` as what that form offers when it cannot deliver.
  *
- * **Report incorrect information** is not here at all. It was a row carrying
- * *Not open yet*, and the founder's staging review removed it: a visible control
- * that cannot be used is prototype scaffolding, not a feature preview. Its real
- * home is the shop page, where WP7 can name the shop the reader is looking at —
- * which is what accepted decision 8 asks for and what a global Me row could
- * never do.
+ * **Report incorrect information** is still not here, and now for a stronger
+ * reason than when the founder's staging review removed it. It exists, it works,
+ * and it lives on the shop page — because the form carries the listing the
+ * reader came from, and a global Me row has no listing to carry.
  */
 function Contribute() {
   return (
@@ -497,8 +497,7 @@ function Contribute() {
       <ul className={styles.rows}>
         <Row
           detail="Tell us about a fountain pen shop that isn't on the map."
-          external
-          href={suggestShopHref()}
+          href={SUGGEST_SHOP_PATH}
           icon="pen"
           title="Suggest a pen shop"
         />
@@ -749,16 +748,16 @@ export function MeScreen() {
       <Contribute />
 
       {/*
-        No help row.
+        Help returns, and the section is renamed with it.
 
-        It was the last entry in Me carrying *Not open yet*, and the founder's
-        staging review removed it for the same reason as the correction row: a
-        visible control that cannot be used is prototype scaffolding. The
-        section is renamed with it — a group called "Help and about" that offers
-        no help is the same inaccuracy one level up. WP7 owns the help route and
-        will decide where it belongs.
+        Revision 22 removed the help row for carrying *Not open yet* and renamed
+        the group to "About", on the grounds that a group called "Help and about"
+        offering no help is an inaccuracy one level up. Both halves of that
+        reasoning now run the other way: there is help, it works, and the heading
+        should say so. The anchor stays `#me-about` — it is linked from
+        `/account`, and renaming a heading is not a reason to break a route.
       */}
-      <Section id="me-about" title="About">
+      <Section id="me-about" title="Help and about">
         <ul className={styles.rows}>
           {/*
             Privacy is its own group once signed in, where the account controls
@@ -773,6 +772,12 @@ export function MeScreen() {
               title="Privacy policy"
             />
           )}
+          <Row
+            detail="How the map, stamps and your Passport work, and the questions people ask."
+            href={HELP_PATH}
+            icon="help"
+            title="Help"
+          />
           <Row
             detail="What the catalogue is, and the countries it covers today."
             href="/about"

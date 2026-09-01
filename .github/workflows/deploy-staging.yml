@@ -27,6 +27,12 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       NEXT_PUBLIC_MAPTILER_KEY: ${{ secrets.NEXT_PUBLIC_MAPTILER_KEY }}
+      # Browser-safe, but baked into the bundle at build time rather than read
+      # from a Worker secret at runtime — so it has to be present *here*, not
+      # only in `wrangler secret put`. Stored alongside the MapTiler key for
+      # consistency; neither is confidential, and both must exist to build a
+      # working staging Worker.
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v4
@@ -42,6 +48,10 @@ jobs:
           test -n "$CLOUDFLARE_ACCOUNT_ID"
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$NEXT_PUBLIC_MAPTILER_KEY"
+          # A build without this ships two forms that can only fail: no widget
+          # renders, and the route refuses every submission because a production
+          # build never accepts an unverified one.
+          test -n "$NEXT_PUBLIC_TURNSTILE_SITE_KEY"
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
@@ -61,6 +71,17 @@ jobs:
             echo
             echo "Staging URL: ${staging_url}"
           } >> "$GITHUB_STEP_SUMMARY"
+      # A `NEXT_PUBLIC_` value is inlined into the client bundle by matching the
+      # literal `process.env.NEXT_PUBLIC_X` member expression. Write it any other
+      # way — a bracket index, a destructure, a variable — and it compiles,
+      # deploys, and is `undefined` in the browser. Nothing fails loudly: the
+      # Turnstile widget simply never renders and every submission is refused.
+      # Asserting the value reached the bundle is the only check that catches it.
+      - name: Verify the Turnstile site key reached the client bundle
+        shell: bash
+        run: |
+          grep -rqF "$NEXT_PUBLIC_TURNSTILE_SITE_KEY" .open-next/assets/_next/static             || { echo "Site key absent from the built bundle — check it is read as process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY"; exit 1; }
+
       # ubuntu-latest already provides Chromium's system libraries. Installing
       # optional font packages here makes the live smoke gate depend on a slow
       # Ubuntu mirror even though typography is covered by the full E2E job.

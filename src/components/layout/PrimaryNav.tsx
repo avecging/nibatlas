@@ -31,7 +31,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     href: "/me",
     label: "Me",
     icon: "person",
-    alsoOwns: ["/privacy", "/about", "/account"],
+    alsoOwns: ["/privacy", "/about", "/account", "/help", "/suggest-shop"],
   },
 ];
 

@@ -168,7 +168,7 @@ test("a material information gap gets one caution and an invitation", async ({ p
   await expect(gap).toContainText(/have not confirmed what you can do at this shop/i);
   await expect(
     gap.getByRole("link", { name: "Know this shop? Help us improve this listing." }),
-  ).toHaveAttribute("href", "mailto:hello@nibatlas.com?subject=%5BShop%20correction%5D%20Juspirit");
+  ).toHaveAttribute("href", "/shops/juspirit-banqiao/report");
 
   // Ordinary unsupported fields stay silent: no station, payment or language row
   // invented to fill the section out.
@@ -177,16 +177,17 @@ test("a material information gap gets one caution and an invitation", async ({ p
   await expect(page.getByText("Languages", { exact: true })).toHaveCount(0);
 });
 
-test("every shop page routes a correction, naming the shop", async ({ page }) => {
+test("every shop page routes a correction, carrying the listing", async ({ page }) => {
   await page.goto("/shops/ty-lee-pen-shop");
 
   await expect(page.getByText(/Found something wrong with this listing\?/)).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Report incorrect information" }),
-  ).toHaveAttribute(
-    "href",
-    "mailto:hello@nibatlas.com?subject=%5BShop%20correction%5D%20TY%20Lee%20Pen%20Shop",
-  );
+  ).toHaveAttribute("href", "/shops/ty-lee-pen-shop/report");
+
+  // The form names the shop the reader came from, so nobody has to.
+  await page.getByRole("link", { name: "Report incorrect information" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("TY Lee Pen Shop");
 });
 
 test("nearby pen shops are trip context, and are honest about distance", async ({

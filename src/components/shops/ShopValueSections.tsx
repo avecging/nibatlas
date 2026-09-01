@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { Icon } from "@/src/components/ui/Icon";
 import {
   SERVICE_ACCESS_MODE_LABELS,
@@ -9,7 +11,7 @@ import {
   MATERIAL_GAP_CAUTION,
   hasSourcedValueLayer,
 } from "@/src/domain/shop-evidence";
-import { shopCorrectionHref } from "@/src/features/contribute/contribute-links";
+import { shopCorrectionPath } from "@/src/features/contribute/contribute-links";
 
 import styles from "./ShopDetailView.module.css";
 
@@ -132,7 +134,8 @@ export function ShopExclusives({ shop }: { readonly shop: ShopDetail }) {
  * Not an explanation of the omission, not a list of the fields that are empty,
  * and not an apology: one sentence saying what is not known, and one asking the
  * person who does know. The mail carries the shop's name so the reply is
- * actionable, reusing the correction route WP2 defined and left unwired.
+ * actionable: it opens the same correction form the foot of the page does, and
+ * that form already knows which shop it is about.
  */
 export function ShopValueGap({ shop }: { readonly shop: ShopDetail }) {
   if (hasSourcedValueLayer(shop)) {
@@ -153,9 +156,9 @@ export function ShopValueGap({ shop }: { readonly shop: ShopDetail }) {
         <span>{MATERIAL_GAP_CAUTION}</span>
       </p>
       <p className={styles.plain}>
-        <a className={styles.inlineLink} href={shopCorrectionHref(shop.name)}>
+        <Link className={styles.inlineLink} href={shopCorrectionPath(shop.slug)}>
           {CONTRIBUTION_INVITATION}
-        </a>
+        </Link>
       </p>
     </section>
   );

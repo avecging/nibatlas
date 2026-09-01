@@ -1,13 +1,13 @@
 /**
  * Contribution routing.
  *
- * `docs/milestone-1-5-product-refinement.md` accepted decision 8 fixes the
- * destinations until Milestone 6 builds the real flow: a pre-addressed email,
- * one subject tag per kind, and a dedicated `/suggest-shop` form later.
+ * WP7 replaces the `mailto:` destinations accepted decision 8 fixed with real
+ * pages: `/suggest-shop`, and a correction form under the listing it corrects.
  *
- * The hrefs are built here rather than written inline so the address and the
- * subject tags exist once, can be asserted exactly, and can be reused by the
- * shop-page correction route when WP7 adds it.
+ * **The email routes stay, and are not vestigial.** They are what a form offers
+ * when it cannot deliver — an address has no service behind it to be
+ * unavailable — so they remain the fallback on both flows and are asserted as
+ * such. Nothing else links to them.
  *
  * `encodeURIComponent`, not `URLSearchParams`: the latter encodes a space as
  * `+`, which several mail clients paste into the subject line literally. `%20`
@@ -29,18 +29,31 @@ export function mailtoHref({
   return `mailto:${to}?subject=${encodeURIComponent(subject)}`;
 }
 
-/** Suggest a pen shop: the route WP2 opens. */
+/** Suggest a pen shop. */
+export const SUGGEST_SHOP_PATH = "/suggest-shop";
+
+/** Help: how the product works, and the questions it is actually asked. */
+export const HELP_PATH = "/help";
+
+/**
+ * The correction form for one listing.
+ *
+ * The shop is in the path, not in a query parameter the reader could edit into
+ * something meaningless, and the page resolves the name from it. Accepted
+ * decision 8 asks that a correction name the relevant shop; carrying the slug is
+ * how it does that without asking anyone to type it.
+ */
+export function shopCorrectionPath(slug: string): string {
+  return `/shops/${slug}/report`;
+}
+
+/** The email fallback, used when a submission cannot be delivered. */
 export function suggestShopHref(): string {
   return mailtoHref({ to: CONTRIBUTE_EMAIL, subject: SUGGEST_SHOP_SUBJECT });
 }
 
 /**
- * Report incorrect information.
- *
- * Defined here because the subject tag belongs with its sibling, but not yet
- * wired into a control: WP7 owns the correction route, which decision 8 says
- * should name the relevant shop where possible, and that context lives on the
- * shop page rather than in Me.
+ * The correction email fallback, naming the shop so a reply is actionable.
  */
 export function shopCorrectionHref(shopName?: string): string {
   return mailtoHref({
