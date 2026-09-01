@@ -377,7 +377,7 @@ Only show `x / y` where `y` is a clearly versioned curated coverage set. Otherwi
 - Bottom sheet is keyboard and screen-reader navigable.
 - Modal/sheet focus is trapped appropriately and restored on close.
 - Motion respects `prefers-reduced-motion`.
-- Test at 200% zoom and with long English, Japanese, and Traditional Chinese names.
+- Test at 200% zoom. English, Japanese, and Traditional Chinese are the minimum current fixture set; test every additional shipped language and script, including right-to-left direction when such content is added.
 - Location permission explanations are plain language and never coercive.
 
 ## UX acceptance scenarios
