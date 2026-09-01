@@ -1,4 +1,5 @@
 import type { CountryCode } from "@/src/domain/geo";
+import type { LanguageTag } from "@/src/domain/language";
 import type { ShopStampDesign } from "@/src/domain/shop-detail";
 
 /**
@@ -13,6 +14,7 @@ export interface StampCollection {
   readonly shopSlug: string;
   readonly shopNameSnapshot: string;
   readonly shopLocalNameSnapshot?: string;
+  readonly shopLocalNameLangSnapshot?: LanguageTag;
   /** ISO date in the shop timezone, e.g. `2026-04-11`. */
   readonly collectedOn: string;
   readonly shopTimezone: string;
