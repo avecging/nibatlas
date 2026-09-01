@@ -1,5 +1,6 @@
 import type { ShopStampDesign, StampMotif } from "@/src/domain/shop-detail";
 import { fitStampTitle } from "@/src/components/stamps/stamp-title";
+import { languageDirection } from "@/src/domain/language";
 import { STAMP_INK_LABELS } from "@/src/domain/stamp-palette";
 
 import styles from "./StampArt.module.css";
@@ -398,6 +399,12 @@ export function StampArt({
                     y={localTop + index * localFitted.lineHeight}
                     className={styles.local}
                     lang={localTitleLang}
+                    direction={
+                      localTitleLang === undefined
+                        ? undefined
+                        : languageDirection(localTitleLang)
+                    }
+                    unicodeBidi="plaintext"
                     fontSize={localFitted.fontSize}
                     fill={ink}
                     stroke="none"
