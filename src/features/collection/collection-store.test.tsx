@@ -90,9 +90,11 @@ describe("collection scopes", () => {
     expect(current).toBeDefined();
 
     const {
-      shopLocalNameLangSnapshot: _removedLanguage,
+      shopLocalNameLangSnapshot: removedLanguage,
       ...legacyCollection
     } = current!;
+
+    expect(removedLanguage).toBeDefined();
 
     window.localStorage.setItem(
       COLLECTION_STORAGE_KEYS.normal,
