@@ -6,6 +6,7 @@ import {
 } from "@/src/domain/shop-evidence";
 import { STAMP_INKS, STAMP_PALETTE_VERSION } from "@/src/domain/stamp-palette";
 import { COUNTRY_SEAL_STAMP_THRESHOLD } from "@/src/domain/seals";
+import { countryLabel } from "@/src/domain/geo";
 import { isLanguageTag } from "@/src/domain/language";
 import { demoShops } from "@/src/fixtures/demo-shops";
 import {
@@ -45,6 +46,19 @@ describe("prototype catalogue", () => {
 
     expect(japanLocalities.size).toBeGreaterThan(1);
     expect([...japanLocalities].some((name) => !name.includes("Tokyo"))).toBe(true);
+  });
+
+  it("uses real country codes rather than merely alpha-2-shaped values", () => {
+    const countryCodes = new Set(
+      prototypeShopDetails.map((shop) => shop.countryCode),
+    );
+
+    for (const countryCode of countryCodes) {
+      const label = countryLabel(countryCode);
+
+      expect(label).not.toBe(countryCode);
+      expect(label).not.toMatch(/unknown region/i);
+    }
   });
 
   it("tags every local-script name explicitly rather than inferring from country", () => {
