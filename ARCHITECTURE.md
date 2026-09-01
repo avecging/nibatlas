@@ -297,6 +297,30 @@ Prefer short-lived branches and PRs over permanent `claude/frontend` and `codex/
 - Account export/deletion and plain-language privacy page before launch.
 - Dependency and secret scanning enabled in GitHub.
 
+## International content and interface localisation
+
+Shop content and interface translations are separate concerns:
+
+- Country codes use the ISO 3166-1 alpha-2 shape and country labels come from
+  `Intl.DisplayNames`. Adding a sourced country therefore does not require a new
+  frontend release solely to extend a union or label map.
+- Each local shop name carries its own BCP 47 language tag. The application does
+  not infer a name's language from its country, because countries can be
+  multilingual and scripts can differ within one language.
+- The interface remains English until another interface locale is deliberately
+  approved and translated. At that point, use `next-intl` with one statically
+  authored message catalogue per shipped locale, loading only the selected
+  locale's messages. Persist an explicit user choice; browser preference may
+  provide a first-visit default but must not override that choice.
+- Do not translate UI strings at request time or ship every prospective language.
+  Translation, editorial review, accessibility review, and visual QA are the
+  material costs. Dependencies, message catalogues, locale routing, and extra
+  font assets should be introduced only with the first approved non-English UI
+  locale.
+
+This keeps sourced catalogue expansion independent from the cost and release
+schedule of interface translation.
+
 ## Expected MVP operating cost
 
 All figures are USD, before tax/overage, based on public pricing checked 11 August 2026.
