@@ -50,3 +50,15 @@ for (const path of PROSE_ROUTES) {
     expect(glued).toEqual([]);
   });
 }
+
+
+test("/about keeps the catalogue count grammatically separated", async ({ page }) => {
+  await page.goto("/about");
+
+  await expect(
+    page.getByText(
+      /Today the catalogue holds \d+ shops? across the places below\./,
+    ),
+  ).toBeVisible();
+  await expect(page.locator("main")).not.toContainText(/shops?across/i);
+});
