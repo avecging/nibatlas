@@ -1,4 +1,3 @@
-import type { CountryCode } from "@/src/domain/geo";
 import type { ShopMapSummary, ShopType } from "@/src/domain/shops";
 import type { StampInk } from "@/src/domain/stamp-palette";
 
@@ -234,12 +233,6 @@ export type StampMotif =
   | "harbour"
   | "counter"
   | "workbench";
-
-export const COUNTRY_LABELS: Record<CountryCode, string> = {
-  SG: "Singapore",
-  JP: "Japan",
-  TW: "Taiwan",
-};
 
 export const SHOP_TYPE_LABELS: Record<ShopType, string> = {
   fountain_pen_specialist: "Fountain Pen Specialist",
