@@ -64,15 +64,16 @@ describe("prototype catalogue", () => {
   });
 
   it("pairs every fixture local name with a validated language tag", () => {
-    const records: readonly {
-      readonly localName?: string;
-      readonly localNameLang?: string;
-    }[] = [
+    const records = [
       ...prototypeShopDetails,
       ...prototypeDestinations,
       ...demoShops,
       shopValueSpecimen,
-    ];
+    ].map((record) => ({
+      localName: "localName" in record ? record.localName : undefined,
+      localNameLang:
+        "localNameLang" in record ? record.localNameLang : undefined,
+    }));
 
     for (const record of records) {
       if (record.localName === undefined) {
