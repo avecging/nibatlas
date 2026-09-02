@@ -79,5 +79,7 @@ jobs:
       - run: supabase start -x realtime,imgproxy,edge-runtime,logflare,vector,supavisor
       - run: supabase db reset
       - run: supabase test db
+      - name: Viewport performance (50k synthetic shops)
+        run: docker exec -i supabase_db_nibatlas psql -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/performance/viewport_50k.sql
       - if: always()
         run: supabase stop --no-backup
