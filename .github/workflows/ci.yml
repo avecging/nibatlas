@@ -81,7 +81,7 @@ jobs:
       - run: supabase test db
       - name: Read performance (50k synthetic shops)
         run: |
-          project_id="$(sed -n 's/^project_id = "\\([^"]*\\)"/\\1/p' supabase/config.toml)"
+          project_id="$(awk -F'"' '/^project_id = / { print $2; exit }' supabase/config.toml)"
           docker exec -i "supabase_db_${project_id}" psql -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/performance/viewport_50k.sql
       - if: always()
         run: supabase stop --no-backup
