@@ -48,35 +48,38 @@ export async function callShopReadRpc(
     abortFromRequest();
   }
 
-  let response: Response;
-
   try {
-    response = await fetch(`${baseUrl}/rest/v1/rpc/${rpc}`, {
-      method: "POST",
-      headers: {
-        apikey: publishableKey,
-        Authorization: `Bearer ${publishableKey}`,
-        "Content-Type": "application/json",
-        "Accept-Profile": "public",
-      },
-      body: JSON.stringify(args),
-      signal: controller.signal,
-    });
-  } catch {
-    throw new ShopReadUpstreamError(0);
+    let response: Response;
+
+    try {
+      response = await fetch(`${baseUrl}/rest/v1/rpc/${rpc}`, {
+        method: "POST",
+        headers: {
+          apikey: publishableKey,
+          Authorization: `Bearer ${publishableKey}`,
+          "Content-Type": "application/json",
+          "Content-Profile": "public",
+        },
+        body: JSON.stringify(args),
+        signal: controller.signal,
+      });
+    } catch {
+      throw new ShopReadUpstreamError(0);
+    }
+
+    if (!response.ok) {
+      // Never forward PostgREST error bodies; they may disclose database details.
+      throw new ShopReadUpstreamError(response.status);
+    }
+
+    try {
+      return await response.json();
+    } catch {
+      throw new ShopReadUpstreamError(response.status);
+    }
   } finally {
+    // The timeout covers the response body as well as the headers.
     clearTimeout(timeout);
     requestSignal?.removeEventListener("abort", abortFromRequest);
-  }
-
-  if (!response.ok) {
-    // Never forward PostgREST error bodies; they may disclose database details.
-    throw new ShopReadUpstreamError(response.status);
-  }
-
-  try {
-    return await response.json();
-  } catch {
-    throw new ShopReadUpstreamError(response.status);
   }
 }

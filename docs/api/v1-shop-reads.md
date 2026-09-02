@@ -69,9 +69,12 @@ Cache: `s-maxage=3600`, with stale-while-revalidate.
   `sourceQuality: "demo"`; production imports must reject it.
 
 Milestone 3 must update the frontend evidence reference from label to source ID.
-It may retain `confirms` for reviewer validation or derive equivalent checks from
-the same source/claim projection, but it may not treat one source as supporting
-claims absent from that source's token list.
+It must also handle the staging-only `demo_fixture` kind explicitly: extend the
+fixture-facing frontend type or reject it outside staging/test, never cast it
+silently into one of the four real provenance kinds. It may retain `confirms`
+for reviewer validation or derive equivalent checks from the same source/claim
+projection, but it may not treat one source as supporting claims absent from that
+source's token list.
 
 ## `POST /api/v1/shops/nearby`
 
@@ -90,6 +93,10 @@ values are shop coordinates.
 
 The application boundary decodes each RPC response into a versioned allowlisted
 shape. Unknown keys are dropped; missing/invalid required fields fail closed as
-`502 invalid_upstream_contract`. This prevents a later database/provider change
-from silently becoming a browser API change.
+`502 invalid_upstream_contract`. For viewport reads, failing the complete
+response rather than dropping malformed rows is deliberate: catalogue contract
+violations stay loud and observable instead of silently removing markers. SQL
+projections exclude known unrepresentable states, such as published shops with no
+assigned type. This prevents a later database/provider change from silently
+becoming a browser API change.
 

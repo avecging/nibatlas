@@ -1,5 +1,5 @@
 begin;
-select plan(12);
+select plan(14);
 
 select has_table('public', 'shop_source_claims', 'source claim registry exists');
 select col_not_null('public', 'shop_sources', 'label', 'source labels are required');
@@ -59,6 +59,31 @@ select ok(
   public.shop_detail('m2-singapore-demo-fixture') ? 'specialtyLine'
     and public.shop_detail('m2-singapore-demo-fixture')->'specialtyLine' = 'null'::jsonb,
   'detail preserves the required explicit null specialty line');
+
+insert into public.shops (
+  id, slug, name, country_code, city_display, timezone, location,
+  publication_status, source_quality, published_at
+) values (
+  '00000000-0000-4000-8000-000000000603', 'm2-typeless-demo-fixture',
+  'Typeless Demo Fixture', 'SG', 'Singapore', 'Asia/Singapore',
+  extensions.st_setsrid(extensions.st_makepoint(103.852, 1.291), 4326),
+  'published', 'demo', '2026-09-02 00:00:00+00'
+);
+select is(
+  public.shop_detail('m2-typeless-demo-fixture'),
+  null::jsonb,
+  'detail hides a published row that cannot satisfy the required map type contract');
+
+insert into public.services (id, code, label) values
+  ('00000000-0000-4000-8000-000000000703', 'unsourced_api_test', 'Unsourced API Test');
+insert into public.shop_services (shop_id, service_id) values (
+  '00000000-0000-4000-8000-000000000301',
+  '00000000-0000-4000-8000-000000000703'
+);
+select ok(
+  public.viewport_shops(103.7, 1.2, 104.0, 1.5, 12)->'shops'->0 ? 'specialtyLine'
+    and public.viewport_shops(103.7, 1.2, 104.0, 1.5, 12)->'shops'->0->'specialtyLine' = 'null'::jsonb,
+  'viewport never promotes an unsourced service into its public specialty line');
 
 insert into public.services (id, code, label) values
   ('00000000-0000-4000-8000-000000000702', 'api_test_service', 'API Test Service');
