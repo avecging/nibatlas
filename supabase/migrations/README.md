@@ -8,8 +8,13 @@ empty local Supabase project.
 - `20260902000100_m2_catalogue_foundation.sql` establishes PostGIS/pg_trgm,
   canonical catalogue tables, controlled vocabularies, provenance, indexes,
   explicit RLS, and narrow published projections.
-- Viewport, detail, alias-search, and Near Me RPCs follow in a separate package so
-  their API and performance evidence can be reviewed independently.
+- `20260902000200_m2_read_rpcs.sql` repairs the WP1 review's three integrity
+  findings, then adds bounded viewport, detail, canonical/alias search, and Near
+  Me reads. The functions expose published projections only; Near Me coordinates
+  are statement-local and never persisted.
+
+`supabase/performance/viewport_50k.sql` enforces the approved sub-250 ms p95
+database budget against a dense viewport in a rolled-back 50,000-shop fixture.
 
 The local `seed.sql` contains only deterministic records marked `demo`. It is not
 a production import mechanism.
