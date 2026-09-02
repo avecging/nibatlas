@@ -23,7 +23,9 @@ const MAP_SHOP = {
 };
 
 function accepts(payload: unknown, status = 200) {
-  return vi.fn(async () => Response.json(payload, { status }));
+  return vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => (
+    Response.json(payload, { status })
+  ));
 }
 
 function lastBody(mock: ReturnType<typeof vi.fn>): Record<string, unknown> {
