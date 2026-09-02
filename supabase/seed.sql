@@ -1,12 +1,6 @@
 -- Deterministic local/test fixtures only. These invented records are explicitly
 -- source_quality='demo' and must never enter the production import path.
 
-insert into public.shop_types (id, code, label, sort_order) values
-  ('00000000-0000-4000-8000-000000000101', 'fountain_pen_specialist', 'Fountain Pen Specialist', 10),
-  ('00000000-0000-4000-8000-000000000102', 'stationery_store', 'Stationery Store', 20),
-  ('00000000-0000-4000-8000-000000000103', 'vintage_used', 'Vintage / Used', 30),
-  ('00000000-0000-4000-8000-000000000104', 'nib_repair_services', 'Nib / Repair Services', 40);
-
 insert into public.localities (
   id, country_code, name, name_local, name_local_language_tag,
   locality_type, slug, centroid
