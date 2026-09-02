@@ -10,11 +10,13 @@ empty local Supabase project.
   explicit RLS, and narrow published projections.
 - `20260902000200_m2_read_rpcs.sql` repairs the WP1 review's three integrity
   findings, then adds bounded viewport, detail, canonical/alias search, and Near
-  Me reads. The functions expose published projections only; Near Me coordinates
-  are statement-local and never persisted.
+  Me reads. It also installs the approved shop-type vocabulary required by clean
+  deployments; demo rows remain seed-only. The functions expose published
+  projections only; Near Me coordinates are statement-local and never persisted.
 
 `supabase/performance/viewport_50k.sql` enforces the approved sub-250 ms p95
-database budget against a dense viewport in a rolled-back 50,000-shop fixture.
+database budget against dense viewport and selective alias-search paths in a
+rolled-back 50,000-shop fixture.
 
 The local `seed.sql` contains only deterministic records marked `demo`. It is not
 a production import mechanism.
