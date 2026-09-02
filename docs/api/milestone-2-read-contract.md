@@ -38,9 +38,10 @@ antimeridian-crossing request is split into the two valid envelopes.
 
 Inputs: a trimmed 1–120 character query and a `1..50` result limit.
 
-Published canonical names and aliases are ranked exact, prefix, then trigram
-similarity. Lowercasing supports Latin case matching without transliterating or
-destroying CJK text. The result identifies the matching alias where applicable;
+Published canonical names and aliases are selected through independent,
+index-supported prefix/trigram scans, then ranked exact, prefix, and fuzzy.
+Lowercasing supports Latin case matching without transliterating or destroying
+CJK text. The result identifies the matching alias where applicable;
 destination/geocoder results remain a separate provider contract.
 
 ## `shop_detail`
@@ -53,6 +54,18 @@ freshness, and safe source summaries (`id`, source kind, public URL where presen
 and UTC retrieval date as `retrievedOn`). It excludes publication state, admin evidence notes,
 reliability/internal source controls, and drafts. Nullable facts are omitted
 rather than replaced by plausible defaults.
+
+This is a safe database projection, not yet the complete frontend
+`ShopDetail`/`ShopSourceRef` contract. Before Milestone 3 route integration, the
+schema and adapter contract must settle all of the following together:
+
+- controlled source kinds versus the frontend's closed kind union;
+- public source `label` and claim-level `confirms` semantics;
+- source identifiers on sourced services and other controlled claims.
+
+Until that work lands, consumers must not infer that every returned source
+supports every shop claim, and must not pass these summaries directly to
+`shopEvidenceIssues` or represent them as complete `ShopSourceRef` objects.
 
 Opening hours are stored as an object with an `entries` array and optional `note`
 so storage can evolve without changing the public shape. The RPC returns
@@ -75,6 +88,7 @@ freshness controls.
 ## Performance gate
 
 `supabase/performance/viewport_50k.sql` creates 40,000 global and 10,000
-Tokyo-density test shops inside a transaction, warms the query, measures 20
-runs, and fails when p95 database execution reaches 250 ms. The transaction is
-rolled back and never becomes catalogue data.
+Tokyo-density test shops plus 10,000 selective-search aliases inside a
+transaction. It warms and measures 20 runs for both dense viewport and alias
+search paths, failing either at p95 database execution of 250 ms. The
+transaction is rolled back and never becomes catalogue data.
