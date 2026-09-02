@@ -16,7 +16,8 @@ empty local Supabase project.
 
 `supabase/performance/viewport_50k.sql` enforces the approved sub-250 ms p95
 database budget against dense viewport and selective alias-search paths in a
-rolled-back 50,000-shop fixture.
+rolled-back 50,000-shop fixture. It gates on the median of three 20-sample p95
+rounds to reduce shared-runner noise.
 
 The local `seed.sql` contains only deterministic records marked `demo`. It is not
 a production import mechanism.
