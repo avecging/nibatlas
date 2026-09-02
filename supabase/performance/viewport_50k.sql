@@ -41,8 +41,27 @@ select s.id, '00000000-0000-4000-8000-000000000102', true
 from public.shops s
 where s.slug like 'perf-global-%' or s.slug like 'perf-tokyo-%';
 
+-- Give 10k shops aliases, but make only 20 of them relevant to the benchmark.
+-- This catches the former per-published-shop lateral alias lookup.
+insert into public.shop_aliases (
+  id, shop_id, alias, language_tag, alias_type
+)
+select
+  md5('perf-alias-' || s.slug)::uuid,
+  s.id,
+  case when substring(s.slug from '([0-9]+)$')::integer <= 20
+    then 'Rarelookup alias ' || s.slug
+    else 'Unrelated catalogue alias ' || s.slug
+  end,
+  'en',
+  'search_synonym'
+from public.shops s
+where s.slug like 'perf-global-%'
+  and substring(s.slug from '([0-9]+)$')::integer <= 10000;
+
 alter table public.shops enable trigger shops_validate_timezone;
 analyze public.shops;
+analyze public.shop_aliases;
 analyze public.shop_shop_types;
 
 do $$
@@ -79,6 +98,45 @@ begin
 
   if p95_ms >= 250 then
     raise exception 'viewport_shops p95 % ms exceeds the 250 ms budget',
+      round(p95_ms::numeric, 2);
+  end if;
+end;
+$$;
+
+do $$
+declare
+  started_at timestamptz;
+  samples_ms double precision[] := '{}';
+  p95_ms double precision;
+  response jsonb;
+begin
+  response := public.search_shops('rarelookup', 20);
+  if jsonb_array_length(response->'shops') <> 20 then
+    raise exception 'Synthetic alias search did not return all 20 selective matches';
+  end if;
+
+  for i in 1..3 loop
+    perform public.search_shops('rarelookup', 20);
+  end loop;
+
+  for i in 1..20 loop
+    started_at := clock_timestamp();
+    perform public.search_shops('rarelookup', 20);
+    samples_ms := array_append(
+      samples_ms,
+      extract(epoch from (clock_timestamp() - started_at)) * 1000
+    );
+  end loop;
+
+  select percentile_disc(0.95) within group (order by sample)
+  into p95_ms
+  from unnest(samples_ms) sample;
+
+  raise notice 'search_shops alias p95: % ms across 20 measured runs on 50k shops / 10k aliases',
+    round(p95_ms::numeric, 2);
+
+  if p95_ms >= 250 then
+    raise exception 'search_shops alias p95 % ms exceeds the 250 ms budget',
       round(p95_ms::numeric, 2);
   end if;
 end;
