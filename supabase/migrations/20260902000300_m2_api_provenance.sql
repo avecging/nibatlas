@@ -55,7 +55,7 @@ language plpgsql
 stable
 security definer
 set search_path = pg_catalog, public, extensions
-as $
+as $viewport$
 declare
   v_limit integer;
   v_left extensions.geometry;
@@ -187,7 +187,7 @@ begin
     'zoom', p_zoom
   );
 end;
-$;
+$viewport$;
 
 create or replace function public.shop_detail(p_slug text)
 returns jsonb
