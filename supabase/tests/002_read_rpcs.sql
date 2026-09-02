@@ -1,5 +1,5 @@
 begin;
-select plan(28);
+select plan(31);
 
 select has_function('public', 'viewport_shops', array[
   'double precision', 'double precision', 'double precision', 'double precision',
@@ -24,6 +24,11 @@ select is(
   jsonb_array_length(public.viewport_shops(103.7, 1.2, 104.0, 1.5, 12)->'shops'),
   1,
   'Singapore viewport returns its published fixture only'
+);
+select ok(
+  public.viewport_shops(103.7, 1.2, 104.0, 1.5, 12)->'shops'->0 ? 'specialtyLine'
+    and public.viewport_shops(103.7, 1.2, 104.0, 1.5, 12)->'shops'->0->'specialtyLine' = 'null'::jsonb,
+  'viewport preserves the required explicit null specialtyLine'
 );
 select is(
   public.viewport_shops(103.7, 1.2, 104.0, 1.5, 12)->'committedBounds'->>'west',
@@ -107,6 +112,26 @@ select is(
   public.shop_detail('m2-singapore-demo-fixture')->>'id',
   '00000000-0000-4000-8000-000000000301',
   'detail returns a published shop'
+);
+select ok(
+  jsonb_array_length(public.shop_detail('m2-singapore-demo-fixture')->'sources') = 1
+    and public.shop_detail('m2-singapore-demo-fixture')->'sources'->0 ? 'kind'
+    and public.shop_detail('m2-singapore-demo-fixture')->'sources'->0 ? 'retrievedOn'
+    and not (public.shop_detail('m2-singapore-demo-fixture')->'sources'->0 ? 'evidenceNote'),
+  'detail exposes safe source summaries without admin evidence notes'
+);
+update public.shops
+set opening_hours = jsonb_build_object(
+  'entries', jsonb_build_array(jsonb_build_object(
+    'day', 'monday', 'opens', '10:00', 'closes', '18:00'
+  )),
+  'note', 'Demo hours only'
+)
+where slug = 'm2-singapore-demo-fixture';
+select ok(
+  jsonb_typeof(public.shop_detail('m2-singapore-demo-fixture')->'openingHours') = 'array'
+    and public.shop_detail('m2-singapore-demo-fixture')->'openingHours'->0->>'day' = 'monday',
+  'detail normalizes stored opening-hours object to the shared entry array'
 );
 select ok(
   not (public.shop_detail('m2-singapore-demo-fixture') ? 'publicationStatus'),
