@@ -90,5 +90,6 @@ freshness controls.
 `supabase/performance/viewport_50k.sql` creates 40,000 global and 10,000
 Tokyo-density test shops plus 10,000 selective-search aliases inside a
 transaction. It warms and measures 20 runs for both dense viewport and alias
-search paths, failing either at p95 database execution of 250 ms. The
+search paths in each of three rounds. The median round p95 must remain below
+250 ms, reducing shared-runner noise without weakening the target. The
 transaction is rolled back and never becomes catalogue data.
