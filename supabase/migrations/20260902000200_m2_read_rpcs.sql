@@ -61,6 +61,18 @@ alter table public.shop_images
 alter table public.shop_shop_types
   add column is_primary boolean not null default false;
 
+-- Controlled vocabulary is application configuration, not fixture data. Keep
+-- it in migration history so a clean deployed database can validate filters
+-- and accept typed catalogue rows before any demo seed is applied.
+insert into public.shop_types (id, code, label, sort_order) values
+  ('00000000-0000-4000-8000-000000000101', 'fountain_pen_specialist', 'Fountain Pen Specialist', 10),
+  ('00000000-0000-4000-8000-000000000102', 'stationery_store', 'Stationery Store', 20),
+  ('00000000-0000-4000-8000-000000000103', 'vintage_used', 'Vintage / Used', 30),
+  ('00000000-0000-4000-8000-000000000104', 'nib_repair_services', 'Nib / Repair Services', 40)
+on conflict (code) do update
+set label = excluded.label,
+    sort_order = excluded.sort_order;
+
 with first_type as (
   select distinct on (sst.shop_id) sst.shop_id, sst.shop_type_id
   from public.shop_shop_types sst
@@ -169,11 +181,12 @@ begin
       where sa.shop_id = s.id and sa.alias_type = 'local_name'
       order by sa.id limit 1
     ) local_name on true
-    left join lateral (
+    join lateral (
       select st.code
       from public.shop_shop_types sst
       join public.shop_types st on st.id = sst.shop_type_id
-      where sst.shop_id = s.id and sst.is_primary
+      where sst.shop_id = s.id
+      order by sst.is_primary desc, st.sort_order, st.code
       limit 1
     ) primary_type on true
     left join lateral (
@@ -263,41 +276,58 @@ begin
     raise exception 'Limit must be between 1 and 50' using errcode = '22023';
   end if;
 
-  with candidates as (
+  -- Generate name and alias candidates independently so both trigram GIN
+  -- indexes can participate. Similarity is retained for ranking only; the
+  -- index-supported % operator controls fuzzy candidate selection.
+  with name_matches as (
     select
-      s.id, s.slug, s.name, s.country_code,
-      coalesce(l.name, s.city_display, s.country_code) as locality_name,
-      matched_alias.alias as matched_alias,
-      least(
-        case when lower(s.name) = v_query then 0 when lower(s.name) like v_query || '%' then 1 else 2 end,
-        coalesce(matched_alias.match_class, 3)
-      ) as match_class,
-      greatest(
-        extensions.similarity(lower(s.name), v_query),
-        coalesce(matched_alias.score, 0)
-      ) as score
+      s.id as shop_id,
+      null::text as matched_alias,
+      case when lower(s.name) = v_query then 0
+        when lower(s.name) like v_query || '%' then 1 else 2 end as match_class,
+      extensions.similarity(lower(s.name), v_query) as score,
+      0 as source_rank,
+      s.id as match_id
     from public.shops s
-    left join public.localities l on l.id = s.locality_id
-    left join lateral (
-      select sa.alias,
-        case when lower(sa.alias) = v_query then 0
-          when lower(sa.alias) like v_query || '%' then 1 else 2 end as match_class,
-        extensions.similarity(lower(sa.alias), v_query) as score
-      from public.shop_aliases sa
-      where sa.shop_id = s.id
-        and (lower(sa.alias) like v_query || '%' or extensions.similarity(lower(sa.alias), v_query) >= 0.2)
-      order by match_class, score desc, sa.id
-      limit 1
-    ) matched_alias on true
     where s.publication_status = 'published'
       and (
         lower(s.name) like v_query || '%'
-        or extensions.similarity(lower(s.name), v_query) >= 0.2
-        or matched_alias.alias is not null
+        or lower(s.name) operator(extensions.%) v_query
       )
+  ), alias_matches as (
+    select
+      sa.shop_id,
+      sa.alias as matched_alias,
+      case when lower(sa.alias) = v_query then 0
+        when lower(sa.alias) like v_query || '%' then 1 else 2 end as match_class,
+      extensions.similarity(lower(sa.alias), v_query) as score,
+      1 as source_rank,
+      sa.id as match_id
+    from public.shop_aliases sa
+    join public.shops s on s.id = sa.shop_id
+    where s.publication_status = 'published'
+      and (
+        lower(sa.alias) like v_query || '%'
+        or lower(sa.alias) operator(extensions.%) v_query
+      )
+  ), best_match as (
+    select distinct on (shop_id)
+      shop_id, matched_alias, match_class, score
+    from (
+      select * from name_matches
+      union all
+      select * from alias_matches
+    ) matches
+    order by shop_id, match_class, score desc, source_rank, matched_alias, match_id
   ), ranked as (
-    select * from candidates
-    order by match_class, score desc, name, id
+    select
+      s.id, s.slug, s.name, s.country_code,
+      coalesce(l.name, s.city_display, s.country_code) as locality_name,
+      bm.matched_alias, bm.match_class, bm.score
+    from best_match bm
+    join public.shops s on s.id = bm.shop_id
+    left join public.localities l on l.id = s.locality_id
+    order by bm.match_class, bm.score desc, s.name, s.id
     limit p_limit
   )
   select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
