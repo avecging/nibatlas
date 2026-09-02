@@ -78,5 +78,6 @@ jobs:
           version: latest
       - run: supabase start -x realtime,imgproxy,edge-runtime,logflare,vector,supavisor
       - run: supabase db reset
+      - run: supabase test db
       - if: always()
         run: supabase stop --no-backup
