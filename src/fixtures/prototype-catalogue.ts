@@ -52,6 +52,7 @@ const RETRIEVED = "2026-08-26";
 
 const SOURCES = {
   aestheticBay: {
+    id: "00000000-0000-4000-8000-000000000101",
     label: "aestheticbay.com — Aesthetic Bay's own website",
     url: "https://www.aestheticbay.com/",
     retrievedOn: RETRIEVED,
@@ -59,6 +60,7 @@ const SOURCES = {
     confirms: ["Name", "Address", "Brands carried", "Shop type"],
   },
   sailorDealers: {
+    id: "00000000-0000-4000-8000-000000000102",
     label: "sailorpen.com — Sailor's own dealer directory",
     url: "https://sailorpen.com/dealer/fook-hing-trading-co/",
     retrievedOn: RETRIEVED,
@@ -66,6 +68,7 @@ const SOURCES = {
     confirms: ["Name", "Address", "Opening hours", "Sailor stockist"],
   },
   itoya: {
+    id: "00000000-0000-4000-8000-000000000103",
     label: "ito-ya.co.jp — Itoya's own store directory",
     url: "https://www.ito-ya.co.jp/store/index.html",
     retrievedOn: RETRIEVED,
@@ -73,6 +76,7 @@ const SOURCES = {
     confirms: ["Name", "Local-script name", "Address", "Opening hours", "Founded 1904"],
   },
   nagasawa: {
+    id: "00000000-0000-4000-8000-000000000104",
     label: "kobe-nagasawa.co.jp — NAGASAWA's own store list",
     url: "https://kobe-nagasawa.co.jp/",
     retrievedOn: RETRIEVED,
@@ -80,6 +84,7 @@ const SOURCES = {
     confirms: ["Name", "Local-script name", "Kobe stores exist"],
   },
   penHouse: {
+    id: "00000000-0000-4000-8000-000000000105",
     label: "penhouse.com.tw — Pen House's own website",
     url: "https://www.penhouse.com.tw/",
     retrievedOn: RETRIEVED,
@@ -87,12 +92,14 @@ const SOURCES = {
     confirms: ["Local-script name", "Address", "Opening hours", "Brands carried"],
   },
   penHouseDistrict: {
+    id: "00000000-0000-4000-8000-000000000106",
     label: "penguinma.com — community shop write-up naming the district",
     retrievedOn: RETRIEVED,
     kind: "community_list",
     confirms: ["District (East District, Tainan)", "English name Pen House"],
   },
   skb: {
+    id: "00000000-0000-4000-8000-000000000107",
     label: "skb.com.tw — SKB's own website",
     url: "https://www.skb.com.tw/",
     retrievedOn: RETRIEVED,
@@ -100,12 +107,14 @@ const SOURCES = {
     confirms: ["Local-script name", "Kaohsiung company base", "Taiwanese pen maker"],
   },
   founderTaiwan: {
+    id: "00000000-0000-4000-8000-000000000108",
     label: "Founder field notes and journal photograph, Taiwan, March 2026",
     retrievedOn: "2026-03-16",
     kind: "founder_visit",
     confirms: ["Shop visited", "Locality"],
   },
   tyLee: {
+    id: "00000000-0000-4000-8000-000000000109",
     label: "tylee.tw — TY Lee Pen Shop's own website",
     url: "https://www.tylee.tw/",
     retrievedOn: RETRIEVED,
@@ -113,6 +122,7 @@ const SOURCES = {
     confirms: ["Local-script name"],
   },
   inkantadora: {
+    id: "00000000-0000-4000-8000-000000000110",
     label: "inkantadora.com — community Taiwan pen and stationery shop list",
     url: "https://www.inkantadora.com/inkantadora/2019/5/27/taiwan-stationery-shopping-list",
     retrievedOn: RETRIEVED,

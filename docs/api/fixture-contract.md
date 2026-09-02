@@ -129,13 +129,14 @@ walk-in or a three-day send-in, which is the distinction the section exists to
 make. **Nothing populated any of the three fields in their old form**, so no data
 was migrated and no other surface read them.
 
-### Every pen-specific claim names a source that confirms *it*
+### Every pen-specific claim names a source UUID that confirms *it*
 
-Each entry carries `confirmedBy: string`, holding the `label` of one of the
-record's own `sources` entries. This reuses the evidence registry that already
-exists — `ShopSourceRef` is unchanged, `confirms` is still the field-level
-evidence list it always was, and reviewer mode still renders the whole list with
-its retrieval dates.
+Each entry carries `confirmedBy: string`, holding the stable UUID `id` of one of
+the record's own `sources` entries. Labels remain display prose and may change
+without breaking evidence references. `confirms` remains the field-level
+evidence list, and reviewer mode still renders the whole list with its retrieval
+dates. `demo_fixture` is an explicit source kind for fixture/demo records; it is
+never cast to one of the real evidence kinds.
 
 `shopEvidenceIssues` in `src/domain/shop-evidence.ts` checks **two** things per
 claim, and `prototype-catalogue.test.ts` asserts the result is empty for every
@@ -147,7 +148,7 @@ record:
    (`failure: "claim-not-confirmed"`).
 
 The second check exists because the first alone is not honesty. TY Lee's official
-source confirms only `Local-script name`; label-existence alone would have let a
+source confirms only `Local-script name`; source-existence alone would have let a
 nib-grinding service cite it and publish.
 
 A pen-specific claim's `confirms` entry therefore has a canonical form, produced
@@ -185,25 +186,36 @@ dealer listing. An absent field is not checked; a present one is, including
 `appointmentRequired: { value: false }`, which is a claim about the shop rather
 than an absence.
 
-#### Milestone 3 mapping
+#### Milestone 3 WP1 mapping
 
 Milestone 3 should be able to satisfy the same shape from
-`GET /api/v1/shops/[slug]`. **Project `confirmedBy` from a stable source id, not
-from a display label** — that is the founder's recorded preference, and a label is
-display prose that can be reworded. The mapping:
+`GET /api/v1/shops/[slug]`. `confirmedBy` is projected from a stable source UUID,
+not a display label. The v1 runtime decoder validates the UUID, requires it to
+resolve within that record, and requires the referenced source's own `confirms`
+list to cover the claim token. The mapping:
 
 | Frontend | Database |
 | --- | --- |
 | `services[]`, `experiences[]`, `exclusives[]` | `shop_services` / `shop_specialties`-style join rows, one per claim |
 | a claim's `confirmedBy` | that join row's `source_id` → `shop_sources.id` |
 | an `access`/`practical` field's `confirmedBy` | the same, per attribute row |
-| the evidence token in `confirms` | derived server-side from the attribute row; the API need not send a token list at all if every claim already carries a resolved `source_id` |
+| the evidence token in `confirms` | projected from `shop_source_claims.claim_token` on the referenced source |
 
-`ShopSourceRef` gains an `id` at that point and `confirmedBy` becomes that id.
-Nothing in this PR asks for a schema change: the label reference is the smallest
-change compatible with the registry as it stands, and it fails loudly rather than
-silently if a label is reworded, because the catalogue test resolves every
-reference.
+`ShopSourceRef` now carries `id`, and both HTTP-backed and fixture-backed detail
+records use that same identity contract. The deterministic fixtures use reserved
+UUIDs so the fixture implementation remains valid through the shared seam.
+
+#### Milestone 3 WP1 HTTP boundary
+
+`createHttpShopSource` implements the existing `ShopSource` seam through the
+typed v1 HTTP client. Browser requests use only same-origin
+`/api/v1/shops/*` routes. Viewport, canonical search, detail, and Nearby payloads
+all pass through the v1 runtime decoders before reaching domain state.
+
+API and fixture selection is explicit. An HTTP/configuration failure is surfaced
+as a typed failure and never falls back to fixtures. Caller `AbortSignal` objects
+are passed through unchanged; cancellation is classified separately from HTTP or
+network failure. Nearby remains POST JSON so coordinates never appear in a URL.
 
 ### `nearbyPenShops` is derived, not stored
 

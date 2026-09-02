@@ -43,12 +43,24 @@ export interface ShopLink {
  * source actually supports, so a reviewer can tell a shop whose address came
  * from its own website from one whose locality came from a community list.
  */
+export const SHOP_SOURCE_KINDS = [
+  "official",
+  "brand_dealer_list",
+  "community_list",
+  "founder_visit",
+  "demo_fixture",
+] as const;
+
+export type ShopSourceKind = (typeof SHOP_SOURCE_KINDS)[number];
+
 export interface ShopSourceRef {
+  /** Stable source UUID. Display labels are mutable and never used as identity. */
+  readonly id: string;
   readonly label: string;
   readonly url?: string;
   /** ISO date the source was read, so freshness is never implied. */
   readonly retrievedOn: string;
-  readonly kind: "official" | "brand_dealer_list" | "community_list" | "founder_visit";
+  readonly kind: ShopSourceKind;
   readonly confirms: readonly string[];
 }
 
@@ -82,9 +94,10 @@ export const SERVICE_ACCESS_MODE_LABELS: Record<ServiceAccessMode, string> = {
 /**
  * A claim that names the source backing it.
  *
- * `confirmedBy` holds the `label` of one of the record's own {@link ShopSourceRef}
- * entries — the evidence registry that already exists — so a pen-specific claim
- * cannot be written without pointing at the source it came from.
+ * `confirmedBy` holds the stable `id` of one of the record's own
+ * {@link ShopSourceRef} entries — the evidence registry that already exists —
+ * so a pen-specific claim cannot be written without pointing at the source it
+ * came from.
  *
  * Naming the source is necessary but not sufficient. `shopEvidenceIssues` in
  * `src/domain/shop-evidence.ts` also requires the named source's own `confirms`
@@ -98,7 +111,7 @@ export const SERVICE_ACCESS_MODE_LABELS: Record<ServiceAccessMode, string> = {
  * practical details.
  */
 export interface SourcedClaim {
-  /** `ShopSourceRef.label` of the source that confirms this claim. */
+  /** Stable `ShopSourceRef.id` of the source that confirms this claim. */
   readonly confirmedBy: string;
 }
 
@@ -253,6 +266,7 @@ export const SOURCE_KIND_LABELS: Record<ShopSourceRef["kind"], string> = {
   brand_dealer_list: "Brand dealer listing",
   community_list: "Community shop list",
   founder_visit: "Founder visit note",
+  demo_fixture: "Demo fixture",
 };
 
 export const POSITION_PRECISION_LABELS: Record<PositionPrecision, string> = {

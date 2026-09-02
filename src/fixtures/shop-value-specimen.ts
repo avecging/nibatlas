@@ -31,7 +31,9 @@ import { PROTOTYPE_DESIGN_VERSION } from "@/src/fixtures/prototype-catalogue";
  * compares — so the record satisfies the rule the way a real sourced record will
  * have to, rather than bypassing it.
  */
-const SPECIMEN_SOURCE = "Specimen record — component styleguide only, not a real business";
+const SPECIMEN_SOURCE_ID = "00000000-0000-4000-8000-000000000201";
+const SPECIMEN_SOURCE_LABEL =
+  "Specimen record — component styleguide only, not a real business";
 
 export const SHOP_VALUE_SPECIMEN_NOTICE =
   "Specimen — an invented record for component review, not a real business";
@@ -62,19 +64,19 @@ export const shopValueSpecimen: ShopDetail = {
       label: "Nib alignment & tuning",
       accessMode: "walk_in",
       duration: "~30 min",
-      confirmedBy: SPECIMEN_SOURCE,
+      confirmedBy: SPECIMEN_SOURCE_ID,
     },
     {
       label: "Custom grind",
       accessMode: "booking",
       duration: "3–5 days",
       note: "Bring the pen you want ground.",
-      confirmedBy: SPECIMEN_SOURCE,
+      confirmedBy: SPECIMEN_SOURCE_ID,
     },
     {
       label: "Vintage sac replacement",
       accessMode: "send_in",
-      confirmedBy: SPECIMEN_SOURCE,
+      confirmedBy: SPECIMEN_SOURCE_ID,
     },
   ],
   experiences: [
@@ -82,44 +84,45 @@ export const shopValueSpecimen: ShopDetail = {
       label: "Test bench",
       detail: "40+ nibs to write with, free of charge.",
       bookingRequired: false,
-      confirmedBy: SPECIMEN_SOURCE,
+      confirmedBy: SPECIMEN_SOURCE_ID,
     },
     {
       label: "Monthly nib clinic",
       bookingRequired: true,
-      confirmedBy: SPECIMEN_SOURCE,
+      confirmedBy: SPECIMEN_SOURCE_ID,
     },
   ],
   exclusives: [
     {
       label: "House ink — Bench No.4",
       detail: "Mixed on site and sold in store only.",
-      confirmedBy: SPECIMEN_SOURCE,
+      confirmedBy: SPECIMEN_SOURCE_ID,
     },
   ],
   access: {
-    nearestStation: { value: "Specimen Station, exit B2", confirmedBy: SPECIMEN_SOURCE },
-    walkFromStation: { value: "4 minutes on foot", confirmedBy: SPECIMEN_SOURCE },
+    nearestStation: { value: "Specimen Station, exit B2", confirmedBy: SPECIMEN_SOURCE_ID },
+    walkFromStation: { value: "4 minutes on foot", confirmedBy: SPECIMEN_SOURCE_ID },
     floorNote: {
       value: "Third floor of the Specimen Building; use the rear lift.",
-      confirmedBy: SPECIMEN_SOURCE,
+      confirmedBy: SPECIMEN_SOURCE_ID,
     },
     accessibilityNote: {
       value: "Step-free from the lift lobby.",
-      confirmedBy: SPECIMEN_SOURCE,
+      confirmedBy: SPECIMEN_SOURCE_ID,
     },
   },
   practical: {
-    paymentMethods: { values: ["Cash", "Credit card"], confirmedBy: SPECIMEN_SOURCE },
-    languages: { values: ["Japanese", "English"], confirmedBy: SPECIMEN_SOURCE },
-    appointmentRequired: { value: false, confirmedBy: SPECIMEN_SOURCE },
+    paymentMethods: { values: ["Cash", "Credit card"], confirmedBy: SPECIMEN_SOURCE_ID },
+    languages: { values: ["Japanese", "English"], confirmedBy: SPECIMEN_SOURCE_ID },
+    appointmentRequired: { value: false, confirmedBy: SPECIMEN_SOURCE_ID },
   },
   positionPrecision: "street",
   sources: [
     {
-      label: SPECIMEN_SOURCE,
+      id: SPECIMEN_SOURCE_ID,
+      label: SPECIMEN_SOURCE_LABEL,
       retrievedOn: "2026-08-27",
-      kind: "founder_visit",
+      kind: "demo_fixture",
       // The field-level evidence list, in the canonical token form the validator
       // compares. Built from the helpers rather than typed out, so the specimen
       // cannot drift out of agreement with the claims above.

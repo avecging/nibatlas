@@ -1785,11 +1785,11 @@ business being described by content its sources do not support.
 
 ### Every claim names a source that confirms it
 
-Each pen-specific entry carries `confirmedBy`, holding the `label` of one of the
-record's own `sources` entries — and `shopEvidenceIssues` requires the named
+Each pen-specific entry carries `confirmedBy`, holding the stable UUID `id` of
+one of the record's own `sources` entries — and `shopEvidenceIssues` requires the named
 source's own `confirms` list to cover *that* claim, not merely to exist.
 
-The first version of this check tested label existence alone, which Codex's
+The first version of this check used labels and tested source existence alone, which Codex's
 review correctly called a P2: TY Lee's official source confirms only the shop's
 local-script name, so a nib-grinding service could have cited it and the
 catalogue test would have passed. Fixed by comparing a canonical evidence token —
@@ -1802,18 +1802,19 @@ a source that publishes a station cannot implicitly vouch for a payment method o
 a spoken language. That makes the hole unsayable rather than merely detectable,
 and lets one block rest on two sources.
 
-The evidence registry itself is unchanged: `ShopSourceRef`, the source list, its
-retrieval dates and its `confirms` breakdown are the same, and reviewer mode still
-renders them in full — the tokens are readable English precisely because it
-prints them verbatim.
+The evidence registry keeps its source list, retrieval dates and `confirms`
+breakdown, while `ShopSourceRef` now adds the stable UUID identity required by
+the database-backed v1 detail projection. Reviewer mode still renders the list
+in full — the tokens are readable English precisely because it prints them
+verbatim.
 
 `docs/api/fixture-contract.md` carries the field-by-field contract note, including
 the two Milestone 1 fields folded into the new sourced blocks, the `services`
 shape change, the per-field access and practical shapes, and the Milestone 3
-mapping. **Decided by the founder, 27 August 2026:** that projection should use a
-stable source id rather than a display label; the label reference here is the
-smallest change compatible with the registry as it stands, and it fails loudly
-rather than silently because the catalogue test resolves every reference.
+mapping. **Decided by the founder, 27 August 2026 and implemented in Milestone 3
+WP1:** the projection and deterministic fixtures use stable source UUIDs rather
+than display labels, so rewording a label cannot silently break an evidence
+reference.
 `ShopMapSummary` is untouched.
 
 ### Photography

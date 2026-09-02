@@ -9,7 +9,7 @@ import type {
  *
  * Accepted decision 4 lets Claude Code define the pen-specific schema and forbids
  * it inventing the content. A schema alone cannot enforce that, so every
- * pen-specific claim carries `confirmedBy` — the `label` of one of the record's
+ * pen-specific claim carries `confirmedBy` — the stable `id` of one of the record's
  * own `sources` entries — and this module checks two things, not one:
  *
  * 1. the reference resolves to a source actually attached to the record, and
@@ -23,8 +23,8 @@ import type {
  * a payment method or a spoken language.
  *
  * It reuses the evidence registry that already exists rather than adding a
- * second one: `ShopSourceRef` is unchanged, `confirms` is still the field-level
- * evidence list it always was, and reviewer mode still renders the whole list
+ * second one: `ShopSourceRef` is the shared evidence identity, `confirms` is still
+ * the field-level evidence list, and reviewer mode still renders the whole list
  * with its retrieval dates.
  *
  * What is new is that a pen-specific claim's entry in `confirms` has a canonical
@@ -91,7 +91,7 @@ export interface EvidenceIssue {
   readonly path: string;
   /** The evidence token the source had to confirm. */
   readonly token: string;
-  /** The `ShopSourceRef.label` the claim pointed at. */
+  /** The stable `ShopSourceRef.id` the claim pointed at. */
   readonly confirmedBy: string;
   readonly failure: EvidenceFailure;
 }
@@ -102,30 +102,35 @@ export interface EvidenceIssue {
  * Returns an empty array when the named source exists **and** confirms the
  * claim's own token; otherwise the single issue explaining which half failed.
  */
+export function sourceEvidenceFailure(
+  sources: readonly ShopSourceRef[],
+  confirmedBy: string,
+  token: string,
+): EvidenceFailure | null {
+  const source = sources.find((entry) => entry.id === confirmedBy);
+
+  if (source === undefined) {
+    return "unknown-source";
+  }
+
+  return confirmsSet(source).has(normalise(token)) ? null : "claim-not-confirmed";
+}
+
 function claimIssues(
   shop: ShopDetail,
   path: string,
   token: string,
   claim: SourcedClaim,
 ): readonly EvidenceIssue[] {
-  const source = shop.sources.find((entry) => entry.label === claim.confirmedBy);
+  const failure = sourceEvidenceFailure(shop.sources, claim.confirmedBy, token);
 
-  if (source === undefined) {
+  if (failure !== null) {
     return [
-      { path, token, confirmedBy: claim.confirmedBy, failure: "unknown-source" },
+      { path, token, confirmedBy: claim.confirmedBy, failure },
     ];
   }
 
-  return confirmsSet(source).has(normalise(token))
-    ? []
-    : [
-        {
-          path,
-          token,
-          confirmedBy: claim.confirmedBy,
-          failure: "claim-not-confirmed",
-        },
-      ];
+  return [];
 }
 
 /**

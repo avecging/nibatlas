@@ -21,6 +21,7 @@ const SOURCE_PHRASES: Record<ShopSourceRef["kind"], string> = {
   brand_dealer_list: "a brand's dealer listing",
   community_list: "a community shop list",
   founder_visit: "a Nib Atlas visit",
+  demo_fixture: "demo fixture evidence",
 };
 
 /**
@@ -35,6 +36,7 @@ const SOURCE_ORDER: readonly ShopSourceRef["kind"][] = [
   "brand_dealer_list",
   "community_list",
   "founder_visit",
+  "demo_fixture",
 ];
 
 /** Formats an ISO date as the plain English the copy uses: `26 August 2026`. */

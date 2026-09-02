@@ -12,6 +12,7 @@ import { findPrototypeShop, prototypeShopDetails } from "@/src/fixtures/prototyp
 
 function source(overrides: Partial<ShopSourceRef> = {}): ShopSourceRef {
   return {
+    id: "00000000-0000-4000-8000-000000000901",
     label: "Example",
     retrievedOn: "2026-08-26",
     kind: "official",
@@ -196,6 +197,7 @@ describe("provenance sentence", () => {
           brand_dealer_list: "a brand's dealer listing",
           community_list: "a community shop list",
           founder_visit: "a Nib Atlas visit",
+          demo_fixture: "demo fixture evidence",
         }[kind];
 
         expect(sentence, `${shop.slug} omits ${kind}`).toContain(phrase);
