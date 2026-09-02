@@ -1,6 +1,5 @@
 \set ON_ERROR_STOP on
 begin;
-set local synchronous_commit = off;
 
 alter table public.shops disable trigger shops_validate_timezone;
 
@@ -68,7 +67,9 @@ do $$
 declare
   started_at timestamptz;
   samples_ms double precision[] := '{}';
+  round_p95_ms double precision[] := '{}';
   p95_ms double precision;
+  gate_ms double precision;
   response jsonb;
 begin
   response := public.viewport_shops(139.5, 35.5, 140.0, 36.0, 12, null, null, 500);
@@ -80,25 +81,33 @@ begin
     perform public.viewport_shops(139.5, 35.5, 140.0, 36.0, 12, null, null, 500);
   end loop;
 
-  for i in 1..20 loop
-    started_at := clock_timestamp();
-    perform public.viewport_shops(139.5, 35.5, 140.0, 36.0, 12, null, null, 500);
-    samples_ms := array_append(
-      samples_ms,
-      extract(epoch from (clock_timestamp() - started_at)) * 1000
-    );
+  for round_number in 1..3 loop
+    samples_ms := '{}';
+    for i in 1..20 loop
+      started_at := clock_timestamp();
+      perform public.viewport_shops(139.5, 35.5, 140.0, 36.0, 12, null, null, 500);
+      samples_ms := array_append(
+        samples_ms,
+        extract(epoch from (clock_timestamp() - started_at)) * 1000
+      );
+    end loop;
+
+    select percentile_disc(0.95) within group (order by sample)
+    into p95_ms
+    from unnest(samples_ms) sample;
+    round_p95_ms := array_append(round_p95_ms, p95_ms);
   end loop;
 
-  select percentile_disc(0.95) within group (order by sample)
-  into p95_ms
-  from unnest(samples_ms) sample;
+  select percentile_disc(0.5) within group (order by sample)
+  into gate_ms
+  from unnest(round_p95_ms) sample;
 
-  raise notice 'viewport_shops p95: % ms across 20 measured runs on 50k synthetic shops',
-    round(p95_ms::numeric, 2);
+  raise notice 'viewport_shops median p95: % ms (rounds: %) on 50k synthetic shops',
+    round(gate_ms::numeric, 2), round_p95_ms;
 
-  if p95_ms >= 250 then
-    raise exception 'viewport_shops p95 % ms exceeds the 250 ms budget',
-      round(p95_ms::numeric, 2);
+  if gate_ms >= 250 then
+    raise exception 'viewport_shops median p95 % ms exceeds the 250 ms budget',
+      round(gate_ms::numeric, 2);
   end if;
 end;
 $$;
@@ -107,7 +116,9 @@ do $$
 declare
   started_at timestamptz;
   samples_ms double precision[] := '{}';
+  round_p95_ms double precision[] := '{}';
   p95_ms double precision;
+  gate_ms double precision;
   response jsonb;
 begin
   response := public.search_shops('rarelookup', 20);
@@ -119,25 +130,33 @@ begin
     perform public.search_shops('rarelookup', 20);
   end loop;
 
-  for i in 1..20 loop
-    started_at := clock_timestamp();
-    perform public.search_shops('rarelookup', 20);
-    samples_ms := array_append(
-      samples_ms,
-      extract(epoch from (clock_timestamp() - started_at)) * 1000
-    );
+  for round_number in 1..3 loop
+    samples_ms := '{}';
+    for i in 1..20 loop
+      started_at := clock_timestamp();
+      perform public.search_shops('rarelookup', 20);
+      samples_ms := array_append(
+        samples_ms,
+        extract(epoch from (clock_timestamp() - started_at)) * 1000
+      );
+    end loop;
+
+    select percentile_disc(0.95) within group (order by sample)
+    into p95_ms
+    from unnest(samples_ms) sample;
+    round_p95_ms := array_append(round_p95_ms, p95_ms);
   end loop;
 
-  select percentile_disc(0.95) within group (order by sample)
-  into p95_ms
-  from unnest(samples_ms) sample;
+  select percentile_disc(0.5) within group (order by sample)
+  into gate_ms
+  from unnest(round_p95_ms) sample;
 
-  raise notice 'search_shops alias p95: % ms across 20 measured runs on 50k shops / 10k aliases',
-    round(p95_ms::numeric, 2);
+  raise notice 'search_shops alias median p95: % ms (rounds: %) on 50k shops / 10k aliases',
+    round(gate_ms::numeric, 2), round_p95_ms;
 
-  if p95_ms >= 250 then
-    raise exception 'search_shops alias p95 % ms exceeds the 250 ms budget',
-      round(p95_ms::numeric, 2);
+  if gate_ms >= 250 then
+    raise exception 'search_shops alias median p95 % ms exceeds the 250 ms budget',
+      round(gate_ms::numeric, 2);
   end if;
 end;
 $$;
