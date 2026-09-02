@@ -86,6 +86,14 @@ alter table public.shops alter column appointment_required drop default;
 alter table public.shops alter column appointment_required drop not null;
 update public.shops set appointment_required = null where source_quality = 'demo';
 
+-- Storage stays extensible as jsonb, but the public contract requires an array
+-- of OpeningHoursEntry objects. The object wrapper leaves room for one note.
+alter table public.shops
+  add constraint shops_opening_hours_entries_array check (
+    opening_hours is null
+    or jsonb_typeof(opening_hours->'entries') = 'array'
+  );
+
 create index shops_location_geography_gist_idx
   on public.shops using gist ((location::extensions.geography));
 
@@ -214,12 +222,11 @@ begin
           'localityName', locality_name,
           'position', jsonb_build_object('latitude', latitude, 'longitude', longitude),
           'primaryType', primary_type,
-          'specialtyLine', specialty_line,
           'operationalStatus', operational_status,
           'markerState', 'unvisited',
           'sourceQuality', source_quality,
           'fixtureNotice', case when source_quality = 'demo' then 'Demo data' end
-        )) order by ordinal
+        )) || jsonb_build_object('specialtyLine', specialty_line) order by ordinal
       ) filter (where ordinal <= v_limit),
       '[]'::jsonb
     ),
@@ -331,7 +338,8 @@ as $$
     'positionPrecision', s.position_precision,
     'phone', s.phone,
     'websiteUrl', s.website_url,
-    'openingHours', s.opening_hours,
+    'openingHours', s.opening_hours->'entries',
+    'openingHoursNote', s.opening_hours->>'note',
     'appointmentRequired', s.appointment_required,
     'accessibilityNotes', s.accessibility_notes,
     'operationalStatus', s.operational_status,
@@ -342,6 +350,7 @@ as $$
     'services', coalesce(services.items, '[]'::jsonb),
     'brands', coalesce(brands.items, '[]'::jsonb),
     'links', coalesce(links.items, '[]'::jsonb),
+    'sources', coalesce(sources.items, '[]'::jsonb),
     'fixtureNotice', case when s.source_quality = 'demo' then 'Demo data' end
   ))
   from public.shops s
@@ -378,6 +387,16 @@ as $$
     )) order by sl.sort_order, sl.id) as items
     from public.shop_links sl where sl.shop_id = s.id and sl.is_official
   ) links on true
+  left join lateral (
+    select jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+      'id', ss.id,
+      'kind', ss.source_type,
+      'url', ss.source_url,
+      'retrievedOn', to_char(ss.checked_at at time zone 'UTC', 'YYYY-MM-DD')
+    )) order by ss.checked_at, ss.id) as items
+    from public.shop_sources ss
+    where ss.shop_id = s.id
+  ) sources on true
   where s.publication_status = 'published' and s.slug = p_slug;
 $$;
 
