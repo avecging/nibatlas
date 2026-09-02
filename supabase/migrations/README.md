@@ -13,6 +13,10 @@ empty local Supabase project.
   Me reads. It also installs the approved shop-type vocabulary required by clean
   deployments; demo rows remain seed-only. The functions expose published
   projections only; Near Me coordinates are statement-local and never persisted.
+- `20260902000300_m2_api_provenance.sql` adds stable public source labels,
+  controlled source kinds, claim-level evidence tokens, and source-UUID claim
+  references for the versioned application API. Canonical evidence rows remain
+  closed to browser roles.
 
 `supabase/performance/viewport_50k.sql` enforces the approved sub-250 ms p95
 database budget against dense viewport and selective alias-search paths in a

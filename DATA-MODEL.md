@@ -1,8 +1,8 @@
 # Nib Atlas Data Model
 
 **Status:** Production-shaped MVP model
-**Version:** 1.0
-**Last updated:** 1 September 2026
+**Version:** 1.1
+**Last updated:** 2 September 2026
 
 ## Modelling principles
 
@@ -83,7 +83,7 @@ Normalized geographic grouping for Passport and search.
 | `phone` | `text null` | |
 | `website_url` | `text null` | Official site only |
 | `opening_hours` | `jsonb` | MVP representation; normalized later if editing proves awkward |
-| `appointment_required` | `boolean default false` | |
+| `appointment_required` | `boolean null` | Unknown remains null; `false` is a sourced factual claim, not a default |
 | `accessibility_notes` | `text null` | Factual, not inferred |
 | `operational_status` | `text` | `open`, `temporarily_closed`, `permanently_closed`, `unknown` |
 | `publication_status` | `text` | `draft`, `published`, `archived` |
@@ -150,13 +150,26 @@ Join tables may carry `note`, `confidence`, `source_id`, and `last_verified_at`.
 
 | Column | Notes |
 | --- | --- |
-| `id`, `shop_id` | |
-| `source_type` | Official website/social, directory, direct verification, etc. |
+| `id`, `shop_id` | Stable source identity scoped to one shop |
+| `label` | Required public display label; not used as identity |
+| `source_type` | Controlled public kind: `official`, `brand_dealer_list`, `community_list`, `founder_visit`; `demo_fixture` is test/staging-only |
 | `source_url` | Evidence location |
 | `checked_at` | Freshness |
 | `reliability` | Controlled rating |
 | `evidence_note` | Admin-only concise note |
 | `status` | Active/stale/unavailable |
+
+Public detail responses expose only the safe source projection: stable `id`, `label`, controlled `kind`, optional URL, retrieval date, and explicit claim tokens. Admin evidence notes and reliability controls remain private. Sourced service claims refer to the stable source UUID as `confirmedBy`; display-label changes therefore cannot break evidence references.
+
+### `shop_source_claims`
+
+| Column | Notes |
+| --- | --- |
+| `shop_id`, `source_id` | Composite FK guarantees the source belongs to the same shop |
+| `claim_token` | Non-blank public token naming exactly what the source supports |
+| `created_at` | Audit timestamp |
+
+Primary key `(source_id, claim_token)`. The canonical registry is admin-only under RLS; `shop_detail` projects the safe tokens as each source's `confirms` list.
 
 ### `saved_shops`
 
