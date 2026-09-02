@@ -1,5 +1,5 @@
 begin;
-select plan(32);
+select plan(34);
 
 select has_function('public', 'viewport_shops', array[
   'double precision', 'double precision', 'double precision', 'double precision',
@@ -112,6 +112,11 @@ select is(
   'CJK alias prefix search finds the canonical shop'
 );
 select ok(
+  jsonb_array_length(public.search_shops('M2%', 20)->'shops') = 0
+    and jsonb_array_length(public.search_shops('M2_', 20)->'shops') = 0,
+  'search treats percent and underscore characters as literals rather than LIKE wildcards'
+);
+select ok(
   not exists (
     select 1
     from jsonb_array_elements(public.search_shops('M2 Draft Fixture', 20)->'shops') item
@@ -123,6 +128,10 @@ select is(
   public.shop_detail('m2-singapore-demo-fixture')->>'id',
   '00000000-0000-4000-8000-000000000301',
   'detail returns a published shop'
+);
+select ok(
+  not (public.shop_detail('m2-singapore-demo-fixture') ? 'addressLines'),
+  'detail omits an absent address rather than returning an empty array'
 );
 select ok(
   jsonb_array_length(public.shop_detail('m2-singapore-demo-fixture')->'sources') = 1
