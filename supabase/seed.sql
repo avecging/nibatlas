@@ -80,15 +80,14 @@ insert into public.shop_sources (
     'Invented deterministic fixture; not a real business.', 'active'
   );
 
-insert into public.shop_shop_types (shop_id, shop_type_id, source_id) values
+insert into public.shop_shop_types (shop_id, shop_type_id, source_id, is_primary) values
   (
     '00000000-0000-4000-8000-000000000301',
     '00000000-0000-4000-8000-000000000101',
-    '00000000-0000-4000-8000-000000000501'
+    '00000000-0000-4000-8000-000000000501', true
   ),
   (
     '00000000-0000-4000-8000-000000000302',
     '00000000-0000-4000-8000-000000000102',
-    '00000000-0000-4000-8000-000000000502'
+    '00000000-0000-4000-8000-000000000502', true
   );
-
