@@ -78,10 +78,10 @@ describe("HTTP shop read client", () => {
     const parsed = new URL(String(url));
     expect(parsed.pathname).toBe("/api/v1/shops/viewport");
     expect(Object.fromEntries(parsed.searchParams)).toEqual({
-      west: "103.7",
-      south: "1.2",
-      east: "104",
-      north: "1.5",
+      west: "103.7000000",
+      south: "1.2000000",
+      east: "104.0000000",
+      north: "1.5000000",
       zoom: "12",
       operationalStatus: "open,unknown",
       shopType: "fountain_pen_specialist,nib_repair_services",
@@ -89,6 +89,23 @@ describe("HTTP shop read client", () => {
     });
     expect(parsed.searchParams.has("statuses")).toBe(false);
     expect(init).toMatchObject({ method: "GET" });
+  });
+
+  it("encodes sub-microdegree bounds without exponential notation", async () => {
+    const bounds = { west: -0.0000001, south: -0.0000002, east: 0.0000001, north: 0.0000002 };
+    const fetchMock = jsonFetch({ shops: [], truncated: false, committedBounds: bounds });
+    const client = clientWith(fetchMock);
+
+    await client.fetchViewport({ bounds, zoom: 24 });
+
+    const parsed = new URL(String(fetchMock.mock.calls[0]![0]));
+    expect(Object.fromEntries(parsed.searchParams)).toMatchObject({
+      west: "-0.0000001",
+      south: "-0.0000002",
+      east: "0.0000001",
+      north: "0.0000002",
+    });
+    expect(parsed.search).not.toMatch(/e[+-]?\d/i);
   });
 
   it("preserves multilingual canonical search text and its limit", async () => {
@@ -111,6 +128,17 @@ describe("HTTP shop read client", () => {
     expect(String(fetchMock.mock.calls[0]![0])).toBe(
       "https://nibatlas.test/api/v1/shops/shop%20%2F%20slug",
     );
+  });
+
+  it("does not turn an unevidenced 404 into an absent shop", async () => {
+    const fetchMock = jsonFetch({ message: "proxy route missing" }, 404);
+    const client = clientWith(fetchMock);
+
+    await expect(client.fetchShopDetail("existing-shop")).rejects.toMatchObject({
+      name: "ShopReadHttpError",
+      status: 404,
+      code: undefined,
+    });
   });
 
   it("keeps Nearby coordinates in POST JSON and out of the URL", async () => {
@@ -189,14 +217,20 @@ describe("HTTP shop read client", () => {
       code: "read_service_unavailable",
     });
 
+    const networkCause = new TypeError("network down");
     const fetchMock = vi.fn(async () => {
-      throw new TypeError("network down");
+      throw networkCause;
     });
     const offline = createHttpShopReadClient({
       fetch: fetchMock as unknown as typeof fetch,
     });
-    await expect(offline.searchCanonicalShops({ query: "Itoya" })).rejects.toEqual(
+    const request = offline.searchCanonicalShops({ query: "Itoya" });
+    await expect(request).rejects.toEqual(
       expect.objectContaining<Partial<ShopReadHttpError>>({ kind: "network", status: null }),
+    );
+    await expect(request).rejects.toHaveProperty(
+      "cause",
+      networkCause,
     );
   });
 

@@ -3,9 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import { ShopReadHttpError } from "@/src/api/v1/shop-read-client";
 import {
   createFixtureShopSource,
-  createHttpShopSource,
   AbortedError,
 } from "@/src/features/explore/shop-source";
+import { createHttpShopSource } from "@/src/features/explore/http-shop-source";
 import { prototypeShopSummaries } from "@/src/fixtures/prototype-catalogue";
 
 const japanBounds = { west: 128, south: 30, east: 146, north: 46 };

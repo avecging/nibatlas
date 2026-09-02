@@ -9,6 +9,12 @@ import {
   type ShopSearchV1,
 } from "@/src/api/v1/shop-read";
 import type { ViewportShopRequest, ViewportShopResponse } from "@/src/domain/shops";
+import {
+  ShopReadAbortedError,
+  ShopReadHttpError,
+} from "@/src/api/v1/shop-read-errors";
+
+export { ShopReadAbortedError, ShopReadHttpError } from "@/src/api/v1/shop-read-errors";
 
 export interface CanonicalShopSearchRequest {
   readonly query: string;
@@ -41,31 +47,6 @@ export interface ShopReadClient {
   ): Promise<NearbyShopsV1>;
 }
 
-export type ShopReadFailureKind = "network" | "http";
-
-export class ShopReadHttpError extends Error {
-  constructor(
-    readonly kind: ShopReadFailureKind,
-    readonly status: number | null,
-    readonly code?: string,
-  ) {
-    super(
-      kind === "http"
-        ? `Shop read request failed with HTTP ${status ?? "error"}`
-        : "Shop read request failed before receiving a response",
-    );
-    this.name = "ShopReadHttpError";
-  }
-}
-
-/** Cancellation is control flow, not a user-visible upstream failure. */
-export class ShopReadAbortedError extends Error {
-  constructor() {
-    super("Shop read request aborted");
-    this.name = "ShopReadAbortedError";
-  }
-}
-
 export interface HttpShopReadClientOptions {
   /** Omit in the browser to use the same-origin `/api/v1/shops/*` routes. */
   readonly baseUrl?: string;
@@ -76,9 +57,12 @@ export interface HttpShopReadClientOptions {
 function isAbort(cause: unknown, signal?: AbortSignal): boolean {
   return (
     signal?.aborted === true ||
-    (cause instanceof DOMException && cause.name === "AbortError") ||
     (cause instanceof Error && cause.name === "AbortError")
   );
+}
+
+function coordinate(value: number): string {
+  return value.toFixed(7);
 }
 
 function endpoint(baseUrl: string | undefined, path: string, query?: URLSearchParams): string {
@@ -89,7 +73,7 @@ function endpoint(baseUrl: string | undefined, path: string, query?: URLSearchPa
 
 async function responseCode(response: Response): Promise<string | undefined> {
   try {
-    const value: unknown = await response.clone().json();
+    const value: unknown = await response.json();
     if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
     const error = (value as Record<string, unknown>)["error"];
     if (typeof error !== "object" || error === null || Array.isArray(error)) return undefined;
@@ -114,7 +98,7 @@ async function requestJson(
     response = await fetcher(input, init);
   } catch (cause) {
     if (isAbort(cause, signal)) throw new ShopReadAbortedError();
-    throw new ShopReadHttpError("network", null);
+    throw new ShopReadHttpError("network", null, undefined, { cause });
   }
 
   if (signal?.aborted) throw new ShopReadAbortedError();
@@ -144,10 +128,10 @@ export function createHttpShopReadClient(
   return {
     async fetchViewport(request, signal) {
       const query = new URLSearchParams({
-        west: String(request.bounds.west),
-        south: String(request.bounds.south),
-        east: String(request.bounds.east),
-        north: String(request.bounds.north),
+        west: coordinate(request.bounds.west),
+        south: coordinate(request.bounds.south),
+        east: coordinate(request.bounds.east),
+        north: coordinate(request.bounds.north),
         zoom: String(request.zoom),
       });
 
@@ -190,7 +174,13 @@ export function createHttpShopReadClient(
         );
         return decodeShopDetailV1(value);
       } catch (cause) {
-        if (cause instanceof ShopReadHttpError && cause.status === 404) return null;
+        if (
+          cause instanceof ShopReadHttpError &&
+          cause.status === 404 &&
+          cause.code === "shop_not_found"
+        ) {
+          return null;
+        }
         throw cause;
       }
     },

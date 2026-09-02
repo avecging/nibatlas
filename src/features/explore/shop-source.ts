@@ -5,11 +5,7 @@ import type {
   ViewportShopResponse,
 } from "@/src/domain/shops";
 import { prototypeShopSummaries } from "@/src/fixtures/prototype-catalogue";
-import {
-  createHttpShopReadClient,
-  ShopReadAbortedError,
-  type HttpShopReadClientOptions,
-} from "@/src/api/v1/shop-read-client";
+import { ShopReadAbortedError } from "@/src/api/v1/shop-read-errors";
 
 /**
  * Milestone 1 data seam.
@@ -89,19 +85,6 @@ export function createFixtureShopSource(
         truncated: matched.length > limit,
         committedBounds: request.bounds,
       };
-    },
-  };
-}
-
-/** HTTP implementation of the existing explore seam. No fixture fallback. */
-export function createHttpShopSource(
-  options: HttpShopReadClientOptions = {},
-): ShopSource {
-  const client = createHttpShopReadClient(options);
-
-  return {
-    fetchViewport(request, signal) {
-      return client.fetchViewport(request, signal);
     },
   };
 }

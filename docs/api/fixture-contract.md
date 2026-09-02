@@ -217,6 +217,14 @@ as a typed failure and never falls back to fixtures. Caller `AbortSignal` object
 are passed through unchanged; cancellation is classified separately from HTTP or
 network failure. Nearby remains POST JSON so coordinates never appear in a URL.
 
+The detail decoder deliberately fails the whole contract when a sourced service
+does not have its matching claim token on the referenced source. WP2 must present
+that as unavailable detail rather than silently publish or drop the claim.
+Before real catalogue import, Milestone 6 import/admin validation must guarantee
+the `shop_services.source_id` and `shop_source_claims` pairing atomically; a
+deferrable database constraint trigger should be evaluated there as defence in
+depth. Existing deterministic data already satisfies the rule.
+
 ### `nearbyPenShops` is derived, not stored
 
 `src/domain/nearby-shops.ts` derives the "Nearby pen shops" section from the same
