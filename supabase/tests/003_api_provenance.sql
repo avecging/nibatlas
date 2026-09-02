@@ -34,7 +34,7 @@ select throws_ok($cross_shop_claim$
   insert into public.shop_source_claims (shop_id, source_id, claim_token) values (
     '00000000-0000-4000-8000-000000000301',
     '00000000-0000-4000-8000-000000000502',
-    'Name'
+    'Cross-shop test claim'
   )
 $cross_shop_claim$,
   '23503',
