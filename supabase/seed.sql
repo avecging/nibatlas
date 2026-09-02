@@ -53,26 +53,35 @@ insert into public.shop_aliases (id, shop_id, alias, language_tag, alias_type) v
 );
 
 insert into public.shop_sources (
-  id, shop_id, source_type, checked_at, reliability, evidence_note, status
+  id, shop_id, label, source_type, checked_at, reliability, evidence_note, status
 ) values
   (
     '00000000-0000-4000-8000-000000000501',
-    '00000000-0000-4000-8000-000000000301', 'demo_fixture',
+    '00000000-0000-4000-8000-000000000301', 'Demo fixture', 'demo_fixture',
     '2026-09-02 00:00:00+00', 'unknown',
     'Invented deterministic fixture; not a real business.', 'active'
   ),
   (
     '00000000-0000-4000-8000-000000000502',
-    '00000000-0000-4000-8000-000000000302', 'demo_fixture',
+    '00000000-0000-4000-8000-000000000302', 'Demo fixture', 'demo_fixture',
     '2026-09-02 00:00:00+00', 'unknown',
     'Invented deterministic fixture; not a real business.', 'active'
   ),
   (
     '00000000-0000-4000-8000-000000000503',
-    '00000000-0000-4000-8000-000000000303', 'demo_fixture',
+    '00000000-0000-4000-8000-000000000303', 'Demo fixture', 'demo_fixture',
     '2026-09-02 00:00:00+00', 'unknown',
     'Invented deterministic fixture; not a real business.', 'active'
   );
+
+insert into public.shop_source_claims (shop_id, source_id, claim_token) values
+  ('00000000-0000-4000-8000-000000000301', '00000000-0000-4000-8000-000000000501', 'Name'),
+  ('00000000-0000-4000-8000-000000000301', '00000000-0000-4000-8000-000000000501', 'Short description'),
+  ('00000000-0000-4000-8000-000000000301', '00000000-0000-4000-8000-000000000501', 'Shop type: Fountain Pen Specialist'),
+  ('00000000-0000-4000-8000-000000000302', '00000000-0000-4000-8000-000000000502', 'Name'),
+  ('00000000-0000-4000-8000-000000000302', '00000000-0000-4000-8000-000000000502', 'Local-script name'),
+  ('00000000-0000-4000-8000-000000000302', '00000000-0000-4000-8000-000000000502', 'Shop type: Stationery Store'),
+  ('00000000-0000-4000-8000-000000000303', '00000000-0000-4000-8000-000000000503', 'Name');
 
 insert into public.shop_shop_types (shop_id, shop_type_id, source_id, is_primary) values
   (

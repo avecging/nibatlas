@@ -1,6 +1,6 @@
 # Milestone 2 public read contract
 
-**Status:** Database RPC contract for Milestone 3 integration  
+**Status:** Database RPC contract wrapped by API v1  
 **Version:** 1  
 **Last updated:** 2 September 2026
 
@@ -55,17 +55,10 @@ and UTC retrieval date as `retrievedOn`). It excludes publication state, admin e
 reliability/internal source controls, and drafts. Nullable facts are omitted
 rather than replaced by plausible defaults.
 
-This is a safe database projection, not yet the complete frontend
-`ShopDetail`/`ShopSourceRef` contract. Before Milestone 3 route integration, the
-schema and adapter contract must settle all of the following together:
-
-- controlled source kinds versus the frontend's closed kind union;
-- public source `label` and claim-level `confirms` semantics;
-- source identifiers on sourced services and other controlled claims.
-
-Until that work lands, consumers must not infer that every returned source
-supports every shop claim, and must not pass these summaries directly to
-`shopEvidenceIssues` or represent them as complete `ShopSourceRef` objects.
+WP3 completes the safe source projection with controlled source kinds, public
+labels, claim-level `confirms`, and stable source UUIDs on sourced services.
+`confirmedBy` is an ID, never a display label. The versioned HTTP boundary and
+the exact Milestone 3 handoff are documented in `docs/api/v1-shop-reads.md`.
 
 Opening hours are stored as an object with an `entries` array and optional `note`
 so storage can evolve without changing the public shape. The RPC returns
