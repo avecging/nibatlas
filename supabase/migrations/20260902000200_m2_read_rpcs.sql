@@ -96,7 +96,9 @@ alter table public.shops
 -- not a safe default. jsonb_strip_nulls omits this from public detail when absent.
 alter table public.shops alter column appointment_required drop default;
 alter table public.shops alter column appointment_required drop not null;
-update public.shops set appointment_required = null where source_quality = 'demo';
+-- No writer existed while the old false default was live, so every false value
+-- came from that default rather than a verified factual claim.
+update public.shops set appointment_required = null where appointment_required = false;
 
 -- Storage stays extensible as jsonb, but the public contract requires an array
 -- of OpeningHoursEntry objects. The object wrapper leaves room for one note.
@@ -267,6 +269,9 @@ set search_path = pg_catalog, public, extensions
 as $$
 declare
   v_query text := lower(btrim(p_query));
+  v_prefix_pattern text := replace(
+    replace(replace(v_query, E'\\', E'\\\\'), '%', E'\\%'), '_', E'\\_'
+  ) || '%';
   v_result jsonb;
 begin
   if p_query is null or length(v_query) < 1 or length(v_query) > 120 then
@@ -284,14 +289,14 @@ begin
       s.id as shop_id,
       null::text as matched_alias,
       case when lower(s.name) = v_query then 0
-        when lower(s.name) like v_query || '%' then 1 else 2 end as match_class,
+        when starts_with(lower(s.name), v_query) then 1 else 2 end as match_class,
       extensions.similarity(lower(s.name), v_query) as score,
       0 as source_rank,
       s.id as match_id
     from public.shops s
     where s.publication_status = 'published'
       and (
-        lower(s.name) like v_query || '%'
+        lower(s.name) like v_prefix_pattern escape E'\\'
         or lower(s.name) operator(extensions.%) v_query
       )
   ), alias_matches as (
@@ -299,7 +304,7 @@ begin
       sa.shop_id,
       sa.alias as matched_alias,
       case when lower(sa.alias) = v_query then 0
-        when lower(sa.alias) like v_query || '%' then 1 else 2 end as match_class,
+        when starts_with(lower(sa.alias), v_query) then 1 else 2 end as match_class,
       extensions.similarity(lower(sa.alias), v_query) as score,
       1 as source_rank,
       sa.id as match_id
@@ -307,7 +312,7 @@ begin
     join public.shops s on s.id = sa.shop_id
     where s.publication_status = 'published'
       and (
-        lower(sa.alias) like v_query || '%'
+        lower(sa.alias) like v_prefix_pattern escape E'\\'
         or lower(sa.alias) operator(extensions.%) v_query
       )
   ), best_match as (
@@ -355,7 +360,10 @@ as $$
     'localName', local_name.alias,
     'localNameLang', local_name.language_tag,
     'shortDescription', s.short_description,
-    'addressLines', to_jsonb(array_remove(array[s.address_line_1, s.address_line_2], null)),
+    'addressLines', case
+      when s.address_line_1 is null and s.address_line_2 is null then null
+      else to_jsonb(array_remove(array[s.address_line_1, s.address_line_2], null))
+    end,
     'postalCode', s.postal_code,
     'countryCode', s.country_code,
     'localityName', coalesce(l.name, s.city_display, s.country_code),
