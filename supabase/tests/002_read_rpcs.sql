@@ -95,10 +95,13 @@ select is(
   'm2-tokyo-demo-fixture',
   'CJK alias prefix search finds the canonical shop'
 );
-select is(
-  jsonb_array_length(public.search_shops('M2 Draft Fixture', 20)->'shops'),
-  0,
-  'search excludes draft shops'
+select ok(
+  not exists (
+    select 1
+    from jsonb_array_elements(public.search_shops('M2 Draft Fixture', 20)->'shops') item
+    where item->>'slug' = 'm2-draft-fixture'
+  ),
+  'search excludes the matching draft shop even when published fuzzy matches exist'
 );
 select is(
   public.shop_detail('m2-singapore-demo-fixture')->>'id',
@@ -125,10 +128,12 @@ select is(
 
 select throws_ok(
   $$select public.viewport_shops(200, 0, 10, 20, 5)$$,
+  '22023', 'Invalid viewport bounds',
   'invalid viewport coordinates fail closed'
 );
 select throws_ok(
   $$select public.nearby_shops(91, 0, 1000, 10)$$,
+  '22023', 'Invalid coordinate',
   'invalid Near Me coordinates fail closed'
 );
 
@@ -140,7 +145,10 @@ select throws_ok($invalid_country$
     '00000000-0000-4000-8000-000000000201', 'Asia/Tokyo',
     extensions.st_setsrid(extensions.st_makepoint(139.7, 35.7), 4326)
   )
-$invalid_country$, 'a shop cannot reference a locality in another country');
+$invalid_country$,
+  '23503',
+  'insert or update on table "shops" violates foreign key constraint "shops_locality_country_fk"',
+  'a shop cannot reference a locality in another country');
 
 insert into public.services (id, code, label) values
   ('00000000-0000-4000-8000-000000000701', 'test_service', 'Test Service');
@@ -150,7 +158,10 @@ select throws_ok($cross_shop_source$
     '00000000-0000-4000-8000-000000000701',
     '00000000-0000-4000-8000-000000000502'
   )
-$cross_shop_source$, 'an attribute cannot cite another shop''s source');
+$cross_shop_source$,
+  '23503',
+  'insert or update on table "shop_services" violates foreign key constraint "shop_services_source_shop_fk"',
+  'an attribute cannot cite another shop''s source');
 
 select throws_ok($image_without_source$
   insert into public.shop_images (
@@ -161,18 +172,23 @@ select throws_ok($image_without_source$
     'Test image', 'Test credit', 'Permission granted',
     100, 100, 'image/jpeg', 'approved'
   )
-$image_without_source$, 'approved imagery requires a source URL');
+$image_without_source$,
+  '23514',
+  'new row for relation "shop_images" violates check constraint "approved_image_metadata"',
+  'approved imagery requires a source URL');
 
 select throws_ok($two_primary_types$
   insert into public.shop_shop_types (shop_id, shop_type_id, is_primary) values (
     '00000000-0000-4000-8000-000000000301',
     '00000000-0000-4000-8000-000000000102', true
   )
-$two_primary_types$, 'a shop cannot have two primary types');
+$two_primary_types$,
+  '23505',
+  'duplicate key value violates unique constraint "shop_shop_types_one_primary_idx"',
+  'a shop cannot have two primary types');
 
 select ok(not has_table_privilege('anon', 'public.shops', 'SELECT'),
   'RPC grants do not reopen canonical table access');
 
 select * from finish();
 rollback;
-
