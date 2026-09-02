@@ -49,9 +49,15 @@ Input: canonical shop slug.
 
 Returns one published detail projection or `null`. It includes public catalogue
 facts, official links, controlled attributes, conservative position precision,
-and freshness. It excludes publication state, admin evidence notes, internal
-source controls, and drafts. Nullable facts are omitted rather than replaced by
-plausible defaults.
+freshness, and safe source summaries (`id`, source kind, public URL where present,
+and UTC retrieval date as `retrievedOn`). It excludes publication state, admin evidence notes,
+reliability/internal source controls, and drafts. Nullable facts are omitted
+rather than replaced by plausible defaults.
+
+Opening hours are stored as an object with an `entries` array and optional `note`
+so storage can evolve without changing the public shape. The RPC returns
+`openingHours` as the existing `OpeningHoursEntry[]` array and the wrapper note as
+`openingHoursNote`.
 
 ## `nearby_shops`
 
