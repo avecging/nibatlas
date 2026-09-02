@@ -73,14 +73,18 @@ It may retain `confirms` for reviewer validation or derive equivalent checks fro
 the same source/claim projection, but it may not treat one source as supporting
 claims absent from that source's token list.
 
-## `GET /api/v1/shops/nearby`
+## `POST /api/v1/shops/nearby`
 
-Required: `latitude`, `longitude`. Optional `radiusMeters` is `1..100000`
-(default 10000) and `limit` is `1..100` (default 50).
+The JSON body requires numeric `latitude` and `longitude`. Optional numeric
+`radiusMeters` is an integer from `1..100000` (default 10000), and `limit` is
+an integer from `1..100` (default 50). Unknown body fields and non-JSON requests
+are rejected.
 
-The request is always `private, no-store`. Caller coordinates are sent only to
-the statement-local RPC, never returned, logged, persisted, or placed in public
-cache metadata. Returned `position` values are shop coordinates.
+The response is always `private, no-store`. Caller coordinates are sent only to
+the statement-local RPC in a request body, never placed in a URL, returned,
+persisted, or placed in public cache metadata. Keeping coordinates out of the URL
+prevents normal edge request logging from recording them. Returned `position`
+values are shop coordinates.
 
 ## Runtime validation
 

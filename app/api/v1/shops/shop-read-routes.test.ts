@@ -2,7 +2,7 @@ import { gzipSync } from "node:zlib";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { GET as getNearby } from "@/app/api/v1/shops/nearby/route";
+import { POST as postNearby } from "@/app/api/v1/shops/nearby/route";
 import { GET as getSearch } from "@/app/api/v1/shops/search/route";
 import { GET as getDetail } from "@/app/api/v1/shops/[slug]/route";
 import { GET as getViewport } from "@/app/api/v1/shops/viewport/route";
@@ -219,8 +219,8 @@ describe("GET /api/v1/shops/[slug]", () => {
   });
 });
 
-describe("GET /api/v1/shops/nearby", () => {
-  it("never makes a coordinate-bearing request cacheable", async () => {
+describe("POST /api/v1/shops/nearby", () => {
+  it("keeps precise coordinates out of the URL and the response cache", async () => {
     const fetchMock = accepts({
       shops: [{
         id: MAP_SHOP.id,
@@ -235,12 +235,21 @@ describe("GET /api/v1/shops/nearby", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const response = await getNearby(new Request(
-      "https://nibatlas.test/api/v1/shops/nearby?latitude=1.29027&longitude=103.851959&radiusMeters=1000&limit=10",
-    ));
+    const request = new Request("https://nibatlas.test/api/v1/shops/nearby", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        latitude: 1.29027,
+        longitude: 103.851959,
+        radiusMeters: 1000,
+        limit: 10,
+      }),
+    });
+    const response = await postNearby(request);
     const payload = await response.json() as Record<string, unknown>;
 
     expect(response.status).toBe(200);
+    expect(request.url).toBe("https://nibatlas.test/api/v1/shops/nearby");
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(payload).not.toHaveProperty("latitude");
     expect(payload).not.toHaveProperty("longitude");
@@ -248,6 +257,19 @@ describe("GET /api/v1/shops/nearby", () => {
       p_latitude: 1.29027,
       p_longitude: 103.851959,
     });
+  });
+
+  it("rejects unknown fields in coordinate bodies", async () => {
+    const fetchMock = accepts({});
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await postNearby(new Request("https://nibatlas.test/api/v1/shops/nearby", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ latitude: 1.2, longitude: 103.8, rawAccuracy: 5 }),
+    }));
+
+    expect(response.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 

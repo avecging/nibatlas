@@ -168,13 +168,35 @@ export async function getShopDetail(request: Request, slug: string): Promise<Res
   }
 }
 
-export async function getNearbyShops(request: Request): Promise<Response> {
+export async function postNearbyShops(request: Request): Promise<Response> {
   try {
-    const params = new URL(request.url).searchParams;
-    const latitude = finiteNumber(params, "latitude", -90, 90);
-    const longitude = finiteNumber(params, "longitude", -180, 180);
-    const radius = integer(params, "radiusMeters", 1, 100_000, 10_000);
-    const limit = integer(params, "limit", 1, 100, 50);
+    if (!request.headers.get("Content-Type")?.toLowerCase().startsWith("application/json")) {
+      throw new InputError();
+    }
+
+    let raw: unknown;
+    try {
+      raw = await request.json();
+    } catch {
+      throw new InputError();
+    }
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) throw new InputError();
+
+    const body = raw as Record<string, unknown>;
+    const allowed = new Set(["latitude", "longitude", "radiusMeters", "limit"]);
+    if (Object.keys(body).some((key) => !allowed.has(key))) throw new InputError();
+
+    const bodyNumber = (name: string, min: number, max: number, fallback?: number) => {
+      const candidate = body[name] === undefined ? fallback : body[name];
+      if (typeof candidate !== "number" || !Number.isFinite(candidate)
+        || candidate < min || candidate > max) throw new InputError();
+      return candidate;
+    };
+    const latitude = bodyNumber("latitude", -90, 90);
+    const longitude = bodyNumber("longitude", -180, 180);
+    const radius = bodyNumber("radiusMeters", 1, 100_000, 10_000);
+    const limit = bodyNumber("limit", 1, 100, 50);
+    if (!Number.isInteger(radius) || !Number.isInteger(limit)) throw new InputError();
 
     return execute("nearby_shops", {
       p_latitude: latitude,
