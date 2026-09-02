@@ -1,5 +1,5 @@
 begin;
-select plan(31);
+select plan(32);
 
 select has_function('public', 'viewport_shops', array[
   'double precision', 'double precision', 'double precision', 'double precision',
@@ -30,6 +30,17 @@ select ok(
     and public.viewport_shops(103.7, 1.2, 104.0, 1.5, 12)->'shops'->0->'specialtyLine' = 'null'::jsonb,
   'viewport preserves the required explicit null specialtyLine'
 );
+update public.shop_shop_types
+set is_primary = false
+where shop_id = '00000000-0000-4000-8000-000000000301';
+select is(
+  public.viewport_shops(103.7, 1.2, 104.0, 1.5, 12)->'shops'->0->>'primaryType',
+  'fountain_pen_specialist',
+  'viewport deterministically falls back to an assigned type when no row is marked primary'
+);
+update public.shop_shop_types
+set is_primary = true
+where shop_id = '00000000-0000-4000-8000-000000000301';
 select is(
   public.viewport_shops(103.7, 1.2, 104.0, 1.5, 12)->'committedBounds'->>'west',
   '103.7',
