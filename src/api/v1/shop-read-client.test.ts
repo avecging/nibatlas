@@ -108,6 +108,17 @@ describe("HTTP shop read client", () => {
     expect(parsed.search).not.toMatch(/e[+-]?\d/i);
   });
 
+  it("normalizes a renderer's fractional zoom to the RPC integer bucket", async () => {
+    const bounds = { west: 139.7, south: 35.6, east: 139.8, north: 35.7 };
+    const fetchMock = jsonFetch({ shops: [], truncated: false, committedBounds: bounds });
+    const client = clientWith(fetchMock);
+
+    await client.fetchViewport({ bounds, zoom: 14.625 });
+
+    const parsed = new URL(String(fetchMock.mock.calls[0]![0]));
+    expect(parsed.searchParams.get("zoom")).toBe("15");
+  });
+
   it("preserves multilingual canonical search text and its limit", async () => {
     const fetchMock = jsonFetch({ query: "第二期 東京", shops: [] });
     const client = clientWith(fetchMock);
