@@ -42,7 +42,8 @@ test — so the screenshot and the audit are always of the same render.
 | --- | --- |
 | `01-api-results` | API-backed results in the sheet and list, with the truncated-result notice the payload asks for |
 | `02-api-search-groups` | The search panel: canonical catalogue shops and destination places as separately labelled groups, with the matched alias on the canonical hit |
-| `03-api-failed-refresh` | A refresh that failed after results were already loaded: the previous results stay usable, the failure is stated, and **Retry** is offered |
+| `03-api-failed-refresh` | A refresh that failed after results were already loaded, with **Retry** in the map overlay |
+| `03b-api-failed-refresh-list` | The list side of the same state, where the sheet had hidden it: the previous results still usable, and the note saying which search they are from. Not captured at 1440 × 900, where the list is already beside the map |
 | `04-detail-unavailable` | A shop page whose detail read failed: the URL still resolves, nothing about the shop is claimed, and it is not a 404 |
 | `05-saved-scope` | The global Saved scope in API mode, saying plainly that listing every saved shop needs the account Milestone 4 introduces |
 
@@ -53,6 +54,9 @@ desktop treatment remains not designed and not approved
 (`docs/milestone-1-5-product-refinement.md`); nothing here is desktop sign-off.
 
 `04-detail-unavailable` is the unavailable-detail state, not a rendered API
-record. The shop page renders on the server, which reads the catalogue directly,
+record. That API mode withholds the simulated stamp collection is asserted
+directly in `src/components/shops/ShopActions.test.tsx`; it cannot be
+photographed here, because the page carrying that control is the one that could
+not be read. The shop page renders on the server, which reads the catalogue directly,
 so a browser-fulfilled route cannot serve it — a rendered API-backed shop page is
 part of the WP3 staging proof.

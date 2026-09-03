@@ -73,6 +73,30 @@ for (const route of ROUTES) {
 }
 
 /*
+ * The search panel is opened by typing, so the route audit above never sees it
+ * either — which is how it went unaudited while it was built out of `li`
+ * elements inside a `role="listbox"` list. It is now groups of options, and it
+ * is audited open, with both groups populated.
+ */
+test("the search panel is accessible with both result groups open", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("list", { name: /shops in the searched area/i })).toBeVisible();
+
+  await page.getByRole("combobox", { name: /search shops or places/i }).fill("Kaohsiung");
+
+  const listbox = page.getByRole("listbox", { name: /search results/i });
+  await expect(listbox).toBeVisible();
+  await expect(page.getByRole("group", { name: "Places" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Shops" })).toBeVisible();
+
+  const results = await analyze(page);
+
+  expect(
+    results.violations.map((violation) => `${violation.id}: ${violation.nodes.length}`),
+  ).toEqual([]);
+});
+
+/*
  * The filter drawer is a dialog reached by a control, so the route audit above
  * never sees it. It is audited open, and its keyboard contract is asserted here
  * rather than left to the visual review: focus moves in on open and back to the

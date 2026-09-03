@@ -104,6 +104,48 @@ describe("destination search", () => {
     }
   });
 
+  /*
+   * A listbox may contain options and groups, and nothing else. The panel was
+   * previously `li` elements inside a `role="listbox"` list, which made the two
+   * group headings read as choosable results and failed WCAG 1.3.1 twice.
+   */
+  it("exposes the groups as named groups of options, and nothing else", async () => {
+    vi.useFakeTimers();
+
+    try {
+      renderSearch(geocoderOf({ destinations: [PLACE], shops: [PLACED_SHOP] }));
+      await search("Ginza");
+
+      const listbox = screen.getByRole("listbox", { name: /search results/i });
+
+      expect(within(listbox).getByRole("group", { name: "Places" })).toBeInTheDocument();
+      expect(within(listbox).getByRole("group", { name: "Shops" })).toBeInTheDocument();
+      expect(within(listbox).queryAllByRole("listitem")).toHaveLength(0);
+      expect(within(listbox).getAllByRole("option")).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the empty and failed messages outside the listbox", async () => {
+    vi.useFakeTimers();
+
+    try {
+      renderSearch(geocoderOf({ destinations: [], shops: [] }));
+      await search("nothing");
+
+      const listbox = screen.getByRole("listbox", { name: /search results/i });
+
+      expect(within(listbox).queryAllByRole("option")).toHaveLength(0);
+      expect(
+        within(listbox).queryByText(/No places or catalogue shops match/),
+      ).not.toBeInTheDocument();
+      expect(screen.getByText(/No places or catalogue shops match/)).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("moves the map itself for a shop the supplier already placed", async () => {
     vi.useFakeTimers();
 

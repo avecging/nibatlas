@@ -290,75 +290,102 @@ export function DestinationSearch({
 
       {open ? (
         <div className={styles.panel}>
-          <ul id={listboxId} role="listbox" aria-label="Search results">
+          {/*
+            A listbox may contain options and groups, and nothing else.
+            Milestone 1 built the panel out of `li` elements inside a
+            `role="listbox"` `ul`, which axe rejects twice over: a list item
+            whose parent is no longer a list, and a listbox whose children are
+            not all options. Group headings were `li` too, so the two labels
+            were announced as if they were choosable results.
+
+            So the panel is groups of options, and each group is named by
+            `aria-label`. The visible heading stays — places and shops must be
+            distinguishable at a glance — but it is `aria-hidden`, because the
+            group already carries that name and hearing it twice is noise.
+          */}
+          <div id={listboxId} role="listbox" aria-label="Search results">
             {activeResults.destinations.length > 0 ? (
-              <li>
-                <p className={`${styles.groupLabel} ${styles.destinationKind}`}>Places</p>
-              </li>
-            ) : null}
-            {options
-              .filter((option) => option.kind === "destination")
-              .map((option) => (
-                <li
-                  key={option.id}
-                  id={`${listboxId}-${option.id}`}
-                  role="option"
-                  className={`${styles.option} ${styles.optionPlace}`}
-                  aria-selected={activeOption?.id === option.id}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => choose(option)}
+              <div role="group" aria-label="Places">
+                <p
+                  className={`${styles.groupLabel} ${styles.destinationKind}`}
+                  aria-hidden="true"
                 >
-                  <span className={styles.optionIcon} aria-hidden="true">
-                    <Icon name="map" size={18} />
-                  </span>
-                  <span className={styles.optionTitle}>
-                    {option.title}
-                    {option.localTitle ? (
-                      <>
-                        {" · "}
-                        <span lang={option.localTitleLang} dir="auto">
-                          {option.localTitle}
-                        </span>
-                      </>
-                    ) : null}
-                  </span>
-                  <span className={styles.optionMeta}>Place · {option.subtitle}</span>
-                </li>
-              ))}
+                  Places
+                </p>
+                {options
+                  .filter((option) => option.kind === "destination")
+                  .map((option) => (
+                    <div
+                      key={option.id}
+                      id={`${listboxId}-${option.id}`}
+                      role="option"
+                      className={`${styles.option} ${styles.optionPlace}`}
+                      aria-selected={activeOption?.id === option.id}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => choose(option)}
+                    >
+                      <span className={styles.optionIcon} aria-hidden="true">
+                        <Icon name="map" size={18} />
+                      </span>
+                      <span className={styles.optionTitle}>
+                        {option.title}
+                        {option.localTitle ? (
+                          <>
+                            {" · "}
+                            <span lang={option.localTitleLang} dir="auto">
+                              {option.localTitle}
+                            </span>
+                          </>
+                        ) : null}
+                      </span>
+                      <span className={styles.optionMeta}>Place · {option.subtitle}</span>
+                    </div>
+                  ))}
+              </div>
+            ) : null}
 
             {activeResults.shops.length > 0 ? (
-              <li>
-                <p className={`${styles.groupLabel} ${styles.shopKind}`}>Shops</p>
-              </li>
-            ) : null}
-            {options
-              .filter((option) => option.kind === "shop")
-              .map((option) => (
-                <li
-                  key={option.id}
-                  id={`${listboxId}-${option.id}`}
-                  role="option"
-                  className={`${styles.option} ${styles.optionShop}`}
-                  aria-selected={activeOption?.id === option.id}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => choose(option)}
+              <div role="group" aria-label="Shops">
+                <p
+                  className={`${styles.groupLabel} ${styles.shopKind}`}
+                  aria-hidden="true"
                 >
-                  <span className={styles.optionIcon} aria-hidden="true">
-                    <Icon name="seal" size={18} />
-                  </span>
-                  <span className={styles.optionTitle}>{option.title}</span>
-                  <span className={styles.optionMeta}>{option.subtitle}</span>
-                </li>
-              ))}
-
-            {!hasResults ? (
-              <li className={styles.empty}>
-                {failed
-                  ? "Search is unavailable right now. Try again in a moment."
-                  : "No places or catalogue shops match that search."}
-              </li>
+                  Shops
+                </p>
+                {options
+                  .filter((option) => option.kind === "shop")
+                  .map((option) => (
+                    <div
+                      key={option.id}
+                      id={`${listboxId}-${option.id}`}
+                      role="option"
+                      className={`${styles.option} ${styles.optionShop}`}
+                      aria-selected={activeOption?.id === option.id}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => choose(option)}
+                    >
+                      <span className={styles.optionIcon} aria-hidden="true">
+                        <Icon name="seal" size={18} />
+                      </span>
+                      <span className={styles.optionTitle}>{option.title}</span>
+                      <span className={styles.optionMeta}>{option.subtitle}</span>
+                    </div>
+                  ))}
+              </div>
             ) : null}
-          </ul>
+          </div>
+
+          {/*
+            Outside the listbox: a sentence is neither an option nor a group, and
+            putting it inside would make the listbox's children invalid again.
+          */}
+          {!hasResults ? (
+            <p className={styles.empty}>
+              {failed
+                ? "Search is unavailable right now. Try again in a moment."
+                : "No places or catalogue shops match that search."}
+            </p>
+          ) : null}
         </div>
       ) : null}
     </div>

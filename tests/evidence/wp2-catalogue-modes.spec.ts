@@ -168,11 +168,12 @@ async function openMap(page: Page) {
 }
 
 /** Below the desktop split the results live in a sheet, which opens at Peek. */
-async function raiseSheet(page: Page) {
+async function raiseSheet(page: Page): Promise<boolean> {
   const handle = page.getByRole("button", { name: /results sheet/i });
 
   if (!(await handle.isVisible().catch(() => false))) {
-    return;
+    // The desktop split has no sheet; the list is always open beside the map.
+    return false;
   }
 
   await handle.click();
@@ -182,6 +183,8 @@ async function raiseSheet(page: Page) {
   // The handle travels up as the sheet grows, leaving the pointer over a card.
   // A capture of a resting state should show it resting.
   await page.mouse.move(0, 0);
+
+  return true;
 }
 
 /**
@@ -243,8 +246,17 @@ for (const breakpoint of BREAKPOINTS) {
     await useNormalMode(page);
     await serveCatalogue(page);
     await openMap(page);
-    await raiseSheet(page);
-    await expect(page.getByRole("article", { name: "Kakimori" })).toBeVisible();
+
+    /*
+     * The place is chosen before the sheet is raised. At mobile widths a Full
+     * sheet covers the map overlay the search panel sits in, so an option click
+     * would be intercepted by the sheet — the same reason WP6's captures raise
+     * the sheet last.
+     */
+    await expect(page.getByTestId("explore")).toHaveAttribute(
+      "data-explore-status",
+      "idle",
+    );
 
     // The next refresh fails. The results in hand stay usable, the failure is
     // stated, and Retry is offered for the query they are under.
@@ -256,13 +268,30 @@ for (const breakpoint of BREAKPOINTS) {
       "data-explore-status",
       "error",
     );
-    await expect(page.getByRole("article", { name: "Kakimori" })).toBeVisible();
+
+    /*
+     * Retry lives in the map overlay, so it is captured with the sheet still at
+     * Peek: a Full sheet covers the pane it sits in. The list side of the same
+     * state — the retained results and the note explaining them — is the second
+     * capture.
+     */
     await expect(page.getByRole("button", { name: /search failed — retry/i })).toBeVisible();
     await capture(page, `${breakpoint.name}-03-api-failed-refresh`);
     await audit(page, `api-mode failed refresh at ${breakpoint.width}`);
+
+    const raised = await raiseSheet(page);
+
+    await expect(page.getByRole("article", { name: "Kakimori" })).toBeVisible();
+    await expect(page.getByText(/These results are from the previous search/)).toBeVisible();
+
+    // Only where the sheet hid the list. At desktop widths the capture above
+    // already shows both halves, and a duplicate file is not evidence.
+    if (raised) {
+      await capture(page, `${breakpoint.name}-03b-api-failed-refresh-list`);
+    }
   });
 
-  test(`api-mode collection is withheld at ${breakpoint.width}x${breakpoint.height}`, async ({
+  test(`a failed detail read is unavailable at ${breakpoint.width}x${breakpoint.height}`, async ({
     page,
   }) => {
     await page.setViewportSize(breakpoint);
