@@ -44,6 +44,7 @@ test("a failed API refresh keeps old results and Retry recovers", async ({ page,
   await expect(page.getByRole("article", { name: "M3 API Demo Shop" })).toBeVisible();
   await expect(page.getByText(/results are from the previous search/i)).toBeVisible();
 
+  await request.post("http://127.0.0.1:3100/control/recover");
   await page.getByRole("button", { name: /search failed — retry/i }).click();
   await expect(page.getByTestId("explore")).toHaveAttribute("data-explore-status", "idle");
   await expect(page.getByRole("article", { name: "M3 API Demo Shop" })).toBeVisible();
@@ -56,7 +57,7 @@ test("canonical shops and places remain separately named result groups", async (
   const listbox = page.getByRole("listbox", { name: /search results/i });
   await expect(listbox.getByRole("group", { name: "Places" })).toBeVisible();
   await expect(listbox.getByRole("group", { name: "Shops" })).toBeVisible();
-  await expect(listbox.getByRole("option").filter({ hasText: /Place ·/ })).toBeVisible();
+  await expect(listbox.getByRole("option").filter({ hasText: /Place ·/ }).first()).toBeVisible();
   await expect(
     listbox.getByRole("option").filter({ hasText: /Shop in the Nib Atlas catalogue/ }),
   ).toBeVisible();

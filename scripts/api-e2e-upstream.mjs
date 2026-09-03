@@ -70,7 +70,7 @@ async function bodyOf(request) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
 }
 
-let ginzaViewportAttempts = 0;
+let failGinzaViewport = true;
 
 const server = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", `http://127.0.0.1:${port}`);
@@ -81,7 +81,13 @@ const server = createServer(async (request, response) => {
   }
 
   if (url.pathname === "/control/reset" && request.method === "POST") {
-    ginzaViewportAttempts = 0;
+    failGinzaViewport = true;
+    send(response, 200, { ok: true });
+    return;
+  }
+
+  if (url.pathname === "/control/recover" && request.method === "POST") {
+    failGinzaViewport = false;
     send(response, 200, { ok: true });
     return;
   }
@@ -106,7 +112,7 @@ const server = createServer(async (request, response) => {
       // fails and its retry succeeds, giving Playwright a deterministic refresh
       // failure without a test-only branch in application code.
       const isGinza = Number(args.p_zoom) === 15 && Number(args.p_west) > 139;
-      if (isGinza && ginzaViewportAttempts++ === 0) {
+      if (isGinza && failGinzaViewport) {
         send(response, 503, { message: "deterministic retry fixture" });
         return;
       }
