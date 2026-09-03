@@ -17,6 +17,7 @@ import { MarkerStateBadge } from "@/src/components/ui/StatusBadge";
 import { countrySlug, type StampCollection } from "@/src/domain/passport";
 import type { ShopDetail } from "@/src/domain/shop-detail";
 import { markerStateFor } from "@/src/domain/user-state";
+import { useCatalogue } from "@/src/features/catalogue/CatalogueProvider";
 import { useCollection } from "@/src/features/collection/collection-store";
 import { noopTelemetry } from "@/src/features/map/telemetry";
 import { useReviewerMode } from "@/src/features/reviewer/ReviewerModeProvider";
@@ -55,6 +56,7 @@ function useMapPlatform(): MapPlatform {
 }
 
 export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
+  const catalogue = useCatalogue();
   const collection = useCollection();
   const reviewer = useReviewerMode();
   const platform = useMapPlatform();
@@ -66,6 +68,8 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
   const preflightRef = useDialogFocus<HTMLDivElement>(preflightOpen, closePreflight);
 
   const existing = collection.collectionForShop(shop.id);
+  /** Simulated collection is fixture/reviewer-only. See the button below. */
+  const { simulatedCollection } = catalogue;
 
   /*
    * The ceremony opens the Passport at the impression that was just pressed, not
@@ -146,23 +150,41 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
 
           Solid Plum before collection, the restrained Vermilion visited step
           after it: the invitation and its outcome are no longer the same colour.
+
+          "Both modes" is reviewer and normal, not fixture and API. The flow
+          issues a *simulated* impression from device-local state, and issue #25
+          keeps it out of API mode entirely: beside real catalogue records a
+          simulated stamp would read as a collection that had been verified.
+          Real issuance is Milestone 5.
         */}
-        <Button
-          variant={existing ? "collected" : "stamp"}
-          onClick={() =>
-            existing ? viewCollectedImpression(existing) : setPreflightOpen(true)
-          }
-        >
-          <Icon name="seal" size={18} />
-          {existing
-            ? "View Atlas Stamp"
-            : reviewer
-              ? "Collect Stamp (simulated)"
-              : "Collect Stamp"}
-        </Button>
+        {simulatedCollection ? (
+          <Button
+            variant={existing ? "collected" : "stamp"}
+            onClick={() =>
+              existing ? viewCollectedImpression(existing) : setPreflightOpen(true)
+            }
+          >
+            <Icon name="seal" size={18} />
+            {existing
+              ? "View Atlas Stamp"
+              : reviewer
+                ? "Collect Stamp (simulated)"
+                : "Collect Stamp"}
+          </Button>
+        ) : null}
       </div>
 
-      {existing ? (
+      {simulatedCollection ? null : (
+        <p className={styles.pendingNote} data-testid="collection-pending">
+          <span>
+            <strong>Atlas Stamps are not being issued yet.</strong> Collecting one
+            needs the location check that confirms you are standing in the shop,
+            and that arrives in a later release.
+          </span>
+        </p>
+      )}
+
+      {existing && simulatedCollection ? (
         <p className={styles.collected}>
           <span>
             <strong>Collected {existing.collectedOn}</strong>

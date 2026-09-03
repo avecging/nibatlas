@@ -16,6 +16,25 @@
   line-height: var(--type-body-sm-line);
 }
 
+/*
+ * The "not issued yet" note.
+ *
+ * Deliberately not `.collected`: that block carries the Visited state colour,
+ * and using it for a stamp that has *not* been collected would read as the
+ * opposite of what it says.
+ */
+.pendingNote {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-warm);
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
 .backdrop {
   position: fixed;
   inset: 0;

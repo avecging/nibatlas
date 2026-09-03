@@ -17,7 +17,15 @@ import type { ShopMapSummary, ShopType } from "@/src/domain/shops";
 export type SheetState = "peek" | "half" | "full";
 export const SHEET_STATES: readonly SheetState[] = ["peek", "half", "full"];
 
-export type ExploreStatus = "idle" | "loading" | "error";
+/**
+ * `unavailable` is not `error`.
+ *
+ * An error is a request that failed and can be retried. `unavailable` is a
+ * catalogue that cannot be asked at all — a misconfigured mode — so there is
+ * nothing to retry and no result set to keep. Issue #25 requires that state to
+ * be visible rather than disguised by fixture data.
+ */
+export type ExploreStatus = "idle" | "loading" | "error" | "unavailable";
 
 /**
  * The committed query. It changes only when the user commits a search or changes
@@ -82,6 +90,8 @@ export type ExploreAction =
       readonly truncated: boolean;
     }
   | { readonly type: "resultsFailed"; readonly requestId: number }
+  | { readonly type: "retryQuery" }
+  | { readonly type: "catalogueUnavailable" }
   | { readonly type: "selectShop"; readonly shopId: string | null }
   | { readonly type: "setStatusFilter"; readonly status: StatusFilter }
   | { readonly type: "openFilters" }
@@ -249,6 +259,32 @@ export function exploreReducer(
       return { ...state, status: "error" };
     }
 
+    /*
+     * Retry re-runs the query the displayed results are under, not the camera.
+     *
+     * A failed refresh leaves the reader looking at the previous results with the
+     * map wherever they last moved it. Committing the camera instead would
+     * quietly search somewhere else and call it a retry.
+     */
+    case "retryQuery": {
+      if (state.status !== "error") {
+        return state;
+      }
+
+      const requestId = state.requestId + 1;
+
+      return {
+        ...state,
+        status: "loading",
+        requestId,
+        query: { ...state.query, requestId },
+      };
+    }
+
+    case "catalogueUnavailable": {
+      return { ...state, status: "unavailable", results: [], truncated: false };
+    }
+
     case "selectShop": {
       if (action.shopId === state.selectedShopId) {
         return state;
@@ -333,7 +369,7 @@ export function exploreReducer(
  * an Apply that carries the moved camera settles it in the same action.
  */
 export function shouldOfferSearchArea(state: ExploreState): boolean {
-  if (state.status === "loading") {
+  if (state.status === "loading" || state.status === "unavailable") {
     return false;
   }
 

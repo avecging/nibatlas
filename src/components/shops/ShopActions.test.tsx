@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { ShopActions } from "@/src/components/shops/ShopActions";
+import { CatalogueProvider } from "@/src/features/catalogue/CatalogueProvider";
 import { CollectionProvider } from "@/src/features/collection/collection-store";
 import { findPrototypeShop } from "@/src/fixtures/prototype-catalogue";
 import {
@@ -311,5 +312,54 @@ describe("viewing an impression that is already collected", () => {
     expect(
       screen.getByRole("dialog", { name: /impression collected/i }),
     ).toBeInTheDocument();
+  });
+});
+
+/*
+ * Mode separation, on the one surface where getting it wrong would matter most.
+ *
+ * Issue #25: the simulated collection is fixture/reviewer-only. Beside real
+ * catalogue records a simulated impression would read as a visit that had been
+ * verified, and real issuance is Milestone 5.
+ */
+describe("simulated collection across catalogue modes", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    clearReviewerMode();
+  });
+
+  function renderInMode(mode: string) {
+    seedReviewerMode(true);
+
+    render(
+      <WithReviewerMode>
+        <CatalogueProvider mode={mode}>
+          <CollectionProvider>
+            <ShopActions shop={shop} />
+          </CollectionProvider>
+        </CatalogueProvider>
+      </WithReviewerMode>,
+    );
+  }
+
+  it("offers the simulated flow in fixture mode", () => {
+    renderInMode("fixture");
+
+    expect(
+      screen.getByRole("button", { name: COLLECT_LABEL.reviewer }),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("collection-pending")).not.toBeInTheDocument();
+  });
+
+  it("withholds it in api mode and says why, without offering a stamp", () => {
+    renderInMode("api");
+
+    expect(screen.queryByRole("button", { name: /collect stamp/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /view atlas stamp/i })).not.toBeInTheDocument();
+    expect(screen.getByTestId("collection-pending")).toHaveTextContent(
+      /not being issued yet/i,
+    );
+    // Directions do not depend on the mode and stay.
+    expect(screen.getByRole("link", { name: /directions/i })).toBeInTheDocument();
   });
 });

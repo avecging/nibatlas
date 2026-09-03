@@ -16,6 +16,7 @@ import type {
   ShopType,
   SourceQuality,
 } from "@/src/domain/shops";
+import { STAMP_DESIGN_VERSION } from "@/src/domain/stamp-design";
 import { inkForStampKey, STAMP_PALETTE_VERSION } from "@/src/domain/stamp-palette";
 
 /**
@@ -42,7 +43,8 @@ import { inkForStampKey, STAMP_PALETTE_VERSION } from "@/src/domain/stamp-palett
 export const PROTOTYPE_CATALOGUE_NOTICE =
   "Prototype catalogue — a small sourced subset, not a complete or continuously verified listing";
 
-export const PROTOTYPE_DESIGN_VERSION = 1;
+/** Pinned by the shared stamp-design rules so fixture and API art agree. */
+export const PROTOTYPE_DESIGN_VERSION = STAMP_DESIGN_VERSION;
 
 /* --------------------------------------------------------------------------
  * Sources

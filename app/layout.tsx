@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import { AppShell } from "@/src/components/layout/AppShell";
 import { AccountSessionProvider } from "@/src/features/account/AccountSessionProvider";
+import { CatalogueProvider } from "@/src/features/catalogue/CatalogueProvider";
 import { CollectionProvider } from "@/src/features/collection/collection-store";
 import { ReviewerModeProvider } from "@/src/features/reviewer/ReviewerModeProvider";
 
@@ -42,9 +43,11 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
       <body>
         <ReviewerModeProvider>
           <AccountSessionProvider>
-            <CollectionProvider>
-              <AppShell>{children}</AppShell>
-            </CollectionProvider>
+            <CatalogueProvider>
+              <CollectionProvider>
+                <AppShell>{children}</AppShell>
+              </CollectionProvider>
+            </CatalogueProvider>
           </AccountSessionProvider>
         </ReviewerModeProvider>
       </body>

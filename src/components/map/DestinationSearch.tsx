@@ -5,9 +5,10 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Icon } from "@/src/components/ui/Icon";
 import type { Viewport } from "@/src/domain/geo";
 import type { ShopMapSummary } from "@/src/domain/shops";
-import type {
-  DestinationGeocoder,
-  SearchResults,
+import {
+  MIN_SEARCH_QUERY_LENGTH,
+  type DestinationGeocoder,
+  type SearchResults,
 } from "@/src/features/map/destination-geocoder";
 
 import styles from "./DestinationSearch.module.css";
@@ -23,12 +24,28 @@ type Option =
       readonly subtitle: string;
       readonly viewport: Viewport;
     }
-  | { readonly kind: "shop"; readonly id: string; readonly title: string; readonly subtitle: string; readonly viewport: Viewport; readonly shop: ShopMapSummary };
+  | {
+      readonly kind: "shop";
+      readonly id: string;
+      readonly slug: string;
+      readonly title: string;
+      readonly subtitle: string;
+      /**
+       * Present only for a hit the supplier could already place. Canonical
+       * search returns records without coordinates, so choosing one of those
+       * asks the caller to resolve the position before the map moves.
+       */
+      readonly target?: { readonly shop: ShopMapSummary; readonly viewport: Viewport };
+    };
 
 interface DestinationSearchProps {
   readonly geocoder: DestinationGeocoder;
   readonly onChooseDestination: (viewport: Viewport, label: string) => void;
   readonly onChooseShop: (shop: ShopMapSummary, viewport: Viewport) => void;
+  /** Chosen canonical shop whose position still has to be resolved. */
+  readonly onChooseShopSlug?: (slug: string) => void;
+  /** The slug currently being placed, so the panel can say it is working. */
+  readonly locatingSlug?: string | null;
   readonly onSearched?: (queryLength: number) => void;
 }
 
@@ -38,11 +55,14 @@ export function DestinationSearch({
   geocoder,
   onChooseDestination,
   onChooseShop,
+  onChooseShopSlug,
+  locatingSlug = null,
   onSearched,
 }: DestinationSearchProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResults>(EMPTY);
   const [open, setOpen] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -63,7 +83,7 @@ export function DestinationSearch({
     let cancelled = false;
     const trimmed = query.trim();
 
-    if (trimmed.length < 2) {
+    if (trimmed.length < MIN_SEARCH_QUERY_LENGTH) {
       return;
     }
 
@@ -74,24 +94,48 @@ export function DestinationSearch({
       return;
     }
 
-    // Debounced so the geocoder is not called on every keystroke.
-    const timer = setTimeout(() => {
-      void geocoder.search(trimmed).then((next) => {
-        if (cancelled) {
-          return;
-        }
+    const controller = new AbortController();
 
-        setResults(next);
-        // Opened even with no matches, so "nothing found" is stated rather than
-        // silently doing nothing. Dismissing it is a tap outside, as usual.
-        setOpen(true);
-        setActiveIndex(-1);
-        onSearchedRef.current?.(trimmed.length);
-      });
+    /*
+     * Debounced so the supplier is not called on every keystroke, and aborted
+     * on the next one so an in-flight search for `Gin` cannot land over the
+     * results for `Ginza`. `cancelled` guards the state write as well, because
+     * a supplier that does not honour the signal must still not be able to
+     * repaint a panel the reader has moved past.
+     */
+    const timer = setTimeout(() => {
+      void geocoder
+        .search(trimmed, controller.signal)
+        .then((next) => {
+          if (cancelled) {
+            return;
+          }
+
+          setResults(next);
+          setFailed(false);
+          // Opened even with no matches, so "nothing found" is stated rather
+          // than silently doing nothing. Dismissing it is a tap outside.
+          setOpen(true);
+          setActiveIndex(-1);
+          onSearchedRef.current?.(trimmed.length);
+        })
+        .catch(() => {
+          if (cancelled) {
+            return;
+          }
+
+          // A failed search says so. Silently showing the previous query's
+          // results would be worse than an empty panel.
+          setResults(EMPTY);
+          setFailed(true);
+          setOpen(true);
+          setActiveIndex(-1);
+        });
     }, 180);
 
     return () => {
       cancelled = true;
+      controller.abort();
       clearTimeout(timer);
     };
   }, [geocoder, query]);
@@ -109,7 +153,8 @@ export function DestinationSearch({
 
   // A query shorter than the minimum shows nothing without clearing state in an
   // effect.
-  const activeResults = query.trim().length < 2 ? EMPTY : results;
+  const activeResults =
+    query.trim().length < MIN_SEARCH_QUERY_LENGTH ? EMPTY : results;
 
   const options = useMemo<readonly Option[]>(
     () => [
@@ -131,13 +176,15 @@ export function DestinationSearch({
         subtitle: destination.context,
         viewport: destination.viewport,
       })),
-      ...activeResults.shops.map<Option>((result) => ({
+      ...activeResults.shops.map<Option>((hit) => ({
         kind: "shop",
-        id: result.shop.id,
-        title: result.shop.name,
-        subtitle: `${result.shop.localityName} · Shop in the Nib Atlas catalogue`,
-        viewport: result.viewport,
-        shop: result.shop,
+        id: hit.id,
+        slug: hit.slug,
+        title: hit.name,
+        subtitle: hit.matchedAlias
+          ? `${hit.localityName} · Shop in the Nib Atlas catalogue · matched “${hit.matchedAlias}”`
+          : `${hit.localityName} · Shop in the Nib Atlas catalogue`,
+        ...(hit.target === undefined ? {} : { target: hit.target }),
       })),
     ],
     [activeResults],
@@ -153,9 +200,17 @@ export function DestinationSearch({
 
     if (option.kind === "destination") {
       onChooseDestination(option.viewport, option.title);
-    } else {
-      onChooseShop(option.shop, option.viewport);
+      return;
     }
+
+    if (option.target) {
+      onChooseShop(option.target.shop, option.target.viewport);
+      return;
+    }
+
+    // A canonical hit with no coordinates. The caller resolves it, so the panel
+    // never guesses a position to move the map to.
+    onChooseShopSlug?.(option.slug);
   }
 
   const hasResults = options.length > 0;
@@ -211,6 +266,7 @@ export function DestinationSearch({
               appliedQuery.current = null;
               setQuery("");
               setResults(EMPTY);
+              setFailed(false);
               setOpen(false);
               inputRef.current?.focus();
             }}
@@ -219,6 +275,18 @@ export function DestinationSearch({
           </button>
         ) : null}
       </div>
+
+      {/*
+        Placing a chosen shop happens after the panel has closed, so the status
+        lives outside it. A canonical search hit carries no coordinates, and the
+        reader deserves to know the tap was received while the position is
+        resolved.
+      */}
+      {locatingSlug === null ? null : (
+        <p className={styles.locating} role="status">
+          Locating that shop on the map…
+        </p>
+      )}
 
       {open ? (
         <div className={styles.panel}>
@@ -285,7 +353,9 @@ export function DestinationSearch({
 
             {!hasResults ? (
               <li className={styles.empty}>
-                No places or catalogue shops match that search.
+                {failed
+                  ? "Search is unavailable right now. Try again in a moment."
+                  : "No places or catalogue shops match that search."}
               </li>
             ) : null}
           </ul>

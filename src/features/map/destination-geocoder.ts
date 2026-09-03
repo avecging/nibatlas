@@ -1,8 +1,9 @@
-import type { Viewport } from "@/src/domain/geo";
+import type { CountryCode, Viewport } from "@/src/domain/geo";
 import type { LanguageTag } from "@/src/domain/language";
 import { prototypeDestinations, type PrototypeDestination } from "@/src/fixtures/prototype-destinations";
 import { prototypeShopSummaries } from "@/src/fixtures/prototype-catalogue";
 import type { ShopMapSummary } from "@/src/domain/shops";
+import { shopFocusViewport } from "@/src/features/map/shop-focus";
 
 export interface DestinationResult {
   readonly id: string;
@@ -13,16 +14,37 @@ export interface DestinationResult {
   readonly viewport: Viewport;
 }
 
-export interface ShopSearchResult {
+/** Where the map goes for a shop the supplier can already place. */
+export interface ShopSearchTarget {
   readonly shop: ShopMapSummary;
   readonly viewport: Viewport;
+}
+
+/**
+ * A canonical Nib Atlas shop record.
+ *
+ * `target` is present only when the supplier already knows where the shop is.
+ * The fixture catalogue always does. `GET /api/v1/shops/search` deliberately
+ * does not return coordinates, so an API-mode hit carries none, and choosing it
+ * resolves the position through the shop locator before the map moves. A hit is
+ * never given a guessed position so that it can behave like a placed one.
+ */
+export interface CanonicalShopHit {
+  readonly id: string;
+  readonly slug: string;
+  readonly name: string;
+  readonly localityName: string;
+  readonly countryCode: CountryCode;
+  /** The alias the query matched, where the supplier reports one. */
+  readonly matchedAlias?: string;
+  readonly target?: ShopSearchTarget;
 }
 
 export interface SearchResults {
   /** Places from the geocoder. Never merged with canonical shop results. */
   readonly destinations: readonly DestinationResult[];
   /** Canonical Nib Atlas shop records. */
-  readonly shops: readonly ShopSearchResult[];
+  readonly shops: readonly CanonicalShopHit[];
 }
 
 /**
@@ -31,10 +53,11 @@ export interface SearchResults {
  * interface. Supplier payloads never enter domain state.
  */
 export interface DestinationGeocoder {
-  search(query: string): Promise<SearchResults>;
+  search(query: string, signal?: AbortSignal): Promise<SearchResults>;
 }
 
-const SHOP_ZOOM = 16;
+/** The shortest query either supplier will act on. */
+export const MIN_SEARCH_QUERY_LENGTH = 2;
 
 function normalize(value: string): string {
   return value.normalize("NFKC").toLocaleLowerCase();
@@ -52,17 +75,15 @@ function destinationViewport(destination: PrototypeDestination): Viewport {
   return { bounds: destination.bounds, zoom: destination.zoom };
 }
 
-function shopViewport(shop: ShopMapSummary): Viewport {
-  const padding = 0.006;
-
+/** Projects a fixture record into a placed canonical hit. */
+export function toPlacedShopHit(shop: ShopMapSummary): CanonicalShopHit {
   return {
-    bounds: {
-      west: shop.position.longitude - padding,
-      south: shop.position.latitude - padding,
-      east: shop.position.longitude + padding,
-      north: shop.position.latitude + padding,
-    },
-    zoom: SHOP_ZOOM,
+    id: shop.id,
+    slug: shop.slug,
+    name: shop.name,
+    localityName: shop.localityName,
+    countryCode: shop.countryCode,
+    target: { shop, viewport: shopFocusViewport(shop) },
   };
 }
 
@@ -74,7 +95,7 @@ export function createFixtureGeocoder(
     async search(query) {
       const trimmed = query.trim();
 
-      if (trimmed.length < 2) {
+      if (trimmed.length < MIN_SEARCH_QUERY_LENGTH) {
         return { destinations: [], shops: [] };
       }
 
@@ -101,7 +122,7 @@ export function createFixtureGeocoder(
       const matchedShops = shops
         .filter((shop) => matches(trimmed, shop.name, shop.localName, shop.localityName))
         .slice(0, 5)
-        .map<ShopSearchResult>((shop) => ({ shop, viewport: shopViewport(shop) }));
+        .map(toPlacedShopHit);
 
       return { destinations: matchedDestinations, shops: matchedShops };
     },
