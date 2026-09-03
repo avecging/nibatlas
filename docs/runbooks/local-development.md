@@ -22,11 +22,18 @@
 - `pnpm build`
 - `pnpm exec playwright install chromium`
 - `pnpm test:e2e`
+- `pnpm test:e2e:api`
 - `pnpm build:cloudflare`
 
 `pnpm test:e2e` builds and starts the application itself, then runs the journey,
 accessibility, and reduced-motion suites at 360 × 800, 768 × 1024, and
 1440 × 900.
+
+`pnpm test:e2e:api` starts a local, deterministic public-RPC double and builds
+the application in `api-demo` mode. It proves marker → card → detail → Back,
+failed-refresh retention and Retry, and the separation of place and canonical
+shop search. The double is a test process only: application code has no test-mode
+branch and no provider payload bypasses the v1 routes or decoders.
 
 Screenshot baselines are opt-in because rendering differs between container
 images:
@@ -65,6 +72,10 @@ impression beside real records would read as a verified visit — and the global
 Saved scope lists nothing, because listing every saved shop needs the account
 that Milestone 4 introduces. Production catalogue import remains Milestone 6/7
 work.
+
+Hosted staging uses `api-demo` only. Production must use `api`: accepting
+`demo_fixture` there would let invented staging records present as catalogue
+listings. The production catalogue import itself remains Milestone 6/7 work.
 
 ## Local Supabase
 

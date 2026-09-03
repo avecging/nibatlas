@@ -161,6 +161,25 @@ describe("api shop detail source", () => {
     expect(result.status === "found" && result.nearby).toEqual([]);
   });
 
+  it("passes the caller's cancellation signal through detail and Nearby reads", async () => {
+    const controller = new AbortController();
+    const rpc = vi.fn(async () => detailPayload());
+    const nearbyRpc = vi.fn(async () => ({ shops: [], radiusMeters: 5000 }));
+    const source = createApiShopDetailSource({
+      demoRecords: false,
+      rpc,
+      nearbyRpc,
+    });
+
+    await source.fetchDetail("contract-shop", controller.signal);
+
+    expect(rpc).toHaveBeenCalledWith("contract-shop", controller.signal);
+    expect(nearbyRpc).toHaveBeenCalledWith(
+      expect.objectContaining({ slug: "contract-shop" }),
+      controller.signal,
+    );
+  });
+
   it("treats a null record as missing, not as a failure", async () => {
     const source = createApiShopDetailSource({
       demoRecords: false,

@@ -15,6 +15,8 @@ const visualEnabled = Boolean(process.env.VISUAL);
  * the same reason as the visual project — it produces files rather than verdicts.
  */
 const evidenceEnabled = Boolean(process.env.EVIDENCE);
+const apiIntegrationEnabled = Boolean(process.env.API_INTEGRATION);
+const apiIntegrationReuseBuild = Boolean(process.env.API_INTEGRATION_REUSE_BUILD);
 const stagingUrl = process.env.STAGING_URL?.trim();
 
 /**
@@ -42,9 +44,27 @@ export default defineConfig({
   // deploys, and so dev-only HMR behaviour cannot affect assertions.
   ...(stagingUrl
     ? {}
+    : apiIntegrationEnabled
+      ? {
+          webServer: [
+            {
+              command: "node scripts/api-e2e-upstream.mjs",
+              url: "http://127.0.0.1:3100/health",
+              reuseExistingServer: !process.env.CI,
+              timeout: 30_000,
+            },
+            {
+              command:
+                `NEXT_PUBLIC_CATALOGUE_MODE=api-demo NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:3100 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=api-e2e-publishable ${apiIntegrationReuseBuild ? "pnpm start --hostname 127.0.0.1 --port 3000" : "pnpm build && pnpm start --hostname 127.0.0.1 --port 3000"}`,
+              url: "http://127.0.0.1:3000/api/health",
+              reuseExistingServer: !process.env.CI,
+              timeout: 300_000,
+            },
+          ],
+        }
     : {
         webServer: {
-          command: "pnpm build && pnpm start --port 3000",
+          command: "pnpm build && pnpm start --hostname 127.0.0.1 --port 3000",
           url: "http://127.0.0.1:3000/api/health",
           reuseExistingServer: !process.env.CI,
           timeout: 300_000,
@@ -100,11 +120,37 @@ export default defineConfig({
           },
         ]
       : []),
+    ...(apiIntegrationEnabled
+      ? [
+          {
+            name: "api-integration",
+            testDir: "./tests/integration",
+            fullyParallel: false,
+            workers: 1,
+            use: {
+              ...devices["Desktop Chrome"],
+              viewport: { width: 1440, height: 900 },
+            },
+          },
+        ]
+      : []),
     ...(stagingUrl
       ? [
           {
             name: "staging-maptiler",
             testDir: "./tests/staging",
+            testMatch: "maptiler.spec.ts",
+            retries: 0,
+            use: {
+              ...devices["Desktop Chrome"],
+              viewport: { width: 1440, height: 900 },
+              trace: "off" as const,
+            },
+          },
+          {
+            name: "staging-catalogue",
+            testDir: "./tests/staging",
+            testMatch: "catalogue.spec.ts",
             retries: 0,
             use: {
               ...devices["Desktop Chrome"],

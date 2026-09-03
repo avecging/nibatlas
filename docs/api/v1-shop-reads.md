@@ -96,6 +96,14 @@ values are shop coordinates. Each candidate also carries `positionPrecision`,
 both endpoints have street precision, and never recommends a permanently closed
 shop.
 
+## Payload budget
+
+The viewport endpoint has a 500-record hard cap and a 250 KB compressed response
+budget for a representative dense-city result. The automated budget test sends
+500 long, distinct records through the real HTTP route and v1 decoder, then
+measures the resulting JSON with gzip. This catches growth in public fields or
+encoding overhead; the SQL performance suite separately protects query time.
+
 ## Runtime validation
 
 The application boundary decodes each RPC response into a versioned allowlisted
@@ -106,4 +114,3 @@ violations stay loud and observable instead of silently removing markers. SQL
 projections exclude known unrepresentable states, such as published shops with no
 assigned type. This prevents a later database/provider change from silently
 becoming a browser API change.
-

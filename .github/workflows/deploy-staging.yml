@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   verify-and-deploy:
-    if: github.event_name != 'pull_request' || github.head_ref == 'agent/claude-m1-frontend'
+    if: github.event_name != 'pull_request' || github.head_ref == 'agent/codex-m3-wp3-integration-hardening'
     name: Verify and deploy staging
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -27,6 +27,9 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       NEXT_PUBLIC_MAPTILER_KEY: ${{ secrets.NEXT_PUBLIC_MAPTILER_KEY }}
+      NEXT_PUBLIC_CATALOGUE_MODE: api-demo
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
       # Browser-safe, but baked into the bundle at build time rather than read
       # from a Worker secret at runtime — so it has to be present *here*, not
       # only in `wrangler secret put`. Stored alongside the MapTiler key for
@@ -48,6 +51,9 @@ jobs:
           test -n "$CLOUDFLARE_ACCOUNT_ID"
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$NEXT_PUBLIC_MAPTILER_KEY"
+          test "$NEXT_PUBLIC_CATALOGUE_MODE" = "api-demo"
+          test -n "$NEXT_PUBLIC_SUPABASE_URL"
+          test -n "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
           # A build without this ships two forms that can only fail: no widget
           # renders, and the route refuses every submission because a production
           # build never accepts an unverified one.
@@ -88,11 +94,15 @@ jobs:
       - run: pnpm exec playwright install chromium
       - name: Verify MapTiler geography and static MapLibre worker
         run: pnpm exec playwright test --project=staging-maptiler
+      - name: Verify demo catalogue through map, detail, Back, and Nearby
+        run: pnpm exec playwright test --project=staging-catalogue
       - name: Upload staging evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: staging-maptiler-evidence
-          path: test-results/**/maptiler-geography.png
+          name: staging-smoke-evidence
+          path: |
+            test-results/**/maptiler-geography.png
+            test-results/**/catalogue-api-demo.png
           if-no-files-found: warn
           retention-days: 1
