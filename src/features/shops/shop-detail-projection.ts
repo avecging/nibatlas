@@ -16,12 +16,11 @@ import { inkForStampKey, STAMP_PALETTE_VERSION } from "@/src/domain/stamp-palett
  * design and maps the remaining presentation fields. This is that step, and it
  * is the *only* place a wire detail becomes domain state.
  *
- * It fails closed rather than trimming. Where the wire carries something the
- * domain model cannot represent honestly — an unsourced practical claim, a demo
- * record outside a demo-accepting mode, a link whose URL will not parse — the
- * whole detail is rejected and the page says the detail is unavailable. Silently
- * dropping the field would publish a page that looks complete while an
- * unsupported claim disappeared without anyone learning it had arrived.
+ * It fails closed rather than trimming fields that belong to the public wire
+ * contract. Where the wire carries something the domain model cannot represent
+ * honestly — a demo record outside a demo-accepting mode or a link whose URL
+ * will not parse — the whole detail is rejected and the page says the detail is
+ * unavailable.
  */
 export class ShopDetailProjectionError extends Error {
   constructor(message: string) {
@@ -37,19 +36,6 @@ export interface ShopDetailProjectionOptions {
    */
   readonly demoRecords: boolean;
 }
-
-/**
- * Practical facts the wire carries with no evidence reference.
- *
- * WP4's rule is that every pen-specific and practical claim names the source
- * that confirms *it* (`src/domain/shop-evidence.ts`). The v1 detail projection
- * carries `appointmentRequired` and `accessibilityNotes` as bare values with no
- * `confirmedBy`, so there is no honest home for them in `ShopDetail`: rendering
- * them would assert a claim with no source, and dropping them would hide that
- * the catalogue holds one. They therefore make the detail unavailable, and the
- * gap is recorded for Codex in the WP2 pull request rather than papered over.
- */
-const UNSOURCED_WIRE_CLAIMS = ["appointmentRequired", "accessibilityNotes"] as const;
 
 function linkLabel(url: string, label: string | undefined): string {
   if (label !== undefined && label.trim() !== "") {
@@ -95,14 +81,6 @@ export function projectShopDetail(
   wire: ShopDetailReadV1,
   { demoRecords }: ShopDetailProjectionOptions,
 ): ShopDetail {
-  for (const key of UNSOURCED_WIRE_CLAIMS) {
-    if (wire[key] !== undefined) {
-      throw new ShopDetailProjectionError(
-        `detail.${key} carries a practical claim with no confirming source`,
-      );
-    }
-  }
-
   const demoSources = wire.sources.filter((source) => source.kind === "demo_fixture");
 
   if (demoSources.length > 0 && wire.sourceQuality !== "demo") {

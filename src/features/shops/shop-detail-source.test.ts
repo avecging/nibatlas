@@ -60,13 +60,104 @@ describe("api shop detail source", () => {
     const source = createApiShopDetailSource({
       demoRecords: false,
       rpc: async () => detailPayload(),
+      nearbyRpc: async () => ({
+        radiusMeters: 5000,
+        shops: [
+          {
+            id: "00000000-0000-4000-8000-000000000302",
+            slug: "nearby-shop",
+            name: "Nearby Shop",
+            countryCode: "JP",
+            localityName: "Kobe",
+            position: { latitude: 34.691, longitude: 135.191 },
+            positionPrecision: "street",
+            primaryType: "stationery_store",
+            operationalStatus: "open",
+            distanceMeters: 150,
+          },
+        ],
+      }),
     });
     const result = await source.fetchDetail("contract-shop");
 
     expect(result.status).toBe("found");
     expect(result.status === "found" && result.shop.stamp.id).toBe("stamp-contract-shop");
-    // Nearby needs precision and operational status the v1 nearby projection
-    // does not carry, so the section is omitted rather than guessed.
+    expect(result.status === "found" && result.nearby[0]).toMatchObject({
+      shop: { slug: "nearby-shop", primaryType: "stationery_store" },
+      distanceMeters: 150,
+      sameLocality: true,
+    });
+  });
+
+  it("withholds distance for an imprecise candidate and excludes closed/self results", async () => {
+    const source = createApiShopDetailSource({
+      demoRecords: false,
+      rpc: async () => detailPayload(),
+      nearbyRpc: async () => ({
+        radiusMeters: 5000,
+        shops: [
+          {
+            id: "00000000-0000-4000-8000-000000000301",
+            slug: "contract-shop",
+            name: "Contract Shop",
+            countryCode: "JP",
+            localityName: "Kobe",
+            position: { latitude: 34.69, longitude: 135.19 },
+            positionPrecision: "street",
+            primaryType: "fountain_pen_specialist",
+            operationalStatus: "open",
+            distanceMeters: 0,
+          },
+          {
+            id: "00000000-0000-4000-8000-000000000302",
+            slug: "closed-shop",
+            name: "Closed Shop",
+            countryCode: "JP",
+            localityName: "Kobe",
+            position: { latitude: 34.691, longitude: 135.191 },
+            positionPrecision: "street",
+            primaryType: "stationery_store",
+            operationalStatus: "permanently_closed",
+            distanceMeters: 150,
+          },
+          {
+            id: "00000000-0000-4000-8000-000000000303",
+            slug: "centroid-shop",
+            name: "Centroid Shop",
+            countryCode: "JP",
+            localityName: "Kobe",
+            position: { latitude: 34.7, longitude: 135.2 },
+            positionPrecision: "locality",
+            primaryType: "stationery_store",
+            operationalStatus: "open",
+            distanceMeters: 900,
+          },
+        ],
+      }),
+    });
+
+    const result = await source.fetchDetail("contract-shop");
+
+    expect(result.status === "found" && result.nearby).toEqual([
+      expect.objectContaining({
+        shop: expect.objectContaining({ slug: "centroid-shop" }),
+        distanceMeters: null,
+      }),
+    ]);
+  });
+
+  it("keeps detail usable when the secondary nearby read fails", async () => {
+    const source = createApiShopDetailSource({
+      demoRecords: false,
+      rpc: async () => detailPayload(),
+      nearbyRpc: async () => {
+        throw new Error("nearby unavailable");
+      },
+    });
+
+    const result = await source.fetchDetail("contract-shop");
+
+    expect(result.status).toBe("found");
     expect(result.status === "found" && result.nearby).toEqual([]);
   });
 
@@ -131,16 +222,17 @@ describe("api shop detail source", () => {
     });
   });
 
-  it("makes a record the frontend projection rejects unavailable", async () => {
+  it("ignores internal unsourced practical columns outside the public v1 contract", async () => {
     const source = createApiShopDetailSource({
       demoRecords: false,
-      rpc: async () => detailPayload({ appointmentRequired: true }),
+      rpc: async () => detailPayload({
+        appointmentRequired: true,
+        accessibilityNotes: "Step-free entrance",
+      }),
+      nearbyRpc: async () => ({ shops: [], radiusMeters: 5000 }),
     });
 
-    expect(await source.fetchDetail("contract-shop")).toEqual({
-      status: "unavailable",
-      reason: "contract",
-    });
+    expect((await source.fetchDetail("contract-shop")).status).toBe("found");
   });
 
   it("makes a demo record unavailable outside a demo-accepting mode", async () => {

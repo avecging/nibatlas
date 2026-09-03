@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  decodeNearbyShopsV1,
   decodeShopDetailV1,
   decodeViewportShopsV1,
   ShopReadContractError,
@@ -73,6 +74,32 @@ describe("v1 shop read runtime contract", () => {
     })).toThrow(/markerState must be unvisited/);
   });
 
+  it("keeps Nearby precision, type, and operational status explicit", () => {
+    const decoded = decodeNearbyShopsV1({
+      radiusMeters: 5000,
+      shops: [
+        {
+          id: MAP_SHOP.id,
+          slug: MAP_SHOP.slug,
+          name: MAP_SHOP.name,
+          countryCode: MAP_SHOP.countryCode,
+          localityName: MAP_SHOP.localityName,
+          position: MAP_SHOP.position,
+          positionPrecision: "street",
+          primaryType: MAP_SHOP.primaryType,
+          operationalStatus: "open",
+          distanceMeters: 125,
+        },
+      ],
+    });
+
+    expect(decoded.shops[0]).toMatchObject({
+      positionPrecision: "street",
+      primaryType: "fountain_pen_specialist",
+      operationalStatus: "open",
+    });
+  });
+
   it("accepts demo_fixture explicitly and keeps evidence attached by UUID", () => {
     const payload = detail();
     payload.sources[0]!.label = "A renamed display label";
@@ -110,9 +137,16 @@ describe("v1 shop read runtime contract", () => {
   });
 
   it("strips unknown keys while rejecting malformed known fields", () => {
-    const payload = { ...detail(), evidenceNote: "admin only" };
+    const payload = {
+      ...detail(),
+      evidenceNote: "admin only",
+      appointmentRequired: true,
+      accessibilityNotes: "Unsourced internal claim",
+    };
     const decoded = decodeShopDetailV1(payload);
     expect(decoded).not.toHaveProperty("evidenceNote");
+    expect(decoded).not.toHaveProperty("appointmentRequired");
+    expect(decoded).not.toHaveProperty("accessibilityNotes");
 
     expect(() => decodeShopDetailV1({ ...payload, sources: {} })).toThrow(
       /detail.sources must be an array/,

@@ -225,6 +225,13 @@ the `shop_services.source_id` and `shop_source_claims` pairing atomically; a
 deferrable database constraint trigger should be evaluated there as defence in
 depth. Existing deterministic data already satisfies the rule.
 
+The database also has legacy `appointment_required` and `accessibility_notes`
+columns, but they have no source UUID. They are deliberately outside the public
+v1 allowlist until the schema can represent each as a sourced per-field claim;
+their presence in an internal row therefore neither publishes an unsupported
+fact nor makes the whole shop page unavailable. Fixture values remain valid
+because their `confirmedBy` references are explicit in the fixture contract.
+
 ### `nearbyPenShops` is derived, not stored
 
 `src/domain/nearby-shops.ts` derives the "Nearby pen shops" section from the same

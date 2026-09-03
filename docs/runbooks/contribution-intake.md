@@ -17,6 +17,12 @@ This is not the application database. Nothing here writes to Supabase, defines a
 schema, or commits the project to a data model. When the real contribution
 pipeline arrives in a later milestone, the spreadsheet becomes an import source.
 
+For corrections, the Worker resolves the submitted slug through the configured
+catalogue mode and supplies the trusted shop name itself. In API mode this is a
+public `shop_detail` read through the publishable key; in fixture mode it is the
+deterministic catalogue. A missing or unavailable API never falls back to a
+fixture identity.
+
 ## 1. The spreadsheet
 
 Create one spreadsheet, owned by the account that should hold the data. Name it

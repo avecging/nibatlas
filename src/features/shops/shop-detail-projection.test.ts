@@ -100,22 +100,6 @@ describe("shop detail projection", () => {
     expect(shop.links).toHaveLength(1);
   });
 
-  /*
-   * Fail closed rather than trim. Each of these arrives as something the domain
-   * model cannot state honestly, and dropping it quietly would publish a page
-   * that looked complete while an unsupported claim vanished unnoticed.
-   */
-  it("rejects a practical claim the wire carries with no confirming source", () => {
-    expect(() =>
-      projectShopDetail(wire({ appointmentRequired: true }), { demoRecords: false }),
-    ).toThrow(ShopDetailProjectionError);
-    expect(() =>
-      projectShopDetail(wire({ accessibilityNotes: "Step-free entrance" }), {
-        demoRecords: false,
-      }),
-    ).toThrow(ShopDetailProjectionError);
-  });
-
   it("rejects an unparseable link URL", () => {
     expect(() =>
       projectShopDetail(wire({ links: [{ type: "website", url: "not a url", isOfficial: false }] }), {

@@ -2,7 +2,7 @@
 
 **Status:** Milestone 2 application contract  
 **Version:** 1  
-**Last updated:** 2 September 2026
+**Last updated:** 3 September 2026
 
 The browser and Milestone 3 frontend adapter read catalogue data through these
 same-origin Next.js endpoints. They do not call PostgREST directly. The server
@@ -61,6 +61,10 @@ Cache: `s-maxage=3600`, with stale-while-revalidate.
   optional public URL, `retrievedOn`, and explicit `confirms` tokens.
 - `confirmedBy` is always a source UUID, never display prose.
 - A sourced service is public only when its join row has `source_id`.
+- The internal `appointment_required` and `accessibility_notes` columns are not
+  part of v1 while they have no per-field source UUID. Populating either cannot
+  make an otherwise valid public detail unavailable or publish an unsourced
+  practical claim.
 - The source UUID must belong to the same shop, enforced by composite foreign
   keys.
 - Canonical claim rows and admin evidence notes remain inaccessible to anonymous
@@ -87,7 +91,10 @@ The response is always `private, no-store`. Caller coordinates are sent only to
 the statement-local RPC in a request body, never placed in a URL, returned,
 persisted, or placed in public cache metadata. Keeping coordinates out of the URL
 prevents normal edge request logging from recording them. Returned `position`
-values are shop coordinates.
+values are shop coordinates. Each candidate also carries `positionPrecision`,
+`primaryType`, and `operationalStatus`: the frontend shows a distance only when
+both endpoints have street precision, and never recommends a permanently closed
+shop.
 
 ## Runtime validation
 

@@ -1,6 +1,17 @@
 import { cache } from "react";
 
-import { decodeShopDetailV1, ShopReadContractError } from "@/src/api/v1/shop-read";
+import {
+  decodeNearbyShopsV1,
+  decodeShopDetailV1,
+  ShopReadContractError,
+  type NearbyShopV1,
+} from "@/src/api/v1/shop-read";
+import {
+  NEARBY_LIMIT,
+  NEARBY_RADIUS_METERS,
+  type NearbyShop,
+} from "@/src/domain/nearby-shops";
+import type { ShopDetail } from "@/src/domain/shop-detail";
 import {
   projectShopDetail,
   ShopDetailProjectionError,
@@ -39,12 +50,75 @@ export type ShopDetailRpc = (
 const defaultRpc: ShopDetailRpc = (slug, signal) =>
   callShopReadRpc("shop_detail", { p_slug: slug }, signal);
 
+export type ShopNearbyRpc = (
+  shop: Pick<ShopDetail, "position">,
+  signal?: AbortSignal,
+) => Promise<unknown>;
+
+const defaultNearbyRpc: ShopNearbyRpc = (shop, signal) =>
+  callShopReadRpc("nearby_shops", {
+    p_latitude: shop.position.latitude,
+    p_longitude: shop.position.longitude,
+    p_radius_m: NEARBY_RADIUS_METERS,
+    // The current shop is normally the first result and is removed below.
+    p_limit: NEARBY_LIMIT + 1,
+  }, signal);
+
+function projectNearbyCandidate(
+  current: ShopDetail,
+  candidate: NearbyShopV1,
+): NearbyShop | null {
+  if (
+    candidate.id === current.id ||
+    candidate.operationalStatus === "permanently_closed"
+  ) {
+    return null;
+  }
+
+  return {
+    shop: {
+      id: candidate.id,
+      slug: candidate.slug,
+      name: candidate.name,
+      localityName: candidate.localityName,
+      primaryType: candidate.primaryType,
+    },
+    distanceMeters:
+      current.positionPrecision === "street" &&
+      candidate.positionPrecision === "street"
+        ? candidate.distanceMeters
+        : null,
+    sameLocality: candidate.localityName === current.localityName,
+  };
+}
+
+async function nearbyFor(
+  shop: ShopDetail,
+  rpc: ShopNearbyRpc,
+  signal?: AbortSignal,
+): Promise<readonly NearbyShop[]> {
+  try {
+    const response = decodeNearbyShopsV1(await rpc(shop, signal));
+
+    return response.shops
+      .map((candidate) => projectNearbyCandidate(shop, candidate))
+      .filter((candidate): candidate is NearbyShop => candidate !== null)
+      .slice(0, NEARBY_LIMIT);
+  } catch {
+    // Nearby is secondary trip context. Its outage must not take down a valid
+    // shop detail page; omission is the honest degraded state.
+    return [];
+  }
+}
+
 export function createApiShopDetailSource({
   demoRecords,
   rpc = defaultRpc,
+  nearbyRpc = defaultNearbyRpc,
 }: {
   readonly demoRecords: boolean;
   readonly rpc?: ShopDetailRpc;
+  readonly nearbyRpc?: ShopNearbyRpc;
 }): ShopDetailSource {
   return {
     async fetchDetail(slug, signal) {
@@ -71,21 +145,12 @@ export function createApiShopDetailSource({
           return { status: "missing" };
         }
 
+        const shop = projectShopDetail(wire, { demoRecords });
+
         return {
           status: "found",
-          shop: projectShopDetail(wire, { demoRecords }),
-          /*
-           * No nearby section in API mode.
-           *
-           * `NearbyShop` needs each candidate's `positionPrecision` to decide
-           * whether a distance may be shown at all, and its
-           * `operationalStatus` to keep a permanently closed shop out of a
-           * suggestion list. The v1 nearby projection carries neither, so the
-           * section is omitted rather than shown with a distance the data does
-           * not support or a shop that has closed. Recorded as a contract gap
-           * for Codex in the WP2 pull request.
-           */
-          nearby: [],
+          shop,
+          nearby: await nearbyFor(shop, nearbyRpc, signal),
         };
       } catch (cause) {
         if (

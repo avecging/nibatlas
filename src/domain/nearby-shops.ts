@@ -1,5 +1,6 @@
 import { distanceMeters } from "@/src/domain/geo";
 import type { ShopDetail } from "@/src/domain/shop-detail";
+import type { ShopType } from "@/src/domain/shops";
 
 /**
  * Nearby pen shops, as trip-planning context.
@@ -19,7 +20,13 @@ import type { ShopDetail } from "@/src/domain/shop-detail";
  * Nothing here is an itinerary: no ordering, no route, no schedule.
  */
 export interface NearbyShop {
-  readonly shop: ShopDetail;
+  readonly shop: {
+    readonly id: string;
+    readonly slug: string;
+    readonly name: string;
+    readonly localityName: string;
+    readonly primaryType: ShopType;
+  };
   /** Metres between the two mapped points, or `null` when not measurable. */
   readonly distanceMeters: number | null;
   readonly sameLocality: boolean;
