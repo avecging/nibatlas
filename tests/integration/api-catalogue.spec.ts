@@ -32,10 +32,23 @@ test("API marker to card to detail to Back preserves the selected shop", async (
   );
 });
 
-test("a failed API refresh keeps old results and Retry recovers", async ({ page, request }) => {
-  await request.post("http://127.0.0.1:3100/control/reset");
+test("a failed API refresh keeps old results and Retry recovers", async ({ page }) => {
   await openMap(page);
   await expect(page.getByRole("article", { name: "M3 API Demo Shop" })).toBeVisible();
+
+  let failViewport = true;
+  await page.route("**/api/v1/shops/viewport**", async (route) => {
+    if (failViewport) {
+      await route.fulfill({
+        status: 502,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: false, error: { code: "read_upstream_failed" } }),
+      });
+      return;
+    }
+
+    await route.continue();
+  });
 
   await page.getByRole("combobox", { name: /search shops or places/i }).fill("Ginza");
   await page.getByRole("option").filter({ hasText: /^Ginza.*Place ·/ }).click();
@@ -44,7 +57,7 @@ test("a failed API refresh keeps old results and Retry recovers", async ({ page,
   await expect(page.getByRole("article", { name: "M3 API Demo Shop" })).toBeVisible();
   await expect(page.getByText(/results are from the previous search/i)).toBeVisible();
 
-  await request.post("http://127.0.0.1:3100/control/recover");
+  failViewport = false;
   await page.getByRole("button", { name: /search failed — retry/i }).click();
   await expect(page.getByTestId("explore")).toHaveAttribute("data-explore-status", "idle");
   await expect(page.getByRole("article", { name: "M3 API Demo Shop" })).toBeVisible();
