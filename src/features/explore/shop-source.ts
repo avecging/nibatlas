@@ -5,6 +5,7 @@ import type {
   ViewportShopResponse,
 } from "@/src/domain/shops";
 import { prototypeShopSummaries } from "@/src/fixtures/prototype-catalogue";
+import { ShopReadAbortedError } from "@/src/api/v1/shop-read-errors";
 
 /**
  * Milestone 1 data seam.
@@ -22,12 +23,7 @@ export interface ShopSource {
 
 export const PROTOTYPE_RESULT_CAP = 20;
 
-export class AbortedError extends Error {
-  constructor() {
-    super("Viewport request aborted");
-    this.name = "AbortedError";
-  }
-}
+export { ShopReadAbortedError as AbortedError };
 
 export interface FixtureShopSourceOptions {
   readonly shops?: readonly ShopMapSummary[];
@@ -60,7 +56,7 @@ export function createFixtureShopSource(
       }
 
       if (signal?.aborted) {
-        throw new AbortedError();
+        throw new ShopReadAbortedError();
       }
 
       if (options.shouldFail?.()) {
@@ -76,6 +72,12 @@ export function createFixtureShopSource(
             request.shopTypes.length === 0 ||
             request.shopTypes.includes(shop.primaryType),
         )
+        .filter(
+          (shop) =>
+            request.operationalStatuses === undefined ||
+            request.operationalStatuses.length === 0 ||
+            request.operationalStatuses.includes(shop.operationalStatus),
+        )
         .map(toPublicProjection);
 
       return {
@@ -90,7 +92,7 @@ export function createFixtureShopSource(
 function delay(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
-      reject(new AbortedError());
+      reject(new ShopReadAbortedError());
       return;
     }
 
@@ -101,7 +103,7 @@ function delay(ms: number, signal?: AbortSignal): Promise<void> {
 
     function onAbort() {
       clearTimeout(timer);
-      reject(new AbortedError());
+      reject(new ShopReadAbortedError());
     }
 
     signal?.addEventListener("abort", onAbort, { once: true });

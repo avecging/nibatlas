@@ -12,15 +12,16 @@ import type {
   OpeningHoursEntry,
   PositionPrecision,
   ServiceAccessMode,
+  ShopService,
+  ShopSourceRef,
 } from "@/src/domain/shop-detail";
+import { SHOP_SOURCE_KINDS } from "@/src/domain/shop-detail";
+import {
+  serviceEvidenceToken,
+  sourceEvidenceFailure,
+} from "@/src/domain/shop-evidence";
 
-export const PUBLIC_SOURCE_KINDS = [
-  "official",
-  "brand_dealer_list",
-  "community_list",
-  "founder_visit",
-  "demo_fixture",
-] as const;
+export const PUBLIC_SOURCE_KINDS = SHOP_SOURCE_KINDS;
 
 export type PublicSourceKind = (typeof PUBLIC_SOURCE_KINDS)[number];
 
@@ -59,22 +60,11 @@ export interface NearbyShopsV1 {
   readonly radiusMeters: number;
 }
 
-export interface PublicShopSourceV1 {
-  readonly id: string;
-  readonly label: string;
+export interface PublicShopSourceV1 extends ShopSourceRef {
   readonly kind: PublicSourceKind;
-  readonly url?: string;
-  readonly retrievedOn: string;
-  readonly confirms: readonly string[];
 }
 
-export interface PublicShopServiceV1 {
-  readonly label: string;
-  readonly confirmedBy: string;
-  readonly accessMode?: ServiceAccessMode;
-  readonly duration?: string;
-  readonly note?: string;
-}
+export type PublicShopServiceV1 = ShopService;
 
 export interface PublicShopLinkV1 {
   readonly type: string;
@@ -133,6 +123,19 @@ function string(value: unknown, at: string): string {
   }
 
   return value;
+}
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function uuid(value: unknown, at: string): string {
+  const parsed = string(value, at);
+
+  if (!UUID_PATTERN.test(parsed)) {
+    throw new ShopReadContractError(`${at} must be a UUID`);
+  }
+
+  return parsed;
 }
 
 function number(value: unknown, at: string): number {
@@ -247,6 +250,9 @@ function mapShop(value: unknown, at: string): ShopMapSummary {
     markerState: enumValue(item["markerState"], MARKER_STATES, `${at}.markerState`),
     sourceQuality: enumValue(item["sourceQuality"], SOURCE_QUALITIES, `${at}.sourceQuality`),
   };
+  if (output.markerState !== "unvisited") {
+    throw new ShopReadContractError(`${at}.markerState must be unvisited in a public read`);
+  }
   const localName = optionalString(item["localName"], `${at}.localName`);
   const localNameLangValue = optionalString(item["localNameLang"], `${at}.localNameLang`);
   let localNameLang: LanguageTag | undefined;
@@ -381,25 +387,61 @@ export function decodeShopDetailV1(value: unknown): ShopDetailReadV1 | null {
   const accessibilityNotes = optional("accessibilityNotes");
   const lastVerifiedAt = optional("lastVerifiedAt");
 
+  const services = arrayOf("services", (entry, index) => {
+    const service = record(entry, `detail.services[${index}]`);
+    const accessMode = service["accessMode"] === undefined ? undefined : enumValue(service["accessMode"], ACCESS_MODES, `detail.services[${index}].accessMode`);
+    const duration = optionalString(service["duration"], `detail.services[${index}].duration`);
+    const note = optionalString(service["note"], `detail.services[${index}].note`);
+    return {
+      label: string(service["label"], `detail.services[${index}].label`),
+      confirmedBy: uuid(service["confirmedBy"], `detail.services[${index}].confirmedBy`),
+      ...(accessMode === undefined ? {} : { accessMode }),
+      ...(duration === undefined ? {} : { duration }),
+      ...(note === undefined ? {} : { note }),
+    };
+  });
+  const sources = arrayOf("sources", (entry, index) => {
+    const source = record(entry, `detail.sources[${index}]`);
+    const url = optionalString(source["url"], `detail.sources[${index}].url`);
+    return {
+      id: uuid(source["id"], `detail.sources[${index}].id`),
+      label: string(source["label"], `detail.sources[${index}].label`),
+      kind: enumValue(source["kind"], PUBLIC_SOURCE_KINDS, `detail.sources[${index}].kind`),
+      retrievedOn: string(source["retrievedOn"], `detail.sources[${index}].retrievedOn`),
+      confirms: stringArray(source["confirms"], `detail.sources[${index}].confirms`),
+      ...(url === undefined ? {} : { url }),
+    };
+  });
+  const sourceIds = new Set<string>();
+
+  for (const source of sources) {
+    if (sourceIds.has(source.id)) {
+      throw new ShopReadContractError(`detail.sources contains duplicate source UUID ${source.id}`);
+    }
+    sourceIds.add(source.id);
+  }
+
+  services.forEach((service, index) => {
+    const failure = sourceEvidenceFailure(
+      sources,
+      service.confirmedBy,
+      serviceEvidenceToken(service.label),
+    );
+
+    if (failure !== null) {
+      throw new ShopReadContractError(
+        `detail.services[${index}].confirmedBy has ${failure}`,
+      );
+    }
+  });
+
   return {
     ...base,
     timezone: string(item["timezone"], "detail.timezone"),
     positionPrecision: enumValue(item["positionPrecision"], POSITION_PRECISIONS, "detail.positionPrecision"),
     shopTypes: arrayOf("shopTypes", (entry, index) => enumValue(entry, SHOP_TYPES, `detail.shopTypes[${index}]`)),
     specialties: stringArray(item["specialties"], "detail.specialties"),
-    services: arrayOf("services", (entry, index) => {
-      const service = record(entry, `detail.services[${index}]`);
-      const accessMode = service["accessMode"] === undefined ? undefined : enumValue(service["accessMode"], ACCESS_MODES, `detail.services[${index}].accessMode`);
-      const duration = optionalString(service["duration"], `detail.services[${index}].duration`);
-      const note = optionalString(service["note"], `detail.services[${index}].note`);
-      return {
-        label: string(service["label"], `detail.services[${index}].label`),
-        confirmedBy: string(service["confirmedBy"], `detail.services[${index}].confirmedBy`),
-        ...(accessMode === undefined ? {} : { accessMode }),
-        ...(duration === undefined ? {} : { duration }),
-        ...(note === undefined ? {} : { note }),
-      };
-    }),
+    services,
     brands: stringArray(item["brands"], "detail.brands"),
     links: arrayOf("links", (entry, index) => {
       const link = record(entry, `detail.links[${index}]`);
@@ -411,18 +453,7 @@ export function decodeShopDetailV1(value: unknown): ShopDetailReadV1 | null {
         ...(label === undefined ? {} : { label }),
       };
     }),
-    sources: arrayOf("sources", (entry, index) => {
-      const source = record(entry, `detail.sources[${index}]`);
-      const url = optionalString(source["url"], `detail.sources[${index}].url`);
-      return {
-        id: string(source["id"], `detail.sources[${index}].id`),
-        label: string(source["label"], `detail.sources[${index}].label`),
-        kind: enumValue(source["kind"], PUBLIC_SOURCE_KINDS, `detail.sources[${index}].kind`),
-        retrievedOn: string(source["retrievedOn"], `detail.sources[${index}].retrievedOn`),
-        confirms: stringArray(source["confirms"], `detail.sources[${index}].confirms`),
-        ...(url === undefined ? {} : { url }),
-      };
-    }),
+    sources,
     ...(shortDescription === undefined ? {} : { shortDescription }),
     ...(addressLines === undefined ? {} : { addressLines }),
     ...(postalCode === undefined ? {} : { postalCode }),

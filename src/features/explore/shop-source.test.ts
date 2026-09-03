@@ -1,6 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { createFixtureShopSource, AbortedError } from "@/src/features/explore/shop-source";
+import { ShopReadHttpError } from "@/src/api/v1/shop-read-client";
+import {
+  createFixtureShopSource,
+  AbortedError,
+} from "@/src/features/explore/shop-source";
+import { createHttpShopSource } from "@/src/features/explore/http-shop-source";
 import { prototypeShopSummaries } from "@/src/fixtures/prototype-catalogue";
 
 const japanBounds = { west: 128, south: 30, east: 146, north: 46 };
@@ -43,6 +48,18 @@ describe("fixture shop source", () => {
     ).toBe(true);
   });
 
+  it("filters by the shared operational-status request field", async () => {
+    const source = createFixtureShopSource();
+    const response = await source.fetchViewport({
+      bounds: japanBounds,
+      zoom: 6,
+      operationalStatuses: ["open"],
+    });
+
+    expect(response.shops.length).toBeGreaterThan(0);
+    expect(response.shops.every((shop) => shop.operationalStatus === "open")).toBe(true);
+  });
+
   it("caps results and reports truncation", async () => {
     const source = createFixtureShopSource({ resultCap: 3 });
     const response = await source.fetchViewport({
@@ -74,5 +91,38 @@ describe("fixture shop source", () => {
     controller.abort();
 
     await expect(pending).rejects.toBeInstanceOf(AbortedError);
+  });
+});
+
+describe("HTTP shop source", () => {
+  it("implements the shared seam through the v1 decoder", async () => {
+    const fetchMock = vi.fn(async () => Response.json({
+      shops: [],
+      truncated: false,
+      committedBounds: japanBounds,
+    }));
+    const source = createHttpShopSource({
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+
+    await expect(source.fetchViewport({ bounds: japanBounds, zoom: 6 })).resolves.toEqual({
+      shops: [],
+      truncated: false,
+      committedBounds: japanBounds,
+    });
+  });
+
+  it("surfaces API failure and never disguises it with fixture results", async () => {
+    const fetchMock = vi.fn(async () => Response.json(
+      { ok: false, error: { code: "read_service_unavailable" } },
+      { status: 503 },
+    ));
+    const source = createHttpShopSource({
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+
+    await expect(source.fetchViewport({ bounds: japanBounds, zoom: 6 })).rejects.toBeInstanceOf(
+      ShopReadHttpError,
+    );
   });
 });

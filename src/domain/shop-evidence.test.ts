@@ -13,7 +13,7 @@ import {
 import { findPrototypeShop } from "@/src/fixtures/prototype-catalogue";
 import { shopValueSpecimen } from "@/src/fixtures/shop-value-specimen";
 
-const SOURCE = shopValueSpecimen.sources[0]!.label;
+const SOURCE = shopValueSpecimen.sources[0]!.id;
 
 /**
  * The specimen with claims replaced, or removed by passing `undefined`.
@@ -95,7 +95,7 @@ describe("shopEvidenceIssues — an attached but unrelated source", () => {
         {
           label: "Nib alignment & tuning",
           accessMode: "walk_in",
-          confirmedBy: official.label,
+          confirmedBy: official.id,
         },
       ],
     });
@@ -104,7 +104,7 @@ describe("shopEvidenceIssues — an attached but unrelated source", () => {
       {
         path: "services[0]",
         token: "Service: Nib alignment & tuning",
-        confirmedBy: official.label,
+        confirmedBy: official.id,
         failure: "claim-not-confirmed",
       },
     ]);
@@ -112,6 +112,7 @@ describe("shopEvidenceIssues — an attached but unrelated source", () => {
 
   it("rejects an experience and an exclusive on the same footing", () => {
     const source: ShopSourceRef = {
+      id: "00000000-0000-4000-8000-000000000901",
       label: "Only confirms the address",
       retrievedOn: "2026-08-27",
       kind: "official",
@@ -120,8 +121,8 @@ describe("shopEvidenceIssues — an attached but unrelated source", () => {
 
     const shop = withSources([source], {
       ...bare,
-      experiences: [{ label: "Test bench", confirmedBy: source.label }],
-      exclusives: [{ label: "House ink", confirmedBy: source.label }],
+      experiences: [{ label: "Test bench", confirmedBy: source.id }],
+      exclusives: [{ label: "House ink", confirmedBy: source.id }],
     });
 
     expect(shopEvidenceIssues(shop).map((issue) => [issue.path, issue.failure])).toEqual([
@@ -134,6 +135,7 @@ describe("shopEvidenceIssues — an attached but unrelated source", () => {
     // The source confirms the alignment service and nothing else, so the second
     // service is unsupported even though the first one is fine.
     const source: ShopSourceRef = {
+      id: "00000000-0000-4000-8000-000000000902",
       label: "Confirms one service",
       retrievedOn: "2026-08-27",
       kind: "official",
@@ -143,8 +145,8 @@ describe("shopEvidenceIssues — an attached but unrelated source", () => {
     const shop = withSources([source], {
       ...bare,
       services: [
-        { label: "Nib alignment & tuning", confirmedBy: source.label },
-        { label: "Custom grind", confirmedBy: source.label },
+        { label: "Nib alignment & tuning", confirmedBy: source.id },
+        { label: "Custom grind", confirmedBy: source.id },
       ],
     });
 
@@ -152,7 +154,7 @@ describe("shopEvidenceIssues — an attached but unrelated source", () => {
       {
         path: "services[1]",
         token: "Service: Custom grind",
-        confirmedBy: source.label,
+        confirmedBy: source.id,
         failure: "claim-not-confirmed",
       },
     ]);
@@ -162,6 +164,7 @@ describe("shopEvidenceIssues — an attached but unrelated source", () => {
     // "Languages of the website" is not "Languages spoken". No substring or
     // prefix matching, so this stays a rejection.
     const source: ShopSourceRef = {
+      id: "00000000-0000-4000-8000-000000000903",
       label: "Confirms the website's languages",
       retrievedOn: "2026-08-27",
       kind: "official",
@@ -170,7 +173,7 @@ describe("shopEvidenceIssues — an attached but unrelated source", () => {
 
     const shop = withSources([source], {
       ...bare,
-      practical: { languages: { values: ["English"], confirmedBy: source.label } },
+      practical: { languages: { values: ["English"], confirmedBy: source.id } },
     });
 
     expect(shopEvidenceIssues(shop).map((issue) => issue.path)).toEqual([
@@ -188,6 +191,7 @@ describe("shopEvidenceIssues — access and practical are checked per field", ()
    * those is rejected on its own.
    */
   const stationOnly: ShopSourceRef = {
+    id: "00000000-0000-4000-8000-000000000904",
     label: "Station notice, confirms the station only",
     retrievedOn: "2026-08-27",
     kind: "official",
@@ -198,15 +202,15 @@ describe("shopEvidenceIssues — access and practical are checked per field", ()
     const shop = withSources([stationOnly], {
       ...bare,
       access: {
-        nearestStation: { value: "Specimen Station", confirmedBy: stationOnly.label },
-        walkFromStation: { value: "4 minutes on foot", confirmedBy: stationOnly.label },
-        floorNote: { value: "Third floor", confirmedBy: stationOnly.label },
-        accessibilityNote: { value: "Step-free", confirmedBy: stationOnly.label },
+        nearestStation: { value: "Specimen Station", confirmedBy: stationOnly.id },
+        walkFromStation: { value: "4 minutes on foot", confirmedBy: stationOnly.id },
+        floorNote: { value: "Third floor", confirmedBy: stationOnly.id },
+        accessibilityNote: { value: "Step-free", confirmedBy: stationOnly.id },
       },
       practical: {
-        paymentMethods: { values: ["Cash"], confirmedBy: stationOnly.label },
-        languages: { values: ["Japanese"], confirmedBy: stationOnly.label },
-        appointmentRequired: { value: true, confirmedBy: stationOnly.label },
+        paymentMethods: { values: ["Cash"], confirmedBy: stationOnly.id },
+        languages: { values: ["Japanese"], confirmedBy: stationOnly.id },
+        appointmentRequired: { value: true, confirmedBy: stationOnly.id },
       },
     });
 
@@ -225,14 +229,14 @@ describe("shopEvidenceIssues — access and practical are checked per field", ()
   it("checks each field against its own token", () => {
     const shop = withSources([stationOnly], {
       ...bare,
-      access: { floorNote: { value: "Third floor", confirmedBy: stationOnly.label } },
+      access: { floorNote: { value: "Third floor", confirmedBy: stationOnly.id } },
     });
 
     expect(shopEvidenceIssues(shop)).toEqual([
       {
         path: "access.floorNote",
         token: ACCESS_EVIDENCE_TOKENS.floorNote,
-        confirmedBy: stationOnly.label,
+        confirmedBy: stationOnly.id,
         failure: "claim-not-confirmed",
       },
     ]);
@@ -240,12 +244,14 @@ describe("shopEvidenceIssues — access and practical are checked per field", ()
 
   it("lets different fields of one block rest on different sources", () => {
     const station: ShopSourceRef = {
+      id: "00000000-0000-4000-8000-000000000905",
       label: "Confirms the station",
       retrievedOn: "2026-08-27",
       kind: "official",
       confirms: [ACCESS_EVIDENCE_TOKENS.nearestStation],
     };
     const payment: ShopSourceRef = {
+      id: "00000000-0000-4000-8000-000000000906",
       label: "Confirms the payment methods",
       retrievedOn: "2026-08-27",
       kind: "brand_dealer_list",
@@ -254,8 +260,8 @@ describe("shopEvidenceIssues — access and practical are checked per field", ()
 
     const shop = withSources([station, payment], {
       ...bare,
-      access: { nearestStation: { value: "Specimen Station", confirmedBy: station.label } },
-      practical: { paymentMethods: { values: ["Cash"], confirmedBy: payment.label } },
+      access: { nearestStation: { value: "Specimen Station", confirmedBy: station.id } },
+      practical: { paymentMethods: { values: ["Cash"], confirmedBy: payment.id } },
     });
 
     expect(shopEvidenceIssues(shop)).toEqual([]);
@@ -264,7 +270,7 @@ describe("shopEvidenceIssues — access and practical are checked per field", ()
   it("ignores an absent field rather than demanding evidence for it", () => {
     const shop = withSources([stationOnly], {
       ...bare,
-      access: { nearestStation: { value: "Specimen Station", confirmedBy: stationOnly.label } },
+      access: { nearestStation: { value: "Specimen Station", confirmedBy: stationOnly.id } },
     });
 
     expect(shopEvidenceIssues(shop)).toEqual([]);
@@ -275,7 +281,7 @@ describe("shopEvidenceIssues — access and practical are checked per field", ()
     // it needs evidence like any other.
     const shop = withSources([stationOnly], {
       ...bare,
-      practical: { appointmentRequired: { value: false, confirmedBy: stationOnly.label } },
+      practical: { appointmentRequired: { value: false, confirmedBy: stationOnly.id } },
     });
 
     expect(shopEvidenceIssues(shop).map((issue) => issue.path)).toEqual([
@@ -293,6 +299,7 @@ describe("evidence tokens", () => {
 
   it("compare case- and whitespace-insensitively, and nothing looser", () => {
     const source: ShopSourceRef = {
+      id: "00000000-0000-4000-8000-000000000907",
       label: "Hand-edited casing",
       retrievedOn: "2026-08-27",
       kind: "official",
@@ -301,7 +308,7 @@ describe("evidence tokens", () => {
 
     const shop = withSources([source], {
       ...bare,
-      services: [{ label: "Custom grind", confirmedBy: source.label }],
+      services: [{ label: "Custom grind", confirmedBy: source.id }],
     });
 
     expect(shopEvidenceIssues(shop)).toEqual([]);
@@ -309,7 +316,7 @@ describe("evidence tokens", () => {
     // A prefix is not support: "Custom grind, wet" is a different claim.
     const wider = withSources([source], {
       ...bare,
-      services: [{ label: "Custom grind, wet", confirmedBy: source.label }],
+      services: [{ label: "Custom grind, wet", confirmedBy: source.id }],
     });
 
     expect(shopEvidenceIssues(wider).map((issue) => issue.failure)).toEqual([

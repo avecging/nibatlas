@@ -39,6 +39,9 @@ export interface ShopMapSummary {
 export interface ViewportShopRequest {
   readonly bounds: ViewportBounds;
   readonly zoom: number;
+  /** Public catalogue filter sent to the read API. */
+  readonly operationalStatuses?: readonly OperationalStatus[];
+  /** Prototype user-state filter; never sent as a public catalogue filter. */
   readonly statuses?: readonly MarkerState[];
   readonly shopTypes?: readonly ShopType[];
   readonly limit?: number;
