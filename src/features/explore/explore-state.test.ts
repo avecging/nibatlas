@@ -376,6 +376,92 @@ describe("explore reducer", () => {
     expect(failed.results).toHaveLength(1);
   });
 
+  it("ignores a failure reported for a request that is no longer current", () => {
+    const withResults = loaded(createExploreState({ viewport: tokyo }));
+    const stale = exploreReducer(withResults, {
+      type: "resultsFailed",
+      requestId: withResults.requestId - 1,
+    });
+
+    expect(stale.status).toBe("idle");
+  });
+
+  /*
+   * The request storm guard. The committed query is the effect's only dependency,
+   * so a continuous drag must leave it untouched — identical, not merely equal.
+   */
+  it("leaves the committed query identical through a long drag", () => {
+    const initial = loaded(createExploreState({ viewport: tokyo }));
+    const dragged = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06].reduce(
+      (state, delta) =>
+        exploreReducer(state, {
+          type: "cameraMoved",
+          camera: {
+            bounds: {
+              west: tokyo.bounds.west + delta,
+              south: tokyo.bounds.south + delta,
+              east: tokyo.bounds.east + delta,
+              north: tokyo.bounds.north + delta,
+            },
+            zoom: tokyo.zoom,
+          },
+        }),
+      initial,
+    );
+
+    expect(dragged.query).toBe(initial.query);
+    expect(dragged.requestId).toBe(initial.requestId);
+  });
+
+  describe("retry", () => {
+    it("re-runs the query the visible results are under, not the moved camera", () => {
+      const withResults = loaded(createExploreState({ viewport: tokyo }));
+      const moved = exploreReducer(withResults, { type: "cameraMoved", camera: kyoto });
+      const failed = exploreReducer(moved, {
+        type: "resultsFailed",
+        requestId: moved.requestId,
+      });
+      const retried = exploreReducer(failed, { type: "retryQuery" });
+
+      expect(retried.status).toBe("loading");
+      expect(retried.requestId).toBe(failed.requestId + 1);
+      expect(retried.query.bounds).toEqual(tokyo.bounds);
+      // The results the reader is looking at stay while the retry is in flight.
+      expect(retried.results).toHaveLength(1);
+      // The camera they moved to is untouched, and still theirs to commit.
+      expect(retried.camera).toEqual(kyoto);
+    });
+
+    it("does nothing when there is no failure to retry", () => {
+      const withResults = loaded(createExploreState({ viewport: tokyo }));
+
+      expect(exploreReducer(withResults, { type: "retryQuery" })).toBe(withResults);
+    });
+  });
+
+  describe("an unusable catalogue", () => {
+    it("is not an empty result set and offers nothing to retry", () => {
+      const unavailable = exploreReducer(
+        loaded(createExploreState({ viewport: tokyo })),
+        { type: "catalogueUnavailable" },
+      );
+
+      expect(unavailable.status).toBe("unavailable");
+      expect(unavailable.results).toEqual([]);
+      expect(unavailable.truncated).toBe(false);
+      expect(shouldOfferSearchArea(unavailable)).toBe(false);
+    });
+
+    it("keeps Search this area hidden however far the camera moves", () => {
+      const unavailable = exploreReducer(createExploreState({ viewport: tokyo }), {
+        type: "catalogueUnavailable",
+      });
+      const moved = exploreReducer(unavailable, { type: "cameraMoved", camera: kyoto });
+
+      expect(shouldOfferSearchArea(moved)).toBe(false);
+    });
+  });
+
   it("clears a selection that leaves the result set", () => {
     const selected = exploreReducer(loaded(createExploreState({ viewport: tokyo })), {
       type: "selectShop",

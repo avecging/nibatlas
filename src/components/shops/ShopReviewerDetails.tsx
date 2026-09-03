@@ -8,9 +8,43 @@ import {
   SOURCE_KIND_LABELS,
   type ShopDetail,
 } from "@/src/domain/shop-detail";
+import type { ShopDetailUnavailableReason } from "@/src/features/shops/shop-detail-source";
 import { useReviewerMode } from "@/src/features/reviewer/ReviewerModeProvider";
 
 import styles from "./ShopDetailView.module.css";
+
+/**
+ * Why a shop page could not be read, for a reviewer only.
+ *
+ * A tester needs to know the page failed; which layer failed is instrumentation,
+ * and naming it on the product surface would read as an apology written in
+ * implementation terms.
+ */
+const UNAVAILABLE_REASON_NOTES: Record<ShopDetailUnavailableReason, string> = {
+  configuration: "The catalogue mode for this deployment is not configured.",
+  contract: "The catalogue answered with a record the v1 contract rejects.",
+  upstream: "The catalogue could not be reached.",
+};
+
+export function ShopUnavailableDiagnostic({
+  slug,
+  reason,
+}: {
+  readonly slug: string;
+  readonly reason: ShopDetailUnavailableReason;
+}) {
+  const reviewer = useReviewerMode();
+
+  if (!reviewer) {
+    return null;
+  }
+
+  return (
+    <p className={styles.plain} data-testid="shop-detail-unavailable-reason">
+      Reviewer note: {UNAVAILABLE_REASON_NOTES[reason]} Slug: <code>{slug}</code>.
+    </p>
+  );
+}
 
 /**
  * The two reviewer-facing parts of the shop page, as client islands.

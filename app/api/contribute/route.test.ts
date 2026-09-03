@@ -16,6 +16,28 @@ const SUGGESTION = {
   values: { shop_name: "Pen and Paper", country: "South Korea" },
 };
 
+const API_DETAIL = {
+  id: "00000000-0000-4000-8000-000000000301",
+  slug: "api-shop",
+  name: "API Shop",
+  countryCode: "SG",
+  localityName: "Singapore",
+  position: { latitude: 1.29, longitude: 103.85 },
+  primaryType: "fountain_pen_specialist",
+  specialtyLine: null,
+  operationalStatus: "open",
+  markerState: "unvisited",
+  sourceQuality: "sourced",
+  timezone: "Asia/Singapore",
+  positionPrecision: "street",
+  shopTypes: ["fountain_pen_specialist"],
+  specialties: [],
+  services: [],
+  brands: [],
+  links: [],
+  sources: [],
+};
+
 function post(body: unknown, headers: Record<string, string> = {}) {
   return POST(
     new Request("https://nibatlas.test/api/contribute", {
@@ -113,6 +135,30 @@ describe("what reaches the intake", () => {
     expect(body.fields.shop_name).toBe("TY Lee Pen Shop");
   });
 
+  it("resolves an API-mode correction against the public catalogue", async () => {
+    vi.stubEnv("NEXT_PUBLIC_CATALOGUE_MODE", "api");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
+    const fetchMock = vi.fn(async (url: string) =>
+      url.includes("/rpc/shop_detail")
+        ? Response.json(API_DETAIL)
+        : Response.json({ ok: true }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await post({ ...CORRECTION, shopSlug: "api-shop" });
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(String(callOf(fetchMock, 0)[1].body))).toEqual({
+      p_slug: "api-shop",
+    });
+    expect(forwarded(fetchMock).fields).toMatchObject({
+      shop_slug: "api-shop",
+      shop_name: "API Shop",
+    });
+  });
+
   it("never forwards the reviewing team's own columns", async () => {
     const fetchMock = intakeAccepts();
     vi.stubGlobal("fetch", fetchMock);
@@ -154,6 +200,20 @@ describe("what is refused", () => {
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({ error: "unknown_shop" });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("reports an unavailable API catalogue instead of calling a fixture unknown", async () => {
+    vi.stubEnv("NEXT_PUBLIC_CATALOGUE_MODE", "api");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
+    const fetchMock = vi.fn(async () => new Response(null, { status: 503 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await post({ ...CORRECTION, shopSlug: "api-shop" });
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({ error: "unavailable" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("refuses a kind it does not know", async () => {

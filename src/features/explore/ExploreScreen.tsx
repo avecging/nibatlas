@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 
 import { DestinationSearch } from "@/src/components/map/DestinationSearch";
@@ -25,15 +25,13 @@ import {
   shouldOfferSearchArea,
   type SheetState,
 } from "@/src/features/explore/explore-state";
-import {
-  AbortedError,
-  createFixtureShopSource,
-  PROTOTYPE_RESULT_CAP,
-} from "@/src/features/explore/shop-source";
-import { createFixtureGeocoder } from "@/src/features/map/destination-geocoder";
+import { useViewportResults } from "@/src/features/explore/use-viewport-results";
+import { useCatalogue } from "@/src/features/catalogue/CatalogueProvider";
+import { catalogueModeDiagnostic } from "@/src/features/catalogue/catalogue-mode";
 import { prototypeDestinations } from "@/src/fixtures/prototype-destinations";
 import { prototypeShopSummaries } from "@/src/fixtures/prototype-catalogue";
 import { createMapStyleProvider } from "@/src/features/map/map-style";
+import { shopFocusViewport } from "@/src/features/map/shop-focus";
 import { noopTelemetry } from "@/src/features/map/telemetry";
 import { ReviewerModeBadge } from "@/src/features/reviewer/ReviewerModeBadge";
 import { useReviewerMode } from "@/src/features/reviewer/ReviewerModeProvider";
@@ -45,13 +43,15 @@ const MapCanvas = dynamic(
   { ssr: false },
 );
 
-/** Opens on the current prototype catalogue so its clusters are visible immediately. */
+/**
+ * The opening frame: the region the catalogue currently covers, wide enough that
+ * its clusters are visible immediately in either catalogue mode.
+ */
 const INITIAL_VIEWPORT: Viewport = {
   bounds: { west: 96, south: -4, east: 149, north: 46 },
   zoom: 3,
 };
 
-const PROTOTYPE_LATENCY_MS = 220;
 const INTRO_STORAGE_KEY = "nib-atlas.intro-dismissed.v1";
 const VIEWPORT_STORAGE_KEY = "nib-atlas.explore-viewport.v1";
 
@@ -86,23 +86,11 @@ function readPersistedViewport(): PersistedExplore | null {
   }
 }
 
-function shopViewport(shop: ShopMapSummary): Viewport {
-  const padding = 0.006;
-
-  return {
-    bounds: {
-      west: shop.position.longitude - padding,
-      south: shop.position.latitude - padding,
-      east: shop.position.longitude + padding,
-      north: shop.position.latitude + padding,
-    },
-    zoom: 16,
-  };
-}
-
 export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }) {
+  const catalogue = useCatalogue();
   const collection = useCollection();
   const reviewer = useReviewerMode();
+  const router = useRouter();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const searchParams = useSearchParams();
   const [state, dispatch] = useReducer(
@@ -121,12 +109,14 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
 
   const pendingCommit = useRef<{ readonly label: string | null } | null>(null);
   const cameraToken = useRef(0);
+  /**
+   * The slug whose position is being resolved, and the token that decides which
+   * answer is still wanted.
+   */
+  const [locatingSlug, setLocatingSlug] = useState<string | null>(null);
+  const locateToken = useRef(0);
 
-  const source = useMemo(
-    () => createFixtureShopSource({ latencyMs: PROTOTYPE_LATENCY_MS }),
-    [],
-  );
-  const geocoder = useMemo(() => createFixtureGeocoder(), []);
+  const { geocoder, locator, shopSource } = catalogue;
   const styleProvider = useMemo(
     () => createMapStyleProvider(process.env.NEXT_PUBLIC_MAPTILER_KEY),
     [],
@@ -177,85 +167,129 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
     setIntroDismissed(window.sessionStorage.getItem(INTRO_STORAGE_KEY) === "true");
   }, []);
 
+  /**
+   * Sends the map to one canonical shop, resolving its position first.
+   *
+   * `GET /api/v1/shops/search` returns canonical records without coordinates, so
+   * a search hit is not a place until the locator has answered. A stale answer
+   * is dropped by token rather than applied: a reader who has chosen a second
+   * shop must not be flown to the first one arriving late. When the shop cannot
+   * be placed at all the reader still gets somewhere true — its own page —
+   * rather than a map that silently ignored the tap.
+   */
+  const focusShopBySlug = useCallback(
+    (slug: string) => {
+      const token = (locateToken.current += 1);
+
+      setLocatingSlug(slug);
+
+      void locator
+        .locate(slug)
+        .then((shop) => {
+          if (locateToken.current !== token) {
+            return;
+          }
+
+          setLocatingSlug(null);
+
+          if (!shop) {
+            router.push(`/shops/${slug}?from=map`);
+            return;
+          }
+
+          moveCamera(shopFocusViewport(shop), shop.name);
+          dispatch({ type: "selectShop", shopId: shop.id });
+        })
+        .catch(() => {
+          if (locateToken.current !== token) {
+            return;
+          }
+
+          setLocatingSlug(null);
+          router.push(`/shops/${slug}?from=map`);
+        });
+    },
+    [locator, moveCamera, router],
+  );
+
   // Restore the previous map context after shop-detail navigation, or honour a
   // deep link from Saved mode and the place prompts.
   useEffect(() => {
+    const controller = new AbortController();
     const shopSlug = searchParams?.get("shop");
     const destinationId = searchParams?.get("destination");
 
-    if (shopSlug) {
-      const shop = prototypeShopSummaries.find((candidate) => candidate.slug === shopSlug);
+    function restorePersisted() {
+      const persisted = readPersistedViewport();
 
-      if (shop) {
-        moveCamera(shopViewport(shop), shop.name);
-        dispatch({ type: "selectShop", shopId: shop.id });
-        return;
+      if (persisted) {
+        moveCamera(persisted.viewport, persisted.label);
       }
     }
 
-    if (destinationId) {
+    function jumpToDestination(): boolean {
+      if (!destinationId) {
+        return false;
+      }
+
       const destination = prototypeDestinations.find(
         (candidate) => candidate.id === destinationId,
       );
 
-      if (destination) {
-        moveCamera(
-          { bounds: destination.bounds, zoom: destination.zoom },
-          destination.name,
-        );
-        return;
+      if (!destination) {
+        return false;
       }
+
+      moveCamera({ bounds: destination.bounds, zoom: destination.zoom }, destination.name);
+
+      return true;
     }
 
-    const persisted = readPersistedViewport();
+    if (shopSlug) {
+      // The shop is resolved through the injected locator, so a `?shop=` return
+      // from a shop page restores the same map in fixture and API modes alike.
+      void locator
+        .locate(shopSlug, controller.signal)
+        .then((shop) => {
+          if (controller.signal.aborted) {
+            return;
+          }
 
-    if (persisted) {
-      moveCamera(persisted.viewport, persisted.label);
+          if (shop) {
+            moveCamera(shopFocusViewport(shop), shop.name);
+            dispatch({ type: "selectShop", shopId: shop.id });
+            return;
+          }
+
+          if (!jumpToDestination()) {
+            restorePersisted();
+          }
+        })
+        .catch(() => {
+          if (!controller.signal.aborted && !jumpToDestination()) {
+            restorePersisted();
+          }
+        });
+
+      return () => controller.abort();
     }
+
+    if (!jumpToDestination()) {
+      restorePersisted();
+    }
+
+    return () => controller.abort();
     // Deep links and restoration run once on mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const { query } = state;
 
-  // Only a committed query fetches. Panning, zooming, and adopting the
-  // renderer camera never reach this effect.
-  useEffect(() => {
-    const controller = new AbortController();
-
-    void source
-      .fetchViewport(
-        {
-          bounds: query.bounds,
-          zoom: query.zoom,
-          shopTypes: query.shopTypes,
-          limit: PROTOTYPE_RESULT_CAP,
-        },
-        controller.signal,
-      )
-      .then((response) => {
-        dispatch({
-          type: "resultsLoaded",
-          requestId: query.requestId,
-          shops: response.shops,
-          truncated: response.truncated,
-        });
-        noopTelemetry.record("map_view_committed", {
-          zoom: Math.round(query.zoom),
-          resultCount: response.shops.length,
-          truncated: response.truncated,
-        });
-      })
-      .catch((error: unknown) => {
-        if (error instanceof AbortedError || controller.signal.aborted) {
-          return;
-        }
-
-        dispatch({ type: "resultsFailed", requestId: query.requestId });
-      });
-
-    return () => controller.abort();
-  }, [query, source]);
+  /*
+   * The only fetch on this screen, and it is behind a hook rather than inline:
+   * the component is handed a source and never talks to the network itself.
+   */
+  useViewportResults(shopSource, query, dispatch);
 
   useEffect(() => {
     try {
@@ -300,11 +334,13 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
    */
   const savedResults = useMemo(
     () =>
-      applyUserShopState(
-        prototypeShopSummaries.filter((shop) => collection.savedShopIds.has(shop.id)),
-        collection.userShopState,
-      ),
-    [collection.savedShopIds, collection.userShopState],
+      catalogue.prototypeCatalogueJoin
+        ? applyUserShopState(
+            prototypeShopSummaries.filter((shop) => collection.savedShopIds.has(shop.id)),
+            collection.userShopState,
+          )
+        : [],
+    [catalogue.prototypeCatalogueJoin, collection.savedShopIds, collection.userShopState],
   );
 
   const results = mode === "saved" ? savedResults : areaResults;
@@ -353,7 +389,7 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
   );
 
   const offerMode =
-    mode === "saved"
+    mode === "saved" || state.status === "unavailable"
       ? "hidden"
       : shouldOfferSearchArea(state)
         ? "offer"
@@ -374,18 +410,22 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
       <span className="type-h3">
         {mode === "saved"
           ? `${results.length} saved shop${results.length === 1 ? "" : "s"}`
-          : state.status === "loading" && results.length === 0
-            ? "Searching…"
-            : `${results.length} shop${results.length === 1 ? "" : "s"} in this area`}
+          : state.status === "unavailable"
+            ? "Shops unavailable"
+            : state.status === "loading" && results.length === 0
+              ? "Searching…"
+              : `${results.length} shop${results.length === 1 ? "" : "s"} in this area`}
       </span>
       <span className="type-body-sm">
         {selectedShop
           ? `Selected: ${selectedShop.name}`
           : mode === "saved"
             ? "All locations, not only this map view"
-            : state.lastCommittedLabel
-              ? `Searched: ${state.lastCommittedLabel}`
-              : "Move the map, then search this area"}
+            : state.status === "unavailable"
+              ? "The catalogue could not be reached"
+              : state.lastCommittedLabel
+                ? `Searched: ${state.lastCommittedLabel}`
+                : "Move the map, then search this area"}
       </span>
     </span>
   );
@@ -486,7 +526,28 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
         Same rule as Passport: "Nothing saved yet" is a claim about the reader, and
         local state resolves a frame after the first paint.
       */}
-      {!collection.hydrated ? null : savedGroups.length === 0 ? (
+      {!catalogue.prototypeCatalogueJoin ? (
+        <div className={styles.savedEmpty} data-testid="saved-scope-unavailable">
+          {/*
+            Saved is a global scope: every saved shop, wherever it is. Answering
+            that needs a lookup of saved records across the whole catalogue, and
+            Milestone 3 excludes user-state reads — so rather than list a subset
+            and call it everything, this scope stays empty here. Saving itself
+            still works, and a saved shop still shows as saved on its marker,
+            its card, and its own page.
+          */}
+          <h3 className="type-h3">Saved shops are not listed yet</h3>
+          <p>
+            Saving works and stays on this device, but listing every saved shop
+            across the whole catalogue needs the account that carries them. Until
+            then a saved shop shows as saved wherever you meet it — on its marker,
+            its card, and its own page.
+          </p>
+          <Link className={styles.savedEmptyLink} href="/">
+            Back to map results
+          </Link>
+        </div>
+      ) : !collection.hydrated ? null : savedGroups.length === 0 ? (
         <div className={styles.savedEmpty}>
           {/*
             A real heading, not a paragraph styled like one. With a clean device
@@ -534,7 +595,34 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
     </div>
   );
 
-  const areaList = (
+  /*
+   * A catalogue that cannot be asked at all.
+   *
+   * Not an empty result and not a failed request: there is nothing to retry and
+   * no previous result set to keep, so the panel says so plainly and offers the
+   * one thing that helps — the surfaces that do not need the catalogue.
+   */
+  const unavailablePanel = (
+    <div className={styles.savedEmpty} role="alert" data-testid="catalogue-unavailable">
+      <h3 className="type-h3">Shops are unavailable</h3>
+      <p>
+        The shop catalogue could not be reached, so there is nothing to show here
+        yet. Nothing you have saved on this device has been affected.
+      </p>
+      {reviewer ? (
+        <p className={styles.promptsNote}>
+          Reviewer note: {catalogueModeDiagnostic(catalogue.resolution)}.
+        </p>
+      ) : null}
+      <Link className={styles.savedEmptyLink} href="/about">
+        About Nib Atlas
+      </Link>
+    </div>
+  );
+
+  const areaList = state.status === "unavailable" ? (
+    unavailablePanel
+  ) : (
     <>
       {state.status === "error" ? (
         <p className={styles.errorNote} role="alert">
@@ -578,11 +666,13 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
         <div className={styles.overlayTop}>
           <DestinationSearch
             geocoder={geocoder}
+            locatingSlug={locatingSlug}
             onChooseDestination={(viewport, label) => moveCamera(viewport, label)}
             onChooseShop={(shop: ShopMapSummary, viewport) => {
               moveCamera(viewport, shop.name);
               dispatch({ type: "selectShop", shopId: shop.id });
             }}
+            onChooseShopSlug={focusShopBySlug}
             onSearched={(queryLength) =>
               noopTelemetry.record("destination_searched", { queryLength })
             }
@@ -598,6 +688,10 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
               <ReviewerModeBadge compact />
               <span className={styles.basemapDiagnostic} data-testid="basemap-diagnostic">
                 {styleProvider.diagnosticAttribution}
+              </span>
+              {/* Which catalogue supplier is live, so a tester can tell modes apart. */}
+              <span className={styles.basemapDiagnostic} data-testid="catalogue-diagnostic">
+                {catalogueModeDiagnostic(catalogue.resolution)}
               </span>
             </div>
           ) : null}
@@ -637,7 +731,13 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
         <div className={styles.searchAreaSlot}>
           <SearchThisArea
             mode={offerMode}
-            onSearch={() => dispatch({ type: "commitSearch" })}
+            onSearch={() =>
+              dispatch(
+                // Retry re-runs the query the visible results are under. Only an
+                // offer commits the camera the reader has moved to.
+                offerMode === "error" ? { type: "retryQuery" } : { type: "commitSearch" },
+              )
+            }
           />
         </div>
 

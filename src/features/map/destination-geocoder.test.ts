@@ -22,7 +22,7 @@ describe("fixture destination geocoder", () => {
     expect(results.shops.length).toBeGreaterThan(0);
     expect(
       results.shops.every((item) =>
-        prototypeShopSummaries.some((shop) => shop.id === item.shop.id),
+        prototypeShopSummaries.some((shop) => shop.id === item.id),
       ),
     ).toBe(true);
     expect(
@@ -43,13 +43,13 @@ describe("fixture destination geocoder", () => {
   it("returns a close viewport for a matched shop", async () => {
     const results = await geocoder.search("Pen House");
 
-    expect(results.shops[0]?.shop.slug).toBe("pen-house-tainan");
-    expect(results.shops[0]?.viewport.zoom).toBeGreaterThan(12);
+    expect(results.shops[0]?.slug).toBe("pen-house-tainan");
+    expect(results.shops[0]?.target?.viewport.zoom).toBeGreaterThan(12);
   });
 
   it("matches a shop by its local-script name", async () => {
     const results = await geocoder.search("文寶房");
 
-    expect(results.shops.map((item) => item.shop.slug)).toContain("pen-house-tainan");
+    expect(results.shops.map((item) => item.slug)).toContain("pen-house-tainan");
   });
 });

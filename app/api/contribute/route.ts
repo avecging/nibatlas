@@ -5,7 +5,7 @@ import {
   type ContributionKind,
   type SubmissionValues,
 } from "@/src/features/contribute/contribute-schema";
-import { findPrototypeShop } from "@/src/fixtures/prototype-catalogue";
+import { resolveShopIdentity } from "@/src/features/shops/server-shop-identity-source";
 
 /**
  * Contribution intake.
@@ -176,14 +176,20 @@ export async function POST(request: Request) {
   const context: Record<string, string> = {};
 
   if (kind === "correction") {
-    const shop = shopSlug ? findPrototypeShop(shopSlug) : undefined;
+    const result = shopSlug
+      ? await resolveShopIdentity(shopSlug, {}, request.signal)
+      : { status: "missing" as const };
 
-    if (!shop) {
+    if (result.status === "unavailable") {
+      return fail(503, "unavailable");
+    }
+
+    if (result.status === "missing") {
       return fail(400, "unknown_shop");
     }
 
-    context["shop_slug"] = shop.slug;
-    context["shop_name"] = shop.name;
+    context["shop_slug"] = result.shop.slug;
+    context["shop_name"] = result.shop.name;
   }
 
   const submitted = stringValues(body["values"]);

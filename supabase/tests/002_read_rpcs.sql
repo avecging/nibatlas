@@ -1,5 +1,5 @@
 begin;
-select plan(34);
+select plan(36);
 
 select has_function('public', 'viewport_shops', array[
   'double precision', 'double precision', 'double precision', 'double precision',
@@ -157,6 +157,14 @@ select ok(
   not (public.shop_detail('m2-singapore-demo-fixture') ? 'publicationStatus'),
   'detail excludes publication controls'
 );
+update public.shops
+set appointment_required = true, accessibility_notes = 'Demo internal note'
+where slug = 'm2-singapore-demo-fixture';
+select ok(
+  not (public.shop_detail('m2-singapore-demo-fixture') ? 'appointmentRequired')
+    and not (public.shop_detail('m2-singapore-demo-fixture') ? 'accessibilityNotes'),
+  'detail withholds practical columns that have no per-field source UUID'
+);
 select is(public.shop_detail('m2-draft-fixture'), null::jsonb,
   'detail returns null for a draft shop');
 
@@ -169,6 +177,15 @@ select is(
   (public.nearby_shops(1.290270, 103.851959, 1000, 10)->'shops'->0->>'distanceMeters')::integer,
   0,
   'Near Me distance is calculated server-side'
+);
+select ok(
+  public.nearby_shops(1.290270, 103.851959, 1000, 10)->'shops'->0
+    @> jsonb_build_object(
+      'positionPrecision', 'locality',
+      'primaryType', 'fountain_pen_specialist',
+      'operationalStatus', 'unknown'
+    ),
+  'Near Me includes the precision, type, and status needed for honest presentation'
 );
 
 select throws_ok(

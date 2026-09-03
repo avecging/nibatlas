@@ -17,8 +17,16 @@ import styles from "./ShopDetailView.module.css";
  * Quiet by design: it sits with the provenance line at the foot of the page, as
  * a way to correct the record rather than an invitation to publish. Nothing here
  * accepts content, so no community publishing surface is created.
+ *
+ * The report page and intake resolve the slug through the same explicit
+ * catalogue mode as the listing, so fixture and API records use the same
+ * first-party correction flow. Email remains the form's delivery fallback.
  */
-export function ShopCorrection({ shopSlug }: { readonly shopSlug: string }) {
+export function ShopCorrection({
+  shopSlug,
+}: {
+  readonly shopSlug: string;
+}) {
   return (
     <p className={styles.correction}>
       Found something wrong with this listing? Let us know and we&rsquo;ll look

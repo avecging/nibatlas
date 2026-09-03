@@ -43,6 +43,29 @@ matching MapLibre worker modules into `public/maplibre/`; an explicit worker URL
 is needed only when the app is mounted below a path prefix. See
 `docs/adr/0002-maplibre-worker.md`.
 
+## Catalogue mode
+
+`NEXT_PUBLIC_CATALOGUE_MODE` selects which catalogue every surface reads. It is
+read at build time, so a change needs a rebuild.
+
+| Value | Effect |
+| --- | --- |
+| unset or `fixture` | The deterministic prototype catalogue. The default, and what tests, reviewer mode, and offline frontend work run against. |
+| `api` | The same-origin `/api/v1/shops/*` read API. Requires `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. |
+| `api-demo` | `api`, and additionally accepts the demo-quality staging projection (`demo_fixture` sources paired with `sourceQuality: "demo"`). |
+| anything else | Treated as a misconfiguration. Surfaces say the catalogue is unavailable. |
+
+A failed or unconfigured API is never answered with fixture data: an outage that
+rendered demonstration records would look like a working catalogue with most of
+its shops missing. An unrecognised value is a misconfiguration for the same
+reason. In reviewer mode the map overlay names the live supplier.
+
+In `api` mode the simulated stamp collection is withheld — a simulated
+impression beside real records would read as a verified visit — and the global
+Saved scope lists nothing, because listing every saved shop needs the account
+that Milestone 4 introduces. Production catalogue import remains Milestone 6/7
+work.
+
 ## Local Supabase
 
 The hosted staging project is not required for Milestone 0. After Docker Desktop is running:

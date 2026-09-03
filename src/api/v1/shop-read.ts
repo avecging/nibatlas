@@ -52,6 +52,9 @@ export interface NearbyShopV1 {
   readonly countryCode: CountryCode;
   readonly localityName: string;
   readonly position: GeoPoint;
+  readonly positionPrecision: PositionPrecision;
+  readonly primaryType: ShopType;
+  readonly operationalStatus: OperationalStatus;
   readonly distanceMeters: number;
 }
 
@@ -89,8 +92,6 @@ export interface ShopDetailReadV1 extends ShopMapSummary {
   readonly websiteUrl?: string;
   readonly openingHours?: readonly OpeningHoursEntry[];
   readonly openingHoursNote?: string;
-  readonly appointmentRequired?: boolean;
-  readonly accessibilityNotes?: string;
   readonly lastVerifiedAt?: string;
   readonly shopTypes: readonly ShopType[];
   readonly specialties: readonly string[];
@@ -334,6 +335,21 @@ export function decodeNearbyShopsV1(value: unknown): NearbyShopsV1 {
         countryCode: countryCode(shop["countryCode"], `nearby.shops[${index}].countryCode`),
         localityName: string(shop["localityName"], `nearby.shops[${index}].localityName`),
         position: point(shop["position"], `nearby.shops[${index}].position`),
+        positionPrecision: enumValue(
+          shop["positionPrecision"],
+          POSITION_PRECISIONS,
+          `nearby.shops[${index}].positionPrecision`,
+        ),
+        primaryType: enumValue(
+          shop["primaryType"],
+          SHOP_TYPES,
+          `nearby.shops[${index}].primaryType`,
+        ),
+        operationalStatus: enumValue(
+          shop["operationalStatus"],
+          OPERATIONAL_STATUSES,
+          `nearby.shops[${index}].operationalStatus`,
+        ),
         distanceMeters: number(shop["distanceMeters"], `nearby.shops[${index}].distanceMeters`),
       };
     }),
@@ -377,14 +393,12 @@ export function decodeShopDetailV1(value: unknown): ShopDetailReadV1 | null {
   const optional = (key: string) => optionalString(item[key], `detail.${key}`);
   const addressLines = item["addressLines"] === undefined ? undefined : stringArray(item["addressLines"], "detail.addressLines");
   const hours = item["openingHours"] === undefined ? undefined : openingHours(item["openingHours"]);
-  const appointmentRequired = item["appointmentRequired"] === undefined ? undefined : boolean(item["appointmentRequired"], "detail.appointmentRequired");
   const shortDescription = optional("shortDescription");
   const postalCode = optional("postalCode");
   const neighbourhood = optional("neighbourhood");
   const phone = optional("phone");
   const websiteUrl = optional("websiteUrl");
   const openingHoursNote = optional("openingHoursNote");
-  const accessibilityNotes = optional("accessibilityNotes");
   const lastVerifiedAt = optional("lastVerifiedAt");
 
   const services = arrayOf("services", (entry, index) => {
@@ -462,8 +476,6 @@ export function decodeShopDetailV1(value: unknown): ShopDetailReadV1 | null {
     ...(websiteUrl === undefined ? {} : { websiteUrl }),
     ...(hours === undefined ? {} : { openingHours: hours }),
     ...(openingHoursNote === undefined ? {} : { openingHoursNote }),
-    ...(appointmentRequired === undefined ? {} : { appointmentRequired }),
-    ...(accessibilityNotes === undefined ? {} : { accessibilityNotes }),
     ...(lastVerifiedAt === undefined ? {} : { lastVerifiedAt }),
   };
 }

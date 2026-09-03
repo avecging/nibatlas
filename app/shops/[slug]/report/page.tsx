@@ -3,14 +3,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ContributeForm } from "@/src/components/contribute/ContributeForm";
+import { readCatalogueMode } from "@/src/features/catalogue/catalogue-mode";
 import { shopCorrectionHref } from "@/src/features/contribute/contribute-links";
-import {
-  findPrototypeShop,
-  prototypeShopDetails,
-} from "@/src/fixtures/prototype-catalogue";
+import { shopIdentityForRequest } from "@/src/features/shops/server-shop-identity-source";
+import { prototypeShopDetails } from "@/src/fixtures/prototype-catalogue";
 
 export function generateStaticParams() {
-  return prototypeShopDetails.map((shop) => ({ slug: shop.slug }));
+  return readCatalogueMode().mode === "fixture"
+    ? prototypeShopDetails.map((shop) => ({ slug: shop.slug }))
+    : [];
 }
 
 export async function generateMetadata({
@@ -19,11 +20,20 @@ export async function generateMetadata({
   readonly params: Promise<{ readonly slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const shop = findPrototypeShop(slug);
+  const result = await shopIdentityForRequest(slug);
 
-  if (!shop) {
+  if (result.status === "missing") {
     return { title: "Shop not found" };
   }
+
+  if (result.status === "unavailable") {
+    return {
+      title: "Correction form unavailable",
+      robots: { index: false, follow: true },
+    };
+  }
+
+  const { shop } = result;
 
   return {
     title: `Report incorrect information — ${shop.name}`,
@@ -54,11 +64,30 @@ export default async function ShopReportPage({
   readonly params: Promise<{ readonly slug: string }>;
 }) {
   const { slug } = await params;
-  const shop = findPrototypeShop(slug);
+  const result = await shopIdentityForRequest(slug);
 
-  if (!shop) {
+  if (result.status === "missing") {
     notFound();
   }
+
+  if (result.status === "unavailable") {
+    return (
+      <article className="prose-page">
+        <p className="type-overline">Report incorrect information</p>
+        <h1 className="type-h1">Correction form unavailable</h1>
+        <p className="type-body-lg">
+          We couldn&rsquo;t confirm this listing just now. You can still tell us
+          what needs fixing by email.
+        </p>
+        <p>
+          <a href={shopCorrectionHref()}>Email Nib Atlas</a> or{" "}
+          <Link href={`/shops/${slug}`}>return to the listing</Link>.
+        </p>
+      </article>
+    );
+  }
+
+  const { shop } = result;
 
   return (
     <article className="prose-page">
