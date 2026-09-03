@@ -17,6 +17,8 @@ const visualEnabled = Boolean(process.env.VISUAL);
 const evidenceEnabled = Boolean(process.env.EVIDENCE);
 const apiIntegrationEnabled = Boolean(process.env.API_INTEGRATION);
 const apiIntegrationReuseBuild = Boolean(process.env.API_INTEGRATION_REUSE_BUILD);
+const apiIntegrationEnvironment =
+  "NEXT_PUBLIC_CATALOGUE_MODE=api-demo NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:3100 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=api-e2e-publishable";
 const stagingUrl = process.env.STAGING_URL?.trim();
 
 /**
@@ -55,7 +57,7 @@ export default defineConfig({
             },
             {
               command:
-                `NEXT_PUBLIC_CATALOGUE_MODE=api-demo NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:3100 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=api-e2e-publishable ${apiIntegrationReuseBuild ? "pnpm start --hostname 127.0.0.1 --port 3000" : "pnpm build && pnpm start --hostname 127.0.0.1 --port 3000"}`,
+                `${apiIntegrationEnvironment} ${apiIntegrationReuseBuild ? "pnpm start --hostname 127.0.0.1 --port 3000" : `pnpm build && ${apiIntegrationEnvironment} pnpm start --hostname 127.0.0.1 --port 3000`}`,
               url: "http://127.0.0.1:3000/api/health",
               reuseExistingServer: !process.env.CI,
               timeout: 300_000,
