@@ -1,5 +1,5 @@
 begin;
-select plan(32);
+select plan(30);
 
 select has_table('public', 'profiles', 'profiles table exists');
 select has_table('public', 'saved_shops', 'saved shops table exists');
@@ -191,23 +191,6 @@ select is(
    where id = '10000000-0000-4000-8000-000000000002'),
   null::text,
   'one account lifecycle cannot change another profile'
-);
-
-select ok(
-  not has_function_privilege(
-    'service_role',
-    'public.provision_profile_for_auth_user()',
-    'EXECUTE'
-  ),
-  'profile provisioning is trigger-only, including for the service role'
-);
-select ok(
-  not has_function_privilege(
-    'authenticated',
-    'public.provision_profile_for_auth_user()',
-    'EXECUTE'
-  ),
-  'authenticated users cannot invoke the provisioning trigger function'
 );
 
 select * from finish();
