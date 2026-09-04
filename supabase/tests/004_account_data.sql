@@ -1,5 +1,5 @@
 begin;
-select plan(30);
+select plan(32);
 
 select has_table('public', 'profiles', 'profiles table exists');
 select has_table('public', 'saved_shops', 'saved shops table exists');
