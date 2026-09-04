@@ -96,12 +96,39 @@ async function readJsonObject(request: Request): Promise<Record<string, unknown>
   }
 
   try {
-    const raw = await request.text();
+    const reader = request.body?.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
 
-    if (new TextEncoder().encode(raw).byteLength > MAX_AUTH_BODY_BYTES) {
-      return null;
+    if (reader) {
+      for (;;) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          break;
+        }
+
+        total += value.byteLength;
+
+        if (total > MAX_AUTH_BODY_BYTES) {
+          await reader.cancel().catch(() => {});
+
+          return null;
+        }
+
+        chunks.push(value);
+      }
     }
 
+    const combined = new Uint8Array(total);
+    let offset = 0;
+
+    for (const chunk of chunks) {
+      combined.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+
+    const raw = new TextDecoder().decode(combined);
     const value: unknown = JSON.parse(raw);
 
     return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -226,10 +253,10 @@ export async function startGoogle(
     dependencies.now?.(),
   );
 
-  return new Response(null, {
-    status: 303,
-    headers: { ...NO_STORE, Location: providerUrl.href },
-  });
+  // The UI starts this route with fetch, then performs an explicit top-level
+  // navigation. Returning a 3xx here would make fetch follow the cross-origin
+  // provider chain as a subresource and fail CORS before the browser navigates.
+  return json({ ok: true, redirectTo: providerUrl.href });
 }
 
 function callbackTarget(dependencies: AuthRouteDependencies) {

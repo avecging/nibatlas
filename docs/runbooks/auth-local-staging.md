@@ -15,7 +15,7 @@ browser code. Production setup is explicitly out of scope.
 | Purpose | Route |
 | --- | --- |
 | Request a magic link | `POST /api/v1/auth/magic-link` |
-| Begin Google OAuth | `POST /api/v1/auth/google` |
+| Begin Google OAuth | `POST /api/v1/auth/google`; navigate the top-level window to its validated JSON `redirectTo` |
 | Exchange a Google PKCE code | `GET /auth/callback` |
 | Verify a magic-link token hash | `GET /auth/confirm` |
 | Read the verified application session | `GET /api/v1/auth/session` |

@@ -129,10 +129,29 @@ describe("magic-link initiation", () => {
     expect((await startMagicLink(crossOrigin, deps)).status).toBe(403);
     expect(auth.signInWithOtp).not.toHaveBeenCalled();
   });
+
+  it("stops reading an undeclared oversized body before calling Supabase", async () => {
+    const auth = gateway();
+    const request = new Request(
+      "https://nibatlas.test/api/v1/auth/magic-link",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "https://nibatlas.test",
+        },
+        body: JSON.stringify({ email: `${"a".repeat(4_096)}@example.com` }),
+      },
+    );
+
+    expect(request.headers.get("Content-Length")).toBeNull();
+    expect((await startMagicLink(request, dependencies(auth))).status).toBe(400);
+    expect(auth.signInWithOtp).not.toHaveBeenCalled();
+  });
 });
 
 describe("Google initiation", () => {
-  it("starts only Google PKCE and redirects to the provider", async () => {
+  it("starts only Google PKCE and returns a URL for top-level navigation", async () => {
     const auth = gateway();
     const deps = dependencies(auth);
     const response = await startGoogle(
@@ -140,10 +159,12 @@ describe("Google initiation", () => {
       deps,
     );
 
-    expect(response.status).toBe(303);
-    expect(response.headers.get("Location")).toBe(
-      "https://project.supabase.co/auth/v1/authorize?provider=google",
-    );
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      redirectTo:
+        "https://project.supabase.co/auth/v1/authorize?provider=google",
+    });
     expect(auth.signInWithOAuth).toHaveBeenCalledWith({
       provider: "google",
       options: {
@@ -166,6 +187,22 @@ describe("Google initiation", () => {
     expect(
       (await startGoogle(post("/api/v1/auth/google", {}), deps)).status,
     ).toBe(502);
+  });
+
+  it("rejects an undeclared oversized body before starting OAuth", async () => {
+    const auth = gateway();
+    const request = new Request("https://nibatlas.test/api/v1/auth/google", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "https://nibatlas.test",
+      },
+      body: JSON.stringify({ returnTo: `/saved?${"x".repeat(4_096)}` }),
+    });
+
+    expect(request.headers.get("Content-Length")).toBeNull();
+    expect((await startGoogle(request, dependencies(auth))).status).toBe(400);
+    expect(auth.signInWithOAuth).not.toHaveBeenCalled();
   });
 });
 
