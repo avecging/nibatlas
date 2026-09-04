@@ -4,7 +4,7 @@
 create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   display_name text,
-  home_country_code text,
+  home_country_code char(2),
   preferred_locale text not null default 'en',
   distance_unit text not null default 'metric',
   role text not null default 'user',
