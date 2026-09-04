@@ -1,8 +1,8 @@
 # Nib Atlas Data Model
 
 **Status:** Production-shaped MVP model
-**Version:** 1.1
-**Last updated:** 2 September 2026
+**Version:** 1.2
+**Last updated:** 4 September 2026
 
 ## Modelling principles
 
@@ -199,6 +199,22 @@ Composite primary key `(user_id, shop_id)`. RLS permits users to read/insert/del
 
 MVP invariant: exactly one active Atlas Stamp per published shop, enforced with a partial unique index. Retiring/redesigning a stamp must not alter collected historical snapshots.
 
+Before human-commissioned artwork is published, each immutable design version
+must preserve:
+
+- the editable source, clean SVG, outlined SVG and transparent PNG object keys;
+- dimensions, checksums, selected ink and palette version for the approved files;
+- the illustrator's display credit and optional credit URL;
+- confirmation that the maker mark is part of the approved artwork;
+- rights/licence metadata appropriate to the commission; and
+- the illustrator's written approval timestamp plus an admin-only reference to
+  the approval evidence.
+
+The exact migration shape should be settled with Milestone 6 rather than adding
+nullable columns ad hoc. A versioned child record such as
+`stamp_artwork_versions` is preferable because credit, files and approval belong
+to a particular design version and must remain historically stable.
+
 ### `stamp_collections`
 
 Immutable source of truth for visited state and Passport.
@@ -218,7 +234,7 @@ Immutable source of truth for visited state and Passport.
 | `anomaly_flags` | `text[]` |
 | `shop_name_snapshot` | text |
 | `place_snapshot` | `jsonb` containing country/locality display values |
-| `stamp_snapshot` | `jsonb` containing design identity/version |
+| `stamp_snapshot` | `jsonb` containing design identity/version and the credited illustrator display data for that version |
 
 Unique `(user_id, stamp_id)`. Client cannot insert directly; a server-controlled transaction/function verifies and issues atomically. Raw latitude/longitude is never written.
 
