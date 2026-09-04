@@ -85,14 +85,14 @@ select set_config(
 
 select is((select count(*)::integer from public.profiles), 1,
   'a signed-in user sees only their profile');
-select is(
-  (with changed as (
+select results_eq(
+  $own_profile_update$
     update public.profiles
     set display_name = 'Ada'
     where id = '10000000-0000-4000-8000-000000000001'
     returning 1
-  ) select count(*)::integer from changed),
-  1,
+  $own_profile_update$,
+  $expected$ values (1) $expected$,
   'a signed-in user may update an allowed field on their profile'
 );
 select throws_ok($blank_display_name$
@@ -104,14 +104,13 @@ $blank_display_name$,
   'new row for relation "profiles" violates check constraint "profiles_display_name_valid"',
   'a profile cannot store a blank display name'
 );
-select is(
-  (with changed as (
+select is_empty(
+  $cross_profile_update$
     update public.profiles
     set display_name = 'Not yours'
     where id = '10000000-0000-4000-8000-000000000002'
     returning 1
-  ) select count(*)::integer from changed),
-  0,
+  $cross_profile_update$,
   'a signed-in user cannot update another profile'
 );
 
@@ -148,22 +147,21 @@ select set_config(
 
 select is((select count(*)::integer from public.saved_shops), 1,
   'a signed-in user sees only their saved rows');
-select is(
-  (with removed as (
+select is_empty(
+  $other_saved_delete$
     delete from public.saved_shops
     where user_id = '10000000-0000-4000-8000-000000000002'
     returning 1
-  ) select count(*)::integer from removed),
-  0,
+  $other_saved_delete$,
   'a signed-in user cannot delete another account''s saved row'
 );
-select is(
-  (with removed as (
+select results_eq(
+  $own_saved_delete$
     delete from public.saved_shops
     where user_id = '10000000-0000-4000-8000-000000000001'
     returning 1
-  ) select count(*)::integer from removed),
-  1,
+  $own_saved_delete$,
+  $expected$ values (1) $expected$,
   'a signed-in user may remove their saved row'
 );
 
