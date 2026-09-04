@@ -73,20 +73,26 @@ Configure custom SMTP with the SMTP2GO host, port, username, and password stored
 in the Supabase project. Use:
 
 - sender name: `Nib Atlas`;
-- sender address: `hello@nibatlas.com`;
-- reply-to: `hello@nibatlas.com`, if the dashboard exposes it.
+- sender address: `login@nibatlas.com`;
+- reply-to: leave unset, or `login@nibatlas.com` if the dashboard requires one.
+
+`login@nibatlas.com` supersedes the `hello@nibatlas.com` this runbook first
+named, by founder decision on #37. Sign-in mail is send-only, and the two
+reasons are the reader's and support's: the address a link arrives from should
+say plainly that it is a login message, and support's own mailbox should not
+fill up with replies to one. So **do not** set reply-to to `hello@nibatlas.com`
+— that is the mailbox this decision exists to keep clear. Treat `login@` as
+unmonitored: nobody reads what arrives there.
 
 The interface names this address to the reader, in the "check your email" state
 of the sign-in interruption, so that a message can be found when a mail client
 files it somewhere unexpected. It is presented from a single constant,
-`SIGN_IN_SENDER` in `src/features/auth/auth-copy.ts`, which WP3 was directed to
-set to `login@nibatlas.com` — not the address above. The two must agree before
-hosted delivery is switched on: an address the mail does not come from sends the
-reader looking for the wrong message. Reconciling them is a WP6 action, and it is
-one line in each place.
+`SIGN_IN_SENDER` in `src/features/auth/auth-copy.ts`. The two have to stay in
+step: an address the mail does not come from sends the reader looking for the
+wrong message.
 
-A separate `noreply@` address is not required. Confirm that the sender domain
-passes SMTP2GO's SPF/DKIM checks before testing delivery. Keep Supabase's magic
+Confirm that the sender domain passes SMTP2GO's SPF/DKIM checks before testing
+delivery. Keep Supabase's magic
 link request cooldown and one-hour expiry unless staging evidence demonstrates
 a reason to change them.
 
