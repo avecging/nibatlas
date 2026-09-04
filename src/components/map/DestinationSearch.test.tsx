@@ -232,6 +232,38 @@ describe("destination search", () => {
     }
   });
 
+  it("does not let a late search replace the newer query's results", async () => {
+    vi.useFakeTimers();
+
+    try {
+      const pending = new Map<string, (results: SearchResults) => void>();
+      const geocoder: DestinationGeocoder = {
+        search: vi.fn(
+          (query: string) =>
+            new Promise<SearchResults>((resolve) => pending.set(query, resolve)),
+        ),
+      };
+
+      renderSearch(geocoder);
+      await search("Gin");
+      await search("Ginza");
+
+      await act(async () => {
+        pending.get("Ginza")?.({ destinations: [PLACE], shops: [] });
+      });
+      expect(screen.getByRole("option", { name: /Ginza/ })).toBeInTheDocument();
+
+      await act(async () => {
+        pending.get("Gin")?.({ destinations: [], shops: [UNPLACED_SHOP] });
+      });
+
+      expect(screen.getByRole("option", { name: /Ginza/ })).toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: /Nagasawa/ })).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("tells the reader when a chosen shop is still being placed", async () => {
     renderSearch(geocoderOf({ destinations: [], shops: [] }), {
       locatingSlug: "kobe-nagasawa",

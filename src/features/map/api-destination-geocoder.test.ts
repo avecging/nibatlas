@@ -78,6 +78,22 @@ describe("api destination geocoder", () => {
     expect(results.destinations.length).toBeGreaterThan(0);
   });
 
+  it("keeps canonical shops when the place supplier fails", async () => {
+    const geocoder = createApiGeocoder({
+      client: client(vi.fn(async () => ({ shops: [HIT], query: "Kobe" }))),
+      destinations: {
+        suggest: vi.fn(async () => {
+          throw new Error("place supplier unavailable");
+        }),
+      },
+    });
+
+    const results = await geocoder.search("Kobe");
+
+    expect(results.destinations).toEqual([]);
+    expect(results.shops).toHaveLength(1);
+  });
+
   it("propagates cancellation rather than returning a half-empty search", async () => {
     const geocoder = createApiGeocoder({
       client: client(
@@ -85,6 +101,19 @@ describe("api destination geocoder", () => {
           throw new ShopReadAbortedError();
         }),
       ),
+    });
+
+    await expect(geocoder.search("Kobe")).rejects.toBeInstanceOf(ShopReadAbortedError);
+  });
+
+  it("propagates place-supplier cancellation rather than returning canonical shops", async () => {
+    const geocoder = createApiGeocoder({
+      client: client(vi.fn(async () => ({ shops: [HIT], query: "Kobe" }))),
+      destinations: {
+        suggest: vi.fn(async () => {
+          throw new ShopReadAbortedError();
+        }),
+      },
     });
 
     await expect(geocoder.search("Kobe")).rejects.toBeInstanceOf(ShopReadAbortedError);

@@ -132,7 +132,9 @@ export function createHttpShopReadClient(
         south: coordinate(request.bounds.south),
         east: coordinate(request.bounds.east),
         north: coordinate(request.bounds.north),
-        zoom: String(request.zoom),
+        // Map renderers report fractional zoom after fitBounds, while the
+        // public RPC deliberately accepts an integer zoom bucket.
+        zoom: String(Math.round(request.zoom)),
       });
 
       if (request.operationalStatuses && request.operationalStatuses.length > 0) {
