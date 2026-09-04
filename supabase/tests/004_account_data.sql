@@ -1,5 +1,5 @@
 begin;
-select plan(27);
+select plan(30);
 
 select has_table('public', 'profiles', 'profiles table exists');
 select has_table('public', 'saved_shops', 'saved shops table exists');
@@ -88,12 +88,21 @@ select is((select count(*)::integer from public.profiles), 1,
 select is(
   (with changed as (
     update public.profiles
-    set display_name = '  Ada  '
+    set display_name = 'Ada'
     where id = '10000000-0000-4000-8000-000000000001'
     returning 1
   ) select count(*)::integer from changed),
   1,
   'a signed-in user may update an allowed field on their profile'
+);
+select throws_ok($blank_display_name$
+  update public.profiles
+  set display_name = ' '
+  where id = '10000000-0000-4000-8000-000000000001'
+$blank_display_name$,
+  '23514',
+  'new row for relation "profiles" violates check constraint "profiles_display_name_valid"',
+  'a profile cannot store a blank display name'
 );
 select is(
   (with changed as (
@@ -184,6 +193,23 @@ select is(
    where id = '10000000-0000-4000-8000-000000000002'),
   null::text,
   'one account lifecycle cannot change another profile'
+);
+
+select ok(
+  has_function_privilege(
+    'service_role',
+    'public.provision_profile_for_auth_user()',
+    'EXECUTE'
+  ),
+  'the trusted service role retains profile-provisioning access'
+);
+select ok(
+  not has_function_privilege(
+    'authenticated',
+    'public.provision_profile_for_auth_user()',
+    'EXECUTE'
+  ),
+  'authenticated users cannot invoke the provisioning trigger function'
 );
 
 select * from finish();
