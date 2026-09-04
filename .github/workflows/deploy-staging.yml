@@ -27,9 +27,6 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       NEXT_PUBLIC_MAPTILER_KEY: ${{ secrets.NEXT_PUBLIC_MAPTILER_KEY }}
-      NEXT_PUBLIC_CATALOGUE_MODE: api-demo
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
       # Browser-safe, but baked into the bundle at build time rather than read
       # from a Worker secret at runtime — so it has to be present *here*, not
       # only in `wrangler secret put`. Stored alongside the MapTiler key for
@@ -47,6 +44,10 @@ jobs:
           node-version: 24
       - name: Validate staging secrets
         shell: bash
+        env:
+          NEXT_PUBLIC_CATALOGUE_MODE: api-demo
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
         run: |
           test -n "$CLOUDFLARE_ACCOUNT_ID"
           test -n "$CLOUDFLARE_API_TOKEN"
@@ -64,6 +65,10 @@ jobs:
       - run: pnpm test
       - name: Deploy Cloudflare staging Worker
         shell: bash
+        env:
+          NEXT_PUBLIC_CATALOGUE_MODE: api-demo
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
         run: |
           set -o pipefail
           pnpm deploy:staging 2>&1 | tee "$RUNNER_TEMP/deploy-staging.log"
