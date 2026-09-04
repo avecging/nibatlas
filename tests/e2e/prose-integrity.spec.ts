@@ -20,6 +20,7 @@ const PROSE_ROUTES = [
   "/shops/ty-lee-pen-shop/report",
   "/shops/juspirit-banqiao",
   "/me",
+  "/login",
 ];
 
 /**

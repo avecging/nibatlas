@@ -34,6 +34,34 @@ describe("captureReturnTo", () => {
   });
 
   /*
+   * The map-context half of issue #34's invariant, at the seam where it has to
+   * hold.
+   *
+   * The committed viewport and filters are carried in one query parameter by
+   * `src/features/explore/explore-context.ts`, so preserving them through
+   * authentication is preserving the query — which is what this does, and what
+   * `normalizeReturnTo` keeps on an allowed path. Nothing in the auth code
+   * knows what a filter is.
+   */
+  it("carries the map context, because it is in the query", () => {
+    const mapContext = encodeURIComponent(
+      JSON.stringify({
+        viewport: { bounds: { west: 139, south: 35, east: 140, north: 36 }, zoom: 10 },
+        label: "Tokyo",
+        filters: { status: "saved", shopTypes: ["vintage_used"], availability: "open" },
+      }),
+    );
+
+    expect(
+      captureReturnTo({
+        pathname: "/",
+        search: `?shop=ty-lee-pen-shop&mapContext=${mapContext}`,
+        hash: "",
+      }),
+    ).toBe(`/?shop=ty-lee-pen-shop&mapContext=${mapContext}`);
+  });
+
+  /*
    * A reader who signs in from a page that is showing a previous callback's
    * result must not carry that result into the next return path, or the banner
    * announces a sign-in that did not just happen.

@@ -150,8 +150,11 @@ test.describe("the interruption", () => {
     const confirmation = page.getByRole("dialog", { name: /check your email/i });
 
     await expect(confirmation).toContainText("ada@example.com");
+    // Described, not named: WP6 has not proven hosted delivery, and an address
+    // the message may not have come from sends the reader to the wrong place.
+    // Any address fails this, not just today's.
     await expect(confirmation).toContainText(/Nib Atlas sign-in message/i);
-    await expect(confirmation).not.toContainText("login@nibatlas.com");
+    await expect(confirmation).not.toContainText(/@nibatlas\.com/i);
     // Nothing here says whether the address already had an account: the route
     // answers the same way either way, and the copy keeps it that way.
     await expect(confirmation).not.toContainText(/welcome back|new account/i);
@@ -223,6 +226,63 @@ test.describe("the interruption", () => {
     await expect(
       dialog.getByRole("button", { name: /continue with google/i }),
     ).toBeEnabled();
+  });
+});
+
+test.describe("what the reader is told about their address", () => {
+  /*
+   * The interruption's own claim, and the page it links to, have to describe the
+   * same contract — and not a larger one. Authentication necessarily involves an
+   * account identifier, a session, and the provider of whichever path the reader
+   * chose, so no screen may round that down to "your address and nothing else".
+   */
+  test("the interruption claims only what is true, and links to the rest", async ({
+    page,
+  }) => {
+    await stubSession(page, { kind: "signed-out" });
+    await page.goto("/login");
+
+    await expect(page.getByText(/is not shown publicly/i)).toBeVisible();
+    await expect(page.getByText(/nothing else/i)).toHaveCount(0);
+
+    await page.getByRole("link", { name: /what we store/i }).click();
+
+    await expect(page).toHaveURL(/\/privacy$/);
+  });
+
+  test("Privacy describes signing in, and who processes it", async ({ page }) => {
+    await page.goto("/privacy");
+
+    const signingIn = page.getByRole("heading", { name: /^signing in$/i });
+
+    await expect(signingIn).toBeVisible();
+
+    const text = (await page.locator("main").innerText()).replace(/\s+/gu, " ");
+
+    // What is held, and who holds or handles it on each path.
+    expect(text).toMatch(/Supabase Auth to manage your account and session/i);
+    expect(text).toMatch(/email delivery service sends the message/i);
+    expect(text).toMatch(/Google and Supabase process the sign-in/i);
+    expect(text).toMatch(/session cookie/i);
+
+    // The page no longer says accounts are a later thing, or that only the
+    // contribution forms send anything away from the browser.
+    expect(text).not.toMatch(/Once accounts exist/i);
+    expect(text).not.toMatch(/An account will later carry/i);
+    expect(text).toMatch(/Apart from account sign-in, two things/i);
+  });
+
+  /*
+   * And it is still honest about what signing in does *not* do yet: saves and
+   * impressions stay on the device until WP4 and WP5 move them.
+   */
+  test("Privacy says an account does not yet carry what you saved", async ({ page }) => {
+    await page.goto("/privacy");
+
+    const text = (await page.locator("main").innerText()).replace(/\s+/gu, " ");
+
+    expect(text).toMatch(/Signing in does not sync these items yet/i);
+    expect(text).toMatch(/What you save stays on this device/i);
   });
 });
 

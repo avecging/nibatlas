@@ -54,13 +54,25 @@ async function raiseSheet(page: Page) {
   await expect(sheet).not.toHaveAttribute("data-state", "peek");
 }
 
-/** A stepwise drag so MapLibre sees a real gesture rather than one jump. */
-async function panMap(page: Page, fractionX: number, fractionY: number) {
+/**
+ * A stepwise drag so MapLibre sees a real gesture rather than one jump.
+ *
+ * `startFraction` is where down the map the gesture begins, and it matters when
+ * the results sheet is raised: at Half the sheet owns the bottom 52% of the
+ * screen, so a drag that starts at the default 0.55 lands on the sheet rather
+ * than the map. A journey that pans with the sheet up passes its own start.
+ */
+async function panMap(
+  page: Page,
+  fractionX: number,
+  fractionY: number,
+  startFraction = 0.55,
+) {
   const box = await page.getByTestId("map-canvas").boundingBox();
   expect(box).not.toBeNull();
 
   const startX = box!.x + box!.width * 0.75;
-  const startY = box!.y + box!.height * 0.55;
+  const startY = box!.y + box!.height * startFraction;
   const dx = box!.width * fractionX;
   const dy = box!.height * fractionY;
 
@@ -597,7 +609,19 @@ test("applying after a pan commits the camera and the filters together", async (
 
   const explore = page.getByTestId("explore");
 
-  await panMap(page, -0.45, -0.3);
+  /*
+   * Panned above the sheet, and downward.
+   *
+   * This is the only journey that pans with the sheet raised, and it used to
+   * start at the default 0.55 of the height — which the sheet covers at Half.
+   * It passed only by racing the sheet's rise: while the panel was still
+   * travelling upward the start point was still map, and on a machine where the
+   * transition had finished first the drag grabbed the handle instead, dragged
+   * the sheet to Full, and left the map exactly where it was with no
+   * `Search this area` to offer. Starting at 0.15 and dragging *down* keeps the
+   * whole gesture on the map at every breakpoint that has a sheet.
+   */
+  await panMap(page, -0.45, 0.25, 0.15);
   await expect(explore).toHaveAttribute("data-search-offer", "offer");
 
   await page.getByRole("button", { name: /^filters/i }).click();

@@ -93,6 +93,24 @@ describe("the sign-in interruption", () => {
     expect(dialog).not.toHaveTextContent(/you need an account/i);
   });
 
+  /*
+   * The privacy line says what is true of the address and no more. "Stores your
+   * address to sign you in and nothing else" was broader than the contract —
+   * authentication involves an account identifier and a session, and the chosen
+   * path involves a provider — and the full account is on Privacy, linked from
+   * here rather than summarised into a promise.
+   */
+  it("claims no more about the address than is true", async () => {
+    installAuthFetch();
+    const dialog = await openInterruption();
+
+    expect(dialog).toHaveTextContent(/is not shown publicly/i);
+    expect(dialog.textContent).not.toMatch(/nothing else/i);
+    expect(
+      within(dialog).getByRole("link", { name: /what we store/i }),
+    ).toHaveAttribute("href", "/privacy");
+  });
+
   it("carries the return path and the pending intent to the server", async () => {
     const { requests } = installAuthFetch();
     const dialog = await openInterruption();
@@ -130,8 +148,16 @@ describe("the sign-in interruption", () => {
     const confirmation = await screen.findByRole("status");
 
     expect(confirmation).toHaveTextContent("ada@example.com");
+    /*
+     * The sender is described, not named. Naming it before WP6 has proven
+     * hosted delivery would be a claim about where the message came from that
+     * nobody has tested — and on a project whose custom SMTP is not switched on
+     * the route can succeed while the mail arrives from elsewhere.
+     */
     expect(screen.getByRole("dialog")).toHaveTextContent(/Nib Atlas sign-in message/i);
-    expect(screen.getByRole("dialog")).not.toHaveTextContent("login@nibatlas.com");
+    // Any address, not just today's: the guard has to fail if a later change
+    // names one before that proof exists.
+    expect(screen.getByRole("dialog").textContent).not.toMatch(/@nibatlas\.com/i);
     // The address is repeated back so a typo is visible, and correcting it does
     // not mean dismissing and reopening the interruption.
     expect(

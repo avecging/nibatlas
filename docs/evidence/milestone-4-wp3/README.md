@@ -25,7 +25,7 @@ Prefixes are the breakpoints: `m` = 360 × 800, `t` = 768 × 1024,
 | --- | --- |
 | `*-me-signed-out` | Me with a session that says signed out. The account is offered as a control, not as a promise about a later milestone. |
 | `*-interruption` | The interruption over Me: two ways in, one line on what an account is for, and a named way out. |
-| `*-link-sent` | What a reader is told once the link is on its way, including the sender and that nothing on the device is lost. |
+| `*-link-sent` | What a reader is told once the link is on its way. It describes the sender rather than naming an address, because WP6 has not yet proven hosted delivery. |
 | `*-interruption-error` | A refused address, reported on the field that caused it. |
 | `*-google-unavailable` | A provider that could not be started. The reader stays where they were. |
 | `*-login-route` | `/login`, carrying a pending Save intent, which is what an emailed link that failed or a shared address lands on. |
@@ -56,6 +56,22 @@ the same as they were before this work.
 The hosted proof — real magic-link delivery, real Google sign-in, session
 refresh and logout against `nibatlas-staging` — is WP6.
 
+## The return context
+
+Issue #34's `returnTo` invariant covers the viewport, the selected shop, the
+committed filters and the intended action. All four survive a full navigation
+now: `src/features/explore/explore-context.ts` carries the committed viewport
+and every filter dimension in one validated `mapContext` parameter added to a
+map or shop return path, and `normalizeReturnTo` keeps the query of an allowed
+path. Nothing in the authentication code knows what a filter is —
+`captureReturnTo` takes the path, query and fragment as they stand — and because
+the context travels in the URL rather than in session storage, a link opened in
+a new tab restores it too.
+
+Asserted in `explore-context.test.ts` for the encoding, in `return-to.test.ts`
+for the capture, and in `tests/e2e/auth-interruption.spec.ts` for the journey
+that carries a filtered map through a callback into a new tab.
+
 ## Accessibility
 
 Audited with axe (`wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`) in
@@ -71,6 +87,9 @@ Audited with axe (`wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`) in
 One violation was found and fixed while doing this: the "or" between the two
 sign-in routes was set in `--text-muted`, which measures 4.35:1 on the panel
 surface at 14 px. It is `--text-secondary` now.
+
+The review round added two audited surfaces of its own: `/login` and `/privacy`
+after the account sections were written into it.
 
 Beyond the audit, and asserted in `tests/e2e/auth-interruption.spec.ts`:
 

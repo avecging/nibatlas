@@ -35,10 +35,15 @@ export function PrivacyReviewerNote() {
   return (
     <Note title="Reviewer note">
       <p>
-        This build is a frontend prototype: no accounts, no server, and no location
-        access. It never asks the browser for a position. Saved shops and simulated
-        collections are held on this device only, in this browser&rsquo;s local
-        storage, and are not sent anywhere.
+        This build is a frontend prototype with no location access: it never asks
+        the browser for a position. Saved shops and simulated collections are held
+        on this device only, in this browser&rsquo;s local storage, and are not
+        sent anywhere &mdash; signing in does not yet move them.
+      </p>
+      <p>
+        Accounts are real where a Supabase project is configured for the build.
+        Where one is not, sign-in is unavailable and Me says so rather than
+        offering it.
       </p>
       <p>
         Shop records are a small sourced sample, not a complete or continuously

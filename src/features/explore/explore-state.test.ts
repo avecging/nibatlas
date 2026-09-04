@@ -413,6 +413,68 @@ describe("explore reducer", () => {
     expect(dragged.requestId).toBe(initial.requestId);
   });
 
+  /*
+   * Restoring a filter set the screen was handed, rather than one the reader
+   * just chose. Today that is the set a return path carried back through
+   * authentication, and it has to behave like any other filter commit: the
+   * results shown are the results the filters describe.
+   */
+  describe("restoring committed filters", () => {
+    it("commits them, and does not search anywhere else", () => {
+      const initial = loaded(createExploreState({ viewport: tokyo }));
+      const restored = exploreReducer(initial, {
+        type: "restoreFilters",
+        filters: {
+          status: "saved",
+          availability: "not_closed",
+          shopTypes: ["vintage_used"],
+        },
+      });
+
+      expect(restored.filters).toEqual({
+        status: "saved",
+        availability: "not_closed",
+        shopTypes: ["vintage_used"],
+      });
+      // The drawer opens on the restored set rather than on an empty one.
+      expect(hasUnappliedFilters(restored)).toBe(false);
+      expect(restored.committed).toEqual(initial.committed);
+      expect(restored.query.bounds).toEqual(tokyo.bounds);
+    });
+
+    /* A shop-type filter is resolved by the source, so restoring one re-runs
+       the query — exactly as choosing it would. */
+    it("re-queries when the source has to resolve the set", () => {
+      const initial = loaded(createExploreState({ viewport: tokyo }));
+      const restored = exploreReducer(initial, {
+        type: "restoreFilters",
+        filters: {
+          status: "all",
+          availability: "any",
+          shopTypes: ["nib_repair_services"],
+        },
+      });
+
+      expect(restored.status).toBe("loading");
+      expect(restored.query.requestId).toBe(initial.query.requestId + 1);
+      expect(restored.query.shopTypes).toEqual(["nib_repair_services"]);
+    });
+
+    /* And does not, when it does not: a status the reader owns is applied to
+       the results already loaded. */
+    it("keeps the loaded results when the set needs no query", () => {
+      const initial = loaded(createExploreState({ viewport: tokyo }));
+      const restored = exploreReducer(initial, {
+        type: "restoreFilters",
+        filters: { status: "visited", availability: "any", shopTypes: [] },
+      });
+
+      expect(restored.status).toBe(initial.status);
+      expect(restored.requestId).toBe(initial.requestId);
+      expect(restored.results).toEqual(initial.results);
+    });
+  });
+
   describe("retry", () => {
     it("re-runs the query the visible results are under, not the moved camera", () => {
       const withResults = loaded(createExploreState({ viewport: tokyo }));
