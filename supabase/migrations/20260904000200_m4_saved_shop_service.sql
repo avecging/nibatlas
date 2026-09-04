@@ -22,13 +22,16 @@ as $$
       'longitude', extensions.st_x(s.location)::double precision
     ),
     'primaryType', primary_type.code,
-    'specialtyLine', coalesce(specialty.label, service.label),
     'operationalStatus', s.operational_status,
     'markerState', 'saved',
     'sourceQuality', s.source_quality,
     'fixtureNotice', case when s.source_quality = 'demo' then 'Demo data' end,
     'savedAt', p_saved_at
-  ))
+  )) || jsonb_build_object(
+    -- Catalogue summaries require the key even when no evidenced specialty or
+    -- service exists. `jsonb_strip_nulls` is still useful for optional fields.
+    'specialtyLine', coalesce(specialty.label, service.label)
+  )
   from public.shops s
   left join public.localities l on l.id = s.locality_id
   left join lateral (

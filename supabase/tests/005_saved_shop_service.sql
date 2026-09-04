@@ -1,5 +1,5 @@
 begin;
-select plan(27);
+select plan(28);
 
 select has_function('public', 'list_saved_shops', array[]::text[],
   'owner-scoped saved list RPC exists');
@@ -54,6 +54,10 @@ select is(
 select ok(
   public.save_shop('00000000-0000-4000-8000-000000000301') ? 'savedAt',
   'save returns the persistent saved timestamp'
+);
+select ok(
+  public.save_shop('00000000-0000-4000-8000-000000000301') ? 'specialtyLine',
+  'save preserves the required nullable catalogue specialty line'
 );
 select is(
   public.save_shop('00000000-0000-4000-8000-000000000301')->>'savedAt',

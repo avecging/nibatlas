@@ -106,6 +106,7 @@ export async function saveShop(
 ): Promise<Response> {
   if (!trustedMutation(request)) return fail(403, "untrusted_origin");
   if (!isShopId(shopId)) return fail(400, "invalid_shop_id");
+  const canonicalShopId = shopId.toLowerCase();
 
   const authFailure = await authenticated(gateway);
   if (authFailure) return authFailure;
@@ -113,7 +114,7 @@ export async function saveShop(
   let result: Awaited<ReturnType<SavedShopGateway["save"]>>;
 
   try {
-    result = await gateway.save(shopId);
+    result = await gateway.save(canonicalShopId);
   } catch {
     return fail(502, "saved_shop_upstream_failed");
   }
@@ -124,11 +125,16 @@ export async function saveShop(
   try {
     const shop = decodeSavedShopV1(result.data);
 
-    if (shop.id !== shopId) {
+    if (shop.id !== canonicalShopId) {
       return fail(502, "invalid_upstream_contract");
     }
 
-    const payload: SavedShopMutationV1 = { ok: true, shopId, saved: true, shop };
+    const payload: SavedShopMutationV1 = {
+      ok: true,
+      shopId: canonicalShopId,
+      saved: true,
+      shop,
+    };
 
     return json(payload);
   } catch (cause) {
@@ -145,6 +151,7 @@ export async function unsaveShop(
 ): Promise<Response> {
   if (!trustedMutation(request)) return fail(403, "untrusted_origin");
   if (!isShopId(shopId)) return fail(400, "invalid_shop_id");
+  const canonicalShopId = shopId.toLowerCase();
 
   const authFailure = await authenticated(gateway);
   if (authFailure) return authFailure;
@@ -152,7 +159,7 @@ export async function unsaveShop(
   let result: Awaited<ReturnType<SavedShopGateway["unsave"]>>;
 
   try {
-    result = await gateway.unsave(shopId);
+    result = await gateway.unsave(canonicalShopId);
   } catch {
     return fail(502, "saved_shop_upstream_failed");
   }
@@ -161,6 +168,10 @@ export async function unsaveShop(
   if (result.data === null) return fail(404, "shop_not_found");
   if (result.data !== true) return fail(502, "invalid_upstream_contract");
 
-  const payload: SavedShopMutationV1 = { ok: true, shopId, saved: false };
+  const payload: SavedShopMutationV1 = {
+    ok: true,
+    shopId: canonicalShopId,
+    saved: false,
+  };
   return json(payload);
 }

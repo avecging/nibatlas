@@ -140,6 +140,18 @@ describe("saved-shop HTTP contract", () => {
     expect([response.status, await errorCode(response)]).toEqual([502, "invalid_upstream_contract"]);
   });
 
+  it("canonicalizes uppercase UUID paths before persistence and reconciliation", async () => {
+    const store = gateway();
+    const uppercase = SHOP_ID.toUpperCase();
+    const saveResponse = await saveShop(mutation("PUT"), uppercase, store);
+    const unsaveResponse = await unsaveShop(mutation("DELETE"), uppercase, store);
+
+    expect(store.save).toHaveBeenCalledWith(SHOP_ID);
+    expect(store.unsave).toHaveBeenCalledWith(SHOP_ID);
+    await expect(saveResponse.json()).resolves.toMatchObject({ shopId: SHOP_ID, saved: true });
+    await expect(unsaveResponse.json()).resolves.toEqual({ ok: true, shopId: SHOP_ID, saved: false });
+  });
+
   it("returns stable reconciliation payloads for repeated save and unsave", async () => {
     const store = gateway();
     const firstSave = await saveShop(mutation("PUT"), SHOP_ID, store);
