@@ -12,7 +12,11 @@ create table public.profiles (
   updated_at timestamptz not null default statement_timestamp(),
   constraint profiles_display_name_valid check (
     display_name is null
-    or (length(btrim(display_name)) > 0 and char_length(display_name) <= 40)
+    or (
+      display_name = btrim(display_name)
+      and length(display_name) > 0
+      and char_length(display_name) <= 40
+    )
   ),
   constraint profiles_home_country_code_valid check (
     home_country_code is null or home_country_code ~ '^[A-Z]{2}$'
