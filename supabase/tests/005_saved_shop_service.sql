@@ -1,5 +1,5 @@
 begin;
-select plan(26);
+select plan(27);
 
 select has_function('public', 'list_saved_shops', array[]::text[],
   'owner-scoped saved list RPC exists');
