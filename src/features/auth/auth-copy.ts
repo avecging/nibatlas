@@ -15,26 +15,6 @@ import type {
   PendingAuthIntent,
 } from "@/src/server/auth/continuation";
 
-/**
- * The sender the sign-in link is presented as coming from.
- *
- * Presentation only. Nothing here sends mail: Supabase does, with the address
- * WP6 configures in the SMTP2GO dashboard, and this constant is the one place
- * the interface names it — the "check your email" state, where knowing who the
- * message is from is what lets a reader find it.
- *
- * `login@nibatlas.com` by founder decision on #37, superseding the
- * `hello@nibatlas.com` issue #34 first named. Sign-in mail is send-only: the
- * address should say plainly that a link is a login message, and support's own
- * mailbox should not fill up with replies to one.
- *
- * It has to stay in step with what actually sends, so if the configured sender
- * ever changes, this line changes with it — an address the mail does not come
- * from sends a reader looking for the wrong message.
- * `docs/runbooks/auth-local-staging.md` carries the other half.
- */
-export const SIGN_IN_SENDER = "login@nibatlas.com";
-
 /** Failures of the two routes that start a sign-in. */
 export const SIGN_IN_ERROR_COPY: Readonly<Record<SignInErrorCode, string>> = {
   invalid_email: "That does not look like an email address. Check it and try again.",

@@ -116,7 +116,7 @@ describe("the sign-in interruption", () => {
     });
   });
 
-  it("confirms where the link went, and where it came from", async () => {
+  it("confirms where the link went without promising an unconfigured sender", async () => {
     installAuthFetch();
     const dialog = await openInterruption();
 
@@ -130,7 +130,8 @@ describe("the sign-in interruption", () => {
     const confirmation = await screen.findByRole("status");
 
     expect(confirmation).toHaveTextContent("ada@example.com");
-    expect(screen.getByRole("dialog")).toHaveTextContent("login@nibatlas.com");
+    expect(screen.getByRole("dialog")).toHaveTextContent(/Nib Atlas sign-in message/i);
+    expect(screen.getByRole("dialog")).not.toHaveTextContent("login@nibatlas.com");
     // The address is repeated back so a typo is visible, and correcting it does
     // not mean dismissing and reopening the interruption.
     expect(

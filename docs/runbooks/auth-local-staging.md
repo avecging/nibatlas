@@ -84,12 +84,10 @@ fill up with replies to one. So **do not** set reply-to to `hello@nibatlas.com`
 — that is the mailbox this decision exists to keep clear. Treat `login@` as
 unmonitored: nobody reads what arrives there.
 
-The interface names this address to the reader, in the "check your email" state
-of the sign-in interruption, so that a message can be found when a mail client
-files it somewhere unexpected. It is presented from a single constant,
-`SIGN_IN_SENDER` in `src/features/auth/auth-copy.ts`. The two have to stay in
-step: an address the mail does not come from sends the reader looking for the
-wrong message.
+Until WP6 has configured and verified that sender, the interface deliberately
+says only to look for a Nib Atlas sign-in message. Do not name `login@` in the
+sent state before hosted delivery proves that it is the address recipients
+actually see.
 
 Confirm that the sender domain passes SMTP2GO's SPF/DKIM checks before testing
 delivery. Keep Supabase's magic

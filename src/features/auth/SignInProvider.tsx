@@ -20,6 +20,7 @@ import {
 } from "@/src/features/auth/auth-copy";
 import { readPendingFlow } from "@/src/features/auth/pending-flow";
 import { currentReturnTo, type PendingAuthIntent } from "@/src/features/auth/return-to";
+import { withExploreContext } from "@/src/features/explore/explore-context";
 import { SignInPanel } from "@/src/features/auth/SignInPanel";
 
 import styles from "./SignInProvider.module.css";
@@ -69,7 +70,7 @@ export function SignInProvider({ children }: { readonly children: ReactNode }) {
   const dismissSignIn = useCallback(() => setRequest(null), []);
   const requestSignIn = useCallback((next: SignInRequest = {}) => {
     setRequest({
-      returnTo: next.returnTo ?? currentReturnTo(),
+      returnTo: withExploreContext(next.returnTo ?? currentReturnTo()),
       intent: next.intent ?? null,
       context: next.context ?? null,
     });

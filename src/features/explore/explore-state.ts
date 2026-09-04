@@ -94,6 +94,7 @@ export type ExploreAction =
   | { readonly type: "catalogueUnavailable" }
   | { readonly type: "selectShop"; readonly shopId: string | null }
   | { readonly type: "setStatusFilter"; readonly status: StatusFilter }
+  | { readonly type: "restoreFilters"; readonly filters: ShopFilters }
   | { readonly type: "openFilters" }
   | { readonly type: "closeFilters" }
   | {
@@ -304,6 +305,10 @@ export function exploreReducer(
       const filters = { ...state.filters, status: action.status };
 
       return { ...state, filters, draftFilters: filters };
+    }
+
+    case "restoreFilters": {
+      return commitFilters(state, action.filters);
     }
 
     case "openFilters": {

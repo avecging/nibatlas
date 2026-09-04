@@ -136,7 +136,7 @@ test.describe("the interruption", () => {
     await expect(dialog).toBeVisible();
   });
 
-  test("sends a link, and says where it went and where it came from", async ({
+  test("sends a link and says where it went without naming an unconfigured sender", async ({
     page,
   }) => {
     await stubSession(page, { kind: "signed-out" });
@@ -150,7 +150,8 @@ test.describe("the interruption", () => {
     const confirmation = page.getByRole("dialog", { name: /check your email/i });
 
     await expect(confirmation).toContainText("ada@example.com");
-    await expect(confirmation).toContainText("login@nibatlas.com");
+    await expect(confirmation).toContainText(/Nib Atlas sign-in message/i);
+    await expect(confirmation).not.toContainText("login@nibatlas.com");
     // Nothing here says whether the address already had an account: the route
     // answers the same way either way, and the copy keeps it that way.
     await expect(confirmation).not.toContainText(/welcome back|new account/i);
@@ -365,6 +366,44 @@ test.describe("coming back from the callback", () => {
     await page.getByRole("button", { name: /dismiss this message/i }).click();
     await expect(banner).toHaveCount(0);
     await expect(page.getByText("Selected: Ginza Itoya Main Store")).toBeVisible();
+  });
+
+  test("restores committed map filters carried through a new auth tab", async ({
+    page,
+  }) => {
+    await stubSession(page, { kind: "signed-in" });
+    const mapContext = JSON.stringify({
+      viewport: {
+        bounds: { west: 138.9, south: 35.4, east: 140.1, north: 36 },
+        zoom: 10,
+      },
+      label: "Tokyo",
+      filters: {
+        status: "all",
+        shopTypes: ["fountain_pen_specialist"],
+        availability: "not_closed",
+      },
+    });
+
+    await page.goto(
+      `/?shop=ginza-itoya-main-store&mapContext=${encodeURIComponent(mapContext)}&auth=success`,
+    );
+
+    await expect(page.getByText("Selected: Ginza Itoya Main Store")).toBeVisible();
+    await expect(page.getByRole("button", { name: /filters 2 filters applied/i })).toBeVisible();
+
+    await page.getByRole("button", { name: /filters 2 filters applied/i }).click();
+    const filters = page.getByRole("dialog", { name: "Filters" });
+
+    await expect(
+      filters.getByRole("button", { name: "Fountain pen specialist" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await expect(
+      filters.getByRole("button", { name: "Hide recorded closures" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await expect
+      .poll(() => new URL(page.url()).searchParams.has("auth"))
+      .toBe(false);
   });
 
   test("offers another attempt when the link had expired", async ({ page }) => {

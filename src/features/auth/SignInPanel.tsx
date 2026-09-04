@@ -11,7 +11,7 @@ import {
   startGoogleSignIn,
   type SignInStart,
 } from "@/src/features/auth/auth-client";
-import { SIGN_IN_SENDER, signInErrorMessage } from "@/src/features/auth/auth-copy";
+import { signInErrorMessage } from "@/src/features/auth/auth-copy";
 import { leaveForProvider } from "@/src/features/auth/navigate";
 import { rememberPendingFlow } from "@/src/features/auth/pending-flow";
 
@@ -195,7 +195,7 @@ export function SignInPanel({
           finish signing in — it works once, and only for a short time.
         </p>
         <p className={styles.note}>
-          The message comes from {SIGN_IN_SENDER}. If it is not there in a minute,
+          Look for a Nib Atlas sign-in message. If it is not there in a minute,
           check the folder your mail application files promotions or spam in.
         </p>
         <p className={styles.note}>
@@ -300,7 +300,7 @@ export function SignInPanel({
       </form>
 
       <p className={styles.note}>
-        Nib Atlas stores your address to sign you in and nothing else.{" "}
+        Your email address is used to sign you in and is not shown publicly.{" "}
         <Link className={styles.link} href="/privacy">
           What we store
         </Link>

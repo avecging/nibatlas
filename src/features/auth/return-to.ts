@@ -20,6 +20,7 @@ import {
   parsePendingIntent,
   type PendingAuthIntent,
 } from "@/src/server/auth/continuation";
+import { withExploreContext } from "@/src/features/explore/explore-context";
 
 export { DEFAULT_AUTH_RETURN_TO, normalizeReturnTo, parsePendingIntent };
 export type { PendingAuthIntent };
@@ -49,7 +50,7 @@ export function currentReturnTo(): string {
     return DEFAULT_AUTH_RETURN_TO;
   }
 
-  return captureReturnTo(window.location);
+  return withExploreContext(captureReturnTo(window.location));
 }
 
 /**

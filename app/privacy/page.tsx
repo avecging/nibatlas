@@ -65,8 +65,21 @@ export default function PrivacyPage() {
         <strong>What you save stays on this device.</strong>{" "}
         It is held in this browser&rsquo;s storage, it is not sent to Nib Atlas,
         it does not appear on your other devices, and clearing this
-        browser&rsquo;s data clears it. An account will later carry saved shops
-        and verified visits between your devices; nothing needs one today.
+        browser&rsquo;s data clears it. Signing in does not sync these items yet;
+        they remain on this device in this build.
+      </p>
+
+      <h2 className="type-h2">Signing in</h2>
+      <p>
+        Signing in is optional. If you choose an email link, Nib Atlas sends your
+        email address to Supabase Auth to manage your account and session, and the
+        configured email delivery service sends the message. If you choose Google,
+        Google and Supabase process the sign-in instead.
+      </p>
+      <p>
+        Nib Atlas keeps an essential, secure session cookie in your browser so it
+        can recognise that you are signed in. Your email address and account details
+        are not shown publicly. There are still no public profiles.
       </p>
 
       <h2 className="type-h2">Your Passport is private</h2>
@@ -82,8 +95,8 @@ export default function PrivacyPage() {
 
       <h2 className="type-h2">Your data, your call</h2>
       <p>
-        Nothing Nib Atlas holds for you today leaves this browser on its own, and
-        two controls act on it. <strong>Download local data</strong> hands you a
+        Saved shops and collected impressions currently stay in this browser, and
+        two controls act on them. <strong>Download local data</strong> hands you a
         machine-readable copy of your saved shops and collected impressions, and{" "}
         <strong>Clear data on this device</strong> removes those same two things
         from this browser. Both are in{" "}
@@ -91,16 +104,10 @@ export default function PrivacyPage() {
         browser&rsquo;s own site data for Nib Atlas removes everything it has kept
         here, including those.
       </p>
-      <p>
-        Once accounts exist, the same two things apply to an account: a
-        machine-readable export, and deleting the account along with everything
-        collected against it.
-      </p>
-
       <h2 className="type-h2">When you send us something</h2>
       <p>
-        Two things on Nib Atlas send information away from your browser, and both
-        are ones you choose to use:{" "}
+        Apart from account sign-in, two things on Nib Atlas send information away
+        from your browser, and both are ones you choose to use:{" "}
         <Link href="/suggest-shop">suggesting a pen shop</Link>, and reporting
         something wrong with a listing from that shop&rsquo;s own page. Nothing
         else does.
@@ -114,7 +121,7 @@ export default function PrivacyPage() {
         <strong>Your name and email address are optional.</strong> Give an email
         only if you are happy to be asked a follow-up question; we ask for a name
         alongside it so a reply has someone to address. Leave both blank and the
-        submission is simply anonymous — it is not treated differently.
+        submission is anonymous — it is not treated differently.
       </p>
       <p>
         Submissions are received in a Google spreadsheet the people who maintain

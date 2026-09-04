@@ -6,6 +6,7 @@ import {
   isAllowedReturnTo,
   pendingIntentFromParams,
 } from "@/src/features/auth/return-to";
+import { EXPLORE_CONTEXT_STORAGE_KEY } from "@/src/features/explore/explore-context";
 
 const SHOP_ID = "9f1b6c3a-2d4e-4f8a-9c1b-5e7d2a3f4b60";
 
@@ -51,6 +52,29 @@ describe("captureReturnTo", () => {
     expect(captureReturnTo({ pathname: "/admin", search: "", hash: "" })).toBe(
       DEFAULT_AUTH_RETURN_TO,
     );
+  });
+});
+
+describe("currentReturnTo", () => {
+  it("carries committed map filters and viewport into an auth return", async () => {
+    const { currentReturnTo } = await import("@/src/features/auth/return-to");
+    window.history.replaceState({}, "", "/shops/ty-lee-pen-shop?from=map");
+    window.sessionStorage.setItem(
+      EXPLORE_CONTEXT_STORAGE_KEY,
+      JSON.stringify({
+        viewport: { bounds: { west: 120, south: 24, east: 122, north: 26 }, zoom: 9 },
+        label: "Taipei",
+        filters: { status: "saved", shopTypes: ["stationery_store"], availability: "open" },
+      }),
+    );
+
+    const result = new URL(currentReturnTo(), "https://test.invalid");
+    expect(result.pathname).toBe("/shops/ty-lee-pen-shop");
+    expect(result.searchParams.get("from")).toBe("map");
+    expect(result.searchParams.get("mapContext")).toContain('"status":"saved"');
+
+    window.history.replaceState({}, "", "/");
+    window.sessionStorage.clear();
   });
 });
 

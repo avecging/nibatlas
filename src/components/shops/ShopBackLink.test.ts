@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   PASSPORT_ANCHOR_PARAM,
+  mapReturnHref,
   passportHrefWithAnchor,
   passportReturnHref,
 } from "@/src/components/shops/ShopBackLink";
+import { decodeExploreContext, type ExploreContext } from "@/src/features/explore/explore-context";
 
 /**
  * Where `?from=passport` sends the reader back to.
@@ -104,6 +106,28 @@ describe("passportHrefWithAnchor", () => {
     // And what it writes, `passportReturnHref` reads back unchanged.
     expect(passportReturnHref(passportHrefWithAnchor("/passport", "a b&c"))).toBe(
       "/passport?stamp=a%20b%26c",
+    );
+  });
+});
+
+describe("mapReturnHref", () => {
+  const context: ExploreContext = {
+    viewport: { bounds: { west: 120, south: 24, east: 122, north: 26 }, zoom: 9 },
+    label: "Taipei",
+    filters: { status: "saved", shopTypes: ["stationery_store"], availability: "open" },
+  };
+
+  it("keeps a validated cross-tab map context with the selected shop", () => {
+    const href = mapReturnHref("ty-lee-pen-shop", JSON.stringify(context));
+    const url = new URL(href, "https://test.invalid");
+
+    expect(url.searchParams.get("shop")).toBe("ty-lee-pen-shop");
+    expect(decodeExploreContext(url.searchParams.get("mapContext"))).toEqual(context);
+  });
+
+  it("drops invalid context instead of reflecting it", () => {
+    expect(mapReturnHref("ty-lee-pen-shop", "not-json")).toBe(
+      "/?shop=ty-lee-pen-shop",
     );
   });
 });
