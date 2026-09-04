@@ -1,5 +1,5 @@
--- Deterministic local/test fixtures only. These invented records are explicitly
--- source_quality='demo' and must never enter the production import path.
+-- Deterministic local/test/staging fixtures only. These invented records are explicitly
+-- source_quality='demo' and must never enter the production import path. Inserts are idempotent so CI can safely\n-- re-run the staging seed.
 
 insert into public.localities (
   id, country_code, name, name_local, name_local_language_tag,
@@ -12,7 +12,8 @@ insert into public.localities (
   (
     '00000000-0000-4000-8000-000000000202', 'JP', 'Tokyo', '東京都', 'ja-JP',
     'region', 'tokyo', extensions.st_setsrid(extensions.st_makepoint(139.6917, 35.6895), 4326)
-  );
+  )
+on conflict do nothing;
 
 insert into public.shops (
   id, slug, name, short_description, country_code, locality_id, city_display,
@@ -44,13 +45,15 @@ insert into public.shops (
     'Asia/Singapore',
     extensions.st_setsrid(extensions.st_makepoint(103.860000, 1.300000), 4326),
     'unknown', 'draft', 'demo', null, null
-  );
+  )
+on conflict do nothing;
 
 insert into public.shop_aliases (id, shop_id, alias, language_tag, alias_type) values (
   '00000000-0000-4000-8000-000000000401',
   '00000000-0000-4000-8000-000000000302',
   '第二期東京デモ店舗', 'ja-JP', 'local_name'
-);
+)
+on conflict do nothing;
 
 insert into public.shop_sources (
   id, shop_id, label, source_type, checked_at, reliability, evidence_note, status
@@ -72,7 +75,8 @@ insert into public.shop_sources (
     '00000000-0000-4000-8000-000000000303', 'Demo fixture', 'demo_fixture',
     '2026-09-02 00:00:00+00', 'unknown',
     'Invented deterministic fixture; not a real business.', 'active'
-  );
+  )
+on conflict do nothing;
 
 insert into public.shop_source_claims (shop_id, source_id, claim_token) values
   ('00000000-0000-4000-8000-000000000301', '00000000-0000-4000-8000-000000000501', 'Name'),
@@ -81,7 +85,8 @@ insert into public.shop_source_claims (shop_id, source_id, claim_token) values
   ('00000000-0000-4000-8000-000000000302', '00000000-0000-4000-8000-000000000502', 'Name'),
   ('00000000-0000-4000-8000-000000000302', '00000000-0000-4000-8000-000000000502', 'Local-script name'),
   ('00000000-0000-4000-8000-000000000302', '00000000-0000-4000-8000-000000000502', 'Shop type: Stationery Store'),
-  ('00000000-0000-4000-8000-000000000303', '00000000-0000-4000-8000-000000000503', 'Name');
+  ('00000000-0000-4000-8000-000000000303', '00000000-0000-4000-8000-000000000503', 'Name')
+on conflict do nothing;
 
 insert into public.shop_shop_types (shop_id, shop_type_id, source_id, is_primary) values
   (
@@ -93,4 +98,5 @@ insert into public.shop_shop_types (shop_id, shop_type_id, source_id, is_primary
     '00000000-0000-4000-8000-000000000302',
     '00000000-0000-4000-8000-000000000102',
     '00000000-0000-4000-8000-000000000502', true
-  );
+  )
+on conflict do nothing;
