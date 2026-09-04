@@ -1,82 +1,85 @@
 /**
- * The account seam.
+ * The account seam, now answered by a real session.
  *
- * `docs/milestone-1-5-product-refinement.md` gives Me two distinct states, and
- * the signed-in one lists things that do not exist yet: an account identity, a
- * display name, sign out, and Delete account. Authentication itself is
- * Milestone 4, so WP2 cannot make that state real — but it can build the seam
- * the real thing will plug into, and it can make the structure reviewable
- * without lying to a tester about having an account.
+ * WP2 of Milestone 1.5 built this module as a *shape* with nothing behind it:
+ * normal mode was always signed out, and reviewer mode could preview the
+ * signed-in structure from a local-storage key so the founder could read it
+ * before authentication existed. Milestone 4 WP2 built the session routes, so
+ * that preview is gone — with it the `ACCOUNT_PREVIEW_STORAGE_KEY` key, the
+ * `reviewer@nibatlas.example` identity, and the `preview` flag every consumer
+ * had to carry. A signed-in Nib Atlas screen now means a signed-in reader.
  *
- * The rules:
+ * Four states, because a session is read over the network and each answer is a
+ * different thing to tell the reader:
  *
- * - **Normal mode is always signed out.** No parameter, no storage entry and no
- *   control can move a tester's device into the signed-in state, because there
- *   is nothing to sign in to. A tester therefore only ever sees copy that is
- *   true of them.
- * - **Reviewer mode may preview a signed-in account.** The founder and Codex
- *   need to read the signed-in structure — including the Danger group — before
- *   Milestone 4 builds it. That preview lives in a reviewer-namespaced key and
- *   is labelled as a preview wherever it renders.
+ * - **loading** — the server has not answered yet. Nothing may claim either way.
+ * - **signed-out** — the ordinary state, and a complete one. Anonymous
+ *   exploration is the product, not a degraded mode of it.
+ * - **signed-in** — an identity from `GET /api/v1/auth/session`.
+ * - **unavailable** — the session could not be read. Split by reason, because
+ *   "this build has no authentication configured" and "we could not reach it
+ *   just now" are different facts and only one of them is worth retrying.
  *
- * Milestone 4 replaces `resolveAccountSession` with a real session lookup and
- * deletes the preview; every consumer keeps the same shape.
+ * No component reads Supabase. This module parses one JSON response from the
+ * application's own route and nothing else.
  */
 
-/** A device with no account: the only state normal mode can be in. */
+/** The account identity is the session's; email never enters the public schema. */
+export interface SignedInSession {
+  readonly status: "signed-in";
+  readonly userId: string;
+  /** How the account identifies itself — the address it authenticated with. */
+  readonly identityLabel: string;
+  /** Optional, and owned by the private profile row rather than the identity. */
+  readonly displayName: string | null;
+}
+
+export interface LoadingSession {
+  readonly status: "loading";
+}
+
 export interface SignedOutSession {
   readonly status: "signed-out";
 }
 
-export interface SignedInSession {
-  readonly status: "signed-in";
-  /**
-   * Optional, per the approved structure. An account is identified by its
-   * address; the display name is what the reader chose to be called.
-   */
-  readonly displayName: string | null;
-  /** How the account identifies itself — an address in the real thing. */
-  readonly identityLabel: string;
-  /**
-   * True while the signed-in state is reviewer instrumentation rather than a
-   * real session. Milestone 4 issues sessions with this false and the flag
-   * disappears with the preview.
-   */
-  readonly preview: boolean;
+/**
+ * Why the session could not be read.
+ *
+ * `not-configured` is the fixture and prototype builds: no Supabase project is
+ * wired to them, the routes answer `auth_unavailable`, and offering a sign-in
+ * control would be offering something that cannot work. `unreachable` is a
+ * configured build whose session read failed, which is worth trying again.
+ */
+export type SessionUnavailableReason = "not-configured" | "unreachable";
+
+export interface UnavailableSession {
+  readonly status: "unavailable";
+  readonly reason: SessionUnavailableReason;
 }
 
-export type AccountSession = SignedOutSession | SignedInSession;
+export type AccountSession =
+  | LoadingSession
+  | SignedOutSession
+  | SignedInSession
+  | UnavailableSession;
 
+export const LOADING: LoadingSession = { status: "loading" };
 export const SIGNED_OUT: SignedOutSession = { status: "signed-out" };
-
-/**
- * Reviewer-namespaced, and versioned alongside the collection stores.
- *
- * A normal-mode device never reads or writes this key, so a reviewer preview
- * cannot become a tester's state by switching modes.
- */
-export const ACCOUNT_PREVIEW_STORAGE_KEY = "nib-atlas.account.reviewer.v1";
-
-/** The identity the preview presents, so screenshots and tests are stable. */
-export const PREVIEW_IDENTITY_LABEL = "reviewer@nibatlas.example";
 
 /** Display names are a single line, trimmed, and bounded. */
 export const DISPLAY_NAME_MAX_LENGTH = 40;
 
-interface PersistedPreview {
-  readonly signedIn: boolean;
-  readonly displayName?: string | null;
-}
-
 /**
- * Normalises a typed display name.
+ * Normalises a display name held against the profile.
  *
- * Returns `null` for anything that is only whitespace, so "cleared" and "never
- * set" are one state rather than two that render differently. Newlines and
- * runs of whitespace collapse because this renders on one line.
+ * Applied to what the server sends rather than to what a reader types — there
+ * is no profile-update route yet — so a name that arrives with newlines, runs
+ * of whitespace, or more characters than the interface reserves for it cannot
+ * break the identity block. Whitespace-only collapses to `null`, so "cleared"
+ * and "never set" stay one state.
  */
-export function normalizeDisplayName(value: string | null | undefined): string | null {
-  if (value === null || value === undefined) {
+export function normalizeDisplayName(value: unknown): string | null {
+  if (typeof value !== "string") {
     return null;
   }
 
@@ -89,73 +92,85 @@ export function normalizeDisplayName(value: string | null | undefined): string |
   return collapsed.slice(0, DISPLAY_NAME_MAX_LENGTH);
 }
 
-export function parseAccountPreview(raw: string | null | undefined): PersistedPreview | null {
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    const parsed: unknown = JSON.parse(raw);
-
-    if (typeof parsed !== "object" || parsed === null) {
-      return null;
-    }
-
-    const candidate = parsed as PersistedPreview;
-
-    if (typeof candidate.signedIn !== "boolean") {
-      return null;
-    }
-
-    return {
-      signedIn: candidate.signedIn,
-      displayName: normalizeDisplayName(
-        typeof candidate.displayName === "string" ? candidate.displayName : null,
-      ),
-    };
-  } catch {
-    return null;
-  }
+function unavailable(reason: SessionUnavailableReason): UnavailableSession {
+  return { status: "unavailable", reason };
 }
 
-export function serializeAccountPreview(preview: PersistedPreview): string {
-  return JSON.stringify({
-    signedIn: preview.signedIn,
-    displayName: normalizeDisplayName(preview.displayName ?? null),
-  } satisfies PersistedPreview);
+function errorCode(body: unknown): string | null {
+  if (typeof body !== "object" || body === null) {
+    return null;
+  }
+
+  const error = (body as { error?: unknown }).error;
+
+  if (typeof error !== "object" || error === null) {
+    return null;
+  }
+
+  const code = (error as { code?: unknown }).code;
+
+  return typeof code === "string" ? code : null;
 }
 
 /**
- * The whole rule in one function.
+ * Turns one session response into one state.
  *
- * Reviewer mode is checked first and on its own line: a stored preview is
- * ignored outright in normal mode rather than merely unreachable, so a key left
- * behind by an earlier reviewer session cannot sign a tester in.
+ * Deliberately unforgiving: a 200 whose body is not one of the two documented
+ * shapes is `unreachable`, not signed out. Guessing "signed out" from an
+ * unrecognised payload would show a signed-in reader the anonymous product and
+ * invite them to sign in again; saying the read failed is both true and
+ * recoverable.
  */
-export function resolveAccountSession({
-  reviewer,
-  preview,
-}: {
-  readonly reviewer: boolean;
-  readonly preview: PersistedPreview | null;
-}): AccountSession {
-  if (!reviewer || preview === null || !preview.signedIn) {
+export function parseSessionResponse(status: number, body: unknown): AccountSession {
+  if (status === 503 && errorCode(body) === "auth_unavailable") {
+    return unavailable("not-configured");
+  }
+
+  if (status !== 200 || typeof body !== "object" || body === null) {
+    return unavailable("unreachable");
+  }
+
+  const payload = body as Record<string, unknown>;
+
+  if (payload["status"] === "signed-out") {
     return SIGNED_OUT;
+  }
+
+  if (payload["status"] !== "signed-in") {
+    return unavailable("unreachable");
+  }
+
+  const userId = payload["userId"];
+  const identityLabel = payload["identityLabel"];
+
+  if (typeof userId !== "string" || userId.length === 0) {
+    return unavailable("unreachable");
   }
 
   return {
     status: "signed-in",
-    displayName: normalizeDisplayName(preview.displayName ?? null),
-    identityLabel: PREVIEW_IDENTITY_LABEL,
-    preview: true,
+    userId,
+    identityLabel:
+      typeof identityLabel === "string" && identityLabel.trim().length > 0
+        ? identityLabel.trim().slice(0, 254)
+        : "Signed-in account",
+    displayName: normalizeDisplayName(payload["displayName"]),
   };
 }
 
 /** How the reader is addressed: their chosen name, or the account itself. */
 export function accountHeadline(session: AccountSession): string {
-  if (session.status === "signed-out") {
-    return "Not signed in";
+  if (session.status === "signed-in") {
+    return session.displayName ?? session.identityLabel;
   }
 
-  return session.displayName ?? session.identityLabel;
+  if (session.status === "loading") {
+    return "Checking your account";
+  }
+
+  if (session.status === "unavailable") {
+    return "Account unavailable";
+  }
+
+  return "Not signed in";
 }

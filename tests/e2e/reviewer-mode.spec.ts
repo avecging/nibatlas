@@ -209,7 +209,13 @@ test.describe("reviewer mode keeps the diagnostics", () => {
     await page.goto("/me?review=1");
     await expectMode(page, "on");
 
-    await expect(page.getByText("Sign-in and sync arrive in Milestone 4")).toBeVisible();
+    /*
+     * The sign-in row's reviewer wording follows what is actually missing.
+     * Authentication exists from Milestone 4 WP3 on, so the label no longer
+     * names that milestone: this build has no Supabase project configured for
+     * it, and WP6 is what configures one.
+     */
+    await expect(page.getByText(/hosted sign-in is WP6/i)).toBeVisible();
     // The prototype-controls note names the storage, and has to be right about
     // it: the store is mode-namespaced local storage, not a session.
     await expect(page.getByText(/on this device only/i)).toBeVisible();

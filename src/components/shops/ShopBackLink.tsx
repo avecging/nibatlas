@@ -4,6 +4,10 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
 import { Icon } from "@/src/components/ui/Icon";
+import {
+  decodeExploreContext,
+  EXPLORE_CONTEXT_PARAM,
+} from "@/src/features/explore/explore-context";
 
 const PASSPORT_ROOT = "/passport";
 
@@ -73,6 +77,16 @@ export function passportHrefWithAnchor(
     : path;
 }
 
+export function mapReturnHref(shopSlug: string, context: string | null | undefined): string {
+  const params = new URLSearchParams({ shop: shopSlug });
+
+  if (context && decodeExploreContext(context)) {
+    params.set(EXPLORE_CONTEXT_PARAM, context);
+  }
+
+  return `/?${params.toString()}`;
+}
+
 /**
  * Return context for a shop page.
  *
@@ -98,7 +112,10 @@ export function ShopBackLink({
       ? { href: passportReturnHref(params?.get("back")), label: "Back to Passport" }
       : from === "saved"
         ? { href: "/saved", label: "Back to saved shops" }
-        : { href: `/?shop=${shopSlug}`, label: "Back to map" };
+        : {
+            href: mapReturnHref(shopSlug, params?.get(EXPLORE_CONTEXT_PARAM)),
+            label: "Back to map",
+          };
 
   return (
     <Link className={className} href={target.href}>

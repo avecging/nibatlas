@@ -1,6 +1,5 @@
 import type { Page } from "@playwright/test";
 
-import { ACCOUNT_PREVIEW_STORAGE_KEY } from "../../src/features/account/account-session";
 import {
   COLLECTION_STORAGE_KEYS,
   LEGACY_COLLECTION_SESSION_KEY,
@@ -144,27 +143,6 @@ export async function seedSampleCollection(
 }
 
 /**
- * Arranges the reviewer-only signed-in preview.
- *
- * Reviewer mode is seeded alongside it, because that is the only audience the
- * preview resolves for. Named `seed…` rather than `use…` so the lint rule for
- * React hooks does not read it as one.
- */
-export async function seedSignedInPreview(
-  page: Page,
-  displayName: string | null = null,
-) {
-  await seedStorage(page, [
-    { area: "local", key: REVIEWER_STORAGE_KEY, value: "1" },
-    {
-      area: "local",
-      key: ACCOUNT_PREVIEW_STORAGE_KEY,
-      value: JSON.stringify({ signedIn: true, displayName }),
-    },
-  ]);
-}
-
-/**
  * Arranges the Passport's remembered view state.
  *
  * Only what a test names is set; everything else stays at "never chosen", which
@@ -225,17 +203,6 @@ export async function seedEmptyCollection(
   ]);
 }
 
-/** Seeds the preview key without reviewer mode, to prove it cannot be read. */
-export async function seedOrphanedSignedInPreview(page: Page) {
-  await seedStorage(page, [
-    {
-      area: "local",
-      key: ACCOUNT_PREVIEW_STORAGE_KEY,
-      value: JSON.stringify({ signedIn: true, displayName: "Ada" }),
-    },
-  ]);
-}
-
 /** Recreates a Milestone 1 staging session, to prove it cannot leak forward. */
 export async function seedLegacyPrototypeSession(page: Page) {
   await seedStorage(page, [
@@ -244,7 +211,6 @@ export async function seedLegacyPrototypeSession(page: Page) {
 }
 
 export {
-  ACCOUNT_PREVIEW_STORAGE_KEY,
   COLLECTION_STORAGE_KEYS,
   LEGACY_COLLECTION_SESSION_KEY,
   PASSPORT_VIEW_STORAGE_KEYS,

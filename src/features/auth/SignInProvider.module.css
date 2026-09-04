@@ -1,0 +1,172 @@
+/*
+ * The overlay sits above every other surface in the application: the results
+ * sheet (25), the shell's navigation (30), the filter drawer (41) and the shop
+ * page's own dialogs (60). An interruption that something else could cover
+ * would strand a reader mid-flow, so the dialog takes 80 and the callback's
+ * banner 70 — above the navigation, below the dialog, because a sign-in that is
+ * already in progress outranks a message about the last one.
+ */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  /* The scrim is the only thing between the reader and the page they were on,
+     so it stays translucent: the interruption is over their own context. */
+  background: var(--overlay-scrim);
+  overflow-y: auto;
+}
+
+.dialog {
+  width: min(100%, 26rem);
+  max-height: calc(100dvh - var(--space-8));
+  overflow-y: auto;
+  padding: var(--space-5);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-popover);
+}
+
+@media (min-width: 48rem) {
+  .dialog {
+    padding: var(--space-6);
+  }
+}
+
+.footer {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-default);
+}
+
+.footerNote {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+/*
+ * Fixed to the top, and only as wide as it needs to be.
+ *
+ * The mobile shell hides its header on Map, so there is no bar to sit under;
+ * anchoring to the top edge with the safe-area inset puts the message in the
+ * same place on every screen and keeps it clear of the bottom navigation and
+ * the results sheet's handle.
+ */
+.bannerWrap {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 70;
+  display: flex;
+  justify-content: center;
+  padding: calc(env(safe-area-inset-top, 0px) + var(--space-2)) var(--space-3)
+    var(--space-2);
+  pointer-events: none;
+}
+
+/*
+ * At 1024 and up the shell's header is always visible — it carries the section
+ * navigation there, on the map as well as everywhere else — so the banner is
+ * dropped clear of it rather than laid over the links. Below that width there is
+ * no placement that overlaps nothing (the header is hidden on Map and the search
+ * field takes the top edge), so it stays anchored to the top and is dismissed.
+ */
+@media (min-width: 64rem) {
+  .bannerWrap {
+    padding-top: calc(var(--nav-height) + var(--space-3));
+  }
+}
+
+.banner {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  width: min(100%, 34rem);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-popover);
+  pointer-events: auto;
+}
+
+/* Tone is carried by the leading rule and the icon, never by colour alone: the
+   text says what happened, and the icon differs in shape as well as hue. */
+.banner[data-tone="success"] {
+  border-left: 4px solid var(--action-secondary);
+}
+
+.banner[data-tone="success"] svg {
+  color: var(--action-secondary);
+}
+
+.banner[data-tone="error"] {
+  border-left: 4px solid var(--error);
+}
+
+.banner[data-tone="error"] svg {
+  color: var(--error);
+}
+
+.banner svg {
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
+}
+
+.bannerText {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+.bannerActions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.bannerClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap-target);
+  height: var(--tap-target);
+  /* The control is a full tap target; the negative margin keeps the banner's
+     own padding from being doubled by it. */
+  margin: calc(var(--space-2) * -1) calc(var(--space-2) * -1) calc(var(--space-2) * -1) 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.bannerClose:hover {
+  color: var(--text-primary);
+}
+
+.bannerClose:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@media (max-width: 30rem) {
+  .banner {
+    flex-wrap: wrap;
+  }
+
+  .bannerActions {
+    margin-left: auto;
+  }
+}

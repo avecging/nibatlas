@@ -1,7 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
-import { seedSampleCollection, seedSignedInPreview } from "../support/local-state";
+import { stubMagicLink, stubSession } from "../support/auth";
+import { seedSampleCollection } from "../support/local-state";
 
 const ROUTES = [
   { path: "/", name: "map" },
@@ -9,6 +10,7 @@ const ROUTES = [
   { path: "/passport", name: "passport" },
   { path: "/passport/jp/chuo-tokyo", name: "passport locality" },
   { path: "/me", name: "me" },
+  { path: "/login", name: "sign in" },
   { path: "/privacy", name: "privacy" },
   { path: "/about", name: "about" },
   { path: "/help", name: "help" },
@@ -61,6 +63,10 @@ async function analyze(page: Page) {
 
 for (const route of ROUTES) {
   test(`${route.name} has no detectable accessibility violations`, async ({ page }) => {
+    // Signed out, so `/login` is audited as the form a reader is offered rather
+    // than as the "no accounts in this build" notice the fixture would give it,
+    // and Me is audited with its account invitation present.
+    await stubSession(page, { kind: "signed-out" });
     await page.goto(route.path);
     await expect(page.getByRole("heading", { includeHidden: true }).first()).toBeAttached();
 
@@ -137,22 +143,72 @@ test("the filter drawer is accessible and keyboard-complete", async ({ page }) =
 });
 
 /*
- * Me's signed-in state carries a form and a destructive confirmation, neither of
- * which exists in the signed-out audit above. It is reachable only through the
- * reviewer preview, so that is how it is audited.
+ * Me's signed-in state carries the identity block and the Danger group, neither
+ * of which exists in the signed-out audit above. The session is arranged as the
+ * answer the application's own route gives, which is the only way to reach this
+ * state in a build with no Supabase project behind it.
  */
-test("me in its signed-in form is accessible, confirmation included", async ({
-  page,
-}) => {
-  await seedSignedInPreview(page, "Ada Lovelace");
+test("me in its signed-in form is accessible", async ({ page }) => {
+  await stubSession(page, { kind: "signed-in", displayName: "Ada Lovelace" });
   await page.goto("/me");
 
-  await expect(page.getByLabel(/display name/i)).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: /^account$/i }).getByText("Ada Lovelace"),
+  ).toBeVisible();
+  expect((await analyze(page)).violations).toEqual([]);
+});
+
+/*
+ * The sign-in interruption, in every state a reader can be left in it: the two
+ * ways in, a failure reported on the field that caused it, and the confirmation
+ * that replaces the form. It is a modal dialog over whatever the reader was
+ * doing, so it is audited as its own surface rather than as part of Me.
+ */
+test("the sign-in interruption is accessible in each of its states", async ({
+  page,
+}) => {
+  await stubSession(page, { kind: "signed-out" });
+  await stubMagicLink(page, { kind: "error", status: 400, code: "invalid_email" });
+  await page.goto("/me");
+
+  await page
+    .getByRole("region", { name: /^account$/i })
+    .getByRole("button", { name: /sign in/i })
+    .click();
+
+  const dialog = page.getByRole("dialog", { name: /sign in to nib atlas/i });
+
+  await expect(dialog).toBeVisible();
+  await settled(page, '[role="dialog"]');
   expect((await analyze(page)).violations).toEqual([]);
 
-  await page.getByRole("button", { name: /delete account/i }).click();
-  await expect(page.getByText(/delete your nib atlas account\?/i)).toBeVisible();
+  await dialog.getByLabel(/email address/i).fill("ada@");
+  await dialog.getByRole("button", { name: /email me a sign-in link/i }).click();
 
+  await expect(page.getByRole("alert", { name: /sign-in error/i })).toBeVisible();
+  expect((await analyze(page)).violations).toEqual([]);
+
+  await page.unroute("**/api/v1/auth/magic-link");
+  await stubMagicLink(page);
+  await dialog.getByLabel(/email address/i).fill("ada@example.com");
+  await dialog.getByRole("button", { name: /email me a sign-in link/i }).click();
+
+  await expect(page.getByRole("dialog", { name: /check your email/i })).toBeVisible();
+  expect((await analyze(page)).violations).toEqual([]);
+});
+
+/*
+ * The callback's result is announced over whatever page it returned to, and the
+ * failure form of it carries a control. Audited on the map, which is the busiest
+ * surface it can land on.
+ */
+test("the callback's result banner is accessible over the map", async ({ page }) => {
+  await stubSession(page, { kind: "signed-out" });
+  await page.goto("/?authError=expired_link");
+
+  await expect(page.getByRole("alert", { name: /sign-in result/i })).toContainText(
+    /expired/i,
+  );
   expect((await analyze(page)).violations).toEqual([]);
 });
 

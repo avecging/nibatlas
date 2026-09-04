@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import { AppShell } from "@/src/components/layout/AppShell";
 import { AccountSessionProvider } from "@/src/features/account/AccountSessionProvider";
+import { SignInProvider } from "@/src/features/auth/SignInProvider";
 import { CatalogueProvider } from "@/src/features/catalogue/CatalogueProvider";
 import { CollectionProvider } from "@/src/features/collection/collection-store";
 import { ReviewerModeProvider } from "@/src/features/reviewer/ReviewerModeProvider";
@@ -43,11 +44,19 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
       <body>
         <ReviewerModeProvider>
           <AccountSessionProvider>
-            <CatalogueProvider>
-              <CollectionProvider>
-                <AppShell>{children}</AppShell>
-              </CollectionProvider>
-            </CatalogueProvider>
+            {/*
+              The interruption sits above the application rather than inside a
+              screen: authentication is not a destination, so any surface can ask
+              for it, and the callback's result has to be announceable on whichever
+              page the reader was returned to.
+            */}
+            <SignInProvider>
+              <CatalogueProvider>
+                <CollectionProvider>
+                  <AppShell>{children}</AppShell>
+                </CollectionProvider>
+              </CatalogueProvider>
+            </SignInProvider>
           </AccountSessionProvider>
         </ReviewerModeProvider>
       </body>

@@ -1,10 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-import {
-  seedPassportView,
-  seedSampleCollection,
-  seedSignedInPreview,
-} from "../support/local-state";
+import { seedPassportView, seedSampleCollection } from "../support/local-state";
+import { stubSession } from "../support/auth";
 
 /**
  * Visual baselines and responsive screenshot evidence.
@@ -35,6 +32,8 @@ const SCREENS = [
   // List is what a normal device lands in, so it is the Passport baseline.
   { name: "passport-list", path: "/passport" },
   { name: "me", path: "/me" },
+  // The interruption's route form, which is a screen of its own from WP3 on.
+  { name: "sign-in", path: "/login" },
   { name: "privacy", path: "/privacy" },
   { name: "about", path: "/about" },
   { name: "styleguide", path: "/styleguide" },
@@ -42,6 +41,13 @@ const SCREENS = [
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
+  /*
+   * Signed out, arranged rather than assumed: this build has no Supabase
+   * project behind it, so an unarranged session would record Me and `/login` in
+   * their "no accounts in this build" form instead of the signed-out product a
+   * hosted build shows.
+   */
+  await stubSession(page, { kind: "signed-out" });
   // Baselines are more useful with a populated Passport and Saved mode than with
   // the empty states a clean device now starts in.
   await seedSampleCollection(page);
@@ -174,10 +180,12 @@ test("passport-book-short at mobile-360x568", async ({ page }) => {
  */
 for (const breakpoint of BREAKPOINTS) {
   test(`me-signed-in at ${breakpoint.name}`, async ({ page }) => {
-    await seedSignedInPreview(page, "Ada Lovelace");
+    await stubSession(page, { kind: "signed-in", displayName: "Ada Lovelace" });
     await page.setViewportSize({ width: breakpoint.width, height: breakpoint.height });
     await page.goto("/me");
-    await expect(page.getByLabel(/display name/i)).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: /^account$/i }).getByText("Ada Lovelace"),
+    ).toBeVisible();
 
     await expect(page).toHaveScreenshot(`me-signed-in-${breakpoint.name}.png`, {
       fullPage: true,

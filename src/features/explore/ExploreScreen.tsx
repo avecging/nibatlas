@@ -35,6 +35,13 @@ import { shopFocusViewport } from "@/src/features/map/shop-focus";
 import { noopTelemetry } from "@/src/features/map/telemetry";
 import { ReviewerModeBadge } from "@/src/features/reviewer/ReviewerModeBadge";
 import { useReviewerMode } from "@/src/features/reviewer/ReviewerModeProvider";
+import {
+  decodeExploreContext,
+  EXPLORE_CONTEXT_PARAM,
+  EXPLORE_CONTEXT_STORAGE_KEY,
+  readPersistedExploreContext,
+  type ExploreContext,
+} from "@/src/features/explore/explore-context";
 
 import styles from "./ExploreScreen.module.css";
 
@@ -53,7 +60,6 @@ const INITIAL_VIEWPORT: Viewport = {
 };
 
 const INTRO_STORAGE_KEY = "nib-atlas.intro-dismissed.v1";
-const VIEWPORT_STORAGE_KEY = "nib-atlas.explore-viewport.v1";
 
 /**
  * Map has two result scopes.
@@ -64,27 +70,6 @@ const VIEWPORT_STORAGE_KEY = "nib-atlas.explore-viewport.v1";
  * a shop saved in Kobe is findable from a map sitting over Tainan.
  */
 export type ExploreMode = "area" | "saved";
-
-interface PersistedExplore {
-  readonly viewport: Viewport;
-  readonly label: string | null;
-}
-
-function readPersistedViewport(): PersistedExplore | null {
-  try {
-    const raw = window.sessionStorage.getItem(VIEWPORT_STORAGE_KEY);
-
-    if (!raw) {
-      return null;
-    }
-
-    const parsed = JSON.parse(raw) as PersistedExplore;
-
-    return typeof parsed?.viewport?.zoom === "number" ? parsed : null;
-  } catch {
-    return null;
-  }
-}
 
 export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }) {
   const catalogue = useCatalogue();
@@ -219,11 +204,18 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
     const shopSlug = searchParams?.get("shop");
     const destinationId = searchParams?.get("destination");
 
+    const carried = decodeExploreContext(searchParams?.get(EXPLORE_CONTEXT_PARAM));
+
+    function restoreContext(context: ExploreContext) {
+      dispatch({ type: "restoreFilters", filters: context.filters });
+      moveCamera(context.viewport, context.label);
+    }
+
     function restorePersisted() {
-      const persisted = readPersistedViewport();
+      const persisted = readPersistedExploreContext();
 
       if (persisted) {
-        moveCamera(persisted.viewport, persisted.label);
+        restoreContext(persisted);
       }
     }
 
@@ -245,6 +237,10 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
       return true;
     }
 
+    if (carried) {
+      dispatch({ type: "restoreFilters", filters: carried.filters });
+    }
+
     if (shopSlug) {
       // The shop is resolved through the injected locator, so a `?shop=` return
       // from a shop page restores the same map in fixture and API modes alike.
@@ -262,12 +258,20 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
           }
 
           if (!jumpToDestination()) {
-            restorePersisted();
+            if (carried) {
+              moveCamera(carried.viewport, carried.label);
+            } else {
+              restorePersisted();
+            }
           }
         })
         .catch(() => {
           if (!controller.signal.aborted && !jumpToDestination()) {
-            restorePersisted();
+            if (carried) {
+              moveCamera(carried.viewport, carried.label);
+            } else {
+              restorePersisted();
+            }
           }
         });
 
@@ -275,7 +279,11 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
     }
 
     if (!jumpToDestination()) {
-      restorePersisted();
+      if (carried) {
+        moveCamera(carried.viewport, carried.label);
+      } else {
+        restorePersisted();
+      }
     }
 
     return () => controller.abort();
@@ -294,16 +302,17 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
   useEffect(() => {
     try {
       window.sessionStorage.setItem(
-        VIEWPORT_STORAGE_KEY,
+        EXPLORE_CONTEXT_STORAGE_KEY,
         JSON.stringify({
           viewport: state.committed,
           label: state.lastCommittedLabel,
-        } satisfies PersistedExplore),
+          filters: state.filters,
+        } satisfies ExploreContext),
       );
     } catch {
       // Best effort only.
     }
-  }, [state.committed, state.lastCommittedLabel]);
+  }, [state.committed, state.filters, state.lastCommittedLabel]);
 
   /** The committed result set with the reader's own state merged, unfiltered. */
   const mergedResults = useMemo(

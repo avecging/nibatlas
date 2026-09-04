@@ -3,8 +3,8 @@ import path from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { ACCOUNT_PREVIEW_STORAGE_KEY } from "../../src/features/account/account-session";
 import { REVIEWER_STORAGE_KEY } from "../../src/features/reviewer/reviewer-mode";
+import { stubSession } from "../support/auth";
 import { seedSampleCollection } from "../support/local-state";
 
 /**
@@ -14,7 +14,14 @@ import { seedSampleCollection } from "../support/local-state";
  * writes screenshots into `docs/evidence/milestone-1-5-wp2/` so the founder can
  * read the states side by side at the three breakpoints
  * `IMPLEMENTATION-PLAN.md` names: a clean device, a device with a collection,
- * the reviewer-only signed-in preview, and the destructive confirmations open.
+ * the signed-in structure, and the clear-data confirmation open.
+ *
+ * Milestone 4 WP3 replaced the reviewer preview this file was written against
+ * with a real session, so the signed-in captures are now arranged by answering
+ * the application's own session route. The delete-account capture is gone with
+ * the confirmation it recorded: deletion has no route to call, so the row states
+ * that instead of asking a question it cannot honour. The current interruption
+ * and account evidence lives in `m4-wp3-auth-interruption.spec.ts`.
  *
  * Opted into with `EVIDENCE=1 pnpm test:e2e --project=evidence`.
  *
@@ -35,25 +42,19 @@ async function seedDevice(
   { reviewer, signedIn }: { readonly reviewer: boolean; readonly signedIn: boolean },
 ) {
   await page.addInitScript(
-    ([reviewerKey, reviewerValue, accountKey, accountValue]) => {
+    ([reviewerKey, reviewerValue]) => {
       try {
         window.localStorage.setItem(reviewerKey as string, reviewerValue as string);
-
-        if (accountValue) {
-          window.localStorage.setItem(accountKey as string, accountValue as string);
-        }
       } catch {
         // Nothing to do: the default is the signed-out product.
       }
     },
-    [
-      REVIEWER_STORAGE_KEY,
-      reviewer ? "1" : "0",
-      ACCOUNT_PREVIEW_STORAGE_KEY,
-      signedIn
-        ? JSON.stringify({ signedIn: true, displayName: "Ada Lovelace" })
-        : "",
-    ],
+    [REVIEWER_STORAGE_KEY, reviewer ? "1" : "0"],
+  );
+
+  await stubSession(
+    page,
+    signedIn ? { kind: "signed-in", displayName: "Ada Lovelace" } : { kind: "signed-out" },
   );
 }
 
@@ -107,29 +108,17 @@ for (const breakpoint of BREAKPOINTS) {
     await capture(page, `${breakpoint.name}-clear-confirm`);
   });
 
-  /**
-   * The signed-in structure, reachable only as a labelled reviewer preview
-   * until Milestone 4 builds authentication.
-   */
-  test(`${breakpoint.name} signed-in preview`, async ({ page }) => {
-    await seedDevice(page, { reviewer: true, signedIn: true });
-    await seedSampleCollection(page, "reviewer");
+  /** The signed-in structure, against a real session. */
+  test(`${breakpoint.name} signed-in`, async ({ page }) => {
+    await seedDevice(page, { reviewer: false, signedIn: true });
+    await seedSampleCollection(page);
     await page.setViewportSize(breakpoint);
     await page.goto("/me");
 
-    await expect(page.getByLabel(/display name/i)).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: /^account$/i }).getByText("Ada Lovelace"),
+    ).toBeVisible();
     await capture(page, `${breakpoint.name}-signed-in`);
-  });
-
-  test(`${breakpoint.name} delete-account confirmation`, async ({ page }) => {
-    await seedDevice(page, { reviewer: true, signedIn: true });
-    await seedSampleCollection(page, "reviewer");
-    await page.setViewportSize(breakpoint);
-    await page.goto("/me");
-
-    await page.getByRole("button", { name: /delete account/i }).click();
-    await expect(page.getByText(/delete your nib atlas account\?/i)).toBeVisible();
-    await capture(page, `${breakpoint.name}-delete-confirm`);
   });
 
   /** Where Places visited leads: the country and locality routes it links. */

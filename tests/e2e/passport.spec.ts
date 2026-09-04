@@ -10,10 +10,10 @@ import {
   seedPagedLocality,
   seedPassportView,
   seedSampleCollection,
-  seedSignedInPreview,
   useNormalMode,
   useReviewerMode,
 } from "../support/local-state";
+import { SESSION_IDENTITY, stubSession } from "../support/auth";
 
 /**
  * The Passport, end to end.
@@ -1571,21 +1571,31 @@ test.describe("the identity page", () => {
     }
   }
 
+  /*
+   * The name comes from the account, which is now a real session rather than
+   * the reviewer preview these two tests were written against. A normal device
+   * with a session is the ordinary case, so the collection is seeded here
+   * instead of relying on the reviewer store's baseline.
+   */
   test("shows a display name when the account has one", async ({ page }) => {
-    await seedSignedInPreview(page, "Ada Lovelace");
-    await seedPassportView(page, { mode: "book", coverSeen: true }, "reviewer");
+    await stubSession(page, { kind: "signed-in", displayName: "Ada Lovelace" });
+    await seedSampleCollection(page);
+    await seedPassportView(page, { mode: "book", coverSeen: true });
     await openIdentity(page);
 
     await expect(page.getByRole("heading", { name: "Ada Lovelace" })).toBeVisible();
   });
 
+  /* And with no display name chosen, the account's address stays out of the
+     Passport entirely: the front matter is not a place to print an identity. */
   test("falls back to Your Passport, and never to an address", async ({ page }) => {
-    await seedSignedInPreview(page, null);
-    await seedPassportView(page, { mode: "book", coverSeen: true }, "reviewer");
+    await stubSession(page, { kind: "signed-in" });
+    await seedSampleCollection(page);
+    await seedPassportView(page, { mode: "book", coverSeen: true });
     await openIdentity(page);
 
     await expect(page.getByRole("heading", { name: "Your Passport" })).toBeVisible();
-    await expect(page.getByText("reviewer@nibatlas.example")).toHaveCount(0);
+    await expect(page.getByText(SESSION_IDENTITY)).toHaveCount(0);
   });
 
   test("an anonymous device gets the same fallback", async ({ page }) => {
