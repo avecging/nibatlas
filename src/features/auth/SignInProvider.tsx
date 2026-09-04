@@ -14,7 +14,11 @@ import { useDialogFocus } from "@/src/components/hooks/useDialogFocus";
 import { Button } from "@/src/components/ui/Button";
 import { Icon } from "@/src/components/ui/Icon";
 import { useAccountSession } from "@/src/features/account/AccountSessionProvider";
-import { callbackErrorMessage } from "@/src/features/auth/auth-copy";
+import {
+  callbackErrorMessage,
+  pendingIntentContext,
+} from "@/src/features/auth/auth-copy";
+import { readPendingFlow } from "@/src/features/auth/pending-flow";
 import { currentReturnTo, type PendingAuthIntent } from "@/src/features/auth/return-to";
 import { SignInPanel } from "@/src/features/auth/SignInPanel";
 
@@ -131,7 +135,28 @@ export function SignInProvider({ children }: { readonly children: ReactNode }) {
                   compact
                   onClick={() => {
                     acknowledgeAuthResult();
-                    requestSignIn();
+
+                    /*
+                     * The retry picks up the flow that failed, not a blank one.
+                     *
+                     * The callback cleared the server's continuation on its way
+                     * to this banner, so a plain `requestSignIn()` here would
+                     * post `intent: null` — and a Save deferred through an
+                     * expired link could then never complete, which is the one
+                     * thing the interruption promised. The tab remembers what
+                     * was started; the server validates it again either way.
+                     */
+                    const remembered = readPendingFlow();
+
+                    requestSignIn(
+                      remembered
+                        ? {
+                            context: pendingIntentContext(remembered.intent),
+                            intent: remembered.intent,
+                            returnTo: remembered.returnTo,
+                          }
+                        : {},
+                    );
                   }}
                   variant="secondary"
                 >

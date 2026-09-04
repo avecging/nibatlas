@@ -22,6 +22,7 @@ import {
   type SignOutOutcome,
 } from "@/src/features/auth/auth-client";
 import { parseCallbackError } from "@/src/features/auth/auth-copy";
+import { forgetPendingFlow } from "@/src/features/auth/pending-flow";
 import type { AuthErrorCode } from "@/src/server/auth/continuation";
 
 /**
@@ -141,6 +142,13 @@ export function AccountSessionProvider({ children }: { readonly children: ReactN
 
     if (result) {
       setAuthResult(result);
+    }
+
+    if (result?.kind === "signed-in") {
+      // The flow completed, so the tab's note about what it was for has done its
+      // job: from here the pending intent is the server's cookie, which is the
+      // copy that completes the action.
+      forgetPendingFlow();
     }
     /* eslint-enable react-hooks/set-state-in-effect */
 

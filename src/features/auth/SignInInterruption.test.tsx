@@ -1,7 +1,15 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { leaveForProvider } from "@/src/features/auth/navigate";
+import { readPendingFlow } from "@/src/features/auth/pending-flow";
 import { useSignInPrompt } from "@/src/features/auth/SignInProvider";
 import { installAuthFetch, WithAccount } from "@/src/test/auth";
 
@@ -14,6 +22,7 @@ vi.mock("@/src/features/auth/navigate", () => ({ leaveForProvider: vi.fn() }));
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  window.sessionStorage.clear();
 });
 
 /**
@@ -283,6 +292,101 @@ describe("the callback's result", () => {
     await waitFor(() => {
       expect(screen.queryByRole("status")).not.toBeInTheDocument();
     });
+
+    window.history.replaceState(null, "", "/");
+  });
+
+  /*
+   * The retry carries the flow that failed.
+   *
+   * A failed callback clears the server's continuation on its way here, so a
+   * retry that started a blank flow would post `intent: null` — and the Save
+   * this interruption was opened for could then never complete, whatever the
+   * reader did next. The flow is remembered in the tab that started it,
+   * survives the callback's navigation, and is re-sent for the server to
+   * validate again.
+   */
+  it("carries the failed flow's intent into the retry", async () => {
+    const { requests } = installAuthFetch({ session: { kind: "signed-out" } });
+    const dialog = await openInterruption();
+
+    fireEvent.change(within(dialog).getByLabelText(/email address/i), {
+      target: { value: "ada@example.com" },
+    });
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: /email me a sign-in link/i }),
+    );
+    await screen.findByRole("dialog", { name: /check your email/i });
+
+    // The callback comes back through a full navigation, with the flow cookie
+    // already cleared, so the retry has only the tab's own record to work from.
+    cleanup();
+    window.history.replaceState(null, "", "/shops/ty-lee-pen-shop?authError=expired_link");
+    render(
+      <WithAccount>
+        <Trigger />
+      </WithAccount>,
+    );
+
+    const alert = await screen.findByRole("alert", { name: /sign-in result/i });
+
+    fireEvent.click(within(alert).getByRole("button", { name: /try again/i }));
+
+    const retried = await screen.findByRole("dialog", {
+      name: /sign in to nib atlas/i,
+    });
+
+    // Named again, from the intent alone, so the reader is not asked to
+    // remember what they were doing either.
+    expect(retried).toHaveTextContent(/you were saving a shop/i);
+
+    fireEvent.change(within(retried).getByLabelText(/email address/i), {
+      target: { value: "ada@example.com" },
+    });
+    fireEvent.click(
+      within(retried).getByRole("button", { name: /email me a sign-in link/i }),
+    );
+
+    await waitFor(() => {
+      expect(requests.at(-1)?.url).toContain("magic-link");
+    });
+    expect(requests.at(-1)?.body).toMatchObject({
+      returnTo: "/shops/ty-lee-pen-shop",
+      intent: { type: "save-shop", shopId: SHOP_ID },
+    });
+
+    window.history.replaceState(null, "", "/");
+  });
+
+  /*
+   * And it is forgotten once a sign-in completes: from then on the pending
+   * intent is the server's cookie, which is the copy that completes the action.
+   */
+  it("forgets the flow once a sign-in has completed", async () => {
+    installAuthFetch({ session: { kind: "signed-out" } });
+    const dialog = await openInterruption();
+
+    fireEvent.change(within(dialog).getByLabelText(/email address/i), {
+      target: { value: "ada@example.com" },
+    });
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: /email me a sign-in link/i }),
+    );
+    await screen.findByRole("dialog", { name: /check your email/i });
+
+    expect(readPendingFlow()).not.toBeNull();
+
+    cleanup();
+    installAuthFetch({ session: { kind: "signed-in" } });
+    window.history.replaceState(null, "", "/shops/ty-lee-pen-shop?auth=success");
+    render(
+      <WithAccount>
+        <Trigger />
+      </WithAccount>,
+    );
+
+    await screen.findByRole("status", { name: /sign-in result/i });
+    expect(readPendingFlow()).toBeNull();
 
     window.history.replaceState(null, "", "/");
   });

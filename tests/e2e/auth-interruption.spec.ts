@@ -390,6 +390,49 @@ test.describe("coming back from the callback", () => {
     await expect(page.getByRole("dialog", { name: /check your email/i })).toBeVisible();
   });
 
+  /*
+   * The retry picks up the flow that failed, intent included.
+   *
+   * The callback clears the server's continuation on its way back, so a retry
+   * that started a blank flow would post `intent: null` — and the Save the
+   * interruption was opened for could then never complete, however many times
+   * the reader signed in. What the tab remembers is re-sent, and the server
+   * validates it again exactly as it validated the first one.
+   */
+  test("carries the interrupted action into a retry", async ({ page }) => {
+    await stubSession(page, { kind: "signed-out" });
+    const posted = await stubMagicLink(page);
+
+    await page.goto(
+      `/login?returnTo=%2Fshops%2Fginza-itoya-main-store&intent=save-shop&shopId=${SHOP_ID}`,
+    );
+    await page.getByLabel(/email address/i).fill("ada@example.com");
+    await page.getByRole("button", { name: /email me a sign-in link/i }).click();
+    await expect(page.getByRole("status", { name: /sign-in link/i })).toBeVisible();
+
+    // The link expired, so the callback returns the reader to the shop with
+    // nothing of the flow left on the server.
+    await page.goto("/shops/ginza-itoya-main-store?authError=expired_link");
+
+    const alert = page.getByRole("alert", { name: /sign-in result/i });
+
+    await expect(alert).toContainText(/expired/i);
+    await alert.getByRole("button", { name: /try again/i }).click();
+
+    const dialog = interruption(page);
+
+    await expect(dialog).toContainText(/you were saving a shop/i);
+
+    await dialog.getByLabel(/email address/i).fill("ada@example.com");
+    await dialog.getByRole("button", { name: /email me a sign-in link/i }).click();
+    await expect(page.getByRole("dialog", { name: /check your email/i })).toBeVisible();
+
+    expect(posted.bodies.at(-1)).toMatchObject({
+      returnTo: "/shops/ginza-itoya-main-store",
+      intent: { type: "save-shop", shopId: SHOP_ID },
+    });
+  });
+
   test("says a cancelled Google sign-in changed nothing", async ({ page }) => {
     await stubSession(page, { kind: "signed-out" });
 

@@ -13,6 +13,7 @@ import {
 } from "@/src/features/auth/auth-client";
 import { SIGN_IN_SENDER, signInErrorMessage } from "@/src/features/auth/auth-copy";
 import { leaveForProvider } from "@/src/features/auth/navigate";
+import { rememberPendingFlow } from "@/src/features/auth/pending-flow";
 
 import styles from "./SignInPanel.module.css";
 
@@ -126,6 +127,13 @@ export function SignInPanel({
       return;
     }
 
+    /*
+     * Written down before the page leaves, because a failed callback clears the
+     * server's continuation and returns here through a full navigation — after
+     * which nothing in memory is left to tell a retry what it was interrupting.
+     */
+    rememberPendingFlow(start);
+
     // A top-level navigation, deliberately: the provider exchange cannot happen
     // inside a fetch, and the route returns the URL rather than a redirect so
     // that the browser — not `fetch` — is the thing that leaves.
@@ -156,6 +164,10 @@ export function SignInPanel({
         return;
       }
 
+      // Remembered for the same reason as the Google flow above: the link may be
+      // opened in another tab, expire, or be used twice, and the retry that
+      // follows has to carry the same intent this one did.
+      rememberPendingFlow(start);
       setPhase({ kind: "sent", email: address });
     },
     [email, start],
