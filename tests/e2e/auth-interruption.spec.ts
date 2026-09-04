@@ -380,7 +380,7 @@ test.describe("coming back from the callback", () => {
       label: "Tokyo",
       filters: {
         status: "all",
-        shopTypes: ["fountain_pen_specialist"],
+        shopTypes: ["stationery_store"],
         availability: "not_closed",
       },
     });
@@ -396,7 +396,7 @@ test.describe("coming back from the callback", () => {
     const filters = page.getByRole("dialog", { name: "Filters" });
 
     await expect(
-      filters.getByRole("button", { name: "Fountain pen specialist" }),
+      filters.getByRole("button", { name: "Stationery store" }),
     ).toHaveAttribute("aria-pressed", "true");
     await expect(
       filters.getByRole("button", { name: "Hide recorded closures" }),
