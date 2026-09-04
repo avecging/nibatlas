@@ -196,12 +196,12 @@ select is(
 );
 
 select ok(
-  has_function_privilege(
+  not has_function_privilege(
     'service_role',
     'public.provision_profile_for_auth_user()',
     'EXECUTE'
   ),
-  'the trusted service role retains profile-provisioning access'
+  'profile provisioning is trigger-only, including for the service role'
 );
 select ok(
   not has_function_privilege(
