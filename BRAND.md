@@ -1,8 +1,8 @@
 # Nib Atlas Brand and Design Foundation
 
 **Status:** Approved visual direction; implementation-ready and intentionally evolvable
-**Version:** 1.4
-**Last updated:** 31 August 2026
+**Version:** 1.5
+**Last updated:** 4 September 2026
 
 ## Brand idea
 
@@ -289,23 +289,55 @@ Rules:
 
 ## Stamp visual language
 
-Atlas Stamps draw from eki stamps, passport impressions, rubber stamps, local architecture, landmarks, ink bottles, nibs, and stationery culture.
+Atlas Stamps borrow the collectable spirit of station stamps, passport impressions
+and rubber stamps, then build their imagery from real places and fountain-pen
+culture. They are not required to imitate Japanese eki-stamp artwork.
 
-### MVP stamp system
+The concise illustrator-facing handoff is
+[`docs/stamp-illustration-guide.md`](docs/stamp-illustration-guide.md). This file
+remains the product and design authority when implementation decisions are made.
 
-- Templated but distinct: a shared construction system with local motif, locality label, shop name, and one approved ink from the global stamp palette.
-- Use exactly one approved ink colour per stamp.
-- Allow slightly imperfect edges, mild registration shift, and pressure variation.
-- Preserve legibility at Passport-card size.
-- Include shop identity, locality/country, and Nib Atlas provenance.
-- Avoid heraldic clutter, fake official-government language, game rarity tiers, metallic gradients, neon effects, or NFT badge styling.
+### Illustration brief
+
+Every shop stamp, locality seal and country seal carries five things:
+
+1. the correct name of the shop, locality or country;
+2. one subject-specific detail that makes it distinct;
+3. one small truthful surprise that rewards a closer look;
+4. the illustrator's maker mark as a permanent part of the artwork; and
+5. exactly one approved ink.
+
+The three levels answer different questions:
+
+| Level | Illustration job |
+| --- | --- |
+| Shop stamp | Remember why someone would remember this particular visit: the counter, stairwell, repair bench, ritual, object or other truthful shop-specific detail. |
+| Locality seal | Show a clue a resident would recognise, rather than defaulting automatically to the most famous landmark. |
+| Country seal | Give a broad, researched sense of the country without copying flags, coats of arms, official seals or government language. |
+
+Nib Atlas maintains the register of motifs already used within each country and
+tells the illustrator what is taken before work begins. The illustrator is not
+expected to discover this independently.
+
+Shape and treatment are open. Circle, oval, arch, ticket, polygon, tall, wide,
+irregular, flat, spare, graphic and richly hatched approaches are all welcome.
+The artwork must still be delivered on the product's fixed `1200 × 800 px`, `3:2`
+landscape canvas. A tall silhouette can sit inside that canvas; a portrait canvas
+cannot currently replace it. The examples in the illustration guide explore one
+engraved direction and do not define a compulsory house style.
+
+The interface, not the illustration, carries the level, collection date,
+translation, full illustrator credit and accessibility text. It may place those
+facts beside the artwork but must never crop, recolour, translate over, redraw or
+otherwise alter approved artwork. The accepted tradeoff is that artwork exported,
+shared or printed without the interface does not identify its level by itself.
 
 ### Global stamp-ink rules
 
 - The stamp system uses one shared eight-colour global palette.
 - No colour belongs to a country, locality, shop tier, rarity, or achievement state.
 - New countries do not require or introduce new colours.
-- Tier is communicated through frame and stamp anatomy, never through colour ownership.
+- Level is communicated by the interface, never by a compulsory border, shape or colour.
 - Every generated stamp pins the palette version used so regeneration remains deterministic.
 - Shop stamps are the primary collected objects.
 - A locality seal is derived when the user's first verified shop stamp in that locality is acquired. If check-in is later introduced, it must emit the same canonical verified-visit event rather than create a parallel rule.
@@ -314,39 +346,62 @@ Atlas Stamps draw from eki stamps, passport impressions, rubber stamps, local ar
 - Milestone 1 may demonstrate these derived seals with selected real-shop prototype data; it must not imply unversioned global completeness.
 - Dual-ink and spectrum/rainbow impressions are reserved future treatments. They must remain one coherent physical impression with irregular colour boundaries and pressure variation, not gradients or rarity tiers. The Taiwan Sun-Star Coiro reference supplied by the founder is the physical benchmark for this future direction.
 
-### Three anatomies
+### Production and the big read
 
-Recorded 31 August 2026, from Milestone 1.5 WP5, as the working-out of "tier is
-communicated through frame and stamp anatomy".
+One approved ink at full strength and bare transparency are the only colour
+values in the delivered artwork. Hatching, stippling and crosshatching are
+welcome ways to build tone. Opacity, tints, gradients, shadows and a second colour
+are not. Texture should remain separated enough to read as marks at detail size
+rather than an accidental grey fill.
 
-All three artefacts share one canvas, one tier overline, one foot — the local
-date at the left, `NIB ATLAS` at the right — one ink treatment and one frame
-weight. They differ in composition, and only in composition:
+The normal mobile list view displays artwork at `78 CSS px`; on a `3×` phone that
+is about `234` device pixels. On the `1200 px` master, a two-device-pixel
+big-read line therefore needs `2 × 1200 ÷ 234 = 10.26 px`, rounded up to `11 px`.
+Use these production starting points:
 
-| Artefact | Composition | Frame |
-| --- | --- | --- |
-| Shop stamp | Asymmetric: the shop's name reads from the left, its own motif is pressed to the right | Rounded |
-| Locality seal | Symmetric: the country named above, the locality's name centred, its motif centred beneath | Square, with corner ticks |
-| Country seal | Symmetric, led by the Nib Atlas device | Double rule |
+- big-read lines and clear gaps between major forms: at least `11 px`;
+- secondary detail: at least `6 px`;
+- hatching marks: at least `4 px`, with at least `6 px` of clear space between
+  them.
 
-A **country seal carries the mark's own geometry rather than a motif**: a
-simplified circle, meridian grid and nib breather, drawn as strokes at the
-motifs' weight. A country seal is derived from verified visits and issued by Nib
-Atlas, so borrowing a street motif from one of its shops would say something the
-seal does not know. This is exactly the one-colour imprint context the logo
-direction above already asks for simplified artwork in.
+These numbers protect hierarchy rather than limit subject matter. The silhouette
+and one dominant form should distinguish the work at browsing size; the full
+illustration and surprise are allowed to reward the detail view. Never solve a
+weak silhouette by deleting useful detail. Final approval still includes tests
+in the real list, book and detail views across relevant device densities.
 
-An impression drawn smaller than roughly 6 rem uses a **compact composition**:
-the date, the provenance and the place line are dropped rather than pressed
-illegibly, and what remains is set large enough to read. Every surface that uses
-it states those facts in real text beside the impression.
+The `0.3×` book scale is an emergency clipping floor for an exceptionally short
+or narrow book stage. It is accepted degradation, not the production baseline.
 
-Long shop, locality and country names **wrap inside the impression** rather than
-being shrunk until they fit on one line.
+Deliver an editable source file, a clean SVG, an outlined SVG and a transparent
+`1200 × 800 px` PNG. The clean SVG contains no external fonts, scripts, filters,
+network references or raster photographs.
+
+### Credit and illustrator approval
+
+- The illustrator chooses and draws their maker mark into the artwork. Nib Atlas
+  does not add, move or replace it.
+- A readable **Illustrated by [name]** credit appears in the product outside the
+  artwork.
+- The illustrator approves the exact final artwork and every exported file in
+  writing before release. Approval covers the actual files, not merely the
+  concept or a screenshot.
+- An exploratory submission remains the illustrator's work unless a separate
+  contract says otherwise.
+- Fees, revision rounds, deadlines and licence scope live in the commission
+  contract rather than this visual system.
+- Generated images may be used by Nib Atlas for internal moodboards and concept
+  references. Final commissioned artwork must be drawn by the illustrator.
 
 ### Regional respect
 
-Local imagery must be specific and researched. Do not apply Japanese symbols to Taiwan or Singapore merely because the system is inspired by eki stamps. Motifs should come from the shop, neighbourhood, city, architecture, or local fountain-pen culture.
+Local imagery must be specific and researched. Do not apply Japanese symbols or
+a generic vintage idiom to Taiwan, Singapore or another place merely because
+station stamps are one influence. Motifs should come from the shop,
+neighbourhood, city, architecture or local fountain-pen culture. Recognisable
+people appear only with permission; an unrecognisable figure, hands at a repair
+bench or a silhouette at a counter usually carries the memory better. Artwork
+must respect applicable national rules, copyright and personality rights.
 
 ### Collection ceremony
 

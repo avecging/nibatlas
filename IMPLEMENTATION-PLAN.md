@@ -1,8 +1,8 @@
 # Nib Atlas MVP Implementation Plan
 
 **Status:** Ready for GitHub-based execution
-**Version:** 1.1
-**Last updated:** 26 August 2026
+**Version:** 1.2
+**Last updated:** 4 September 2026
 
 ## Working model
 
@@ -294,6 +294,8 @@ Complete the real-world core loop with privacy-safe, idempotent collection.
 - Short-lived nonce and throttled verification endpoint.
 - Adaptive geofence, accuracy, freshness, duplicate logic.
 - Atomic stamp issuance with historical snapshots.
+- Immutable artwork-version and illustrator-credit data in each collected
+  stamp snapshot.
 - Permission explanation, retry, denial, outside-radius, duplicate, and support paths.
 - Stamp ceremony connected to real issuance.
 - Passport overview/country/locality backed by collections.
@@ -340,6 +342,8 @@ Make the catalogue maintainable without code deployments.
 
 - Admin/editor server role checks.
 - Shop/stamp CRUD and preview/publish workflow.
+- Commissioned stamp-artwork upload, credit, motif-register and written-approval
+  workflow.
 - Provenance, freshness, image rights, and operational status fields.
 - R2 upload/variant flow.
 - CSV/JSON import contract, dry run, validation, deduplication report.
@@ -356,6 +360,11 @@ Make the catalogue maintainable without code deployments.
 - Founder can correct/publish/close a shop without code deployment.
 - Import dry run reports row-level errors and changes nothing.
 - Published imagery always has rights/source and alt text.
+- Commissioned artwork cannot be published until its required source and export
+  files, checksums, illustrator credit, maker-mark confirmation and written
+  approval are recorded.
+- Preview verifies the unchanged artwork in list, book and detail contexts; the
+  delivery path resamples but never crops, recolours or draws over it.
 - Every canonical admin change is audited.
 
 **Tests/checks**

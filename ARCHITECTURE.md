@@ -1,8 +1,8 @@
 # Nib Atlas MVP Architecture
 
 **Status:** Recommended production architecture
-**Version:** 1.0
-**Last updated:** 11 August 2026
+**Version:** 1.1
+**Last updated:** 4 September 2026
 
 ## Architecture summary
 
@@ -152,6 +152,10 @@ Lock-in: moderate. JWT-based architecture is portable, but user/provider migrati
 - Keep rights, credit, source, alt text, dimensions, and moderation state in Postgres.
 - Use a small fixed variant set: card, detail, thumbnail, social.
 - Validate type, dimensions, file size, and metadata on upload.
+- For approved stamp artwork, variants may resample the complete `3:2` canvas
+  only. They must not crop, recolour, add text, translate over, redraw or apply a
+  stylistic filter. Store the approved exports and checksums so the published
+  bytes can be verified against the illustrator's written approval.
 - Do not allow general public uploads in MVP.
 
 R2 offers a 10 GB-month free tier and free internet egress; Images includes 5,000 unique transformations before paid transformation usage. Budget modest overage rather than assuming permanent zero cost.
