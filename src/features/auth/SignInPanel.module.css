@@ -1,0 +1,155 @@
+/*
+ * The interruption's own surface.
+ *
+ * Quiet field-journal UI, per `BRAND.md`: paper, one serif heading, and no
+ * illustration competing with the two controls. The panel is a single column at
+ * every size — an interruption has one job, and a two-column sign-in at 1440
+ * would make it look like a destination.
+ */
+
+.panel {
+  display: grid;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.title {
+  font-family: var(--font-serif);
+  font-size: var(--type-h2-size);
+  line-height: var(--type-h2-line);
+  font-weight: 600;
+}
+
+/*
+ * What was interrupted, set apart from the explanation below it. The rule is on
+ * the leading edge so it reads as a quotation of the reader's own action rather
+ * than as a notice about the product.
+ */
+.context {
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--action-secondary);
+  color: var(--text-primary);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+}
+
+.lede {
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+.error {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  padding: var(--space-3);
+  border: 1px solid var(--error);
+  border-radius: var(--radius-md);
+  background: var(--vermilion-100);
+  color: var(--text-primary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+.error svg {
+  flex: 0 0 auto;
+  margin-top: 0.1rem;
+  color: var(--error);
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  /* `--text-muted` measures 4.35:1 on the surface at this size and fails AA;
+     the secondary step passes, and this is a word the reader has to read. */
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+.rule {
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--border-default);
+}
+
+.form {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.label {
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.hint {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.input {
+  width: 100%;
+  min-height: var(--tap-target);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.input:disabled {
+  background: var(--bg-surface-warm);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+/* The invalid state is the border and the message together, never colour alone. */
+.input[aria-invalid="true"] {
+  border-color: var(--error);
+}
+
+.sent {
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-warm);
+  color: var(--text-primary);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+}
+
+.sent:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.sent strong {
+  overflow-wrap: anywhere;
+}
+
+.note {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.link {
+  color: var(--action-secondary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

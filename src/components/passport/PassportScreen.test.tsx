@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PassportPageView } from "@/src/components/passport/PassportPageView";
 import { PassportScreen, type PassportTarget } from "@/src/components/passport/PassportScreen";
@@ -11,7 +11,6 @@ import {
   IDENTITY_PAGE_INDEX,
 } from "@/src/features/passport/passport-pages";
 import { AccountSessionProvider } from "@/src/features/account/AccountSessionProvider";
-import { ACCOUNT_PREVIEW_STORAGE_KEY } from "@/src/features/account/account-session";
 import {
   COLLECTION_STORAGE_KEYS,
   CollectionProvider,
@@ -26,7 +25,22 @@ import {
   prototypeSeedCollections,
   prototypeSeedSavedShopIds,
 } from "@/src/fixtures/prototype-passport";
+import { installAuthFetch } from "@/src/test/auth";
 import { seedReviewerMode, WithReviewerMode } from "@/src/test/reviewer";
+
+/*
+ * The Passport reads the account only for the name on its identity page, and
+ * every case here is a signed-out device. The session route is answered anyway
+ * rather than left to a real `fetch`, so these renders make no request and the
+ * screen is never asserted against a session that failed by accident.
+ */
+beforeEach(() => {
+  installAuthFetch({ session: { kind: "signed-out" } });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 /**
  * The Passport screen as structure.
@@ -43,12 +57,10 @@ function seed({
   reviewer = false,
   collection,
   view,
-  signedInAs,
 }: {
   readonly reviewer?: boolean;
   readonly collection?: "seeded" | undefined;
   readonly view?: Partial<PassportViewRecord> | string | undefined;
-  readonly signedInAs?: string | null | undefined;
 } = {}) {
   seedReviewerMode(reviewer);
   const scope = reviewer ? "reviewer" : "normal";
@@ -85,12 +97,6 @@ function seed({
     );
   }
 
-  if (signedInAs !== undefined) {
-    window.localStorage.setItem(
-      ACCOUNT_PREVIEW_STORAGE_KEY,
-      JSON.stringify({ signedIn: true, displayName: signedInAs }),
-    );
-  }
 }
 
 function Passport({ target = { kind: "all" } }: { readonly target?: PassportTarget }) {

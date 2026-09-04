@@ -5,11 +5,9 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { NibAtlasMark } from "@/src/components/brand/NibAtlasMark";
 import { Icon, type IconName } from "@/src/components/ui/Icon";
-import {
-  DISPLAY_NAME_MAX_LENGTH,
-  accountHeadline,
-} from "@/src/features/account/account-session";
+import { accountHeadline } from "@/src/features/account/account-session";
 import { useAccountSession } from "@/src/features/account/AccountSessionProvider";
+import { useSignInPrompt } from "@/src/features/auth/SignInProvider";
 import { useCollection } from "@/src/features/collection/collection-store";
 import {
   HELP_PATH,
@@ -39,10 +37,20 @@ import styles from "./MeScreen.module.css";
  * 3. **Places visited is compact and clickable.** It is a route into the
  *    Passport rather than a second rendering of it.
  *
- * Authentication is Milestone 4, so the signed-in state cannot be real yet. It
- * is reachable only as a labelled reviewer preview; see
- * `src/features/account/account-session.ts` for why normal mode can never enter
- * it.
+ * Milestone 4 WP3 makes the signed-in state real. The reviewer preview that
+ * stood in for it is gone: which state a reader gets is now decided by
+ * `GET /api/v1/auth/session`, and the two states above are joined by the two a
+ * network answer adds — the session is still being read, or it could not be
+ * read at all. All four are rendered here, because a screen that claims either
+ * of the settled states while it is in one of the others is the same defect the
+ * preview was built to avoid.
+ *
+ * What a signed-in reader is offered is bounded by what exists. WP2 built the
+ * session; the profile-update, account-export and account-deletion routes do
+ * not exist, so those rows say so in the same plain form the rest of Me uses
+ * rather than presenting controls that would fail. Saved shops and collected
+ * impressions are still device-local until WP4 and WP5 connect them, and the
+ * data group says that too.
  */
 
 interface RowProps {
@@ -208,7 +216,6 @@ function ConfirmRow({
   tone = "default",
   onConfirm,
   disabled,
-  note,
   status,
 }: {
   readonly icon: IconName;
@@ -221,8 +228,6 @@ function ConfirmRow({
   onConfirm(): void;
   /** Held while the device's own state is still being read. */
   readonly disabled?: boolean;
-  /** Standing explanatory text. Present from first paint, so not a live region. */
-  readonly note?: string | null;
   /** The result of using the control, announced when it appears. */
   readonly status?: string | null;
 }) {
@@ -285,7 +290,6 @@ function ConfirmRow({
             the button's accessible name is correct. The result does not — see
             `RowStatus`.
           */}
-          {note ? <span className={styles.rowStatus}>{note}</span> : null}
         </span>
       </button>
       <RowStatus label={title} status={status} />
@@ -516,15 +520,35 @@ export function MeScreen() {
     clearLocalData,
     resetPrototypeState,
   } = useCollection();
-  const { session, canPreview, previewSignedIn, signOut, setDisplayName } =
-    useAccountSession();
+  const { session, refresh, signOut } = useAccountSession();
+  const { requestSignIn } = useSignInPrompt();
   const reviewer = useReviewerMode();
 
   const [downloadStatus, setDownloadStatus] = useState<string | null>(null);
   const [clearStatus, setClearStatus] = useState<string | null>(null);
-  const [nameStatus, setNameStatus] = useState<string | null>(null);
+  const [signOutStatus, setSignOutStatus] = useState<string | null>(null);
 
   const signedIn = session.status === "signed-in";
+
+  /*
+   * Signing out is a request to the server, so it can fail, and the row says so
+   * rather than appearing to have worked. On success the session state changes
+   * underneath this screen and the signed-out structure replaces it — there is
+   * nothing left to announce, and the row that would have announced it is gone.
+   */
+  const handleSignOut = useCallback(async () => {
+    setSignOutStatus(null);
+
+    const outcome = await signOut();
+
+    if (!outcome.ok) {
+      setSignOutStatus(
+        outcome.code === "network"
+          ? "Nib Atlas could not reach the network. You are still signed in."
+          : "Signing out did not complete. You are still signed in — try again.",
+      );
+    }
+  }, [signOut]);
 
   const handleDownload = useCallback(() => {
     const result = exportLocalData({
@@ -602,107 +626,139 @@ export function MeScreen() {
         </span>
         <div className={styles.headerText}>
           <h1 className={styles.title}>Me</h1>
+          {/*
+            Three wordings for four states, because the two unsettled ones must
+            not claim either settled one. "What you keep is kept on this device"
+            is true of a signed-out reader and would be a claim about a
+            signed-in one, so it waits until the session is known.
+          */}
           <p className={styles.subtitle}>
             {signedIn
               ? "Your account, the places you have been, and the controls over your own data."
-              : "Nib Atlas works without an account. What you keep is kept on this device."}
+              : session.status === "signed-out"
+                ? "Nib Atlas works without an account. What you keep is kept on this device."
+                : "The places you have been, and the controls over your own data."}
           </p>
         </div>
         <ReviewerModeBadge />
       </header>
 
-      {signedIn ? (
-        <Section id="me-account" title="Account">
-          <div className={styles.identity}>
-            <p className={styles.identityName}>{accountHeadline(session)}</p>
-            <p className={styles.identityLabel}>{session.identityLabel}</p>
-            {/*
-              The preview is labelled where it renders, not only where it is
-              switched on. A reviewer who lands mid-screen has to be able to see
-              that this account does not exist.
-            */}
-            {session.preview ? (
-              <p className={styles.identityNote}>
-                Reviewer preview: this device is not signed in to anything. There is
-                no authentication in this build; the signed-in structure is shown so
-                it can be reviewed before Milestone 4 builds it.
-              </p>
-            ) : null}
-          </div>
+      {/*
+        One section, four states, and no state borrowed from another.
 
-          <form
-            className={styles.nameForm}
-            onSubmit={(event) => {
-              event.preventDefault();
-
-              // Read from the form rather than from a draft in state: an
-              // uncontrolled input seeded with the stored name means a reader
-              // who opens Me and presses Save without typing keeps the name
-              // they already had, instead of silently clearing it.
-              const submitted = new FormData(event.currentTarget).get("displayName");
-              const value = typeof submitted === "string" ? submitted : "";
-
-              setDisplayName(value);
-              setNameStatus(
-                value.trim().length === 0
-                  ? "Display name cleared."
-                  : "Display name saved.",
-              );
-            }}
+        Loading is not rendered as signed out. The session lives in an HTTP-only
+        cookie, so the browser has to ask before it knows, and showing the
+        anonymous invitation in the meantime would flash "Sign in" at a reader
+        who already has an account on every visit to this page.
+      */}
+      <Section id="me-account" title="Account">
+        {session.status === "loading" ? (
+          <p
+            aria-label="Account status"
+            className={styles.sectionNote}
+            role="status"
           >
-            <label className={styles.nameLabel} htmlFor="me-display-name">
-              Display name
-            </label>
-            <p className={styles.nameHint} id="me-display-name-hint">
-              Optional. What Nib Atlas calls you. Leave it empty to be shown your
-              account address instead.
-            </p>
-            <div className={styles.nameControls}>
-              <input
-                aria-describedby="me-display-name-hint"
-                className={styles.nameInput}
-                defaultValue={session.displayName ?? ""}
-                id="me-display-name"
-                /* Remounts when the stored name changes, so the uncontrolled
-                   input picks up the value resolved after hydration. */
-                key={session.displayName ?? ""}
-                maxLength={DISPLAY_NAME_MAX_LENGTH}
-                name="displayName"
-                onChange={() => {
-                  setNameStatus(null);
-                }}
-                type="text"
-              />
-              <button className={styles.nameSave} type="submit">
-                Save
-              </button>
+            Checking your account&hellip;
+          </p>
+        ) : null}
+
+        {session.status === "signed-in" ? (
+          <>
+            <div className={styles.identity}>
+              <p className={styles.identityName}>{accountHeadline(session)}</p>
+              {/*
+                The address is the second line only when the first one is not
+                already it. With no display name chosen, `accountHeadline`
+                returns the address, and printing it twice reads as a defect.
+              */}
+              {session.displayName ? (
+                <p className={styles.identityLabel}>{session.identityLabel}</p>
+              ) : null}
             </div>
-            {nameStatus ? (
-              <p className={styles.rowStatus} role="status">
-                {nameStatus}
-              </p>
-            ) : null}
-          </form>
-        </Section>
-      ) : (
-        <Section id="me-account" title="Account">
+
+            <ul className={styles.rows}>
+              {/*
+                A row, not the form this replaced. WP2 gives the interface a
+                profile read and no profile write, so the form's Save button had
+                nothing to call: the honest form of an unbuilt control is the
+                same pending row the rest of Me uses.
+              */}
+              <Row
+                action="Not available yet"
+                detail="What Nib Atlas calls you, instead of your email address."
+                icon="person"
+                reviewerAction="Needs a profile-update route; not in WP3"
+                title="Display name"
+              />
+            </ul>
+          </>
+        ) : null}
+
+        {session.status === "signed-out" ? (
           <ul className={styles.rows}>
-            <Row
-              action="Not available yet"
+            {/*
+              The explanation is the approved wording, unchanged. What changed is
+              that the row is now a control: it opens the interruption, which
+              returns here — to this section — once the reader is signed in.
+            */}
+            <ActionRow
               detail="An account carries your saved shops and collected impressions between devices. Everything you can do today works without one."
               icon="login"
-              reviewerAction="Sign-in and sync arrive in Milestone 4"
+              onClick={() => requestSignIn({ returnTo: "/me#me-account" })}
               title="Sign in"
             />
           </ul>
-        </Section>
-      )}
+        ) : null}
+
+        {/*
+          A failed session read is two different facts, and only one of them is
+          worth a retry. A build with no authentication behind it cannot offer
+          sign-in at all; a configured build that did not answer can, once it
+          does.
+        */}
+        {session.status === "unavailable" && session.reason === "not-configured" ? (
+          <ul className={styles.rows}>
+            <Row
+              action="Not available in this build"
+              detail="This build has no accounts behind it. The map, saving shops on this device and collecting impressions all work without one."
+              icon="login"
+              reviewerAction="No Supabase auth configuration reached this build; hosted sign-in is WP6"
+              title="Sign in"
+            />
+          </ul>
+        ) : null}
+
+        {session.status === "unavailable" && session.reason === "unreachable" ? (
+          <>
+            <p aria-label="Account status" className={styles.sectionNote} role="alert">
+              Nib Atlas could not check your account just now. Nothing about it
+              has changed, and nothing on this device has been touched.
+            </p>
+            <ul className={styles.rows}>
+              <ActionRow
+                detail="Read your account again."
+                icon="clock"
+                onClick={refresh}
+                title="Try again"
+              />
+            </ul>
+          </>
+        ) : null}
+      </Section>
 
       <PlacesVisited />
 
       {signedIn ? (
         <Section
-          description="What is held against your account, and what is held in this browser."
+          /*
+            The second half of that sentence is doing the work in WP3. Signing in
+            establishes an identity and nothing else yet: the saved-shop endpoints
+            are WP4 and the import is WP5, so a signed-in reader's saves and
+            impressions are still exactly where a signed-out reader's are. Saying
+            so here is the difference between an account that is quietly
+            incomplete and one that is honestly early.
+          */
+          description="Your account holds your identity. Your saved shops and collected impressions are still kept in this browser and do not sync yet."
           id="me-data"
           title="Privacy and your data"
         >
@@ -788,7 +844,10 @@ export function MeScreen() {
             <ActionRow
               detail="Ends this session on this device."
               icon="logout"
-              onClick={signOut}
+              onClick={() => {
+                void handleSignOut();
+              }}
+              status={signOutStatus}
               title="Sign out"
             />
           ) : null}
@@ -803,20 +862,23 @@ export function MeScreen() {
       {signedIn ? (
         <Section id="me-danger" title="Danger" tone="danger">
           <ul className={styles.rows}>
-            <ConfirmRow
-              confirmLabel="Delete my account"
-              consequence="Your account, your saved shops and every stamp you have collected are removed permanently. This cannot be undone."
-              detail="Removes your account and everything you have collected."
+            {/*
+              A row, not a confirmation.
+
+              While the signed-in state was a reviewer preview, this asked its
+              question and then left the preview — labelled as doing so. Against
+              a real account that would be a confirmation dialog whose confirm
+              button signs the reader out and leaves everything in place, which
+              is worse than an unbuilt control: it is a destructive control that
+              lies about what it did. Deletion arrives with account export in
+              Milestone 8, and until then the row says what it is.
+            */}
+            <Row
+              action="Not available yet"
+              detail="Removes your account and everything held against it."
               icon="alert"
-              onConfirm={signOut}
-              note={
-                session.preview
-                  ? "Reviewer preview: confirming leaves the preview. No account exists to delete."
-                  : null
-              }
-              question="Delete your Nib Atlas account?"
+              reviewerAction="Account export and deletion arrive in Milestone 8"
               title="Delete account"
-              tone="destructive"
             />
           </ul>
         </Section>
@@ -843,14 +905,7 @@ export function MeScreen() {
               onClick={resetPrototypeState}
               title="Reset the prototype session"
             />
-            {canPreview && !signedIn ? (
-              <ActionRow
-                detail="Renders Me in its signed-in form — account identity, display name, and the Danger group — so the structure can be reviewed before Milestone 4 builds it."
-                icon="person"
-                onClick={previewSignedIn}
-                title="Preview the signed-in account"
-              />
-            ) : null}
+
           </ul>
           {!hydrated ? null : (
             <p className={styles.geoVersion}>

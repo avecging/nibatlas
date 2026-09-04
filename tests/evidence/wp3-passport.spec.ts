@@ -6,9 +6,9 @@ import { expect, test, type Page } from "@playwright/test";
 import {
   seedPassportView,
   seedSampleCollection,
-  seedSignedInPreview,
   useNormalMode,
 } from "../support/local-state";
+import { stubSession } from "../support/auth";
 
 /**
  * WP3 review evidence: the Passport's two modes, its cover, and the enlarged
@@ -225,8 +225,9 @@ for (const breakpoint of BREAKPOINTS) {
 
     /** The identity page with a display name from the account seam. */
     test("identity with a display name", async ({ page }) => {
-      await seedSignedInPreview(page, "Ada Lovelace");
-      await seedPassportView(page, { mode: "book", coverSeen: true }, "reviewer");
+      await stubSession(page, { kind: "signed-in", displayName: "Ada Lovelace" });
+      await seedSampleCollection(page);
+      await seedPassportView(page, { mode: "book", coverSeen: true });
       await page.goto("/passport");
       await bookSettled(page);
 

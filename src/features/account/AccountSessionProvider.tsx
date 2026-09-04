@@ -6,140 +6,176 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 
 import {
-  ACCOUNT_PREVIEW_STORAGE_KEY,
+  LOADING,
   SIGNED_OUT,
-  normalizeDisplayName,
-  parseAccountPreview,
-  resolveAccountSession,
-  serializeAccountPreview,
   type AccountSession,
 } from "@/src/features/account/account-session";
-import { useReviewerModeStore } from "@/src/features/reviewer/ReviewerModeProvider";
+import {
+  endSession,
+  fetchAccountSession,
+  type SignOutOutcome,
+} from "@/src/features/auth/auth-client";
+import { parseCallbackError } from "@/src/features/auth/auth-copy";
+import type { AuthErrorCode } from "@/src/server/auth/continuation";
+
+/**
+ * What the callback told us on the way back in.
+ *
+ * The callback cannot render anything: it is a route handler that redirects to
+ * the reader's own return path with `?auth=success` or `?authError=…`. That
+ * path can be any allowed page — a shop, the map, Me — so the result is held
+ * here, at the top of the tree, and announced by whichever surface is showing.
+ */
+export type AuthResult =
+  | { readonly kind: "signed-in" }
+  | { readonly kind: "failed"; readonly code: AuthErrorCode };
 
 export interface AccountSessionStore {
   readonly session: AccountSession;
-  /**
-   * Whether the device's own state has been read yet. False during the server
-   * render and the first client paint, exactly as in the collection store: the
-   * counts may render from the baseline, but a *claim* about the reader has to
-   * wait.
-   */
-  readonly hydrated: boolean;
-  /** Whether the signed-in preview can be entered at all on this device. */
-  readonly canPreview: boolean;
-  /** Reviewer-only. A no-op in normal mode. */
-  previewSignedIn(): void;
-  /** Ends the session — the preview today, a real session in Milestone 4. */
-  signOut(): void;
-  setDisplayName(value: string | null): void;
+  /** The last callback result, until the reader has been told about it. */
+  readonly authResult: AuthResult | null;
+  /** Re-reads the session. Used after a callback, and while awaiting a link. */
+  refresh(): void;
+  /** Ends the session on the server. The outcome is the caller's to report. */
+  signOut(): Promise<SignOutOutcome>;
+  acknowledgeAuthResult(): void;
 }
 
 const AccountSessionContext = createContext<AccountSessionStore | null>(null);
 
-function readPreview() {
+/**
+ * Reads the callback's result out of the address bar, then takes it out.
+ *
+ * It has to go: `?auth=success` left in place would re-announce a sign-in on
+ * every reload of that page, and would be carried into the next `returnTo` a
+ * reader started from there. Everything else about the URL — the `?shop=` that
+ * restores the map, the fragment that addresses a section of Me — is left
+ * exactly as it was, because that is the context being returned to.
+ *
+ * `replaceState` rather than a router navigation, for the same reason reviewer
+ * mode uses it: nothing is being navigated to. The page simply stops carrying
+ * a parameter, and the router's own history bookkeeping is passed through.
+ */
+function takeAuthResult(): AuthResult | null {
   if (typeof window === "undefined") {
     return null;
   }
 
+  let url: URL;
+
   try {
-    return parseAccountPreview(window.localStorage.getItem(ACCOUNT_PREVIEW_STORAGE_KEY));
+    url = new URL(window.location.href);
   } catch {
-    // Blocked site data. A device that cannot remember a preview has not
-    // entered one, which is the safe direction.
     return null;
   }
-}
 
-function writePreview(signedIn: boolean, displayName: string | null) {
+  const success = url.searchParams.get("auth") === "success";
+  const failure = parseCallbackError(url.searchParams.get("authError"));
+
+  if (!success && !failure) {
+    return null;
+  }
+
+  url.searchParams.delete("auth");
+  url.searchParams.delete("authError");
+
   try {
-    window.localStorage.setItem(
-      ACCOUNT_PREVIEW_STORAGE_KEY,
-      serializeAccountPreview({ signedIn, displayName }),
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
     );
   } catch {
-    // Best effort: the preview still applies for this page view.
+    // A blocked History API must not swallow the result itself.
   }
+
+  return failure ? { kind: "failed", code: failure } : { kind: "signed-in" };
 }
 
 /**
- * Resolves the account session on the client only.
+ * Holds the session for the whole application.
  *
- * Same shape and same reasoning as `ReviewerModeProvider`: the server render
- * and the first client paint are signed out, so the signed-in structure never
- * reaches the server HTML of a normal visitor and the two renders agree.
+ * The first paint is `loading`, on the server and on the client alike: a
+ * session lives in an HTTP-only cookie that only the server can read, so the
+ * browser cannot know the answer before it asks. Rendering "signed out" while
+ * waiting would flash the anonymous account section at a signed-in reader on
+ * every navigation, and rendering the signed-in structure optimistically would
+ * be a claim about someone we have not identified. Loading is the truth for as
+ * long as it lasts.
  */
 export function AccountSessionProvider({ children }: { readonly children: ReactNode }) {
-  const { reviewer, resolved } = useReviewerModeStore();
-  const [session, setSession] = useState<AccountSession>(SIGNED_OUT);
-  const [hydratedFor, setHydratedFor] = useState<boolean | null>(null);
+  const [session, setSession] = useState<AccountSession>(LOADING);
+  const [authResult, setAuthResult] = useState<AuthResult | null>(null);
+  /** Only the newest read may write state; an aborted one must not. */
+  const readToken = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const read = useCallback(() => {
+    const token = readToken.current + 1;
+    readToken.current = token;
+    abortRef.current?.abort();
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    void fetchAccountSession(controller.signal).then((next) => {
+      if (readToken.current === token) {
+        setSession(next);
+      }
+    });
+  }, []);
 
   useEffect(() => {
-    // Reviewer mode resolves after mount. Reading before it settles would
-    // resolve the preview against the wrong audience.
-    if (!resolved || hydratedFor === reviewer) {
-      return;
-    }
-
     /* eslint-disable react-hooks/set-state-in-effect --
-       Local storage is an external system that can only be read after mount;
-       this is the documented "subscribe to an external store" case. */
-    setSession(resolveAccountSession({ reviewer, preview: readPreview() }));
-    setHydratedFor(reviewer);
-    /* eslint-enable react-hooks/set-state-in-effect */
-  }, [hydratedFor, resolved, reviewer]);
+       The session and the callback result are both external state that can
+       only be read after mount: one is an HTTP-only cookie behind a route, the
+       other is the address bar. This is the documented "subscribe to an
+       external store" case. */
+    const result = takeAuthResult();
 
-  const previewSignedIn = useCallback(() => {
-    // Guarded here as well as in `resolveAccountSession`, so a stray call from
-    // a component cannot sign a tester in even momentarily.
-    if (!reviewer) {
-      return;
+    if (result) {
+      setAuthResult(result);
+    }
+    /* eslint-enable react-hooks/set-state-in-effect */
+
+    read();
+
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, [read]);
+
+  const signOut = useCallback(async () => {
+    const outcome = await endSession();
+
+    if (outcome.ok) {
+      // Set directly rather than re-read: the server has just told us the
+      // session is gone, and a second round trip would leave the signed-in
+      // structure on screen while it ran.
+      setSession(SIGNED_OUT);
+      setAuthResult(null);
     }
 
-    const displayName = session.status === "signed-in" ? session.displayName : null;
+    return outcome;
+  }, []);
 
-    writePreview(true, displayName);
-    setSession(resolveAccountSession({ reviewer, preview: { signedIn: true, displayName } }));
-  }, [reviewer, session]);
-
-  const signOut = useCallback(() => {
-    // The display name is deliberately kept: signing out of the preview and
-    // back in should not silently discard what was typed, and Milestone 4's
-    // display name will live on the account rather than the device anyway.
-    const displayName = session.status === "signed-in" ? session.displayName : null;
-
-    writePreview(false, displayName);
-    setSession(SIGNED_OUT);
-  }, [session]);
-
-  const setDisplayName = useCallback(
-    (value: string | null) => {
-      if (session.status !== "signed-in") {
-        return;
-      }
-
-      const displayName = normalizeDisplayName(value);
-
-      writePreview(true, displayName);
-      setSession({ ...session, displayName });
-    },
-    [session],
-  );
+  const acknowledgeAuthResult = useCallback(() => setAuthResult(null), []);
 
   const value = useMemo<AccountSessionStore>(
     () => ({
       session,
-      hydrated: hydratedFor === reviewer,
-      canPreview: reviewer,
-      previewSignedIn,
+      authResult,
+      refresh: read,
       signOut,
-      setDisplayName,
+      acknowledgeAuthResult,
     }),
-    [hydratedFor, previewSignedIn, reviewer, session, setDisplayName, signOut],
+    [acknowledgeAuthResult, authResult, read, session, signOut],
   );
 
   return (

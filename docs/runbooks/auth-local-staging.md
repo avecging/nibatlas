@@ -76,6 +76,15 @@ in the Supabase project. Use:
 - sender address: `hello@nibatlas.com`;
 - reply-to: `hello@nibatlas.com`, if the dashboard exposes it.
 
+The interface names this address to the reader, in the "check your email" state
+of the sign-in interruption, so that a message can be found when a mail client
+files it somewhere unexpected. It is presented from a single constant,
+`SIGN_IN_SENDER` in `src/features/auth/auth-copy.ts`, which WP3 was directed to
+set to `login@nibatlas.com` — not the address above. The two must agree before
+hosted delivery is switched on: an address the mail does not come from sends the
+reader looking for the wrong message. Reconciling them is a WP6 action, and it is
+one line in each place.
+
 A separate `noreply@` address is not required. Confirm that the sender domain
 passes SMTP2GO's SPF/DKIM checks before testing delivery. Keep Supabase's magic
 link request cooldown and one-hour expiry unless staging evidence demonstrates

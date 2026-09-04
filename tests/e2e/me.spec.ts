@@ -1,11 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
-  ACCOUNT_PREVIEW_STORAGE_KEY,
+  SESSION_IDENTITY,
+  stubSession,
+  stubSignOut,
+} from "../support/auth";
+import {
   COLLECTION_STORAGE_KEYS,
-  seedOrphanedSignedInPreview,
   seedSampleCollection,
-  seedSignedInPreview,
   useReviewerMode,
 } from "../support/local-state";
 
@@ -13,9 +15,12 @@ import {
  * Me after the WP2 restructure.
  *
  * The journeys are about structure and consequence: which groups a reader gets,
- * where Places visited takes them, what the local-data controls actually do, and
- * the one property the account seam exists for — that a normal-mode device can
- * never be put into the signed-in state.
+ * where Places visited takes them, and what the local-data controls actually do.
+ *
+ * The account seam is real from Milestone 4 WP3 on, so which state Me renders is
+ * decided by the application's own session route. Every case below says which
+ * answer it is arranging; the interruption those states lead into has its own
+ * journeys in `auth-interruption.spec.ts`.
  */
 /**
  * Each row's result is its own named live region, and a sibling of the button
@@ -31,6 +36,10 @@ function downloadResult(page: Page) {
 }
 
 test.describe("signed out", () => {
+  test.beforeEach(async ({ page }) => {
+    await stubSession(page, { kind: "signed-out" });
+  });
+
   test("offers an account, and locates the reader's data on the device", async ({
     page,
   }) => {
@@ -40,8 +49,10 @@ test.describe("signed out", () => {
     const device = page.getByRole("region", { name: /on this device/i });
 
     // Saving and collecting both work anonymously, so nothing here may claim an
-    // account is required for them.
-    await expect(account.getByText("Sign in")).toBeVisible();
+    // account is required for them — and the row is a working control now
+    // rather than a promise about a later milestone.
+    await expect(account.getByRole("button", { name: /sign in/i })).toBeEnabled();
+    await expect(account.getByText("Not available yet")).toHaveCount(0);
     await expect(account.getByText(/need an account/i)).toHaveCount(0);
 
     await expect(device).toContainText(/do not sync/i);
@@ -288,7 +299,12 @@ test.describe("local data controls", () => {
     await seedSampleCollection(page);
     await page.goto("/me");
 
-    await page.getByRole("button", { name: /clear data on this device/i }).focus();
+    const row = page.getByRole("button", { name: /clear data on this device/i });
+
+    // The row is held disabled until the collection store has been read, so a
+    // key press before then lands on a disabled control and does nothing.
+    await expect(row).toBeEnabled();
+    await row.focus();
     await page.keyboard.press("Enter");
 
     await expect(page.getByRole("button", { name: /^cancel$/i })).toBeFocused();
@@ -307,7 +323,10 @@ test.describe("local data controls", () => {
     await seedSampleCollection(page);
     await page.goto("/me");
 
-    await page.getByRole("button", { name: /clear data on this device/i }).focus();
+    const row = page.getByRole("button", { name: /clear data on this device/i });
+
+    await expect(row).toBeEnabled();
+    await row.focus();
     await page.keyboard.press("Enter");
     await page.keyboard.press("Shift+Tab");
 
@@ -425,109 +444,155 @@ test.describe("local data controls", () => {
 });
 
 test.describe("the signed-in structure", () => {
-  /*
-   * The property the account seam exists for. Authentication is Milestone 4, so
-   * a tester must never be shown copy that says they have an account — whatever
-   * a previous reviewer session left in storage.
-   */
-  test("a normal device ignores a stored signed-in preview", async ({ page }) => {
-    await seedOrphanedSignedInPreview(page);
-    await page.goto("/me");
-
-    await expect(page.getByText("Sign in")).toBeVisible();
-    await expect(page.getByRole("region", { name: /^danger$/i })).toHaveCount(0);
-    await expect(page.getByText("Ada")).toHaveCount(0);
+  test.beforeEach(async ({ page }) => {
+    await stubSession(page, { kind: "signed-in" });
+    await stubSignOut(page);
   });
 
-  test("reviewer mode can preview it, labelled as a preview", async ({ page }) => {
-    await seedSignedInPreview(page);
+  test("shows the account and the controls that exist", async ({ page }) => {
     await page.goto("/me");
 
     const account = page.getByRole("region", { name: /^account$/i });
 
-    await expect(account.getByText(/reviewer preview/i)).toBeVisible();
-    await expect(account.getByText("reviewer@nibatlas.example").first()).toBeVisible();
-    await expect(page.getByLabel(/display name/i)).toBeVisible();
+    await expect(account.getByText(SESSION_IDENTITY)).toBeVisible();
     await expect(page.getByRole("button", { name: /sign out/i })).toBeVisible();
-
-    const danger = page.getByRole("region", { name: /^danger$/i });
-
-    await expect(danger.getByText("Delete account")).toBeVisible();
-  });
-
-  test("a display name replaces the account address", async ({ page }) => {
-    await seedSignedInPreview(page);
-    await page.goto("/me");
-
-    await page.getByLabel(/display name/i).fill("Ada Lovelace");
-    await page.getByRole("button", { name: /^save$/i }).click();
-
     await expect(
-      page.getByRole("region", { name: /^account$/i }).getByRole("status"),
-    ).toContainText(/display name saved/i);
-    await expect(
-      page.getByRole("region", { name: /^account$/i }).getByText("Ada Lovelace"),
+      page.getByRole("region", { name: /^danger$/i }).getByText("Delete account"),
     ).toBeVisible();
 
-    // Persisted on the device, checked in storage for the same reason as above.
-    const stored = await page.evaluate(
-      (key) => window.localStorage.getItem(key),
-      ACCOUNT_PREVIEW_STORAGE_KEY,
-    );
-
-    expect(JSON.parse(stored!)).toMatchObject({
-      signedIn: true,
-      displayName: "Ada Lovelace",
-    });
+    // No preview label, because there is nothing to label: this is a session.
+    await expect(page.getByText(/reviewer preview/i)).toHaveCount(0);
   });
 
-  test("deleting the account asks first", async ({ page }) => {
-    await seedSignedInPreview(page);
-    await page.goto("/me");
-
-    await page.getByRole("button", { name: /delete account/i }).click();
-
-    await expect(page.getByText(/delete your nib atlas account\?/i)).toBeVisible();
-    await expect(page.getByText(/removed permanently/i)).toBeVisible();
-
-    await page.getByRole("button", { name: /^cancel$/i }).click();
-
-    await expect(page.getByRole("region", { name: /^danger$/i })).toBeVisible();
-  });
-
-  test("signing out returns the reviewer to the signed-out structure", async ({
+  test("a display name replaces the account address in the headline", async ({
     page,
   }) => {
-    await seedSignedInPreview(page);
+    await stubSession(page, { kind: "signed-in", displayName: "Ada Lovelace" });
+    await page.goto("/me");
+
+    const account = page.getByRole("region", { name: /^account$/i });
+
+    await expect(account.getByText("Ada Lovelace")).toBeVisible();
+    await expect(account.getByText(SESSION_IDENTITY)).toBeVisible();
+
+    /*
+     * And it is not editable here. WP2 built a profile read and no profile
+     * write, so the form that used to sit under this heading had a Save button
+     * with nothing to call.
+     */
+    await expect(page.getByLabel(/display name/i)).toHaveCount(0);
+    await expect(account).toContainText("Display name");
+    await expect(account).toContainText("Not available yet");
+  });
+
+  /*
+   * Deletion has no route either, and a destructive confirmation whose confirm
+   * button does something else is worse than an unbuilt control.
+   */
+  test("does not offer a deletion it cannot perform", async ({ page }) => {
+    await page.goto("/me");
+
+    await expect(page.getByRole("button", { name: /delete account/i })).toHaveCount(0);
+    await expect(page.getByText(/delete your nib atlas account\?/i)).toHaveCount(0);
+  });
+
+  test("says that saves and impressions are still kept in this browser", async ({
+    page,
+  }) => {
+    await seedSampleCollection(page);
+    await page.goto("/me");
+
+    const data = page.getByRole("region", { name: /privacy and your data/i });
+
+    await expect(data).toContainText(/do not sync yet/i);
+    await expect(
+      data.getByRole("button", { name: /download local data/i }),
+    ).toBeVisible();
+  });
+
+  test("signing out returns the signed-out structure", async ({ page }) => {
+    await page.goto("/me");
+    await expect(page.getByRole("button", { name: /sign out/i })).toBeVisible();
+
+    // The session answer changes with the sign-out, as it does on the server.
+    await stubSession(page, { kind: "signed-out" });
+    await page.getByRole("button", { name: /sign out/i }).click();
+
+    await expect(
+      page.getByRole("region", { name: /^account$/i }).getByRole("button", {
+        name: /sign in/i,
+      }),
+    ).toBeVisible();
+    await expect(page.getByRole("region", { name: /^danger$/i })).toHaveCount(0);
+  });
+
+  test("keeps the reader signed in, and says so, when sign-out fails", async ({
+    page,
+  }) => {
+    await stubSignOut(page, { ok: false });
     await page.goto("/me");
 
     await page.getByRole("button", { name: /sign out/i }).click();
 
-    await expect(page.getByText("Sign in")).toBeVisible();
-    await expect(page.getByRole("region", { name: /^danger$/i })).toHaveCount(0);
-    await expect(
-      page.getByRole("button", { name: /preview the signed-in account/i }),
-    ).toBeVisible();
+    await expect(page.getByText(/you are still signed in/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: /sign out/i })).toBeVisible();
   });
 });
 
-test("reviewer mode keeps the milestone wording on the sign-in row", async ({
+test.describe("the states a network answer adds", () => {
+  /*
+   * The state the fixture builds are actually in: no Supabase project is wired
+   * to them, so the session route answers `auth_unavailable`. Nothing is
+   * arranged here — this is what the deployed prototype does.
+   */
+  test("a build with no accounts behind it does not offer sign-in", async ({ page }) => {
+    await page.goto("/me");
+
+    const account = page.getByRole("region", { name: /^account$/i });
+
+    await expect(account.getByRole("button", { name: /sign in/i })).toHaveCount(0);
+    await expect(account).toContainText(/not available in this build/i);
+    await expect(account).toContainText(/saving shops on this device/i);
+  });
+
+  test("a failed session read is a retry, not a claim about the reader", async ({
+    page,
+  }) => {
+    await stubSession(page, { kind: "unreachable" });
+    await page.goto("/me");
+
+    const account = page.getByRole("region", { name: /^account$/i });
+
+    await expect(account.getByRole("alert", { name: /account status/i })).toContainText(
+      /could not check your account/i,
+    );
+    await expect(account.getByRole("button", { name: /try again/i })).toBeVisible();
+
+    // And it recovers: the same control, once the route answers.
+    await stubSession(page, { kind: "signed-in" });
+    await account.getByRole("button", { name: /try again/i }).click();
+
+    await expect(account.getByText(SESSION_IDENTITY)).toBeVisible();
+  });
+});
+
+test("reviewer mode keeps the work-package wording on the sign-in row", async ({
   page,
 }) => {
   await useReviewerMode(page);
   await page.goto("/me");
 
-  await expect(page.getByText("Sign-in and sync arrive in Milestone 4")).toBeVisible();
+  // The row's reviewer wording follows what is actually missing: authentication
+  // exists, and this build has no project configured for it.
+  await expect(page.getByText(/hosted sign-in is WP6/i)).toBeVisible();
 });
 
 test("the pending badge keeps the row text readable at 360 px", async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 });
   await page.goto("/me");
 
-  const detail = page.getByText(
-    /An account carries your saved shops and collected impressions between devices/i,
-  );
-  const badge = page.getByText("Not available yet").first();
+  const detail = page.getByText(/This build has no accounts behind it/i);
+  const badge = page.getByText("Not available in this build").first();
 
   const detailBox = await detail.boundingBox();
   const badgeBox = await badge.boundingBox();
