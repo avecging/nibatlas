@@ -1,8 +1,8 @@
 # Nib Atlas Product Foundation
 
 **Status:** Approved implementation foundation
-**Version:** 1.1
-**Last updated:** 26 August 2026
+**Version:** 1.2
+**Last updated:** 4 September 2026
 
 ## Product vision
 
@@ -97,6 +97,8 @@ The loop must remain useful before merchant partnerships exist. Standard Atlas S
 - Idempotent issuance: one collection per user and stamp.
 - Short, tasteful stamp-press ceremony with reduced-motion alternative.
 - Visited state updates immediately on map, shop page, and Passport.
+- Commissioned stamp artwork is displayed intact, with readable illustrator
+  credit available from its detail view.
 - Raw user coordinates are used transiently and are not stored.
 
 ### Passport
@@ -193,4 +195,6 @@ Changes require an explicit product decision if they alter any of these:
 - Map movement is user-controlled and uses **Search this area**.
 - Physical visits—not passive app engagement—create the collection.
 - Atlas Stamps remain meaningful, private-by-default memories.
+- Approved commissioned artwork remains intact and attributable to its
+  illustrator.
 - Public geography describes only the sourced catalogue currently present; it never promises national completeness or a future rollout order.
