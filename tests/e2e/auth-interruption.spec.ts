@@ -390,6 +390,12 @@ test.describe("coming back from the callback", () => {
     );
 
     await expect(page.getByText("Selected: Ginza Itoya Main Store")).toBeVisible();
+    const sheetHandle = page.getByRole("button", { name: /results sheet, peek/i });
+
+    if ((await sheetHandle.count()) > 0) {
+      await sheetHandle.click();
+    }
+
     await expect(page.getByRole("button", { name: /filters 2 filters applied/i })).toBeVisible();
 
     await page.getByRole("button", { name: /filters 2 filters applied/i }).click();
