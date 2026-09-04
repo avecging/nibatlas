@@ -18,6 +18,14 @@ empty local Supabase project.
   references for the versioned application API. Canonical evidence rows remain
   closed to browser roles.
 
+## Milestone 4 packages
+
+- `20260904000100_m4_account_data_foundation.sql` adds private profiles and
+  owner-scoped saved shops. An idempotent, pinned-search-path trigger provisions
+  one minimal profile for every Supabase Auth identity. Column grants keep
+  account roles server-controlled; forced RLS limits profile and saved-shop
+  access to the authenticated owner.
+
 `supabase/performance/viewport_50k.sql` enforces the approved sub-250 ms p95
 database budget against dense viewport and selective alias-search paths in a
 rolled-back 50,000-shop fixture. It gates on the median of three 20-sample p95
