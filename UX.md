@@ -1,8 +1,8 @@
 # Nib Atlas UX Foundation
 
 **Status:** Implementation-ready
-**Version:** 1.1
-**Last updated:** 26 August 2026
+**Version:** 1.2
+**Last updated:** 4 September 2026
 
 ## Experience model
 
@@ -118,6 +118,16 @@ Failure paths:
 4. Stamps appear in collection-date order by default.
 5. Selecting a stamp enlarges the impression; from there the shop page opens with
    Passport return context preserved, including the page the stamp was on.
+6. When artwork has a credited illustrator, the enlarged view shows a readable
+   **Illustrated by [name]** line outside the artwork. The maker mark remains
+   inside the artwork exactly where the illustrator placed it.
+
+The interface may show level, collection date, place, translation, full credit
+and accessibility text beside an impression. It must not crop, recolour, draw
+over, translate over or otherwise alter the approved artwork. List rows, book
+pages and the detail view all use the same approved file; they change its display
+size only. Artwork seen outside the interface does not identify its level, which
+is an accepted consequence of keeping classification out of the illustration.
 
 ## Mobile behaviour
 
