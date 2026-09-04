@@ -48,6 +48,8 @@ jobs:
           NEXT_PUBLIC_CATALOGUE_MODE: api-demo
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           test -n "$CLOUDFLARE_ACCOUNT_ID"
           test -n "$CLOUDFLARE_API_TOKEN"
@@ -55,10 +57,36 @@ jobs:
           test "$NEXT_PUBLIC_CATALOGUE_MODE" = "api-demo"
           test -n "$NEXT_PUBLIC_SUPABASE_URL"
           test -n "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+          test -n "$SUPABASE_ACCESS_TOKEN"
+          test -n "$SUPABASE_DB_PASSWORD"
           # A build without this ships two forms that can only fail: no widget
           # renders, and the route refuses every submission because a production
           # build never accepts an unverified one.
           test -n "$NEXT_PUBLIC_TURNSTILE_SITE_KEY"
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Apply migrations and demo seed to staging Supabase
+        shell: bash
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          project_ref="${NEXT_PUBLIC_SUPABASE_URL#https://}"
+          project_ref="${project_ref%%.*}"
+          test -n "$project_ref"
+
+          # Refuse to seed any project except the named staging project.
+          supabase projects list --output json \
+            | jq -e --arg ref "$project_ref" \
+                '.[] | select(.id == $ref and .name == "nibatlas-staging")' \
+            >/dev/null
+
+          supabase link --project-ref "$project_ref"
+          supabase db push --dry-run
+          supabase db push --include-seed
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
