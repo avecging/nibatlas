@@ -35,6 +35,7 @@ import { shopFocusViewport } from "@/src/features/map/shop-focus";
 import { noopTelemetry } from "@/src/features/map/telemetry";
 import { ReviewerModeBadge } from "@/src/features/reviewer/ReviewerModeBadge";
 import { useReviewerMode } from "@/src/features/reviewer/ReviewerModeProvider";
+import { useSavedShops } from "@/src/features/saved/SavedShopsProvider";
 import {
   decodeExploreContext,
   EXPLORE_CONTEXT_PARAM,
@@ -74,6 +75,7 @@ export type ExploreMode = "area" | "saved";
 export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }) {
   const catalogue = useCatalogue();
   const collection = useCollection();
+  const savedShops = useSavedShops();
   const reviewer = useReviewerMode();
   const router = useRouter();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
@@ -314,15 +316,23 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
     }
   }, [state.committed, state.filters, state.lastCommittedLabel]);
 
+  const userShopState = useMemo(
+    () => ({
+      ...userShopState,
+      savedShopIds: savedShops.savedShopIds,
+    }),
+    [userShopState, savedShops.savedShopIds],
+  );
+
   /** The committed result set with the reader's own state merged, unfiltered. */
   const mergedResults = useMemo(
-    () => applyUserShopState(state.results, collection.userShopState),
-    [collection.userShopState, state.results],
+    () => applyUserShopState(state.results, userShopState),
+    [state.results, userShopState],
   );
 
   const areaResults = useMemo(
-    () => filterResults(mergedResults, collection.userShopState, state.filters),
-    [collection.userShopState, mergedResults, state.filters],
+    () => filterResults(mergedResults, userShopState, state.filters),
+    [userShopState, mergedResults, state.filters],
   );
 
   /**
@@ -332,9 +342,9 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
   const draftMatchCount = useMemo(
     () =>
       state.filtersOpen && canCountDraftMatches(state)
-        ? filterResults(mergedResults, collection.userShopState, state.draftFilters).length
+        ? filterResults(mergedResults, userShopState, state.draftFilters).length
         : null,
-    [collection.userShopState, mergedResults, state],
+    [userShopState, mergedResults, state],
   );
 
   /**
@@ -345,11 +355,16 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
     () =>
       catalogue.prototypeCatalogueJoin
         ? applyUserShopState(
-            prototypeShopSummaries.filter((shop) => collection.savedShopIds.has(shop.id)),
-            collection.userShopState,
+            prototypeShopSummaries.filter((shop) => savedShops.savedShopIds.has(shop.id)),
+            userShopState,
           )
-        : [],
-    [catalogue.prototypeCatalogueJoin, collection.savedShopIds, collection.userShopState],
+        : applyUserShopState(savedShops.shops, userShopState),
+    [
+      catalogue.prototypeCatalogueJoin,
+      savedShops.savedShopIds,
+      savedShops.shops,
+      userShopState,
+    ],
   );
 
   const results = mode === "saved" ? savedResults : areaResults;
@@ -391,10 +406,17 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
 
   const handleToggleSaved = useCallback(
     (shopId: string) => {
-      const saved = collection.toggleSaved(shopId);
-      noopTelemetry.record("shop_saved", { outcome: saved ? "saved" : "unsaved" });
+      const shop = [...state.results, ...savedShops.shops].find(
+        (candidate) => candidate.id === shopId,
+      );
+      const wasSaved = savedShops.isSaved(shopId);
+
+      savedShops.toggleSaved(shopId, shop?.name);
+      noopTelemetry.record("shop_saved", {
+        outcome: wasSaved ? "unsave-requested" : "save-requested",
+      });
     },
-    [collection],
+    [savedShops, state.results],
   );
 
   const offerMode =
@@ -455,7 +477,7 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
         aria-current={mode === "saved" ? "true" : undefined}
       >
         <Icon name="bookmark" size={16} />
-        Saved ({collection.savedShopIds.size})
+        Saved ({savedShops.savedShopIds.size})
       </Link>
     </div>
   );
@@ -535,28 +557,33 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
         Same rule as Passport: "Nothing saved yet" is a claim about the reader, and
         local state resolves a frame after the first paint.
       */}
-      {!catalogue.prototypeCatalogueJoin ? (
-        <div className={styles.savedEmpty} data-testid="saved-scope-unavailable">
-          {/*
-            Saved is a global scope: every saved shop, wherever it is. Answering
-            that needs a lookup of saved records across the whole catalogue, and
-            Milestone 3 excludes user-state reads — so rather than list a subset
-            and call it everything, this scope stays empty here. Saving itself
-            still works, and a saved shop still shows as saved on its marker,
-            its card, and its own page.
-          */}
-          <h3 className="type-h3">Saved shops are not listed yet</h3>
+      {!catalogue.prototypeCatalogueJoin && savedShops.status === "local" ? (
+        <div className={styles.savedEmpty} data-testid="saved-sign-in-required">
+          <h3 className="type-h3">Sign in to see saved shops</h3>
           <p>
-            Saving works and stays on this device, but listing every saved shop
-            across the whole catalogue needs the account that carries them. Until
-            then a saved shop shows as saved wherever you meet it — on its marker,
-            its card, and its own page.
+            Your account carries saved shops across locations and devices.
+            Exploring the map remains available without signing in.
           </p>
-          <Link className={styles.savedEmptyLink} href="/">
-            Back to map results
+          <Link
+            className={styles.savedEmptyLink}
+            href="/login?returnTo=%2Fsaved"
+          >
+            Sign in
           </Link>
         </div>
-      ) : !collection.hydrated ? null : savedGroups.length === 0 ? (
+      ) : savedShops.status === "loading" ? null : savedShops.status === "error" ? (
+        <div className={styles.savedEmpty} role="alert">
+          <h3 className="type-h3">Saved shops could not be loaded</h3>
+          <p>Your previous saved state has not been replaced. Try the account again.</p>
+          <button
+            className={styles.savedEmptyLink}
+            onClick={savedShops.retry}
+            type="button"
+          >
+            Retry
+          </button>
+        </div>
+      ) : !savedShops.hydrated ? null : savedGroups.length === 0 ? (
         <div className={styles.savedEmpty}>
           {/*
             A real heading, not a paragraph styled like one. With a clean device
@@ -587,8 +614,8 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
               shops={group.shops}
               selectedShopId={state.selectedShopId}
               highlightedShopId={highlightedShopId}
-              savedShopIds={collection.savedShopIds}
-              visitedShopIds={collection.userShopState.visitedShopIds}
+              savedShopIds={savedShops.savedShopIds}
+              visitedShopIds={userShopState.visitedShopIds}
               truncated={false}
               listLabel={`Saved shops in ${group.label}`}
               detailFrom="saved"
@@ -646,8 +673,8 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
         shops={results}
         selectedShopId={state.selectedShopId}
         highlightedShopId={highlightedShopId}
-        savedShopIds={collection.savedShopIds}
-        visitedShopIds={collection.userShopState.visitedShopIds}
+        savedShopIds={savedShops.savedShopIds}
+        visitedShopIds={userShopState.visitedShopIds}
         truncated={state.truncated}
         onHighlight={handleHighlight}
         onToggleSaved={handleToggleSaved}
