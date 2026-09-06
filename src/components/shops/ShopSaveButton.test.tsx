@@ -305,7 +305,7 @@ describe("the Save bookmark", () => {
   });
 
   it("keeps an unknown shop on-device without counting it as removed", async () => {
-    const unknownId = "legacy-unknown-shop";
+    const unknownId = "00000000-0000-4000-8000-000000000398";
     window.localStorage.setItem(
       COLLECTION_STORAGE_KEYS.normal,
       JSON.stringify({
