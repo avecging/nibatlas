@@ -102,6 +102,29 @@ describe("the Save bookmark", () => {
     ).toBe(true);
   });
 
+  it("reconciles a deferred Save exactly once after the session resolves", async () => {
+    const { requests } = installAuthFetch({
+      session: { kind: "signed-in" },
+      savedShops: { body: { savedShopIds: [], shops: [] } },
+      pendingSave: {
+        status: 200,
+        body: { ok: true, shopId: shop.id, saved: true, shop: savedShop },
+      },
+    });
+    renderSave();
+
+    await expect(
+      screen.findByRole("button", { name: "Remove saved shop" }),
+    ).resolves.toBeVisible();
+    expect(
+      requests.filter(
+        (request) =>
+          request.url.endsWith("/api/v1/saved-shops/pending") &&
+          request.method === "POST",
+      ),
+    ).toHaveLength(1);
+  });
+
   it("carries state in the glyph, pressed state and accessible name", async () => {
     installAuthFetch({
       session: { kind: "signed-in" },
