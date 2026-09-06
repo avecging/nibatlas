@@ -44,7 +44,8 @@ const SavedShopsContext = createContext<SavedShopsStore | null>(null);
 interface ImportReport {
   readonly userId: string;
   readonly reconciled: number;
-  readonly skipped: number;
+  readonly invalid: number;
+  readonly unknown: number;
   readonly failed: number;
 }
 
@@ -212,7 +213,6 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
     });
   }, [account, accountReady, reloadToken, signedInUserId]);
 
-
   useEffect(() => {
     if (
       !accountReady ||
@@ -253,7 +253,6 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
     }
 
     importAttempt.current = attempt;
-    let active = true;
     const candidates = localIds.map((localId) => {
       const prototype = prototypeShopById(localId);
 
@@ -264,7 +263,7 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
     });
 
     void importLocalSavedShops(candidates).then((result) => {
-      if (!active || importAttempt.current !== attempt) {
+      if (importAttempt.current !== attempt) {
         return;
       }
 
@@ -284,10 +283,20 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
       }
 
       importRefreshAttempt.current = null;
-      result.value.failed.forEach((entry) => heldImportIds.current.add(entry.localId));
+      setImportFailure(null);
+      const invalidIds = result.value.skipped
+        .filter((entry) => entry.reason === "invalid-id")
+        .map((entry) => entry.localId);
+      const unknownIds = result.value.skipped
+        .filter((entry) => entry.reason === "unknown-shop")
+        .map((entry) => entry.localId);
+
+      [...unknownIds, ...result.value.failed.map((entry) => entry.localId)].forEach(
+        (localId) => heldImportIds.current.add(localId),
+      );
       const retired = [
         ...result.value.reconciled.map((entry) => entry.localId),
-        ...result.value.skipped.map((entry) => entry.localId),
+        ...invalidIds,
       ];
       const importedShops = result.value.reconciled.map((entry) => entry.shop);
 
@@ -309,24 +318,18 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
         reconciled:
           (current?.userId === signedInUserId ? current.reconciled : 0) +
           result.value.reconciled.length,
-        skipped:
-          (current?.userId === signedInUserId ? current.skipped : 0) +
-          result.value.skipped.length,
+        invalid:
+          (current?.userId === signedInUserId ? current.invalid : 0) +
+          invalidIds.length,
+        unknown:
+          (current?.userId === signedInUserId ? current.unknown : 0) +
+          unknownIds.length,
         failed:
           (current?.userId === signedInUserId ? current.failed : 0) +
           result.value.failed.length,
       }));
 
-      if (result.value.failed.length > 0) {
-        setImportFailure("unavailable");
-      } else if (heldImportIds.current.size === 0) {
-        setImportFailure(null);
-      }
     });
-
-    return () => {
-      active = false;
-    };
   }, [
     account,
     accountReady,
@@ -513,15 +516,18 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
             {importReport.reconciled > 0
               ? `${importReport.reconciled} device ${importReport.reconciled === 1 ? "save is" : "saves are"} now kept with your account. `
               : ""}
-            {importReport.skipped > 0
-              ? `${importReport.skipped} unmatched ${importReport.skipped === 1 ? "record was" : "records were"} removed from this device. `
+            {importReport.invalid > 0
+              ? `${importReport.invalid} invalid ${importReport.invalid === 1 ? "record was" : "records were"} removed from this device. `
+              : ""}
+            {importReport.unknown > 0
+              ? `${importReport.unknown} unmatched ${importReport.unknown === 1 ? "record remains" : "records remain"} on this device for retry. `
               : ""}
             {importReport.failed > 0
               ? `${importReport.failed} ${importReport.failed === 1 ? "save remains" : "saves remain"} on this device for retry.`
               : ""}
           </p>
           <div className={styles.actions}>
-            {importReport.failed > 0 ? (
+            {importReport.failed + importReport.unknown > 0 ? (
               <button className={styles.retry} type="button" onClick={retry}>
                 Retry
               </button>
