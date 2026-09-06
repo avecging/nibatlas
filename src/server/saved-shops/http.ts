@@ -30,7 +30,6 @@ export interface SavedShopGateway {
   unsave(shopId: string): Promise<{ data: unknown; error: SavedShopFailure | null }>;
 }
 
-
 const MAX_IMPORT_CANDIDATES = 100;
 const MAX_IMPORT_BODY_BYTES = 32_768;
 const IMPORT_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -199,6 +198,197 @@ export async function listSavedShops(
   }
 }
 
+const IMPORT_CONCURRENCY = 8;
+
+type ImportCandidateResult =
+  | {
+      readonly kind: "reconciled";
+      readonly value: SavedShopImportV1["reconciled"][number];
+    }
+  | {
+      readonly kind: "skipped";
+      readonly value: SavedShopImportV1["skipped"][number];
+    }
+  | {
+      readonly kind: "failed";
+      readonly value: SavedShopImportV1["failed"][number];
+    }
+  | { readonly kind: "abort"; readonly response: Response };
+
+async function importCandidate(
+  candidate: LocalSavedShopCandidateV1,
+  gateway: SavedShopGateway,
+): Promise<ImportCandidateResult> {
+  let canonicalShopId: string;
+
+  if (isShopId(candidate.localId)) {
+    canonicalShopId = candidate.localId.toLowerCase();
+  } else if (candidate.slug) {
+    let resolved: Awaited<ReturnType<SavedShopGateway["resolveSlug"]>>;
+
+    try {
+      resolved = await gateway.resolveSlug(candidate.slug);
+    } catch {
+      return {
+        kind: "failed",
+        value: { localId: candidate.localId, reason: "unavailable" },
+      };
+    }
+
+    const resolutionFailure = upstreamFailure(resolved.error);
+
+    if (resolutionFailure?.status === 401) {
+      return { kind: "abort", response: resolutionFailure };
+    }
+    if (resolutionFailure) {
+      return {
+        kind: "failed",
+        value: { localId: candidate.localId, reason: "unavailable" },
+      };
+    }
+
+    try {
+      const detail = decodeShopDetailV1(resolved.data);
+
+      if (detail === null) {
+        return {
+          kind: "skipped",
+          value: { localId: candidate.localId, reason: "unknown-shop" },
+        };
+      }
+
+      if (detail.slug !== candidate.slug || !isShopId(detail.id)) {
+        return {
+          kind: "abort",
+          response: fail(502, "invalid_upstream_contract"),
+        };
+      }
+
+      canonicalShopId = detail.id.toLowerCase();
+    } catch (cause) {
+      return {
+        kind: "abort",
+        response:
+          cause instanceof ShopReadContractError
+            ? fail(502, "invalid_upstream_contract")
+            : fail(500, "internal_error"),
+      };
+    }
+  } else {
+    return {
+      kind: "skipped",
+      value: { localId: candidate.localId, reason: "invalid-id" },
+    };
+  }
+
+  let result: Awaited<ReturnType<SavedShopGateway["save"]>>;
+
+  try {
+    result = await gateway.save(canonicalShopId);
+  } catch {
+    return {
+      kind: "failed",
+      value: { localId: candidate.localId, reason: "unavailable" },
+    };
+  }
+
+  const saveFailure = upstreamFailure(result.error);
+
+  if (saveFailure?.status === 401) {
+    return { kind: "abort", response: saveFailure };
+  }
+  if (saveFailure) {
+    return {
+      kind: "failed",
+      value: { localId: candidate.localId, reason: "unavailable" },
+    };
+  }
+  if (result.data === null) {
+    return {
+      kind: "skipped",
+      value: { localId: candidate.localId, reason: "unknown-shop" },
+    };
+  }
+
+  try {
+    const shop = decodeSavedShopV1(result.data);
+
+    return shop.id === canonicalShopId
+      ? {
+          kind: "reconciled",
+          value: { localId: candidate.localId, shop },
+        }
+      : {
+          kind: "abort",
+          response: fail(502, "invalid_upstream_contract"),
+        };
+  } catch (cause) {
+    return {
+      kind: "abort",
+      response:
+        cause instanceof SavedShopContractError
+          ? fail(502, "invalid_upstream_contract")
+          : fail(500, "internal_error"),
+    };
+  }
+}
+
+async function importCandidatesConcurrently(
+  candidates: readonly LocalSavedShopCandidateV1[],
+  gateway: SavedShopGateway,
+): Promise<
+  | { readonly abort: Response }
+  | { readonly results: readonly ImportCandidateResult[] }
+> {
+  const results: (ImportCandidateResult | null)[] = candidates.map(() => null);
+  let nextIndex = 0;
+  let abort: Response | null = null;
+
+  async function worker(): Promise<void> {
+    while (abort === null) {
+      const index = nextIndex;
+      nextIndex += 1;
+
+      if (index >= candidates.length) {
+        return;
+      }
+
+      const candidate = candidates[index];
+
+      if (!candidate) {
+        return;
+      }
+
+      const result = await importCandidate(candidate, gateway);
+      results[index] = result;
+
+      if (result.kind === "abort") {
+        abort = result.response;
+      }
+    }
+  }
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(IMPORT_CONCURRENCY, candidates.length) },
+      () => worker(),
+    ),
+  );
+
+  if (abort !== null) {
+    return { abort };
+  }
+
+  return {
+    results: results.map((result) => {
+      if (result === null) {
+        throw new Error("import worker did not account for a candidate");
+      }
+
+      return result;
+    }),
+  };
+}
 
 export async function importSavedShops(
   request: Request,
@@ -217,89 +407,23 @@ export async function importSavedShops(
     return fail(400, "invalid_import_request");
   }
 
+  const outcome = await importCandidatesConcurrently(candidates, gateway);
+
+  if ("abort" in outcome) {
+    return outcome.abort;
+  }
+
   const reconciled: SavedShopImportV1["reconciled"][number][] = [];
   const skipped: SavedShopImportV1["skipped"][number][] = [];
   const failed: SavedShopImportV1["failed"][number][] = [];
 
-  for (const candidate of candidates) {
-    let canonicalShopId: string | null = null;
-
-    if (isShopId(candidate.localId)) {
-      canonicalShopId = candidate.localId.toLowerCase();
-    } else if (candidate.slug) {
-      let resolved: Awaited<ReturnType<SavedShopGateway["resolveSlug"]>>;
-
-      try {
-        resolved = await gateway.resolveSlug(candidate.slug);
-      } catch {
-        failed.push({ localId: candidate.localId, reason: "unavailable" });
-        continue;
-      }
-
-      const resolutionFailure = upstreamFailure(resolved.error);
-
-      if (resolutionFailure?.status === 401) return resolutionFailure;
-      if (resolutionFailure) {
-        failed.push({ localId: candidate.localId, reason: "unavailable" });
-        continue;
-      }
-
-      try {
-        const detail = decodeShopDetailV1(resolved.data);
-
-        if (detail === null) {
-          skipped.push({ localId: candidate.localId, reason: "unknown-shop" });
-          continue;
-        }
-
-        if (detail.slug !== candidate.slug || !isShopId(detail.id)) {
-          return fail(502, "invalid_upstream_contract");
-        }
-
-        canonicalShopId = detail.id.toLowerCase();
-      } catch (cause) {
-        return cause instanceof ShopReadContractError
-          ? fail(502, "invalid_upstream_contract")
-          : fail(500, "internal_error");
-      }
-    } else {
-      skipped.push({ localId: candidate.localId, reason: "invalid-id" });
-      continue;
-    }
-
-    let result: Awaited<ReturnType<SavedShopGateway["save"]>>;
-
-    try {
-      result = await gateway.save(canonicalShopId);
-    } catch {
-      failed.push({ localId: candidate.localId, reason: "unavailable" });
-      continue;
-    }
-
-    const saveFailure = upstreamFailure(result.error);
-
-    if (saveFailure?.status === 401) return saveFailure;
-    if (saveFailure) {
-      failed.push({ localId: candidate.localId, reason: "unavailable" });
-      continue;
-    }
-    if (result.data === null) {
-      skipped.push({ localId: candidate.localId, reason: "unknown-shop" });
-      continue;
-    }
-
-    try {
-      const shop = decodeSavedShopV1(result.data);
-
-      if (shop.id !== canonicalShopId) {
-        return fail(502, "invalid_upstream_contract");
-      }
-
-      reconciled.push({ localId: candidate.localId, shop });
-    } catch (cause) {
-      return cause instanceof SavedShopContractError
-        ? fail(502, "invalid_upstream_contract")
-        : fail(500, "internal_error");
+  for (const result of outcome.results) {
+    if (result.kind === "reconciled") {
+      reconciled.push(result.value);
+    } else if (result.kind === "skipped") {
+      skipped.push(result.value);
+    } else if (result.kind === "failed") {
+      failed.push(result.value);
     }
   }
 
