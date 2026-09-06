@@ -26,8 +26,10 @@ import {
 } from "@/src/features/saved/saved-shops-client";
 import {
   backedOffUnknownShopIds,
+  readUnknownShopImportHolds,
   recordUnknownShopImportHolds,
   releaseUnknownShopImportHolds,
+  UNKNOWN_SHOP_IMPORT_BACKOFF_MS,
 } from "@/src/features/saved/saved-shop-import-holds";
 
 export type SavedShopsStatus = "local" | "loading" | "ready" | "error";
@@ -109,6 +111,7 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
   const importRefreshAttempt = useRef<string | null>(null);
   const importOwner = useRef<string | null>(null);
   const heldImportIds = useRef(new Set<string>());
+  const unknownBackoffUntil = useRef(new Map<string, number>());
   const forcedImportReload = useRef<number | null>(null);
   const mutationTokens = useRef(new Map<string, number>());
 
@@ -232,6 +235,7 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
         importRefreshAttempt.current = null;
         importOwner.current = null;
         heldImportIds.current.clear();
+        unknownBackoffUntil.current.clear();
         forcedImportReload.current = null;
       }
 
@@ -243,23 +247,53 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
       importAttempt.current = null;
       importRefreshAttempt.current = null;
       heldImportIds.current.clear();
+      unknownBackoffUntil.current.clear();
       forcedImportReload.current = null;
     }
 
+    const now = Date.now();
     const backedOffIds = backedOffUnknownShopIds();
     const forceImport = forcedImportReload.current === reloadToken;
-    const localIds = [...collection.savedShopIds]
-      .sort()
+    const allLocalIds = [...collection.savedShopIds].sort();
+    const localIds = allLocalIds
       .filter(
         (localId) =>
           !heldImportIds.current.has(localId) &&
-          (forceImport || !backedOffIds.has(localId)),
+          (forceImport ||
+            (!backedOffIds.has(localId) &&
+              (unknownBackoffUntil.current.get(localId) ?? 0) <= now)),
       )
       .slice(0, 100);
 
     if (localIds.length === 0) {
       if (forceImport) {
         forcedImportReload.current = null;
+      }
+
+      const localIdSet = new Set(allLocalIds);
+      const retryTimes = [
+        ...readUnknownShopImportHolds()
+          .filter((hold) => localIdSet.has(hold.localId))
+          .map((hold) => hold.lastTriedAt + UNKNOWN_SHOP_IMPORT_BACKOFF_MS),
+        ...[...unknownBackoffUntil.current.entries()]
+          .filter(([localId]) => localIdSet.has(localId))
+          .map(([, retryAt]) => retryAt),
+      ].filter((retryAt) => retryAt > now);
+
+      if (!forceImport && retryTimes.length > 0) {
+        const retryAt = Math.min(...retryTimes);
+        const timer = window.setTimeout(() => {
+          for (const [localId, heldUntil] of unknownBackoffUntil.current) {
+            if (heldUntil <= Date.now()) {
+              unknownBackoffUntil.current.delete(localId);
+              heldImportIds.current.delete(localId);
+            }
+          }
+
+          setImportBatchToken((current) => current + 1);
+        }, retryAt - now);
+
+        return () => window.clearTimeout(timer);
       }
 
       return;
@@ -310,8 +344,14 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
         .filter((entry) => entry.reason === "unknown-shop")
         .map((entry) => entry.localId);
 
-      [...unknownIds, ...result.value.failed.map((entry) => entry.localId)].forEach(
-        (localId) => heldImportIds.current.add(localId),
+      const unknownHeldUntil = Date.now() + UNKNOWN_SHOP_IMPORT_BACKOFF_MS;
+
+      unknownIds.forEach((localId) => {
+        heldImportIds.current.add(localId);
+        unknownBackoffUntil.current.set(localId, unknownHeldUntil);
+      });
+      result.value.failed.forEach((entry) =>
+        heldImportIds.current.add(entry.localId),
       );
       const retired = [
         ...result.value.reconciled.map((entry) => entry.localId),
@@ -321,6 +361,7 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
       const importedShops = result.value.reconciled.map((entry) => entry.shop);
 
       releaseUnknownShopImportHolds(retired);
+      retired.forEach((localId) => unknownBackoffUntil.current.delete(localId));
       collection.retireSavedShopIds(retired);
       setAccountSaves((current) => {
         const importedIds = importedShops.map((shop) => shop.id);
@@ -334,13 +375,14 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
           ],
         };
       });
-      if (
+      const reportableOtherCount =
         result.value.reconciled.length +
-          invalidIds.length +
-          newlyHeldUnknownIds.length +
-          result.value.failed.length >
-        0
-      ) {
+        invalidIds.length +
+        result.value.failed.length;
+      const reportableUnknownCount =
+        reportableOtherCount > 0 ? unknownIds.length : newlyHeldUnknownIds.length;
+
+      if (reportableOtherCount + reportableUnknownCount > 0) {
         setImportReport((current) => ({
           userId: signedInUserId,
           reconciled:
@@ -351,7 +393,7 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
             invalidIds.length,
           unknown:
             (current?.userId === signedInUserId ? current.unknown : 0) +
-            newlyHeldUnknownIds.length,
+            reportableUnknownCount,
           failed:
             (current?.userId === signedInUserId ? current.failed : 0) +
             result.value.failed.length,
@@ -394,6 +436,7 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
       setImportFailure(null);
       setImportReport(null);
       heldImportIds.current.clear();
+      unknownBackoffUntil.current.clear();
       forcedImportReload.current = reloadToken + 1;
       setReloadToken(reloadToken + 1);
     }
