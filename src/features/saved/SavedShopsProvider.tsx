@@ -42,6 +42,7 @@ export interface SavedShopsStore {
 const SavedShopsContext = createContext<SavedShopsStore | null>(null);
 
 interface ImportReport {
+  readonly userId: string;
   readonly reconciled: number;
   readonly skipped: number;
   readonly failed: number;
@@ -92,11 +93,15 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
   );
   const [reloadToken, setReloadToken] = useState(0);
   const [importReport, setImportReport] = useState<ImportReport | null>(null);
+  const [importFailure, setImportFailure] =
+    useState<SavedShopClientFailure | null>(null);
   const readToken = useRef(0);
   const completionAttempt = useRef<string | null>(null);
   const completionRefreshAttempt = useRef<string | null>(null);
   const importAttempt = useRef<string | null>(null);
   const importRefreshAttempt = useRef<string | null>(null);
+  const importOwner = useRef<string | null>(null);
+  const heldImportIds = useRef(new Set<string>());
   const mutationTokens = useRef(new Map<string, number>());
 
   const signedInUserId =
@@ -218,18 +223,30 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
       if (signedInUserId === null) {
         importAttempt.current = null;
         importRefreshAttempt.current = null;
+        importOwner.current = null;
+        heldImportIds.current.clear();
       }
 
       return;
     }
 
-    const localIds = [...collection.savedShopIds].sort().slice(0, 100);
+    if (importOwner.current !== signedInUserId) {
+      importOwner.current = signedInUserId;
+      importAttempt.current = null;
+      importRefreshAttempt.current = null;
+      heldImportIds.current.clear();
+    }
+
+    const localIds = [...collection.savedShopIds]
+      .sort()
+      .filter((localId) => !heldImportIds.current.has(localId))
+      .slice(0, 100);
 
     if (localIds.length === 0) {
       return;
     }
 
-    const attempt = `${signedInUserId}:${reloadToken}`;
+    const attempt = `${signedInUserId}:${reloadToken}:${localIds.join(",")}`;
 
     if (importAttempt.current === attempt) {
       return;
@@ -252,7 +269,7 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
       }
 
       if (!result.ok) {
-        setFailure(result.reason);
+        setImportFailure(result.reason);
 
         if (
           result.reason === "authentication-required" &&
@@ -267,6 +284,7 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
       }
 
       importRefreshAttempt.current = null;
+      result.value.failed.forEach((entry) => heldImportIds.current.add(entry.localId));
       const retired = [
         ...result.value.reconciled.map((entry) => entry.localId),
         ...result.value.skipped.map((entry) => entry.localId),
@@ -286,16 +304,23 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
           ],
         };
       });
-      setImportReport({
-        reconciled: result.value.reconciled.length,
-        skipped: result.value.skipped.length,
-        failed: result.value.failed.length,
-      });
+      setImportReport((current) => ({
+        userId: signedInUserId,
+        reconciled:
+          (current?.userId === signedInUserId ? current.reconciled : 0) +
+          result.value.reconciled.length,
+        skipped:
+          (current?.userId === signedInUserId ? current.skipped : 0) +
+          result.value.skipped.length,
+        failed:
+          (current?.userId === signedInUserId ? current.failed : 0) +
+          result.value.failed.length,
+      }));
 
       if (result.value.failed.length > 0) {
-        setFailure("unavailable");
-      } else {
-        setFailure(null);
+        setImportFailure("unavailable");
+      } else if (heldImportIds.current.size === 0) {
+        setImportFailure(null);
       }
     });
 
@@ -320,9 +345,11 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
     [accountReady, accountSaves.ids, collection.savedShopIds, localMode],
   );
 
+  const reportedFailure = failure ?? importFailure;
+
   const status: SavedShopsStatus = localMode
     ? "local"
-    : failure
+    : reportedFailure
       ? "error"
       : accountReady
         ? "ready"
@@ -331,6 +358,9 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
   const retry = useCallback(() => {
     if (signedInUserId !== null) {
       setFailure(null);
+      setImportFailure(null);
+      setImportReport(null);
+      heldImportIds.current.clear();
       setReloadToken((current) => current + 1);
     }
   }, [signedInUserId]);
@@ -456,7 +486,7 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
       pendingShopIds,
       status,
       hydrated: status === "ready" || (status === "local" && collection.hydrated),
-      failure,
+      failure: reportedFailure,
       isSaved: (shopId: string) => savedShopIds.has(shopId),
       toggleSaved,
       retry,
@@ -465,8 +495,8 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
       accountReady,
       accountSaves.shops,
       collection.hydrated,
-      failure,
       pendingShopIds,
+      reportedFailure,
       retry,
       savedShopIds,
       status,
@@ -477,7 +507,7 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
   return (
     <SavedShopsContext.Provider value={value}>
       {children}
-      {signedInUserId !== null && importReport ? (
+      {signedInUserId !== null && importReport?.userId === signedInUserId ? (
         <section className={styles.notice} role="status" aria-label="Saved shop import">
           <p>
             {importReport.reconciled > 0
@@ -507,9 +537,9 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
           </div>
         </section>
       ) : null}
-      {failure ? (
+      {reportedFailure ? (
         <span className="visually-hidden" role="alert">
-          {failureMessage(failure)}
+          {failureMessage(reportedFailure)}
         </span>
       ) : null}
     </SavedShopsContext.Provider>
