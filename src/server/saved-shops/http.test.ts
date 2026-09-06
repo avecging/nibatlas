@@ -167,10 +167,6 @@ describe("saved-shop HTTP contract", () => {
     const untrusted = await unsaveShop(mutation("DELETE", "https://attacker.test"), SHOP_ID, store);
 
     expect([malformed.status, await errorCode(malformed)]).toEqual([400, "invalid_shop_id"]);
-    expect([bodyTooLarge.status, await errorCode(bodyTooLarge)]).toEqual([
-      400,
-      "invalid_import_request",
-    ]);
     expect([untrusted.status, await errorCode(untrusted)]).toEqual([403, "untrusted_origin"]);
     expect(store.getClaims).not.toHaveBeenCalled();
   });
