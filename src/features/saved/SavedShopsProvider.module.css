@@ -1,61 +1,60 @@
 .notice {
   position: fixed;
-  z-index: 80;
-  right: max(1rem, env(safe-area-inset-right));
-  bottom: max(1rem, env(safe-area-inset-bottom));
-  width: min(26rem, calc(100vw - 2rem));
-  padding: 0.9rem 1rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 0.75rem;
-  background: var(--surface-raised);
+  z-index: 70;
+  top: calc(env(safe-area-inset-top, 0px) + var(--space-2));
+  right: var(--space-3);
+  width: min(26rem, calc(100vw - (2 * var(--space-3))));
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-default);
+  border-left: 4px solid var(--action-secondary);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
   color: var(--text-primary);
-  box-shadow: var(--shadow-raised);
+  box-shadow: var(--shadow-popover);
 }
 
 .notice p {
   margin: 0;
-  font-size: 0.875rem;
-  line-height: 1.5;
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
 }
 
 .actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
 }
 
 .retry,
 .dismiss {
-  min-height: 2.75rem;
-  padding: 0.55rem 0.8rem;
-  border-radius: 0.5rem;
+  min-height: var(--tap-target);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
   font: inherit;
   cursor: pointer;
 }
 
 .retry {
-  border: 1px solid var(--ink);
-  background: var(--ink);
-  color: var(--paper);
+  border: 1px solid var(--action-primary);
+  background: var(--action-primary);
+  color: var(--text-on-action);
 }
 
 .dismiss {
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-default);
   background: transparent;
   color: inherit;
 }
 
 .retry:focus-visible,
 .dismiss:focus-visible {
-  outline: 2px solid currentColor;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
-@media (max-width: 37.5rem) {
+@media (min-width: 64rem) {
   .notice {
-    right: 0.75rem;
-    bottom: max(0.75rem, env(safe-area-inset-bottom));
-    width: calc(100vw - 1.5rem);
+    top: calc(var(--nav-height) + var(--space-3));
   }
 }
