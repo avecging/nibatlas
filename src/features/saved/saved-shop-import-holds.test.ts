@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   backedOffUnknownShopIds,
@@ -45,8 +45,6 @@ describe("saved-shop import holds", () => {
       SAVED_SHOP_IMPORT_HOLDS_STORAGE_KEY,
       JSON.stringify({ version: 1, holds: [{ localId: "", attempts: 0 }] }),
     );
-    vi.spyOn(Storage.prototype, "setItem");
-
     expect(readUnknownShopImportHolds()).toEqual([]);
     expect(backedOffUnknownShopIds()).toEqual(new Set());
   });
