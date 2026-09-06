@@ -1,7 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
+import {
+  finishAuthContinuation,
+  readPendingIntent,
+  writeAuthContinuation,
+  type AuthCookieStore,
+  type PendingAuthIntent,
+} from "@/src/server/auth/continuation";
 import type { SavedShopGateway } from "@/src/server/saved-shops/http";
 import {
+  completePendingSave,
   listSavedShops,
   saveShop,
   unsaveShop,
@@ -45,6 +53,36 @@ function mutation(method: "PUT" | "DELETE", origin = "https://nibatlas.test") {
   return new Request(`https://nibatlas.test/api/v1/saved-shops/${SHOP_ID}`, {
     method,
     headers: { Origin: origin },
+  });
+}
+
+
+function pendingCookies(intent: PendingAuthIntent) {
+  const values = new Map<string, string>();
+  const store: AuthCookieStore = {
+    get: (name) => {
+      const value = values.get(name);
+      return value === undefined ? undefined : { value };
+    },
+    set: (name, value) => {
+      values.set(name, value);
+    },
+    delete: (name) => {
+      values.delete(name);
+    },
+  };
+  const now = Date.now();
+
+  writeAuthContinuation(store, { returnTo: "/saved", intent }, now);
+  finishAuthContinuation(store, now);
+
+  return store;
+}
+
+function pendingMutation() {
+  return new Request("https://nibatlas.test/api/v1/saved-shops/pending", {
+    method: "POST",
+    headers: { Origin: "https://nibatlas.test" },
   });
 }
 
@@ -163,6 +201,62 @@ describe("saved-shop HTTP contract", () => {
     expect(await firstUnsave.json()).toEqual(await secondUnsave.json());
     expect(firstSave.status).toBe(200);
     expect(firstUnsave.status).toBe(200);
+  });
+
+  it("completes a promoted Save once and clears it only after success", async () => {
+    const cookies = pendingCookies({ type: "save-shop", shopId: SHOP_ID });
+    const store = gateway();
+
+    const first = await completePendingSave(pendingMutation(), store, cookies);
+    const second = await completePendingSave(pendingMutation(), store, cookies);
+
+    expect(first.status).toBe(200);
+    await expect(first.json()).resolves.toMatchObject({
+      ok: true,
+      shopId: SHOP_ID,
+      saved: true,
+      shop: SAVED_SHOP,
+    });
+    expect(second.status).toBe(204);
+    expect(store.save).toHaveBeenCalledTimes(1);
+    expect(readPendingIntent(cookies)).toBeNull();
+  });
+
+  it("retains a promoted Save across a transient persistence failure", async () => {
+    const cookies = pendingCookies({ type: "save-shop", shopId: SHOP_ID });
+    const response = await completePendingSave(
+      pendingMutation(),
+      gateway({
+        save: vi.fn(async () => ({ data: null, error: { status: 500 } })),
+      }),
+      cookies,
+    );
+
+    expect([response.status, await errorCode(response)]).toEqual([
+      502,
+      "saved_shop_upstream_failed",
+    ]);
+    expect(readPendingIntent(cookies)).toEqual({
+      type: "save-shop",
+      shopId: SHOP_ID,
+    });
+  });
+
+  it("returns a Collect to preflight without saving or retaining the action", async () => {
+    const cookies = pendingCookies({
+      type: "collect-shop",
+      shopSlug: "m2-singapore-demo-fixture",
+    });
+    const store = gateway();
+    const response = await completePendingSave(
+      pendingMutation(),
+      store,
+      cookies,
+    );
+
+    expect(response.status).toBe(204);
+    expect(store.save).not.toHaveBeenCalled();
+    expect(readPendingIntent(cookies)).toBeNull();
   });
 
   it("keeps concurrent mutations isolated by requested shop identifier", async () => {

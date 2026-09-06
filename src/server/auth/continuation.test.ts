@@ -5,10 +5,12 @@ import {
   DEFAULT_AUTH_RETURN_TO,
   PENDING_INTENT_COOKIE,
   appendAuthResult,
+  clearPendingIntent,
   finishAuthContinuation,
   normalizeReturnTo,
   parsePendingIntent,
   readAuthContinuation,
+  readPendingIntent,
   writeAuthContinuation,
   type AuthCookieStore,
 } from "@/src/server/auth/continuation";
@@ -131,6 +133,14 @@ describe("pending auth intents", () => {
       expect.any(String),
       expect.objectContaining({ httpOnly: true, sameSite: "lax", maxAge: 600 }),
     );
+    expect(readPendingIntent(store, 101_001)).toEqual({
+      type: "collect-shop",
+      shopSlug: "ito-ya",
+    });
+    expect(readPendingIntent(store, 701_001)).toBeNull();
+
+    clearPendingIntent(store);
+    expect(values.has(PENDING_INTENT_COOKIE)).toBe(false);
   });
 });
 

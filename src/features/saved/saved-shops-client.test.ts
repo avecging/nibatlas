@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  completePendingSave,
   fetchSavedShops,
   setSavedShop,
 } from "@/src/features/saved/saved-shops-client";
@@ -83,6 +84,33 @@ describe("saved-shop browser client", () => {
         method: "PUT",
       },
     );
+  });
+
+  it("completes a server-held Save through a no-store POST", async () => {
+    const request = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({ ok: true, shopId: SHOP.id, saved: true, shop: SHOP }),
+    );
+
+    await expect(completePendingSave()).resolves.toEqual({
+      ok: true,
+      value: { ok: true, shopId: SHOP.id, saved: true, shop: SHOP },
+    });
+    expect(request).toHaveBeenCalledWith("/api/v1/saved-shops/pending", {
+      credentials: "same-origin",
+      cache: "no-store",
+      method: "POST",
+    });
+  });
+
+  it("treats an empty pending continuation as a successful no-op", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(null, { status: 204 }),
+    );
+
+    await expect(completePendingSave()).resolves.toEqual({
+      ok: true,
+      value: null,
+    });
   });
 
   it("uses idempotent DELETE and rejects a contradictory response", async () => {

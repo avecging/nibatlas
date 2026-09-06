@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+
+import type { AuthCookieStore } from "@/src/server/auth/continuation";
 import {
   type SavedShopFailure,
   type SavedShopGateway,
@@ -46,10 +49,19 @@ export async function createSavedShopGateway(): Promise<SavedShopGateway> {
 }
 
 export async function withSavedShopRoute(
-  handler: (gateway: SavedShopGateway) => Promise<Response>,
+  handler: (
+    gateway: SavedShopGateway,
+    cookies: AuthCookieStore,
+  ) => Promise<Response>,
 ): Promise<Response> {
   try {
-    return await handler(await createSavedShopGateway());
+    const cookieStore = await cookies();
+
+    return await handler(await createSavedShopGateway(), {
+      get: (name) => cookieStore.get(name),
+      set: (name, value, options) => cookieStore.set(name, value, options),
+      delete: (name) => cookieStore.delete(name),
+    });
   } catch (error) {
     if (error instanceof SupabaseUnavailableError) {
       return Response.json(

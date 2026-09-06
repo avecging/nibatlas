@@ -1,6 +1,7 @@
 import {
   decodeSavedShopV1,
   decodeSavedShopsV1,
+  isShopId,
   SavedShopContractError,
   type SavedShopMutationV1,
   type SavedShopsV1,
@@ -132,6 +133,57 @@ export async function setSavedShop(
 
   try {
     return { ok: true, value: decodeMutation(await response.json(), shopId, saved) };
+  } catch {
+    return { ok: false, reason: "invalid-response" };
+  }
+}
+
+/**
+ * Asks the server to finish the HTTP-only Save continuation.
+ *
+ * A 204 means there was no Save to complete (including a Collect, whose return
+ * page is intentionally only preflight). A successful Save uses the same
+ * reconciliation payload as an ordinary PUT.
+ */
+export async function completePendingSave(): Promise<
+  SavedShopClientResult<SavedShopMutationV1 | null>
+> {
+  let response: Response;
+
+  try {
+    response = await fetch("/api/v1/saved-shops/pending", {
+      ...REQUEST_INIT,
+      method: "POST",
+    });
+  } catch {
+    return { ok: false, reason: "unavailable" };
+  }
+
+  if (response.status === 204) {
+    return { ok: true, value: null };
+  }
+
+  if (!response.ok) {
+    return { ok: false, reason: await classify(response) };
+  }
+
+  try {
+    const body: unknown = await response.json();
+    const shopId =
+      typeof body === "object" && body !== null && !Array.isArray(body)
+        ? (body as Record<string, unknown>)["shopId"]
+        : null;
+
+    if (typeof shopId !== "string" || !isShopId(shopId)) {
+      throw new SavedShopContractError(
+        "pending saved shop response must carry a canonical shop id",
+      );
+    }
+
+    return {
+      ok: true,
+      value: decodeMutation(body, shopId, true),
+    };
   } catch {
     return { ok: false, reason: "invalid-response" };
   }

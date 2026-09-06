@@ -16,6 +16,7 @@ import { useAccountSession } from "@/src/features/account/AccountSessionProvider
 import { useSignInPrompt } from "@/src/features/auth/SignInProvider";
 import { useCollection } from "@/src/features/collection/collection-store";
 import {
+  completePendingSave,
   fetchSavedShops,
   setSavedShop,
   type SavedShopClientFailure,
@@ -82,6 +83,8 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
   );
   const [reloadToken, setReloadToken] = useState(0);
   const readToken = useRef(0);
+  const completionAttempt = useRef<string | null>(null);
+  const completionRefreshAttempt = useRef<string | null>(null);
   const mutationTokens = useRef(new Map<string, number>());
 
   const signedInUserId =
@@ -127,6 +130,70 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
 
     return () => controller.abort();
   }, [account, reloadToken, signedInUserId]);
+
+  useEffect(() => {
+    if (!accountReady || signedInUserId === null) {
+      completionAttempt.current = null;
+
+      if (signedInUserId === null) {
+        completionRefreshAttempt.current = null;
+      }
+
+      return;
+    }
+
+    const attempt = `${signedInUserId}:${reloadToken}`;
+
+    if (completionAttempt.current === attempt) {
+      return;
+    }
+
+    completionAttempt.current = attempt;
+
+    void completePendingSave().then((result) => {
+      if (completionAttempt.current !== attempt) {
+        return;
+      }
+
+      if (!result.ok) {
+        setFailure(result.reason);
+
+        if (
+          result.reason === "authentication-required" &&
+          completionRefreshAttempt.current !== attempt
+        ) {
+          // Give an expired provider session one automatic refresh/retry per
+          // attempt. A persistent 401 remains an honest error instead of
+          // becoming an unbounded refresh loop; manual Retry advances the key.
+          completionRefreshAttempt.current = attempt;
+          completionAttempt.current = null;
+          account.refresh();
+        }
+
+        return;
+      }
+
+      completionRefreshAttempt.current = null;
+
+      if (!result.value?.shop) {
+        return;
+      }
+
+      const completed = result.value.shop;
+
+      setFailure(null);
+      setAccountSaves((current) => ({
+        ...current,
+        ids: current.ids.includes(completed.id)
+          ? current.ids
+          : [...current.ids, completed.id],
+        shops: [
+          ...current.shops.filter((shop) => shop.id !== completed.id),
+          completed,
+        ],
+      }));
+    });
+  }, [account, accountReady, reloadToken, signedInUserId]);
 
   const savedShopIds = useMemo(
     () =>
