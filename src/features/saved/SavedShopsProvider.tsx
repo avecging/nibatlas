@@ -394,13 +394,10 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
       setImportFailure(null);
       setImportReport(null);
       heldImportIds.current.clear();
-      setReloadToken((current) => {
-        const next = current + 1;
-        forcedImportReload.current = next;
-        return next;
-      });
+      forcedImportReload.current = reloadToken + 1;
+      setReloadToken(reloadToken + 1);
     }
-  }, [signedInUserId]);
+  }, [reloadToken, signedInUserId]);
 
   const toggleSaved = useCallback(
     (shopId: string, shopName?: string) => {
