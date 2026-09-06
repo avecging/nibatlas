@@ -59,6 +59,7 @@ describe("the Save bookmark", () => {
     const button = renderSave();
 
     expect(button).toHaveAttribute("aria-pressed", "false");
+    await waitFor(() => expect(button).toBeEnabled());
     fireEvent.click(button);
 
     const dialog = await screen.findByRole("dialog", {
