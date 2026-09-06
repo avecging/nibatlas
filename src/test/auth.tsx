@@ -40,6 +40,10 @@ export interface AuthFetchFixture {
   readonly signOut?: { readonly status: number };
   readonly savedShops?: { readonly status?: number; readonly body: unknown };
   readonly pendingSave?: { readonly status?: number; readonly body?: unknown };
+  readonly pendingSaves?: readonly {
+    readonly status?: number;
+    readonly body?: unknown;
+  }[];
   readonly savedMutation?: { readonly status?: number; readonly body: unknown };
 }
 
@@ -98,6 +102,7 @@ function sessionResponse(fixture: SessionFixture): Promise<Response> {
  */
 export function installAuthFetch(fixture: AuthFetchFixture = {}) {
   const requests: RecordedRequest[] = [];
+  let pendingSaveIndex = 0;
   const session = fixture.session ?? { kind: "signed-out" };
 
   const mock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -165,7 +170,12 @@ export function installAuthFetch(fixture: AuthFetchFixture = {}) {
     }
 
     if (url.endsWith("/api/v1/saved-shops/pending")) {
-      const outcome = fixture.pendingSave ?? { status: 204 };
+      const sequenced = fixture.pendingSaves?.[
+        Math.min(pendingSaveIndex, Math.max(0, fixture.pendingSaves.length - 1))
+      ];
+      const outcome = sequenced ?? fixture.pendingSave ?? { status: 204 };
+
+      pendingSaveIndex += 1;
 
       return outcome.status === 204
         ? new Response(null, { status: 204 })
