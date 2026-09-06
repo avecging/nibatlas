@@ -68,6 +68,13 @@ results. Clients may retire reconciled identifiers and `invalid-id` skips.
 They must retain `unknown-shop` skips and failed identifiers on-device for
 retry because a currently unpublished or renamed shop may become resolvable.
 
+The browser records an attempt count and last-tried time for `unknown-shop`
+identifiers. Automatic imports back off those identifiers for seven days, while
+an explicit Retry bypasses the interval. A repeated batch that produces only
+already-known `unknown-shop` results does not raise the import notice again.
+There is no automatic terminal deletion: a record remains until it reconciles
+or the reader explicitly clears local data on that device.
+
 ```json
 {
   "ok": true,
