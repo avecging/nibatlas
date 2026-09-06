@@ -86,6 +86,10 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
 
   const signedInUserId =
     account.session.status === "signed-in" ? account.session.userId : null;
+  const localMode =
+    account.session.status === "signed-out" ||
+    (account.session.status === "unavailable" &&
+      account.session.reason === "not-configured");
   const accountReady =
     signedInUserId !== null && accountSaves.userId === signedInUserId;
 
@@ -128,20 +132,19 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
     () =>
       accountReady
         ? new Set(accountSaves.ids)
-        : signedInUserId === null
+        : localMode
           ? collection.savedShopIds
           : new Set<string>(),
-    [accountReady, accountSaves.ids, collection.savedShopIds, signedInUserId],
+    [accountReady, accountSaves.ids, collection.savedShopIds, localMode],
   );
 
-  const status: SavedShopsStatus =
-    signedInUserId === null
-      ? "local"
-      : failure
-        ? "error"
-        : accountReady
-          ? "ready"
-          : "loading";
+  const status: SavedShopsStatus = localMode
+    ? "local"
+    : failure
+      ? "error"
+      : accountReady
+        ? "ready"
+        : "loading";
 
   const retry = useCallback(() => {
     if (signedInUserId !== null) {
@@ -152,6 +155,14 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
 
   const toggleSaved = useCallback(
     (shopId: string, shopName?: string) => {
+      if (
+        account.session.status === "unavailable" &&
+        account.session.reason === "not-configured"
+      ) {
+        collection.toggleSaved(shopId);
+        return;
+      }
+
       if (account.session.status === "signed-out") {
         // A reader may still carry a legitimate pre-account device save. They
         // can remove that local choice without being forced to create an
