@@ -186,7 +186,12 @@ export async function completePendingSave(
 
   const failure = upstreamFailure(result.error);
   if (failure) return failure;
-  if (result.data === null) return fail(404, "shop_not_found");
+  if (result.data === null) {
+    // Missing is terminal rather than transient: the requested catalogue record
+    // cannot be saved, so retire the continuation and report the honest 404.
+    clearPendingIntent(cookies);
+    return fail(404, "shop_not_found");
+  }
 
   try {
     const shop = decodeSavedShopV1(result.data);
