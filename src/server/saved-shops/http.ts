@@ -5,6 +5,11 @@ import {
   SavedShopContractError,
   type SavedShopMutationV1,
 } from "@/src/api/v1/saved-shops";
+import {
+  clearPendingIntent,
+  readPendingIntent,
+  type AuthCookieStore,
+} from "@/src/server/auth/continuation";
 
 export interface SavedShopFailure {
   readonly code?: string | undefined;
@@ -136,6 +141,68 @@ export async function saveShop(
       shop,
     };
 
+    return json(payload);
+  } catch (cause) {
+    return cause instanceof SavedShopContractError
+      ? fail(502, "invalid_upstream_contract")
+      : fail(500, "internal_error");
+  }
+}
+
+/**
+ * Completes the action promoted by a successful authentication callback.
+ *
+ * The pending cookie is HTTP-only, so completion stays server-authoritative.
+ * Save itself is idempotent; the cookie is cleared only after a valid upstream
+ * result, which makes a retry safe without losing the action on a transient
+ * failure. Collect deliberately performs no operation here: returning to the
+ * shop is its preflight, and location remains behind the reader's Collect tap.
+ */
+export async function completePendingSave(
+  request: Request,
+  gateway: SavedShopGateway,
+  cookies: AuthCookieStore,
+): Promise<Response> {
+  if (!trustedMutation(request)) return fail(403, "untrusted_origin");
+
+  const authFailure = await authenticated(gateway);
+  if (authFailure) return authFailure;
+
+  const intent = readPendingIntent(cookies);
+
+  if (!intent || intent.type === "collect-shop") {
+    clearPendingIntent(cookies);
+    return new Response(null, { status: 204, headers: NO_STORE });
+  }
+
+  const canonicalShopId = intent.shopId.toLowerCase();
+  let result: Awaited<ReturnType<SavedShopGateway["save"]>>;
+
+  try {
+    result = await gateway.save(canonicalShopId);
+  } catch {
+    return fail(502, "saved_shop_upstream_failed");
+  }
+
+  const failure = upstreamFailure(result.error);
+  if (failure) return failure;
+  if (result.data === null) return fail(404, "shop_not_found");
+
+  try {
+    const shop = decodeSavedShopV1(result.data);
+
+    if (shop.id !== canonicalShopId) {
+      return fail(502, "invalid_upstream_contract");
+    }
+
+    const payload: SavedShopMutationV1 = {
+      ok: true,
+      shopId: canonicalShopId,
+      saved: true,
+      shop,
+    };
+
+    clearPendingIntent(cookies);
     return json(payload);
   } catch (cause) {
     return cause instanceof SavedShopContractError
