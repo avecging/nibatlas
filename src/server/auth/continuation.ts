@@ -199,6 +199,53 @@ export function readAuthContinuation(
   }
 }
 
+/**
+ * Reads the short-lived action promoted by a successful callback.
+ *
+ * Reading does not consume it: the action owner clears the cookie only after
+ * the idempotent operation succeeds, so a transient response cannot lose the
+ * reader's Save.
+ */
+export function readPendingIntent(
+  store: AuthCookieStore,
+  now = Date.now(),
+): PendingAuthIntent | null {
+  const value = store.get(PENDING_INTENT_COOKIE)?.value;
+
+  if (!value || value.length > 4_096) {
+    return null;
+  }
+
+  try {
+    const parsed = decode(value);
+
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return null;
+    }
+
+    const record = parsed as Record<string, unknown>;
+    const issuedAt = record["issuedAt"];
+
+    if (
+      typeof issuedAt !== "number" ||
+      !Number.isSafeInteger(issuedAt) ||
+      issuedAt > now + 60_000 ||
+      issuedAt < now - PENDING_MAX_AGE_SECONDS * 1_000
+    ) {
+      return null;
+    }
+
+    return parsePendingIntent(record["intent"]);
+  } catch {
+    return null;
+  }
+}
+
+/** Clears only the promoted action, leaving no unrelated auth state behind. */
+export function clearPendingIntent(store: AuthCookieStore): void {
+  store.delete(PENDING_INTENT_COOKIE);
+}
+
 export function finishAuthContinuation(store: AuthCookieStore, now = Date.now()) {
   const continuation = readAuthContinuation(store, now);
   store.delete(AUTH_FLOW_COOKIE);
