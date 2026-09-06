@@ -154,6 +154,14 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
   const toggleSaved = useCallback(
     (shopId: string, shopName?: string) => {
       if (account.session.status === "signed-out") {
+        // A reader may still carry a legitimate pre-account device save. They
+        // can remove that local choice without being forced to create an
+        // account; only a new persistent save starts the interruption.
+        if (collection.isSaved(shopId)) {
+          collection.toggleSaved(shopId);
+          return;
+        }
+
         requestSignIn({
           context: shopName ? `Save ${shopName}` : "Save this shop",
           intent: { type: "save-shop", shopId },
@@ -243,6 +251,7 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
       accountReady,
       accountSaves.ids,
       accountSaves.shops,
+      collection,
       pendingShopIds,
       requestSignIn,
     ],
