@@ -177,7 +177,6 @@ export function installAuthFetch(fixture: AuthFetchFixture = {}) {
         body: { savedShopIds: [], shops: [] },
       };
 
-      await outcome.waitFor;
       return jsonResponse(outcome.status ?? 200, outcome.body);
     }
 
@@ -206,6 +205,7 @@ export function installAuthFetch(fixture: AuthFetchFixture = {}) {
         throw new Error(`Unexpected saved-shop import in a test: ${url}`);
       }
 
+      await outcome.waitFor;
       return jsonResponse(outcome.status ?? 200, outcome.body);
     }
 
