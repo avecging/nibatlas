@@ -280,8 +280,9 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
           .map(([, retryAt]) => retryAt),
       ].filter((retryAt) => retryAt > now);
 
-      if (!forceImport && retryTimes.length > 0) {
+      if (retryTimes.length > 0) {
         const retryAt = Math.min(...retryTimes);
+        const retryDelay = Math.min(retryAt - now, 2_147_483_647);
         const timer = window.setTimeout(() => {
           for (const [localId, heldUntil] of unknownBackoffUntil.current) {
             if (heldUntil <= Date.now()) {
@@ -291,7 +292,7 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
           }
 
           setImportBatchToken((current) => current + 1);
-        }, retryAt - now);
+        }, retryDelay);
 
         return () => window.clearTimeout(timer);
       }
