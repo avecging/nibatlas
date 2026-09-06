@@ -1,5 +1,5 @@
 import { StrictMode } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { ShopSaveButton } from "@/src/components/shops/ShopSaveButton";
@@ -12,6 +12,7 @@ import {
   SavedShopsProvider,
   useSavedShops,
 } from "@/src/features/saved/SavedShopsProvider";
+import { SAVED_SHOP_IMPORT_HOLDS_STORAGE_KEY } from "@/src/features/saved/saved-shop-import-holds";
 import { findPrototypeShop } from "@/src/fixtures/prototype-catalogue";
 import { installAuthFetch, WithAccount } from "@/src/test/auth";
 import { clearReviewerMode, seedReviewerMode } from "@/src/test/reviewer";
@@ -309,22 +310,35 @@ describe("the Save bookmark", () => {
     window.localStorage.setItem(
       COLLECTION_STORAGE_KEYS.normal,
       JSON.stringify({
-        savedShopIds: [unknownId],
+        savedShopIds: [unknownId, prototypeShop.id],
         collections: [],
         seals: [],
       }),
     );
-    installAuthFetch({
+    const { requests } = installAuthFetch({
       session: { kind: "signed-in" },
       savedShops: { body: { savedShopIds: [], shops: [] } },
-      savedImport: {
-        body: {
-          ok: true,
-          reconciled: [],
-          skipped: [{ localId: unknownId, reason: "unknown-shop" }],
-          failed: [],
+      savedImports: [
+        {
+          body: {
+            ok: true,
+            reconciled: [],
+            skipped: [
+              { localId: unknownId, reason: "unknown-shop" },
+              { localId: prototypeShop.id, reason: "unknown-shop" },
+            ],
+            failed: [],
+          },
         },
-      },
+        {
+          body: {
+            ok: true,
+            reconciled: [{ localId: prototypeShop.id, shop: savedShop }],
+            skipped: [{ localId: unknownId, reason: "unknown-shop" }],
+            failed: [],
+          },
+        },
+      ],
     });
 
     renderSave();
@@ -334,17 +348,59 @@ describe("the Save bookmark", () => {
     });
 
     expect(notice).toHaveTextContent(
-      "1 unmatched record remains on this device for retry.",
+      "2 unmatched records remain on this device for retry.",
     );
     expect(notice).not.toHaveTextContent("removed from this device");
-    expect(screen.getByRole("button", { name: "Retry" })).toBeVisible();
     await waitFor(() => {
       const stored = JSON.parse(
         window.localStorage.getItem(COLLECTION_STORAGE_KEYS.normal) ?? "{}",
       ) as { savedShopIds?: string[] };
 
-      expect(stored.savedShopIds).toEqual([unknownId]);
+      expect(stored.savedShopIds).toEqual([unknownId, prototypeShop.id]);
     });
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    await waitFor(() => {
+      expect(
+        requests.filter((request) =>
+          request.url.endsWith("/api/v1/saved-shops/import"),
+        ),
+      ).toHaveLength(2);
+      const persisted = JSON.parse(
+        window.localStorage.getItem(SAVED_SHOP_IMPORT_HOLDS_STORAGE_KEY) ?? "{}",
+      ) as { holds?: { attempts?: number }[] };
+
+      expect(persisted.holds).toEqual([
+        { localId: unknownId, attempts: 2, lastTriedAt: expect.any(Number) },
+      ]);
+    });
+    const retryNotice = await screen.findByRole("status", {
+      name: "Saved shop import",
+    });
+
+    expect(retryNotice).toHaveTextContent(
+      "1 device save is now kept with your account.",
+    );
+    expect(retryNotice).toHaveTextContent(
+      "1 unmatched record remains on this device for retry.",
+    );
+    expect(screen.getByRole("button", { name: "Retry" })).toBeVisible();
+
+    cleanup();
+    renderSave();
+
+    await waitFor(() =>
+      expect(screen.getByTestId("saved-status")).toHaveTextContent("ready:0"),
+    );
+    expect(
+      requests.filter((request) =>
+        request.url.endsWith("/api/v1/saved-shops/import"),
+      ),
+    ).toHaveLength(2);
+    expect(
+      screen.queryByRole("status", { name: "Saved shop import" }),
+    ).not.toBeInTheDocument();
   });
 
   it("advances when the first bounded batch contains only retained records", async () => {

@@ -37,6 +37,7 @@ import {
   toStampCollection,
 } from "@/src/fixtures/prototype-passport";
 import { useReviewerModeStore } from "@/src/features/reviewer/ReviewerModeProvider";
+import { clearUnknownShopImportHolds } from "@/src/features/saved/saved-shop-import-holds";
 
 /**
  * Local collection state, namespaced by mode.
@@ -493,6 +494,10 @@ export function CollectionProvider({ children }: { readonly children: ReactNode 
     try {
       window.localStorage.setItem(STORAGE_KEYS[scope], serialized);
       lastWrittenRef.current = serialized;
+
+      if (scope === "normal") {
+        clearUnknownShopImportHolds();
+      }
     } catch {
       // Storage is best effort; the in-memory state is already empty.
     }
