@@ -38,6 +38,8 @@ export interface AuthFetchFixture {
     readonly redirectTo?: string;
   };
   readonly signOut?: { readonly status: number };
+  readonly savedShops?: { readonly status?: number; readonly body: unknown };
+  readonly savedMutation?: { readonly status?: number; readonly body: unknown };
 }
 
 export interface RecordedRequest {
@@ -150,6 +152,26 @@ export function installAuthFetch(fixture: AuthFetchFixture = {}) {
             ok: false,
             error: { code: "sign_out_failed" },
           });
+    }
+
+    if (url.endsWith("/api/v1/saved-shops")) {
+      const outcome = fixture.savedShops ?? {
+        status: 200,
+        body: { savedShopIds: [], shops: [] },
+      };
+
+      return jsonResponse(outcome.status ?? 200, outcome.body);
+    }
+
+    if (url.includes("/api/v1/saved-shops/")) {
+      if (!fixture.savedMutation) {
+        throw new Error(`Unexpected saved-shop mutation in a test: ${url}`);
+      }
+
+      return jsonResponse(
+        fixture.savedMutation.status ?? 200,
+        fixture.savedMutation.body,
+      );
     }
 
     throw new Error(`Unexpected fetch in a test: ${url}`);

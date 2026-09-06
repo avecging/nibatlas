@@ -201,8 +201,8 @@ export function SignInProvider({ children }: { readonly children: ReactNode }) {
                     Not now
                   </Button>
                   <p className={styles.footerNote}>
-                    Exploring the map, saving shops on this device and collecting
-                    impressions all work without an account.
+                    Exploring the map and opening shop pages work without an
+                    account. An account keeps new saved shops with you.
                   </p>
                 </div>
               }

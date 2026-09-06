@@ -1,33 +1,53 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { ShopSaveButton } from "@/src/components/shops/ShopSaveButton";
 import { CollectionProvider } from "@/src/features/collection/collection-store";
+import { SavedShopsProvider } from "@/src/features/saved/SavedShopsProvider";
 import { findPrototypeShop } from "@/src/fixtures/prototype-catalogue";
-import { clearReviewerMode, seedReviewerMode, WithReviewerMode } from "@/src/test/reviewer";
+import { installAuthFetch, WithAccount } from "@/src/test/auth";
+import { clearReviewerMode, seedReviewerMode } from "@/src/test/reviewer";
 
-const shop = findPrototypeShop("juspirit-banqiao")!;
+const prototypeShop = findPrototypeShop("juspirit-banqiao")!;
+const shop = {
+  ...prototypeShop,
+  // Signed-in catalogue responses use canonical database UUIDs. Prototype-only
+  // identifiers exercise local mode and must not weaken the account API contract.
+  id: "7ab629ba-80da-4f88-a5cf-26bfeff20f7c",
+};
+const savedShop = {
+  id: shop.id,
+  slug: shop.slug,
+  name: shop.name,
+  ...(shop.localName === undefined ? {} : { localName: shop.localName }),
+  ...(shop.localNameLang === undefined
+    ? {}
+    : { localNameLang: shop.localNameLang }),
+  countryCode: shop.countryCode,
+  localityName: shop.localityName,
+  position: shop.position,
+  primaryType: shop.primaryType,
+  specialtyLine: shop.specialtyLine,
+  operationalStatus: shop.operationalStatus,
+  markerState: "saved" as const,
+  sourceQuality: shop.sourceQuality,
+  savedAt: "2026-09-06T04:30:00+00:00",
+};
 
-/**
- * Save, after the founder's staging review of WP4.
- *
- * It is a bookmark beside the shop's name rather than a full Atlas Navy button
- * competing with Collect Stamp. What has to survive that change is the part a
- * screen-reader or a switch user depends on: a real toggle, with a name that
- * says what pressing it will do.
- */
 function renderSave() {
   seedReviewerMode(false);
 
   render(
-    <WithReviewerMode>
+    <WithAccount>
       <CollectionProvider>
-        <ShopSaveButton shop={shop} />
+        <SavedShopsProvider>
+          <ShopSaveButton shop={shop} />
+        </SavedShopsProvider>
       </CollectionProvider>
-    </WithReviewerMode>,
+    </WithAccount>,
   );
 
-  return screen.getByRole("button");
+  return screen.getByRole("button", { name: "Save shop" });
 }
 
 describe("the Save bookmark", () => {
@@ -37,60 +57,72 @@ describe("the Save bookmark", () => {
     clearReviewerMode();
   });
 
-  it("is a toggle whose accessible name changes with its state", () => {
+  it("opens the existing sign-in interruption for a new anonymous save", async () => {
+    installAuthFetch({ session: { kind: "signed-out" } });
     const button = renderSave();
 
-    expect(button).toHaveAccessibleName("Save shop");
     expect(button).toHaveAttribute("aria-pressed", "false");
-
+    await waitFor(() => expect(button).toBeEnabled());
     fireEvent.click(button);
 
-    expect(button).toHaveAccessibleName("Remove saved shop");
-    expect(button).toHaveAttribute("aria-pressed", "true");
+    const dialog = await screen.findByRole("dialog", {
+      name: /sign in to nib atlas/i,
+    });
 
-    fireEvent.click(button);
-
-    expect(button).toHaveAccessibleName("Save shop");
+    expect(dialog).toHaveTextContent(`Save ${shop.name}`);
     expect(button).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("carries the state without relying on colour", () => {
+  it("optimistically saves, then keeps the server-reconciled state", async () => {
+    const { requests } = installAuthFetch({
+      session: { kind: "signed-in" },
+      savedShops: { body: { savedShopIds: [], shops: [] } },
+      savedMutation: {
+        body: { ok: true, shopId: shop.id, saved: true, shop: savedShop },
+      },
+    });
     const button = renderSave();
 
-    // Outlined bookmark unsaved, filled bookmark saved: the glyph changes, not
-    // only the ink. `aria-pressed` and the name are the other two cues.
-    const glyph = () => button.querySelector("svg")?.getAttribute("fill");
-
-    expect(glyph()).toBe("none");
-
+    await waitFor(() => expect(button).toBeEnabled());
     fireEvent.click(button);
 
-    expect(glyph()).toBe("currentColor");
+    expect(button).toHaveAccessibleName("Saving shop");
+    expect(button).toHaveAttribute("aria-pressed", "true");
+
+    await waitFor(() => {
+      expect(button).toHaveAccessibleName("Remove saved shop");
+      expect(button).toBeEnabled();
+    });
+    expect(
+      requests.some(
+        (request) =>
+          request.url.endsWith(`/api/v1/saved-shops/${shop.id}`) &&
+          request.method === "PUT",
+      ),
+    ).toBe(true);
+  });
+
+  it("carries state in the glyph, pressed state and accessible name", async () => {
+    installAuthFetch({
+      session: { kind: "signed-in" },
+      savedShops: {
+        body: { savedShopIds: [shop.id], shops: [savedShop] },
+      },
+    });
+    renderSave();
+
+    const button = await screen.findByRole("button", {
+      name: "Remove saved shop",
+    });
+
+    expect(button).toHaveAttribute("aria-pressed", "true");
+    expect(button.querySelector("svg")?.getAttribute("fill")).toBe("currentColor");
   });
 
   it("keeps the bookmark metaphor rather than a heart", () => {
+    installAuthFetch({ session: { kind: "signed-out" } });
     const button = renderSave();
 
-    // The bookmark path from the shared icon set, not a favourite.
     expect(button.querySelector("path")?.getAttribute("d")).toContain("M6 3.8h12");
-  });
-
-  it("actually saves the shop, not just the button's own state", () => {
-    const button = renderSave();
-
-    fireEvent.click(button);
-
-    // Read back through the store the rest of the application reads.
-    render(
-      <WithReviewerMode>
-        <CollectionProvider>
-          <ShopSaveButton shop={shop} />
-        </CollectionProvider>
-      </WithReviewerMode>,
-    );
-
-    for (const control of screen.getAllByRole("button")) {
-      expect(control).toHaveAttribute("aria-pressed", "true");
-    }
   });
 });

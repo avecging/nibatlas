@@ -15,12 +15,12 @@ import {
  * product, it preserves where the reader was and what they were doing, it
  * finishes a Save afterwards, and it never asks for location on the way back.
  *
- * What WP3 owns is the first two and the carrying of the third. The saved-shop
- * endpoints are WP4, so Save is still the device-local bookmark it has been
- * since Milestone 1 and nothing on the map or a shop page asks for an account
- * yet; what these journeys prove is that the interruption exists, that it can be
- * declined, and that the return path and the pending intent reach the server
- * intact for WP5 to complete.
+ * WP3 built the interruption and carried the pending intent; WP4 supplied the
+ * private saved-shop service. WP5 now connects a deliberate new Save to that
+ * interruption while leaving ordinary discovery anonymous. These journeys
+ * prove that boundary, that the interruption can be declined, and that the
+ * return path and pending intent reach the server intact for the follow-up
+ * completion slice.
  *
  * Every case says which session answer it arranges. The build under test has no
  * Supabase project behind it, so an unarranged session is the "no accounts in
@@ -49,10 +49,13 @@ async function openFromMe(page: Page) {
 test.describe("anonymous discovery", () => {
   /*
    * The invariant the whole milestone is bounded by. A signed-out reader can
-   * explore, search, save and collect, and nothing interrupts them until they
-   * choose an account action.
+   * explore and search without interruption. A deliberate new Save is the
+   * account action: it opens in context and does not mutate device state while
+   * the reader decides.
    */
-  test("is never interrupted by an account", async ({ page }) => {
+  test("is not interrupted until a persistent Save is requested", async ({
+    page,
+  }) => {
     await stubSession(page, { kind: "signed-out" });
     await page.goto("/");
 
@@ -62,15 +65,20 @@ test.describe("anonymous discovery", () => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
 
     await page.goto("/shops/ginza-itoya-main-store");
-    await page.getByRole("button", { name: "Save shop" }).click();
+    const save = page.getByRole("button", { name: "Save shop" });
 
-    // The save happens, on the device, with no sign-in asked for.
-    await expect(page.getByRole("button", { name: "Remove saved shop" })).toBeVisible();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await save.click();
 
-    await page.goto("/saved");
-    await expect(page.getByText(/1 saved shop/i)).toBeVisible();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
+    const dialog = interruption(page);
+
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText(/Save Ginza Itoya Main Store/i);
+    await expect(save).toHaveAttribute("aria-pressed", "false");
+
+    await dialog.getByRole("button", { name: /not now/i }).click();
+
+    await expect(dialog).toHaveCount(0);
+    await expect(save).toHaveAttribute("aria-pressed", "false");
   });
 });
 
