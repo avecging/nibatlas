@@ -1,0 +1,61 @@
+.notice {
+  position: fixed;
+  z-index: 80;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  width: min(26rem, calc(100vw - 2rem));
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.75rem;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-raised);
+}
+
+.notice p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.retry,
+.dismiss {
+  min-height: 2.75rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: 0.5rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.retry {
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.dismiss {
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: inherit;
+}
+
+.retry:focus-visible,
+.dismiss:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+@media (max-width: 37.5rem) {
+  .notice {
+    right: 0.75rem;
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    width: calc(100vw - 1.5rem);
+  }
+}
