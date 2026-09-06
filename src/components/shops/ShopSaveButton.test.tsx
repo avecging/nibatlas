@@ -310,21 +310,35 @@ describe("the Save bookmark", () => {
     window.localStorage.setItem(
       COLLECTION_STORAGE_KEYS.normal,
       JSON.stringify({
-        savedShopIds: [unknownId],
+        savedShopIds: [unknownId, prototypeShop.id],
         collections: [],
         seals: [],
       }),
     );
-    const unknownResult = {
-      ok: true,
-      reconciled: [],
-      skipped: [{ localId: unknownId, reason: "unknown-shop" }],
-      failed: [],
-    };
     const { requests } = installAuthFetch({
       session: { kind: "signed-in" },
       savedShops: { body: { savedShopIds: [], shops: [] } },
-      savedImports: [{ body: unknownResult }, { body: unknownResult }],
+      savedImports: [
+        {
+          body: {
+            ok: true,
+            reconciled: [],
+            skipped: [
+              { localId: unknownId, reason: "unknown-shop" },
+              { localId: prototypeShop.id, reason: "unknown-shop" },
+            ],
+            failed: [],
+          },
+        },
+        {
+          body: {
+            ok: true,
+            reconciled: [{ localId: prototypeShop.id, shop: savedShop }],
+            skipped: [{ localId: unknownId, reason: "unknown-shop" }],
+            failed: [],
+          },
+        },
+      ],
     });
 
     renderSave();
@@ -334,7 +348,7 @@ describe("the Save bookmark", () => {
     });
 
     expect(notice).toHaveTextContent(
-      "1 unmatched record remains on this device for retry.",
+      "2 unmatched records remain on this device for retry.",
     );
     expect(notice).not.toHaveTextContent("removed from this device");
     await waitFor(() => {
@@ -342,7 +356,7 @@ describe("the Save bookmark", () => {
         window.localStorage.getItem(COLLECTION_STORAGE_KEYS.normal) ?? "{}",
       ) as { savedShopIds?: string[] };
 
-      expect(stored.savedShopIds).toEqual([unknownId]);
+      expect(stored.savedShopIds).toEqual([unknownId, prototypeShop.id]);
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
@@ -357,8 +371,21 @@ describe("the Save bookmark", () => {
         window.localStorage.getItem(SAVED_SHOP_IMPORT_HOLDS_STORAGE_KEY) ?? "{}",
       ) as { holds?: { attempts?: number }[] };
 
-      expect(persisted.holds?.[0]?.attempts).toBe(2);
+      expect(persisted.holds).toEqual([
+        { localId: unknownId, attempts: 2, lastTriedAt: expect.any(Number) },
+      ]);
     });
+    const retryNotice = await screen.findByRole("status", {
+      name: "Saved shop import",
+    });
+
+    expect(retryNotice).toHaveTextContent(
+      "1 device save is now kept with your account.",
+    );
+    expect(retryNotice).toHaveTextContent(
+      "1 unmatched record remains on this device for retry.",
+    );
+    expect(screen.getByRole("button", { name: "Retry" })).toBeVisible();
 
     cleanup();
     renderSave();
