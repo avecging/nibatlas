@@ -125,6 +125,38 @@ describe("the Save bookmark", () => {
     ).toHaveLength(1);
   });
 
+  it("refreshes an expired session once and retries the deferred Save", async () => {
+    const { requests } = installAuthFetch({
+      session: { kind: "signed-in" },
+      savedShops: { body: { savedShopIds: [], shops: [] } },
+      pendingSaves: [
+        {
+          status: 401,
+          body: { ok: false, error: { code: "authentication_required" } },
+        },
+        {
+          status: 200,
+          body: { ok: true, shopId: shop.id, saved: true, shop: savedShop },
+        },
+      ],
+    });
+    renderSave();
+
+    await expect(
+      screen.findByRole("button", { name: "Remove saved shop" }),
+    ).resolves.toBeVisible();
+    expect(
+      requests.filter((request) =>
+        request.url.endsWith("/api/v1/saved-shops/pending"),
+      ),
+    ).toHaveLength(2);
+    expect(
+      requests.filter((request) =>
+        request.url.includes("/api/v1/auth/session"),
+      ),
+    ).toHaveLength(2);
+  });
+
   it("carries state in the glyph, pressed state and accessible name", async () => {
     installAuthFetch({
       session: { kind: "signed-in" },
