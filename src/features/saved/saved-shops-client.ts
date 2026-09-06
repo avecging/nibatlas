@@ -192,7 +192,6 @@ export async function completePendingSave(): Promise<
   }
 }
 
-
 export async function importLocalSavedShops(
   candidates: readonly LocalSavedShopCandidateV1[],
 ): Promise<SavedShopClientResult<SavedShopImportV1>> {
