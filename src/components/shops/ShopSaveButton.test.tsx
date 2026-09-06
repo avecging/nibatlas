@@ -281,6 +281,8 @@ describe("the Save bookmark", () => {
     expect(notice).toHaveTextContent("1 invalid record was removed from this device.");
     expect(notice).toHaveTextContent("1 save remains on this device for retry.");
     expect(screen.getByRole("button", { name: "Remove saved shop" })).toBeVisible();
+    expect(screen.getByTestId("saved-status")).toHaveTextContent("ready:1");
+    expect(screen.getByRole("button", { name: "Retry" })).toBeVisible();
 
     await waitFor(() => {
       const stored = JSON.parse(
