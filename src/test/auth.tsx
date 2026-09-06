@@ -39,6 +39,7 @@ export interface AuthFetchFixture {
   };
   readonly signOut?: { readonly status: number };
   readonly savedShops?: { readonly status?: number; readonly body: unknown };
+  readonly pendingSave?: { readonly status?: number; readonly body?: unknown };
   readonly savedMutation?: { readonly status?: number; readonly body: unknown };
 }
 
@@ -161,6 +162,14 @@ export function installAuthFetch(fixture: AuthFetchFixture = {}) {
       };
 
       return jsonResponse(outcome.status ?? 200, outcome.body);
+    }
+
+    if (url.endsWith("/api/v1/saved-shops/pending")) {
+      const outcome = fixture.pendingSave ?? { status: 204 };
+
+      return outcome.status === 204
+        ? new Response(null, { status: 204 })
+        : jsonResponse(outcome.status ?? 200, outcome.body);
     }
 
     if (url.includes("/api/v1/saved-shops/")) {
