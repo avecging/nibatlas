@@ -17,6 +17,7 @@ import {
   findPrototypeShop,
   prototypeShopDetails,
 } from "@/src/fixtures/prototype-catalogue";
+import { SAVED_SHOP_IMPORT_HOLDS_STORAGE_KEY } from "@/src/features/saved/saved-shop-import-holds";
 import { prototypeSeedCollections } from "@/src/fixtures/prototype-passport";
 import { seedReviewerMode } from "@/src/test/reviewer";
 
@@ -346,6 +347,13 @@ describe("clearing local data", () => {
     });
 
     expect(result.current.collection.passport.stampCount).toBe(1);
+    window.localStorage.setItem(
+      SAVED_SHOP_IMPORT_HOLDS_STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        holds: [{ localId: unvisited.id, attempts: 1, lastTriedAt: Date.now() }],
+      }),
+    );
 
     act(() => {
       result.current.collection.clearLocalData();
@@ -355,6 +363,9 @@ describe("clearing local data", () => {
     expect(result.current.collection.collections).toEqual([]);
     expect(result.current.collection.seals).toEqual([]);
     expect(result.current.collection.passport.stampCount).toBe(0);
+    expect(
+      window.localStorage.getItem(SAVED_SHOP_IMPORT_HOLDS_STORAGE_KEY),
+    ).toBeNull();
   });
 
   /*
