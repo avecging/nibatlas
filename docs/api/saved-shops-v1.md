@@ -62,10 +62,11 @@ The import request body is capped at 32 KiB and has this shape:
 ```
 
 Every accepted candidate appears exactly once in the response. `reconciled`
-contains the account-backed saved shop; `skipped` contains terminal
-`invalid-id` or `unknown-shop` results; and `failed` contains transient
-`unavailable` results. Clients may retire only reconciled and explicitly
-skipped local identifiers. Failed identifiers remain on-device for retry.
+contains the account-backed saved shop; `skipped` contains `invalid-id` or
+`unknown-shop` results; and `failed` contains transient `unavailable`
+results. Clients may retire reconciled identifiers and `invalid-id` skips.
+They must retain `unknown-shop` skips and failed identifiers on-device for
+retry because a currently unpublished or renamed shop may become resolvable.
 
 ```json
 {
