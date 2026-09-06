@@ -132,6 +132,7 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
 
   useEffect(() => {
     if (!accountReady || signedInUserId === null) {
+      completionAttempt.current = null;
       return;
     }
 
@@ -144,6 +145,10 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
     completionAttempt.current = attempt;
 
     void completePendingSave().then((result) => {
+      if (completionAttempt.current !== attempt) {
+        return;
+      }
+
       if (!result.ok) {
         setFailure(result.reason);
 
