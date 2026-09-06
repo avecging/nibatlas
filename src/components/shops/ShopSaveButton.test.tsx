@@ -347,11 +347,14 @@ describe("the Save bookmark", () => {
     });
   });
 
-  it("continues with the next bounded import batch after a successful first batch", async () => {
-    const localIds = Array.from(
-      { length: 101 },
-      (_, index) => `legacy-${String(index).padStart(3, "0")}`,
+  it("advances when the first bounded batch contains only retained records", async () => {
+    const unknownIds = Array.from(
+      { length: 100 },
+      (_, index) =>
+        `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
     );
+    const localIds = [...unknownIds, prototypeShop.id];
+
     window.localStorage.setItem(
       COLLECTION_STORAGE_KEYS.normal,
       JSON.stringify({ savedShopIds: localIds, collections: [], seals: [] }),
@@ -364,9 +367,9 @@ describe("the Save bookmark", () => {
           body: {
             ok: true,
             reconciled: [],
-            skipped: localIds.slice(0, 100).map((localId) => ({
+            skipped: unknownIds.map((localId) => ({
               localId,
-              reason: "invalid-id",
+              reason: "unknown-shop",
             })),
             failed: [],
           },
@@ -374,8 +377,8 @@ describe("the Save bookmark", () => {
         {
           body: {
             ok: true,
-            reconciled: [],
-            skipped: [{ localId: localIds[100], reason: "invalid-id" }],
+            reconciled: [{ localId: prototypeShop.id, shop: savedShop }],
+            skipped: [],
             failed: [],
           },
         },
@@ -391,16 +394,20 @@ describe("the Save bookmark", () => {
         ),
       ).toHaveLength(2);
     });
+    expect(screen.getByRole("button", { name: "Remove saved shop" })).toBeVisible();
     await waitFor(() => {
       const stored = JSON.parse(
         window.localStorage.getItem(COLLECTION_STORAGE_KEYS.normal) ?? "{}",
       ) as { savedShopIds?: string[] };
 
-      expect(stored.savedShopIds).toEqual([]);
+      expect(stored.savedShopIds).toEqual(unknownIds);
     });
-    expect(
-      screen.getByRole("status", { name: "Saved shop import" }),
-    ).toHaveTextContent("101 invalid records were removed from this device.");
+    const notice = screen.getByRole("status", { name: "Saved shop import" });
+
+    expect(notice).toHaveTextContent("1 device save is now kept with your account.");
+    expect(notice).toHaveTextContent(
+      "100 unmatched records remain on this device for retry.",
+    );
   });
 
   it("carries state in the glyph, pressed state and accessible name", async () => {
