@@ -25,6 +25,30 @@ export interface SavedShopMutationV1 {
   readonly shop?: SavedShopV1;
 }
 
+export interface LocalSavedShopCandidateV1 {
+  readonly localId: string;
+  readonly slug?: string;
+}
+
+export type LocalSavedShopSkipReasonV1 = "invalid-id" | "unknown-shop";
+export type LocalSavedShopFailureReasonV1 = "unavailable";
+
+export interface SavedShopImportV1 {
+  readonly ok: true;
+  readonly reconciled: readonly {
+    readonly localId: string;
+    readonly shop: SavedShopV1;
+  }[];
+  readonly skipped: readonly {
+    readonly localId: string;
+    readonly reason: LocalSavedShopSkipReasonV1;
+  }[];
+  readonly failed: readonly {
+    readonly localId: string;
+    readonly reason: LocalSavedShopFailureReasonV1;
+  }[];
+}
+
 export class SavedShopContractError extends Error {
   constructor(message: string) {
     super(message);
@@ -196,6 +220,70 @@ export function decodeSavedShopsV1(value: unknown): SavedShopsV1 {
   }
 
   return { savedShopIds, shops };
+}
+
+export function decodeSavedShopImportV1(value: unknown): SavedShopImportV1 {
+  const item = record(value, "saved shop import");
+
+  if (item["ok"] !== true) {
+    throw new SavedShopContractError("saved shop import must be successful");
+  }
+
+  const rawReconciled = item["reconciled"];
+  const rawSkipped = item["skipped"];
+  const rawFailed = item["failed"];
+
+  if (
+    !Array.isArray(rawReconciled) ||
+    !Array.isArray(rawSkipped) ||
+    !Array.isArray(rawFailed)
+  ) {
+    throw new SavedShopContractError("saved shop import results must be arrays");
+  }
+
+  const reconciled = rawReconciled.map((entry, index) => {
+    const result = record(entry, `reconciled[${index}]`);
+
+    return {
+      localId: string(result["localId"], `reconciled[${index}].localId`),
+      shop: decodeSavedShopV1(result["shop"], `reconciled[${index}].shop`),
+    };
+  });
+  const skipped = rawSkipped.map((entry, index) => {
+    const result = record(entry, `skipped[${index}]`);
+
+    return {
+      localId: string(result["localId"], `skipped[${index}].localId`),
+      reason: oneOf(
+        result["reason"],
+        ["invalid-id", "unknown-shop"] as const,
+        `skipped[${index}].reason`,
+      ),
+    };
+  });
+  const failed = rawFailed.map((entry, index) => {
+    const result = record(entry, `failed[${index}]`);
+
+    return {
+      localId: string(result["localId"], `failed[${index}].localId`),
+      reason: oneOf(
+        result["reason"],
+        ["unavailable"] as const,
+        `failed[${index}].reason`,
+      ),
+    };
+  });
+  const localIds = [
+    ...reconciled.map((result) => result.localId),
+    ...skipped.map((result) => result.localId),
+    ...failed.map((result) => result.localId),
+  ];
+
+  if (new Set(localIds).size !== localIds.length) {
+    throw new SavedShopContractError("saved shop import results must not overlap");
+  }
+
+  return { ok: true, reconciled, skipped, failed };
 }
 
 export function isShopId(value: string): boolean {
