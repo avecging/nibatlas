@@ -328,7 +328,6 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
           (current?.userId === signedInUserId ? current.failed : 0) +
           result.value.failed.length,
       }));
-
     });
   }, [
     account,
