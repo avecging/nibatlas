@@ -318,10 +318,10 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
 
   const userShopState = useMemo(
     () => ({
-      ...userShopState,
+      ...collection.userShopState,
       savedShopIds: savedShops.savedShopIds,
     }),
-    [userShopState, savedShops.savedShopIds],
+    [collection.userShopState, savedShops.savedShopIds],
   );
 
   /** The committed result set with the reader's own state merged, unfiltered. */
