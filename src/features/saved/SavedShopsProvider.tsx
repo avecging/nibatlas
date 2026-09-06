@@ -12,12 +12,15 @@ import {
 } from "react";
 
 import type { SavedShopV1 } from "@/src/api/v1/saved-shops";
+import styles from "@/src/features/saved/SavedShopsProvider.module.css";
 import { useAccountSession } from "@/src/features/account/AccountSessionProvider";
 import { useSignInPrompt } from "@/src/features/auth/SignInProvider";
 import { useCollection } from "@/src/features/collection/collection-store";
+import { prototypeShopById } from "@/src/fixtures/prototype-catalogue";
 import {
   completePendingSave,
   fetchSavedShops,
+  importLocalSavedShops,
   setSavedShop,
   type SavedShopClientFailure,
 } from "@/src/features/saved/saved-shops-client";
@@ -37,6 +40,12 @@ export interface SavedShopsStore {
 }
 
 const SavedShopsContext = createContext<SavedShopsStore | null>(null);
+
+interface ImportReport {
+  readonly reconciled: number;
+  readonly skipped: number;
+  readonly failed: number;
+}
 
 interface AccountSaves {
   readonly userId: string;
@@ -82,9 +91,12 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
     () => new Set<string>(),
   );
   const [reloadToken, setReloadToken] = useState(0);
+  const [importReport, setImportReport] = useState<ImportReport | null>(null);
   const readToken = useRef(0);
   const completionAttempt = useRef<string | null>(null);
   const completionRefreshAttempt = useRef<string | null>(null);
+  const importAttempt = useRef<string | null>(null);
+  const importRefreshAttempt = useRef<string | null>(null);
   const mutationTokens = useRef(new Map<string, number>());
 
   const signedInUserId =
@@ -194,6 +206,110 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
       }));
     });
   }, [account, accountReady, reloadToken, signedInUserId]);
+
+
+  useEffect(() => {
+    if (
+      !accountReady ||
+      signedInUserId === null ||
+      !collection.hydrated ||
+      collection.scope !== "normal"
+    ) {
+      if (signedInUserId === null) {
+        importAttempt.current = null;
+        importRefreshAttempt.current = null;
+        setImportReport(null);
+      }
+
+      return;
+    }
+
+    const localIds = [...collection.savedShopIds].sort();
+
+    if (localIds.length === 0) {
+      return;
+    }
+
+    const attempt = `${signedInUserId}:${reloadToken}:${localIds.join(",")}`;
+
+    if (importAttempt.current === attempt) {
+      return;
+    }
+
+    importAttempt.current = attempt;
+    let active = true;
+    const candidates = localIds.map((localId) => {
+      const prototype = prototypeShopById(localId);
+
+      return {
+        localId,
+        ...(prototype ? { slug: prototype.slug } : {}),
+      };
+    });
+
+    void importLocalSavedShops(candidates).then((result) => {
+      if (!active || importAttempt.current !== attempt) {
+        return;
+      }
+
+      if (!result.ok) {
+        setFailure(result.reason);
+
+        if (
+          result.reason === "authentication-required" &&
+          importRefreshAttempt.current !== attempt
+        ) {
+          importRefreshAttempt.current = attempt;
+          importAttempt.current = null;
+          account.refresh();
+        }
+
+        return;
+      }
+
+      importRefreshAttempt.current = null;
+      const retired = [
+        ...result.value.reconciled.map((entry) => entry.localId),
+        ...result.value.skipped.map((entry) => entry.localId),
+      ];
+      const importedShops = result.value.reconciled.map((entry) => entry.shop);
+
+      collection.retireSavedShopIds(retired);
+      setAccountSaves((current) => {
+        const importedIds = importedShops.map((shop) => shop.id);
+
+        return {
+          ...current,
+          ids: [...new Set([...current.ids, ...importedIds])],
+          shops: [
+            ...current.shops.filter((shop) => !importedIds.includes(shop.id)),
+            ...importedShops,
+          ],
+        };
+      });
+      setImportReport({
+        reconciled: result.value.reconciled.length,
+        skipped: result.value.skipped.length,
+        failed: result.value.failed.length,
+      });
+
+      if (result.value.failed.length > 0) {
+        setFailure("unavailable");
+      } else {
+        setFailure(null);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [
+    account,
+    accountReady,
+    collection,
+    reloadToken,
+    signedInUserId,
+  ]);
 
   const savedShopIds = useMemo(
     () =>
@@ -362,6 +478,36 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
   return (
     <SavedShopsContext.Provider value={value}>
       {children}
+      {importReport ? (
+        <section className={styles.notice} role="status" aria-label="Saved shop import">
+          <p>
+            {importReport.reconciled > 0
+              ? `${importReport.reconciled} device ${importReport.reconciled === 1 ? "save is" : "saves are"} now kept with your account. `
+              : ""}
+            {importReport.skipped > 0
+              ? `${importReport.skipped} unmatched ${importReport.skipped === 1 ? "record was" : "records were"} removed from this device. `
+              : ""}
+            {importReport.failed > 0
+              ? `${importReport.failed} ${importReport.failed === 1 ? "save remains" : "saves remain"} on this device for retry.`
+              : ""}
+          </p>
+          <div className={styles.actions}>
+            {importReport.failed > 0 ? (
+              <button className={styles.retry} type="button" onClick={retry}>
+                Retry
+              </button>
+            ) : null}
+            <button
+              className={styles.dismiss}
+              type="button"
+              onClick={() => setImportReport(null)}
+              aria-label="Dismiss saved shop import result"
+            >
+              Dismiss
+            </button>
+          </div>
+        </section>
+      ) : null}
       {failure ? (
         <span className="visually-hidden" role="alert">
           {failureMessage(failure)}
