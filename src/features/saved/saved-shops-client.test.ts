@@ -114,7 +114,6 @@ describe("saved-shop browser client", () => {
     });
   });
 
-
   it("posts local candidates and accepts a complete partial import result", async () => {
     const candidates = [
       { localId: "prototype-shop", slug: "m2-singapore-demo-fixture" },
