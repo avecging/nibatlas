@@ -1,8 +1,11 @@
 import {
+  decodeSavedShopImportV1,
   decodeSavedShopV1,
   decodeSavedShopsV1,
   isShopId,
   SavedShopContractError,
+  type LocalSavedShopCandidateV1,
+  type SavedShopImportV1,
   type SavedShopMutationV1,
   type SavedShopsV1,
 } from "@/src/api/v1/saved-shops";
@@ -184,6 +187,51 @@ export async function completePendingSave(): Promise<
       ok: true,
       value: decodeMutation(body, shopId, true),
     };
+  } catch {
+    return { ok: false, reason: "invalid-response" };
+  }
+}
+
+
+export async function importLocalSavedShops(
+  candidates: readonly LocalSavedShopCandidateV1[],
+): Promise<SavedShopClientResult<SavedShopImportV1>> {
+  let response: Response;
+
+  try {
+    response = await fetch("/api/v1/saved-shops/import", {
+      ...REQUEST_INIT,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ candidates }),
+    });
+  } catch {
+    return { ok: false, reason: "unavailable" };
+  }
+
+  if (!response.ok) {
+    return { ok: false, reason: await classify(response) };
+  }
+
+  try {
+    const decoded = decodeSavedShopImportV1(await response.json());
+    const requested = candidates.map((candidate) => candidate.localId);
+    const returned = [
+      ...decoded.reconciled.map((result) => result.localId),
+      ...decoded.skipped.map((result) => result.localId),
+      ...decoded.failed.map((result) => result.localId),
+    ];
+
+    if (
+      returned.length !== requested.length ||
+      returned.some((localId) => !requested.includes(localId))
+    ) {
+      throw new SavedShopContractError(
+        "saved shop import response must account for every candidate",
+      );
+    }
+
+    return { ok: true, value: decoded };
   } catch {
     return { ok: false, reason: "invalid-response" };
   }
