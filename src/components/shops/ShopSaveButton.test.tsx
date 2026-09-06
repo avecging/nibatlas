@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -5,8 +6,12 @@ import { ShopSaveButton } from "@/src/components/shops/ShopSaveButton";
 import {
   COLLECTION_STORAGE_KEYS,
   CollectionProvider,
+  useCollection,
 } from "@/src/features/collection/collection-store";
-import { SavedShopsProvider } from "@/src/features/saved/SavedShopsProvider";
+import {
+  SavedShopsProvider,
+  useSavedShops,
+} from "@/src/features/saved/SavedShopsProvider";
 import { findPrototypeShop } from "@/src/fixtures/prototype-catalogue";
 import { installAuthFetch, WithAccount } from "@/src/test/auth";
 import { clearReviewerMode, seedReviewerMode } from "@/src/test/reviewer";
@@ -37,18 +42,42 @@ const savedShop = {
   savedAt: "2026-09-06T04:30:00+00:00",
 };
 
-function renderSave() {
+function SavedStatusProbe() {
+  const savedShops = useSavedShops();
+
+  return (
+    <span data-testid="saved-status">
+      {savedShops.status}:{savedShops.shops.length}
+    </span>
+  );
+}
+
+function CollectionMutationProbe() {
+  const collection = useCollection();
+
+  return (
+    <button type="button" onClick={() => collection.collectStamp(prototypeShop)}>
+      Change local collection
+    </button>
+  );
+}
+
+function renderSave({ strict = false }: { readonly strict?: boolean } = {}) {
   seedReviewerMode(false);
 
-  render(
+  const content = (
     <WithAccount>
       <CollectionProvider>
         <SavedShopsProvider>
           <ShopSaveButton shop={shop} />
+          <SavedStatusProbe />
+          <CollectionMutationProbe />
         </SavedShopsProvider>
       </CollectionProvider>
-    </WithAccount>,
+    </WithAccount>
   );
+
+  render(strict ? <StrictMode>{content}</StrictMode> : content);
 
   return screen.getByRole("button", { name: "Save shop" });
 }
@@ -160,6 +189,64 @@ describe("the Save bookmark", () => {
     ).toHaveLength(2);
   });
 
+  it("keeps a pending import outcome when its effect re-runs", async () => {
+    let releaseImport!: () => void;
+    const waitForImport = new Promise<void>((resolve) => {
+      releaseImport = resolve;
+    });
+
+    window.localStorage.setItem(
+      COLLECTION_STORAGE_KEYS.normal,
+      JSON.stringify({
+        savedShopIds: [prototypeShop.id],
+        collections: [],
+        seals: [],
+      }),
+    );
+    const { requests } = installAuthFetch({
+      session: { kind: "signed-in" },
+      savedShops: { body: { savedShopIds: [], shops: [] } },
+      savedImport: {
+        waitFor: waitForImport,
+        body: {
+          ok: true,
+          reconciled: [{ localId: prototypeShop.id, shop: savedShop }],
+          skipped: [],
+          failed: [],
+        },
+      },
+    });
+
+    renderSave({ strict: true });
+
+    await waitFor(() => {
+      expect(
+        requests.filter((request) =>
+          request.url.endsWith("/api/v1/saved-shops/import"),
+        ),
+      ).toHaveLength(1);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Change local collection" }));
+    releaseImport();
+
+    await expect(
+      screen.findByRole("status", { name: "Saved shop import" }),
+    ).resolves.toHaveTextContent("1 device save is now kept with your account.");
+    expect(screen.getByRole("button", { name: "Remove saved shop" })).toBeVisible();
+    expect(screen.getByTestId("saved-status")).toHaveTextContent("ready:1");
+    await waitFor(() => {
+      const stored = JSON.parse(
+        window.localStorage.getItem(COLLECTION_STORAGE_KEYS.normal) ?? "{}",
+      ) as { savedShopIds?: string[] };
+
+      expect(stored.savedShopIds).toEqual([]);
+    });
+    expect(
+      requests.filter((request) =>
+        request.url.endsWith("/api/v1/saved-shops/import"),
+      ),
+    ).toHaveLength(1);
+  });
 
   it("imports safe device saves and retains only transient failures for retry", async () => {
     const failedId = "00000000-0000-4000-8000-000000000399";
@@ -191,7 +278,7 @@ describe("the Save bookmark", () => {
     });
 
     expect(notice).toHaveTextContent("1 device save is now kept with your account.");
-    expect(notice).toHaveTextContent("1 unmatched record was removed from this device.");
+    expect(notice).toHaveTextContent("1 invalid record was removed from this device.");
     expect(notice).toHaveTextContent("1 save remains on this device for retry.");
     expect(screen.getByRole("button", { name: "Remove saved shop" })).toBeVisible();
 
@@ -215,6 +302,48 @@ describe("the Save bookmark", () => {
     });
   });
 
+  it("keeps an unknown shop on-device without counting it as removed", async () => {
+    const unknownId = "legacy-unknown-shop";
+    window.localStorage.setItem(
+      COLLECTION_STORAGE_KEYS.normal,
+      JSON.stringify({
+        savedShopIds: [unknownId],
+        collections: [],
+        seals: [],
+      }),
+    );
+    installAuthFetch({
+      session: { kind: "signed-in" },
+      savedShops: { body: { savedShopIds: [], shops: [] } },
+      savedImport: {
+        body: {
+          ok: true,
+          reconciled: [],
+          skipped: [{ localId: unknownId, reason: "unknown-shop" }],
+          failed: [],
+        },
+      },
+    });
+
+    renderSave();
+
+    const notice = await screen.findByRole("status", {
+      name: "Saved shop import",
+    });
+
+    expect(notice).toHaveTextContent(
+      "1 unmatched record remains on this device for retry.",
+    );
+    expect(notice).not.toHaveTextContent("removed from this device");
+    expect(screen.getByRole("button", { name: "Retry" })).toBeVisible();
+    await waitFor(() => {
+      const stored = JSON.parse(
+        window.localStorage.getItem(COLLECTION_STORAGE_KEYS.normal) ?? "{}",
+      ) as { savedShopIds?: string[] };
+
+      expect(stored.savedShopIds).toEqual([unknownId]);
+    });
+  });
 
   it("continues with the next bounded import batch after a successful first batch", async () => {
     const localIds = Array.from(
@@ -269,7 +398,7 @@ describe("the Save bookmark", () => {
     });
     expect(
       screen.getByRole("status", { name: "Saved shop import" }),
-    ).toHaveTextContent("101 unmatched records were removed from this device.");
+    ).toHaveTextContent("101 invalid records were removed from this device.");
   });
 
   it("carries state in the glyph, pressed state and accessible name", async () => {
