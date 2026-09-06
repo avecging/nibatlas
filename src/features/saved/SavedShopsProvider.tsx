@@ -84,6 +84,7 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
   const [reloadToken, setReloadToken] = useState(0);
   const readToken = useRef(0);
   const completionAttempt = useRef<string | null>(null);
+  const completionRefreshAttempt = useRef<string | null>(null);
   const mutationTokens = useRef(new Map<string, number>());
 
   const signedInUserId =
@@ -133,6 +134,11 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
   useEffect(() => {
     if (!accountReady || signedInUserId === null) {
       completionAttempt.current = null;
+
+      if (signedInUserId === null) {
+        completionRefreshAttempt.current = null;
+      }
+
       return;
     }
 
@@ -152,12 +158,22 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
       if (!result.ok) {
         setFailure(result.reason);
 
-        if (result.reason === "authentication-required") {
+        if (
+          result.reason === "authentication-required" &&
+          completionRefreshAttempt.current !== attempt
+        ) {
+          // Give an expired provider session one automatic refresh/retry per
+          // attempt. A persistent 401 remains an honest error instead of
+          // becoming an unbounded refresh loop; manual Retry advances the key.
+          completionRefreshAttempt.current = attempt;
+          completionAttempt.current = null;
           account.refresh();
         }
 
         return;
       }
+
+      completionRefreshAttempt.current = null;
 
       if (!result.value?.shop) {
         return;
