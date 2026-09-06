@@ -218,19 +218,18 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
       if (signedInUserId === null) {
         importAttempt.current = null;
         importRefreshAttempt.current = null;
-        setImportReport(null);
       }
 
       return;
     }
 
-    const localIds = [...collection.savedShopIds].sort();
+    const localIds = [...collection.savedShopIds].sort().slice(0, 100);
 
     if (localIds.length === 0) {
       return;
     }
 
-    const attempt = `${signedInUserId}:${reloadToken}:${localIds.join(",")}`;
+    const attempt = `${signedInUserId}:${reloadToken}`;
 
     if (importAttempt.current === attempt) {
       return;
@@ -478,7 +477,7 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
   return (
     <SavedShopsContext.Provider value={value}>
       {children}
-      {importReport ? (
+      {signedInUserId !== null && importReport ? (
         <section className={styles.notice} role="status" aria-label="Saved shop import">
           <p>
             {importReport.reconciled > 0
