@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   completePendingSave,
   fetchSavedShops,
+  importLocalSavedShops,
   setSavedShop,
 } from "@/src/features/saved/saved-shops-client";
 
@@ -110,6 +111,46 @@ describe("saved-shop browser client", () => {
     await expect(completePendingSave()).resolves.toEqual({
       ok: true,
       value: null,
+    });
+  });
+
+
+  it("posts local candidates and accepts a complete partial import result", async () => {
+    const candidates = [
+      { localId: "prototype-shop", slug: "m2-singapore-demo-fixture" },
+      { localId: "old-record" },
+    ];
+    const response = {
+      ok: true,
+      reconciled: [{ localId: "prototype-shop", shop: SHOP }],
+      skipped: [{ localId: "old-record", reason: "invalid-id" }],
+      failed: [],
+    };
+    const request = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json(response),
+    );
+
+    await expect(importLocalSavedShops(candidates)).resolves.toEqual({
+      ok: true,
+      value: response,
+    });
+    expect(request).toHaveBeenCalledWith("/api/v1/saved-shops/import", {
+      credentials: "same-origin",
+      cache: "no-store",
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ candidates }),
+    });
+  });
+
+  it("rejects an import response that omits a requested local record", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({ ok: true, reconciled: [], skipped: [], failed: [] }),
+    );
+
+    await expect(importLocalSavedShops([{ localId: "keep-for-retry" }])).resolves.toEqual({
+      ok: false,
+      reason: "invalid-response",
     });
   });
 

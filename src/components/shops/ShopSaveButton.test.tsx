@@ -2,7 +2,10 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { ShopSaveButton } from "@/src/components/shops/ShopSaveButton";
-import { CollectionProvider } from "@/src/features/collection/collection-store";
+import {
+  COLLECTION_STORAGE_KEYS,
+  CollectionProvider,
+} from "@/src/features/collection/collection-store";
 import { SavedShopsProvider } from "@/src/features/saved/SavedShopsProvider";
 import { findPrototypeShop } from "@/src/fixtures/prototype-catalogue";
 import { installAuthFetch, WithAccount } from "@/src/test/auth";
@@ -155,6 +158,118 @@ describe("the Save bookmark", () => {
         request.url.includes("/api/v1/auth/session"),
       ),
     ).toHaveLength(2);
+  });
+
+
+  it("imports safe device saves and retains only transient failures for retry", async () => {
+    const failedId = "00000000-0000-4000-8000-000000000399";
+    window.localStorage.setItem(
+      COLLECTION_STORAGE_KEYS.normal,
+      JSON.stringify({
+        savedShopIds: [prototypeShop.id, "obsolete-record", failedId],
+        collections: [],
+        seals: [],
+      }),
+    );
+    const { requests } = installAuthFetch({
+      session: { kind: "signed-in" },
+      savedShops: { body: { savedShopIds: [], shops: [] } },
+      savedImport: {
+        body: {
+          ok: true,
+          reconciled: [{ localId: prototypeShop.id, shop: savedShop }],
+          skipped: [{ localId: "obsolete-record", reason: "invalid-id" }],
+          failed: [{ localId: failedId, reason: "unavailable" }],
+        },
+      },
+    });
+
+    renderSave();
+
+    const notice = await screen.findByRole("status", {
+      name: "Saved shop import",
+    });
+
+    expect(notice).toHaveTextContent("1 device save is now kept with your account.");
+    expect(notice).toHaveTextContent("1 unmatched record was removed from this device.");
+    expect(notice).toHaveTextContent("1 save remains on this device for retry.");
+    expect(screen.getByRole("button", { name: "Remove saved shop" })).toBeVisible();
+
+    await waitFor(() => {
+      const stored = JSON.parse(
+        window.localStorage.getItem(COLLECTION_STORAGE_KEYS.normal) ?? "{}",
+      ) as { savedShopIds?: string[] };
+
+      expect(stored.savedShopIds).toEqual([failedId]);
+    });
+
+    const importRequest = requests.find((request) =>
+      request.url.endsWith("/api/v1/saved-shops/import"),
+    );
+    expect(importRequest?.body).toEqual({
+      candidates: [
+        { localId: failedId },
+        { localId: "obsolete-record" },
+        { localId: prototypeShop.id, slug: prototypeShop.slug },
+      ],
+    });
+  });
+
+
+  it("continues with the next bounded import batch after a successful first batch", async () => {
+    const localIds = Array.from(
+      { length: 101 },
+      (_, index) => `legacy-${String(index).padStart(3, "0")}`,
+    );
+    window.localStorage.setItem(
+      COLLECTION_STORAGE_KEYS.normal,
+      JSON.stringify({ savedShopIds: localIds, collections: [], seals: [] }),
+    );
+    const { requests } = installAuthFetch({
+      session: { kind: "signed-in" },
+      savedShops: { body: { savedShopIds: [], shops: [] } },
+      savedImports: [
+        {
+          body: {
+            ok: true,
+            reconciled: [],
+            skipped: localIds.slice(0, 100).map((localId) => ({
+              localId,
+              reason: "invalid-id",
+            })),
+            failed: [],
+          },
+        },
+        {
+          body: {
+            ok: true,
+            reconciled: [],
+            skipped: [{ localId: localIds[100], reason: "invalid-id" }],
+            failed: [],
+          },
+        },
+      ],
+    });
+
+    renderSave();
+
+    await waitFor(() => {
+      expect(
+        requests.filter((request) =>
+          request.url.endsWith("/api/v1/saved-shops/import"),
+        ),
+      ).toHaveLength(2);
+    });
+    await waitFor(() => {
+      const stored = JSON.parse(
+        window.localStorage.getItem(COLLECTION_STORAGE_KEYS.normal) ?? "{}",
+      ) as { savedShopIds?: string[] };
+
+      expect(stored.savedShopIds).toEqual([]);
+    });
+    expect(
+      screen.getByRole("status", { name: "Saved shop import" }),
+    ).toHaveTextContent("101 unmatched records were removed from this device.");
   });
 
   it("carries state in the glyph, pressed state and accessible name", async () => {

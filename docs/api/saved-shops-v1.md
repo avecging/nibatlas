@@ -11,8 +11,12 @@ the cacheable public catalogue endpoints.
   reconciled saved representation.
 - `DELETE /api/v1/saved-shops/{shopId}` removes a published shop from the signed-in
   account and returns the reconciled unsaved state.
+- `POST /api/v1/saved-shops/import` reconciles up to 100 device-local identifiers
+  at a time after sign-in. A candidate is `{"localId":"..."}`; a known prototype
+  record may also carry its deterministic catalogue `slug` so the server can
+  resolve the current canonical UUID. Unknown identifiers are never guessed.
 
-`PUT` and `DELETE` require a same-origin `Origin` header. All success and error
+`PUT`, `DELETE`, and `POST` require a same-origin `Origin` header. All success and error
 responses use `Cache-Control: private, no-store` and `Pragma: no-cache`.
 
 ## Response shapes
@@ -46,11 +50,43 @@ Mutation responses contain `ok`, `shopId`, and `saved`. A successful save also
 contains the compact `shop` representation above. Repeating either mutation is
 successful and produces the same persisted state.
 
+The import request body is capped at 32 KiB and has this shape:
+
+```json
+{
+  "candidates": [
+    { "localId": "shop-tw-juspirit-banqiao", "slug": "juspirit-banqiao" },
+    { "localId": "00000000-0000-4000-8000-000000000301" }
+  ]
+}
+```
+
+Every accepted candidate appears exactly once in the response. `reconciled`
+contains the account-backed saved shop; `skipped` contains terminal
+`invalid-id` or `unknown-shop` results; and `failed` contains transient
+`unavailable` results. Clients may retire only reconciled and explicitly
+skipped local identifiers. Failed identifiers remain on-device for retry.
+
+```json
+{
+  "ok": true,
+  "reconciled": [{ "localId": "shop-tw-juspirit-banqiao", "shop": {} }],
+  "skipped": [],
+  "failed": [
+    {
+      "localId": "00000000-0000-4000-8000-000000000301",
+      "reason": "unavailable"
+    }
+  ]
+}
+```
+
 ## Errors
 
 | Status | Code | Meaning |
 | --- | --- | --- |
 | `400` | `invalid_shop_id` | The path identifier is not a UUID. |
+| `400` | `invalid_import_request` | The import body, candidate shape, count, uniqueness, or byte size is invalid. |
 | `401` | `authentication_required` | No valid owner session is available. |
 | `403` | `untrusted_origin` | A mutation did not originate from this application. |
 | `404` | `shop_not_found` | The identifier does not name a published shop. |

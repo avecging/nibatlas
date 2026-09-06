@@ -62,7 +62,8 @@ import { useReviewerModeStore } from "@/src/features/reviewer/ReviewerModeProvid
  *
  * `localStorage`, not `sessionStorage`: Me and Privacy now tell the reader their
  * saves stay on the device until they clear browser data, and that has to be
- * true. Milestone 5 replaces all of this with server-issued rows.
+ * true. Account-backed saves replace only the saved identifiers after a safe
+ * reconciliation; stamp collections and carried seals remain device-local.
  */
 export type CollectionScope = "normal" | "reviewer";
 
@@ -137,6 +138,8 @@ export interface CollectionStore {
   isSaved(shopId: string): boolean;
   isVisited(shopId: string): boolean;
   toggleSaved(shopId: string): boolean;
+  /** Removes only identifiers that an account import safely reconciled or skipped. */
+  retireSavedShopIds(shopIds: readonly string[]): void;
   collectionForShop(shopId: string): StampCollection | undefined;
   localitySeal(countryCode: CountryCode, localitySlug: string): EarnedSeal | undefined;
   countrySeal(countryCode: CountryCode): EarnedSeal | undefined;
@@ -429,6 +432,15 @@ export function CollectionProvider({ children }: { readonly children: ReactNode 
     return nextSaved;
   }, []);
 
+  const retireSavedShopIds = useCallback((shopIds: readonly string[]) => {
+    if (shopIds.length === 0) {
+      return;
+    }
+
+    const retired = new Set(shopIds);
+    setSavedShopIds((current) => current.filter((id) => !retired.has(id)));
+  }, []);
+
   const collectStamp = useCallback(
     (shop: ShopDetail, today: Date = new Date()) => {
       const existing = collections.find((collection) => collection.shopId === shop.id);
@@ -504,6 +516,7 @@ export function CollectionProvider({ children }: { readonly children: ReactNode 
       isSaved: (shopId: string) => savedSet.has(shopId),
       isVisited: (shopId: string) => visitedSet.has(shopId),
       toggleSaved,
+      retireSavedShopIds,
       collectionForShop: (shopId: string) =>
         collections.find((collection) => collection.shopId === shopId),
       localitySeal: (countryCode: CountryCode, localitySlug: string) =>
@@ -522,6 +535,7 @@ export function CollectionProvider({ children }: { readonly children: ReactNode 
     derived.seals,
     hydratedFor,
     resetPrototypeState,
+    retireSavedShopIds,
     savedSet,
     scope,
     toggleSaved,
