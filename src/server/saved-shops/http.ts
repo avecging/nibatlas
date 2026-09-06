@@ -90,10 +90,32 @@ async function readImportCandidates(
     throw new SavedShopContractError("saved shop import body is too large");
   }
 
-  const text = await request.text();
+  const reader = request.body?.getReader();
 
-  if (new TextEncoder().encode(text).byteLength > MAX_IMPORT_BODY_BYTES) {
-    throw new SavedShopContractError("saved shop import body is too large");
+  if (!reader) {
+    throw new SavedShopContractError("saved shop import body is required");
+  }
+
+  const decoder = new TextDecoder();
+  let bytesRead = 0;
+  let text = "";
+
+  while (true) {
+    const chunk = await reader.read();
+
+    if (chunk.done) {
+      text += decoder.decode();
+      break;
+    }
+
+    bytesRead += chunk.value.byteLength;
+
+    if (bytesRead > MAX_IMPORT_BODY_BYTES) {
+      await reader.cancel();
+      throw new SavedShopContractError("saved shop import body is too large");
+    }
+
+    text += decoder.decode(chunk.value, { stream: true });
   }
 
   return importCandidates(JSON.parse(text) as unknown);
