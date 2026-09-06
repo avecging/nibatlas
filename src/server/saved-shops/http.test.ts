@@ -289,6 +289,10 @@ describe("saved-shop HTTP contract", () => {
       400,
       "invalid_import_request",
     ]);
+    expect([bodyTooLarge.status, await errorCode(bodyTooLarge)]).toEqual([
+      400,
+      "invalid_import_request",
+    ]);
     expect([untrusted.status, await errorCode(untrusted)]).toEqual([
       403,
       "untrusted_origin",
