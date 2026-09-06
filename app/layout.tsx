@@ -8,6 +8,7 @@ import { SignInProvider } from "@/src/features/auth/SignInProvider";
 import { CatalogueProvider } from "@/src/features/catalogue/CatalogueProvider";
 import { CollectionProvider } from "@/src/features/collection/collection-store";
 import { ReviewerModeProvider } from "@/src/features/reviewer/ReviewerModeProvider";
+import { SavedShopsProvider } from "@/src/features/saved/SavedShopsProvider";
 
 import "./globals.css";
 
@@ -53,7 +54,14 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
             <SignInProvider>
               <CatalogueProvider>
                 <CollectionProvider>
-                  <AppShell>{children}</AppShell>
+                  {/*
+                    Account saves are deliberately layered over the untouched
+                    device-local collection. WP5B can import that local source
+                    once without WP5A erasing it during session hydration.
+                  */}
+                  <SavedShopsProvider>
+                    <AppShell>{children}</AppShell>
+                  </SavedShopsProvider>
                 </CollectionProvider>
               </CatalogueProvider>
             </SignInProvider>
