@@ -37,6 +37,10 @@ export async function createSavedShopGateway(): Promise<SavedShopGateway> {
       const { data, error } = await supabase.rpc("list_saved_shops");
       return { data, error: failure(error) };
     },
+    resolveSlug: async (slug) => {
+      const { data, error } = await supabase.rpc("shop_detail", { p_slug: slug });
+      return { data, error: failure(error) };
+    },
     save: async (shopId) => {
       const { data, error } = await supabase.rpc("save_shop", { p_shop_id: shopId });
       return { data, error: failure(error) };
