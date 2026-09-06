@@ -44,6 +44,7 @@ export interface AuthFetchFixture {
     readonly status?: number;
     readonly body?: unknown;
   }[];
+  readonly savedImport?: { readonly status?: number; readonly body: unknown };
   readonly savedMutation?: { readonly status?: number; readonly body: unknown };
 }
 
@@ -180,6 +181,17 @@ export function installAuthFetch(fixture: AuthFetchFixture = {}) {
       return outcome.status === 204
         ? new Response(null, { status: 204 })
         : jsonResponse(outcome.status ?? 200, outcome.body);
+    }
+
+    if (url.endsWith("/api/v1/saved-shops/import")) {
+      if (!fixture.savedImport) {
+        throw new Error(`Unexpected saved-shop import in a test: ${url}`);
+      }
+
+      return jsonResponse(
+        fixture.savedImport.status ?? 200,
+        fixture.savedImport.body,
+      );
     }
 
     if (url.includes("/api/v1/saved-shops/")) {
