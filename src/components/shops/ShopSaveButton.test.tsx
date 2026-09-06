@@ -8,7 +8,13 @@ import { findPrototypeShop } from "@/src/fixtures/prototype-catalogue";
 import { installAuthFetch, WithAccount } from "@/src/test/auth";
 import { clearReviewerMode, seedReviewerMode } from "@/src/test/reviewer";
 
-const shop = findPrototypeShop("juspirit-banqiao")!;
+const prototypeShop = findPrototypeShop("juspirit-banqiao")!;
+const shop = {
+  ...prototypeShop,
+  // Signed-in catalogue responses use canonical database UUIDs. Prototype-only
+  // identifiers exercise local mode and must not weaken the account API contract.
+  id: "7ab629ba-80da-4f88-a5cf-26bfeff20f7c",
+};
 const savedShop = {
   id: shop.id,
   slug: shop.slug,
