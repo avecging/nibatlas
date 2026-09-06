@@ -93,6 +93,7 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
     () => new Set<string>(),
   );
   const [reloadToken, setReloadToken] = useState(0);
+  const [importBatchToken, setImportBatchToken] = useState(0);
   const [importReport, setImportReport] = useState<ImportReport | null>(null);
   const [importFailure, setImportFailure] =
     useState<SavedShopClientFailure | null>(null);
@@ -328,11 +329,13 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
           (current?.userId === signedInUserId ? current.failed : 0) +
           result.value.failed.length,
       }));
+      setImportBatchToken((current) => current + 1);
     });
   }, [
     account,
     accountReady,
     collection,
+    importBatchToken,
     reloadToken,
     signedInUserId,
   ]);
