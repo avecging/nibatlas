@@ -10,6 +10,7 @@ import {
 import type { SavedShopGateway } from "@/src/server/saved-shops/http";
 import {
   completePendingSave,
+  importSavedShops,
   listSavedShops,
   saveShop,
   unsaveShop,
@@ -43,6 +44,7 @@ function gateway(overrides: Partial<SavedShopGateway> = {}): SavedShopGateway {
       data: { savedShopIds: [SHOP_ID], shops: [SAVED_SHOP] },
       error: null,
     })),
+    resolveSlug: vi.fn(async () => ({ data: null, error: null })),
     save: vi.fn(async () => ({ data: SAVED_SHOP, error: null })),
     unsave: vi.fn(async () => ({ data: true, error: null })),
     ...overrides,
@@ -77,6 +79,17 @@ function pendingCookies(intent: PendingAuthIntent) {
   finishAuthContinuation(store, now);
 
   return store;
+}
+
+function importMutation(candidates: unknown) {
+  return new Request("https://nibatlas.test/api/v1/saved-shops/import", {
+    method: "POST",
+    headers: {
+      Origin: "https://nibatlas.test",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ candidates }),
+  });
 }
 
 function pendingMutation() {
@@ -201,6 +214,77 @@ describe("saved-shop HTTP contract", () => {
     expect(await firstUnsave.json()).toEqual(await secondUnsave.json());
     expect(firstSave.status).toBe(200);
     expect(firstUnsave.status).toBe(200);
+  });
+
+
+  it("reconciles canonical ids and skips invalid or unmatched local records", async () => {
+    const store = gateway();
+    const response = await importSavedShops(
+      importMutation([
+        { localId: SHOP_ID.toUpperCase() },
+        { localId: "obsolete-record" },
+        { localId: "prototype-record", slug: "missing-prototype-shop" },
+      ]),
+      store,
+    );
+
+    expect(response.status).toBe(200);
+    expectPrivate(response);
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      reconciled: [{ localId: SHOP_ID.toUpperCase(), shop: SAVED_SHOP }],
+      skipped: [
+        { localId: "obsolete-record", reason: "invalid-id" },
+        { localId: "prototype-record", reason: "unknown-shop" },
+      ],
+      failed: [],
+    });
+    expect(store.save).toHaveBeenCalledWith(SHOP_ID);
+    expect(store.resolveSlug).toHaveBeenCalledWith("missing-prototype-shop");
+  });
+
+  it("keeps transient import failures separate for safe retry", async () => {
+    const response = await importSavedShops(
+      importMutation([{ localId: SHOP_ID }]),
+      gateway({
+        save: vi.fn(async () => ({ data: null, error: { status: 500 } })),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      reconciled: [],
+      skipped: [],
+      failed: [{ localId: SHOP_ID, reason: "unavailable" }],
+    });
+  });
+
+  it("rejects duplicate, oversized and cross-origin import requests", async () => {
+    const duplicate = await importSavedShops(
+      importMutation([{ localId: "same" }, { localId: "same" }]),
+      gateway(),
+    );
+    const oversized = await importSavedShops(
+      importMutation(Array.from({ length: 101 }, (_, index) => ({ localId: `old-${index}` }))),
+      gateway(),
+    );
+    const untrustedRequest = importMutation([]);
+    untrustedRequest.headers.set("Origin", "https://attacker.test");
+    const untrusted = await importSavedShops(untrustedRequest, gateway());
+
+    expect([duplicate.status, await errorCode(duplicate)]).toEqual([
+      400,
+      "invalid_import_request",
+    ]);
+    expect([oversized.status, await errorCode(oversized)]).toEqual([
+      400,
+      "invalid_import_request",
+    ]);
+    expect([untrusted.status, await errorCode(untrusted)]).toEqual([
+      403,
+      "untrusted_origin",
+    ]);
   });
 
   it("completes a promoted Save once and clears it only after success", async () => {
