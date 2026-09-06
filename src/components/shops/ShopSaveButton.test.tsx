@@ -215,6 +215,63 @@ describe("the Save bookmark", () => {
     });
   });
 
+
+  it("continues with the next bounded import batch after a successful first batch", async () => {
+    const localIds = Array.from(
+      { length: 101 },
+      (_, index) => `legacy-${String(index).padStart(3, "0")}`,
+    );
+    window.localStorage.setItem(
+      COLLECTION_STORAGE_KEYS.normal,
+      JSON.stringify({ savedShopIds: localIds, collections: [], seals: [] }),
+    );
+    const { requests } = installAuthFetch({
+      session: { kind: "signed-in" },
+      savedShops: { body: { savedShopIds: [], shops: [] } },
+      savedImports: [
+        {
+          body: {
+            ok: true,
+            reconciled: [],
+            skipped: localIds.slice(0, 100).map((localId) => ({
+              localId,
+              reason: "invalid-id",
+            })),
+            failed: [],
+          },
+        },
+        {
+          body: {
+            ok: true,
+            reconciled: [],
+            skipped: [{ localId: localIds[100], reason: "invalid-id" }],
+            failed: [],
+          },
+        },
+      ],
+    });
+
+    renderSave();
+
+    await waitFor(() => {
+      expect(
+        requests.filter((request) =>
+          request.url.endsWith("/api/v1/saved-shops/import"),
+        ),
+      ).toHaveLength(2);
+    });
+    await waitFor(() => {
+      const stored = JSON.parse(
+        window.localStorage.getItem(COLLECTION_STORAGE_KEYS.normal) ?? "{}",
+      ) as { savedShopIds?: string[] };
+
+      expect(stored.savedShopIds).toEqual([]);
+    });
+    expect(
+      screen.getByRole("status", { name: "Saved shop import" }),
+    ).toHaveTextContent("101 unmatched records were removed from this device.");
+  });
+
   it("carries state in the glyph, pressed state and accessible name", async () => {
     installAuthFetch({
       session: { kind: "signed-in" },
