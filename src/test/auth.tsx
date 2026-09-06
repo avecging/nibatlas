@@ -45,6 +45,10 @@ export interface AuthFetchFixture {
     readonly body?: unknown;
   }[];
   readonly savedImport?: { readonly status?: number; readonly body: unknown };
+  readonly savedImports?: readonly {
+    readonly status?: number;
+    readonly body: unknown;
+  }[];
   readonly savedMutation?: { readonly status?: number; readonly body: unknown };
 }
 
@@ -104,6 +108,7 @@ function sessionResponse(fixture: SessionFixture): Promise<Response> {
 export function installAuthFetch(fixture: AuthFetchFixture = {}) {
   const requests: RecordedRequest[] = [];
   let pendingSaveIndex = 0;
+  let savedImportIndex = 0;
   const session = fixture.session ?? { kind: "signed-out" };
 
   const mock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -184,14 +189,18 @@ export function installAuthFetch(fixture: AuthFetchFixture = {}) {
     }
 
     if (url.endsWith("/api/v1/saved-shops/import")) {
-      if (!fixture.savedImport) {
+      const sequenced = fixture.savedImports?.[
+        Math.min(savedImportIndex, Math.max(0, fixture.savedImports.length - 1))
+      ];
+      const outcome = sequenced ?? fixture.savedImport;
+
+      savedImportIndex += 1;
+
+      if (!outcome) {
         throw new Error(`Unexpected saved-shop import in a test: ${url}`);
       }
 
-      return jsonResponse(
-        fixture.savedImport.status ?? 200,
-        fixture.savedImport.body,
-      );
+      return jsonResponse(outcome.status ?? 200, outcome.body);
     }
 
     if (url.includes("/api/v1/saved-shops/")) {
