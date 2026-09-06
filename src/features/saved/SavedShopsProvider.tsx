@@ -98,8 +98,6 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
     readToken.current = token;
     const controller = new AbortController();
 
-    setFailure(null);
-
     void fetchSavedShops(controller.signal).then((result) => {
       if (readToken.current !== token || controller.signal.aborted) {
         return;
@@ -115,6 +113,7 @@ export function SavedShopsProvider({ children }: { readonly children: ReactNode 
         return;
       }
 
+      setFailure(null);
       setAccountSaves({
         userId: signedInUserId,
         ids: result.value.savedShopIds,
