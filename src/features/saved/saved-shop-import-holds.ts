@@ -120,6 +120,18 @@ export function releaseUnknownShopImportHolds(
   }
 }
 
+export function clearUnknownShopImportHolds(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Storage is best effort; clearing the collection remains authoritative.
+  }
+}
+
 export function backedOffUnknownShopIds(
   now = Date.now(),
 ): ReadonlySet<string> {
