@@ -18,6 +18,8 @@ import {
 
 const SHOP_ID = "00000000-0000-4000-8000-000000000301";
 const OTHER_SHOP_ID = "00000000-0000-4000-8000-000000000302";
+const THIRD_SHOP_ID = "00000000-0000-4000-8000-000000000303";
+const FOURTH_SHOP_ID = "00000000-0000-4000-8000-000000000304";
 const SAVED_SHOP = {
   id: SHOP_ID,
   slug: "m2-singapore-demo-fixture",
@@ -57,7 +59,6 @@ function mutation(method: "PUT" | "DELETE", origin = "https://nibatlas.test") {
     headers: { Origin: origin },
   });
 }
-
 
 function pendingCookies(intent: PendingAuthIntent) {
   const values = new Map<string, string>();
@@ -216,7 +217,6 @@ describe("saved-shop HTTP contract", () => {
     expect(firstUnsave.status).toBe(200);
   });
 
-
   it("reconciles canonical ids and skips invalid or unmatched local records", async () => {
     const store = gateway();
     const response = await importSavedShops(
@@ -258,6 +258,90 @@ describe("saved-shop HTTP contract", () => {
       skipped: [],
       failed: [{ localId: SHOP_ID, reason: "unavailable" }],
     });
+  });
+
+  it("processes candidates concurrently while preserving every classification", async () => {
+    let active = 0;
+    let maximumActive = 0;
+    const store = gateway({
+      save: vi.fn(async (shopId) => {
+        active += 1;
+        maximumActive = Math.max(maximumActive, active);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        active -= 1;
+
+        if (shopId === OTHER_SHOP_ID) {
+          return { data: null, error: null };
+        }
+        if (shopId === THIRD_SHOP_ID) {
+          throw new Error("network unavailable");
+        }
+        if (shopId === FOURTH_SHOP_ID) {
+          return { data: null, error: { status: 500 } };
+        }
+
+        return { data: { ...SAVED_SHOP, id: shopId }, error: null };
+      }),
+    });
+    const candidates = [
+      { localId: SHOP_ID },
+      { localId: "invalid-local-record" },
+      { localId: OTHER_SHOP_ID },
+      { localId: THIRD_SHOP_ID },
+      { localId: FOURTH_SHOP_ID },
+    ];
+    const response = await importSavedShops(importMutation(candidates), store);
+    const body = await response.json() as {
+      reconciled: { localId: string }[];
+      skipped: { localId: string; reason: string }[];
+      failed: { localId: string; reason: string }[];
+    };
+    const accounted = [
+      ...body.reconciled.map((entry) => entry.localId),
+      ...body.skipped.map((entry) => entry.localId),
+      ...body.failed.map((entry) => entry.localId),
+    ];
+
+    expect(response.status).toBe(200);
+    expect(maximumActive).toBeGreaterThan(1);
+    expect(maximumActive).toBeLessThanOrEqual(8);
+    expect(body).toMatchObject({
+      reconciled: [{ localId: SHOP_ID }],
+      skipped: [
+        { localId: "invalid-local-record", reason: "invalid-id" },
+        { localId: OTHER_SHOP_ID, reason: "unknown-shop" },
+      ],
+      failed: [
+        { localId: THIRD_SHOP_ID, reason: "unavailable" },
+        { localId: FOURTH_SHOP_ID, reason: "unavailable" },
+      ],
+    });
+    expect(accounted).toHaveLength(candidates.length);
+    expect(new Set(accounted)).toEqual(
+      new Set(candidates.map((candidate) => candidate.localId)),
+    );
+  });
+
+  it("aborts a concurrent import when any upstream call returns 401", async () => {
+    const response = await importSavedShops(
+      importMutation([
+        { localId: SHOP_ID },
+        { localId: OTHER_SHOP_ID },
+        { localId: THIRD_SHOP_ID },
+      ]),
+      gateway({
+        save: vi.fn(async (shopId) =>
+          shopId === OTHER_SHOP_ID
+            ? { data: null, error: { status: 401 } }
+            : { data: { ...SAVED_SHOP, id: shopId }, error: null },
+        ),
+      }),
+    );
+
+    expect([response.status, await errorCode(response)]).toEqual([
+      401,
+      "authentication_required",
+    ]);
   });
 
   it("rejects duplicate, oversized and cross-origin import requests", async () => {
