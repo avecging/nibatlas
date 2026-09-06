@@ -44,10 +44,15 @@ export interface AuthFetchFixture {
     readonly status?: number;
     readonly body?: unknown;
   }[];
-  readonly savedImport?: { readonly status?: number; readonly body: unknown };
+  readonly savedImport?: {
+    readonly status?: number;
+    readonly body: unknown;
+    readonly waitFor?: Promise<void>;
+  };
   readonly savedImports?: readonly {
     readonly status?: number;
     readonly body: unknown;
+    readonly waitFor?: Promise<void>;
   }[];
   readonly savedMutation?: { readonly status?: number; readonly body: unknown };
 }
@@ -172,6 +177,7 @@ export function installAuthFetch(fixture: AuthFetchFixture = {}) {
         body: { savedShopIds: [], shops: [] },
       };
 
+      await outcome.waitFor;
       return jsonResponse(outcome.status ?? 200, outcome.body);
     }
 
