@@ -31,9 +31,6 @@ const savedShop = {
   operationalStatus: shop.operationalStatus,
   markerState: "saved" as const,
   sourceQuality: shop.sourceQuality,
-  ...(shop.fixtureNotice === undefined
-    ? {}
-    : { fixtureNotice: shop.fixtureNotice }),
   savedAt: "2026-09-06T04:30:00+00:00",
 };
 
