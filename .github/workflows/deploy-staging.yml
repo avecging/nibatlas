@@ -2,9 +2,6 @@ name: Deploy staging
 
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [main]
-    types: [opened, reopened, synchronize]
   push:
     branches:
       - staging
@@ -18,9 +15,9 @@ concurrency:
 
 jobs:
   verify-and-deploy:
-    if: github.event_name != 'pull_request' || github.head_ref == 'agent/codex-m3-wp3-integration-hardening'
     name: Verify and deploy staging
     runs-on: ubuntu-latest
+    environment: staging
     timeout-minutes: 30
     env:
       CI: "true"
@@ -35,6 +32,8 @@ jobs:
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - uses: pnpm/action-setup@v4
         with:
           version: 11.19.0
