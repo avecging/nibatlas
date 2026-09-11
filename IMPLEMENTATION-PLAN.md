@@ -1,8 +1,8 @@
 # Nib Atlas MVP Implementation Plan
 
 **Status:** Ready for GitHub-based execution
-**Version:** 1.2
-**Last updated:** 4 September 2026
+**Version:** 1.3
+**Last updated:** 7 September 2026
 
 ## Working model
 
@@ -560,7 +560,7 @@ nibatlas/
 
 ### GitHub
 
-1. Keep `avecging/nibatlas` private.
+1. Publish `avecging/nibatlas` under `AGPL-3.0-only` after the public-release audit passes. Keep branding, curated catalogue data, commissioned artwork, private agreements, personal information, and outreach records outside the software licence as recorded in `NOTICE.md`.
 2. Confirm both ChatGPT/Codex and the machine running Claude Code have repository access. Do not share personal access tokens in chat.
 3. After the foundation PR/initial commit exists, set the default branch to `main`.
 4. Create a branch ruleset for `main`:
