@@ -84,12 +84,18 @@ describe("the sign-in interruption", () => {
       within(dialog).getByRole("button", { name: /email me a sign-in link/i }),
     ).toBeInTheDocument();
 
-    /*
-     * The property that makes this an interruption rather than a wall: a named
-     * way out, and a line saying what still works without an account.
-     */
+    const emailField = within(dialog).getByLabelText(/email address/i);
+    const googleButton = within(dialog).getByRole("button", {
+      name: /continue with google/i,
+    });
+
+    expect(
+      emailField.compareDocumentPosition(googleButton) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(dialog).not.toHaveTextContent(/signing in for the first time creates it/i);
+
+    // The named way out keeps this an interruption rather than a wall.
     expect(within(dialog).getByRole("button", { name: /not now/i })).toBeInTheDocument();
-    expect(dialog).toHaveTextContent(/work without an account/i);
     expect(dialog).not.toHaveTextContent(/you need an account/i);
   });
 

@@ -22,9 +22,9 @@ import styles from "./SignInPanel.module.css";
  *
  * `UX.md` — *Authentication and interruption* — makes this an interruption
  * rather than the beginning of the product, and that decides everything about
- * the panel. It is short: two ways in, one line on what an account is for, and
- * no tour. It never claims the reader needs an account to explore, because
- * they do not. It states what it is interrupting, so pressing the way in is a
+ * the panel. It is short: two familiar ways in and no tour. The separate
+ * privacy copy explains why an account exists; the sign-in panel only helps the
+ * reader act. It states what it is interrupting, so pressing the way in is a
  * continuation of what they were already doing rather than a new errand. And
  * the way out is a control, not a browser gesture.
  *
@@ -55,6 +55,35 @@ type Phase =
   | { readonly kind: "sent"; readonly email: string }
   /** The provider navigation has been asked for and the page is leaving. */
   | { readonly kind: "leaving" };
+
+/** Google's established four-colour G, kept distinct from Nib Atlas UI colour. */
+function GoogleMark() {
+  return (
+    <svg
+      aria-hidden="true"
+      className={styles.googleMark}
+      focusable="false"
+      viewBox="0 0 18 18"
+    >
+      <path
+        d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.797 2.716v2.259h2.909c1.702-1.567 2.684-3.875 2.684-6.615Z"
+        fill="#4285F4"
+      />
+      <path
+        d="M9 18c2.43 0 4.468-.806 5.956-2.18l-2.909-2.259c-.806.54-1.836.859-3.047.859-2.344 0-4.328-1.585-5.037-3.714H.956v2.332A8.997 8.997 0 0 0 9 18Z"
+        fill="#34A853"
+      />
+      <path
+        d="M3.963 10.706A5.41 5.41 0 0 1 3.682 9c0-.592.102-1.168.281-1.706V4.962H.956A8.997 8.997 0 0 0 0 9c0 1.45.347 2.823.956 4.038l3.007-2.332Z"
+        fill="#FBBC05"
+      />
+      <path
+        d="M9 3.58c1.321 0 2.507.454 3.441 1.345l2.581-2.581C13.464.892 11.426 0 9 0A8.997 8.997 0 0 0 .956 4.962l3.007 2.332C4.672 5.165 6.656 3.58 9 3.58Z"
+        fill="#EA4335"
+      />
+    </svg>
+  );
+}
 
 export function SignInPanel({
   titleId,
@@ -223,17 +252,8 @@ export function SignInPanel({
         Sign in to Nib Atlas
       </Heading>
 
-      {/*
-        The interruption says what it interrupted, then what an account is for.
-        Neither line is an argument for having one: exploring, saving and
-        collecting all work on this device without an account, and a panel that
-        implied otherwise would be the onboarding wall this is not.
-      */}
+      {/* The interrupted action is useful context; account rationale lives in privacy. */}
       {context ? <p className={styles.context}>{context}</p> : null}
-      <p className={styles.lede}>
-        An account keeps your saved shops and collected impressions with you on
-        every device you use. Signing in for the first time creates it.
-      </p>
 
       {/*
         The error is named, like the row results in Me and for the same reason:
@@ -252,22 +272,6 @@ export function SignInPanel({
           <span>{error}</span>
         </p>
       ) : null}
-
-      <Button disabled={busy} fullWidth onClick={onGoogle} variant="secondary">
-        {phase.kind === "leaving" ? "Opening Google…" : "Continue with Google"}
-      </Button>
-
-      {/*
-        A separator with a word in it, and the word is not a heading: it labels
-        the choice between two routes to the same place. `aria-hidden` on the
-        rules keeps the decoration out of the accessibility tree while the text
-        itself is read.
-      */}
-      <p className={styles.divider}>
-        <span aria-hidden="true" className={styles.rule} />
-        or
-        <span aria-hidden="true" className={styles.rule} />
-      </p>
 
       <form className={styles.form} noValidate onSubmit={onSubmit}>
         <label className={styles.label} htmlFor={emailId}>
@@ -306,6 +310,27 @@ export function SignInPanel({
         </Link>
         .
       </p>
+
+      {/*
+        Email is the primary path. The separator introduces the alternative,
+        and its decorative rules stay out of the accessibility tree.
+      */}
+      <p className={styles.divider}>
+        <span aria-hidden="true" className={styles.rule} />
+        or
+        <span aria-hidden="true" className={styles.rule} />
+      </p>
+
+      <Button
+        className={styles.googleButton}
+        disabled={busy}
+        fullWidth
+        onClick={onGoogle}
+        variant="quiet"
+      >
+        <GoogleMark />
+        {phase.kind === "leaving" ? "Opening Google…" : "Continue with Google"}
+      </Button>
 
       {footer}
     </div>
