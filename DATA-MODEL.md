@@ -1,8 +1,8 @@
 # Nib Atlas Data Model
 
 **Status:** Production-shaped MVP model
-**Version:** 1.2
-**Last updated:** 4 September 2026
+**Version:** 1.3
+**Last updated:** 12 September 2026
 
 ## Modelling principles
 
@@ -186,21 +186,41 @@ Composite primary key `(user_id, shop_id)`. RLS permits users to read/insert/del
 | Column | Type / notes |
 | --- | --- |
 | `id` | `uuid PK` |
-| `shop_id` | `uuid null FK` |
-| `campaign_id` | `uuid null`, relationship reserved but table deferred |
+| `shop_id` | `uuid FK`, required for the MVP Atlas Stamp |
 | `name` | `text` |
 | `stamp_type` | `atlas`; future `official`, `campaign` |
-| `artwork_key` | Provider-neutral object key or template descriptor |
-| `template_data` | `jsonb` for approved local motif/labels |
-| `design_version` | `integer` |
+| `current_design_version` | `integer null`; an active stamp must point to an approved version belonging to the same stamp |
 | `availability_start` / `availability_end` | `timestamptz null` |
 | `status` | `draft`, `active`, `retired` |
 | timestamps | |
 
+Campaign and merchant-issued stamp relationships remain conceptually reserved
+but are not migrated into this MVP table before those features exist.
+
 MVP invariant: exactly one active Atlas Stamp per published shop, enforced with a partial unique index. Retiring/redesigning a stamp must not alter collected historical snapshots.
 
-Before human-commissioned artwork is published, each immutable design version
-must preserve:
+### `stamp_artwork_versions`
+
+Artwork and its approval belong to an immutable child version rather than to the
+mutable stamp record.
+
+| Column | Type / notes |
+| --- | --- |
+| `id` | `uuid PK` |
+| `stamp_id`, `design_version` | Composite unique version identity; both are referenced by collections |
+| `artwork_kind` | `generated_template` or `commissioned` |
+| `approval_status` | `draft` or `approved`; approved rows cannot be updated or deleted |
+| `template_data` | Required object for generated artwork; absent for commissioned artwork |
+| editable source / clean SVG / outlined SVG / transparent PNG keys | Provider-neutral object keys, required before commissioned approval |
+| matching SHA-256 columns | Lowercase checksums bound to the approved exports |
+| `canvas_width`, `canvas_height` | Fixed `1200 × 800` master canvas |
+| `ink`, `palette_version` | One of the shared eight inks and the palette version |
+| illustrator credit / optional URL / maker-mark confirmation | Required before commissioned approval |
+| rights basis / approval timestamp / evidence reference | Required before commissioned approval; the evidence reference remains admin-only |
+| `created_at` | Audit timestamp |
+
+Before human-commissioned artwork is approved, each immutable design version
+therefore preserves:
 
 - the editable source, clean SVG, outlined SVG and transparent PNG object keys;
 - dimensions, checksums, selected ink and palette version for the approved files;
@@ -210,10 +230,9 @@ must preserve:
 - the illustrator's written approval timestamp plus an admin-only reference to
   the approval evidence.
 
-The exact migration shape should be settled with Milestone 6 rather than adding
-nullable columns ad hoc. A versioned child record such as
-`stamp_artwork_versions` is preferable because credit, files and approval belong
-to a particular design version and must remain historically stable.
+Generated-template fixtures use the same version identity and approval boundary,
+but store their complete renderer descriptor in `template_data` instead of
+pretending that commissioned files, rights or illustrator approval exist.
 
 ### `stamp_collections`
 
@@ -225,6 +244,7 @@ Immutable source of truth for visited state and Passport.
 | `user_id` | `uuid FK` |
 | `stamp_id` | `uuid FK` |
 | `shop_id` | `uuid FK` |
+| `stamp_design_version` | Composite FK to the exact approved artwork version issued |
 | `collected_at` | server `timestamptz` |
 | `shop_timezone` | IANA timezone snapshot |
 | `verification_method` | `geofence`; future `qr`, `nfc`, `admin` |
@@ -236,7 +256,13 @@ Immutable source of truth for visited state and Passport.
 | `place_snapshot` | `jsonb` containing country/locality display values |
 | `stamp_snapshot` | `jsonb` containing design identity/version and the credited illustrator display data for that version |
 
-Unique `(user_id, stamp_id)`. Client cannot insert directly; a server-controlled transaction/function verifies and issues atomically. Raw latitude/longitude is never written.
+Unique `(user_id, stamp_id)`. The stamp/shop pair and stamp/design-version pair
+are protected by composite foreign keys. `stamp_snapshot` must match the active,
+approved artwork kind, ink, palette version and generated template descriptor or
+commissioned illustrator credit. Authenticated clients have owner-scoped read
+access only; they cannot insert, update or delete. A later server-controlled
+transaction/function verifies and issues atomically. Raw latitude/longitude is
+never written.
 
 ### `verification_attempts`
 
