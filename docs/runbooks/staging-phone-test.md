@@ -1,7 +1,7 @@
 # Real-phone staging collection test
 
-Status: fixture and automated checks; physical phone results **pending**. Photos
-are a later M6 acceptance test. This is a real supermarket used as a staging test
+Status: initial founder phone feedback received; remaining checklist items are
+**pending**. Photos are a later M6 acceptance test. This is a real supermarket used as a staging test
 venue, not a pen shop, partner, endorsement, or real catalogue coverage.
 
 ## Public venue evidence (checked 12 September 2026)
@@ -95,7 +95,21 @@ request bodies, network traces, raw coordinates or GPS metadata in reports.
 
 | Device/browser | Entrance / interior / distant | Permission state | Outcome | Latency | User-visible message |
 | --- | --- | --- | --- | --- | --- |
-| Pending | Pending | Pending | Not tested | — | — |
+| Phone; model/browser version not supplied | Away from venue; entrance/interior not specified | Not reported | Collection refused | Not measured | “We could not confirm that you are at this shop. Check that you have the right shop, then try again at its entrance.” |
+| Same phone | Near venue; entrance/interior not specified | Not reported | Stamp received; founder considered the range sensible | Not measured | Not reported |
+
+Founder also reported that the admin checks worked as expected. No private role
+history is included here. The phone feedback identified misplaced map markers at
+lower zoom and an overcomplicated refusal dialog. The focused fix preserves the
+sourced venue point and existing verification policy, corrects marker positioning,
+and gives an outside-area refusal only **Try again** and **Cancel**.
+
+These observations do not establish an entrance-versus-interior pass. Permission
+recovery, interruption/backgrounding, duplicate/reload persistence and sign-out
+isolation still need explicit field results. The existing impression is immutable;
+use the account/order instructions above for any further GPS checks. Recheck the
+map after deployment at the opening zoom, then zoom in and out. Groups of shops
+may legitimately appear as numbered clusters until they separate.
 
 ## Photo acceptance — deferred until M6 R2 delivery
 

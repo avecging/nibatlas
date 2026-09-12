@@ -51,7 +51,8 @@
 }
 
 .marker {
-  position: relative;
+  /* MapLibre's projected transform requires an origin outside document flow. */
+  position: absolute;
   display: grid;
   place-items: center;
   width: 44px;
@@ -121,7 +122,8 @@
 }
 
 .cluster {
-  position: relative;
+  /* Clusters use the same geographic positioning as individual markers. */
+  position: absolute;
   display: grid;
   place-items: center;
   width: 44px;

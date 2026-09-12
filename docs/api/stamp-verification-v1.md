@@ -26,8 +26,15 @@ or token in a URL, analytics event, exception, console log, storage or trace.
 6. Run the ceremony only on `success`. `duplicate` opens the existing impression.
 
 The nonce/request pair is opaque and kept in component memory only. One immediate
-poor-accuracy retry creates a new pair and takes a new fix. Persistent failure
+poor-accuracy retry creates a new pair and takes a new fix. Persistent poor accuracy
 links to Help/support; never silently increase the radius or offer self-attestation.
+
+Founder-approved phone-test UX decision, 12 September 2026: an outside-area
+refusal offers only **Try again** and **Cancel**, removing Help and Check Passport
+from that state. This replaces the previous outside-area support requirement.
+Retry still creates a new nonce and fix and requires explicit confirmation after
+eligibility. Other failures retain support and uncertain-issuance Passport recovery;
+the verification policy and distance-neutral responses are unchanged.
 
 ## Response contract
 
@@ -45,7 +52,7 @@ configured radii, anomaly flags, provider errors or throttle thresholds are retu
 | `untrusted_origin` | 403 | Refuse the request |
 | `poor_accuracy` | 422 | One immediate new-fix retry, then support |
 | `stale_position` | 422 | Restart with a new nonce and fix |
-| `outside_radius` | 422 | Distance-neutral recovery and support |
+| `outside_radius` | 422 | Distance-neutral message; only Try again (new nonce/fix) and Cancel |
 | `invalid_nonce` | 409 | Restart; includes wrong user/shop/request |
 | `expired_nonce` | 409 | Restart; server deadline elapsed |
 | `reused_nonce` | 409 | Reconcile collection, then restart if necessary |

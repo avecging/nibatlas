@@ -162,6 +162,43 @@ test("marker and card selection stay synchronized", async ({ page }) => {
   await expect(marker).toHaveAttribute("aria-pressed", "true");
 });
 
+test("clusters and individual markers stay at their projected positions across zoom", async ({ page }) => {
+  await openMap(page);
+  const clusters = page.locator("[data-cluster-count]");
+  await expect(clusters.first()).toBeVisible();
+
+  async function expectProjectedPositions() {
+    // MapLibre supplies the screen projection in each marker's transform. The
+    // rendered box must start there, without an extra offset from document flow.
+    // Checking every marker catches offsets that accumulate after the first.
+    const offsets = await page.locator(".maplibregl-marker").evaluateAll(nodes => nodes.map(node => {
+      const box = node.getBoundingClientRect();
+      const origin = node.parentElement!.getBoundingClientRect();
+      const transform = new DOMMatrixReadOnly(getComputedStyle(node).transform);
+      return {x: box.left - origin.left - transform.e, y: box.top - origin.top - transform.f};
+    }));
+    expect(offsets.length).toBeGreaterThan(0);
+    for (const offset of offsets) {
+      expect(Math.abs(offset.x)).toBeLessThan(1);
+      expect(Math.abs(offset.y)).toBeLessThan(1);
+    }
+  }
+
+  await expectProjectedPositions();
+  // Bugis contains two distinct shop points at every supported breakpoint;
+  // Tokyo's fitted viewport can legitimately contain just one shop on tablet.
+  await searchDestination(page, "Bugis", /^Bugis/);
+  const markers = page.locator("[data-shop-id][data-marker-state]");
+  await expect(markers.first()).toBeVisible();
+  expect(await markers.count()).toBeGreaterThan(1);
+  await expectProjectedPositions();
+
+  const beforeZoom = await markers.first().getAttribute("style");
+  await page.getByRole("button", {name: "Zoom in", exact: true}).click();
+  await expect(markers.first()).not.toHaveAttribute("style", beforeZoom!);
+  await expectProjectedPositions();
+});
+
 test("panning offers Search this area instead of refetching", async ({ page }) => {
   await openMap(page);
   await searchDestination(page, "Ginza", /^Ginza/);

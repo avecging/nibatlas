@@ -630,7 +630,9 @@ Default recommendations are documented above. Escalate only if a proposed change
   this authorized contract integration with the existing presentation; Claude
   retains ownership of subsequent visual refinements. No Passport redesign.
 - Staging phone fixture and field-test procedure: `docs/runbooks/staging-phone-test.md`.
-  Physical results remain pending; photos await M6 R2 delivery.
+  Initial founder field feedback confirms refusal away from the venue and a
+  successful collection, plus successful admin checks. The runbook records the
+  limited observations and remaining field checklist; photos await M6 R2 delivery.
 - Deferred: broader live-phone/mall field validation;
   geographic seal persistence/coverage sets; founder policy/anomaly UI and general
   audit history (M6); production auth domain, observability alerts and account
