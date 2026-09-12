@@ -8,7 +8,9 @@ export const SHOP_TYPES = [
   "nib_repair_services",
 ] as const;
 
-export type ShopType = (typeof SHOP_TYPES)[number];
+// Test venues are renderable records, never a public pen-shop filter.
+export const SHOP_RECORD_TYPES = [...SHOP_TYPES, "test_venue"] as const;
+export type ShopType = (typeof SHOP_RECORD_TYPES)[number];
 export type OperationalStatus =
   | "open"
   | "temporarily_closed"

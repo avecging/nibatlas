@@ -258,6 +258,7 @@ export type StampMotif =
   | "workbench";
 
 export const SHOP_TYPE_LABELS: Record<ShopType, string> = {
+  test_venue: "Staging test venue",
   fountain_pen_specialist: "Fountain Pen Specialist",
   stationery_store: "Stationery Store",
   vintage_used: "Vintage / Used",

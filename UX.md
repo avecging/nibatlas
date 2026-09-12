@@ -415,3 +415,7 @@ WP3 now provides that connection in API mode. **Check my location** is the
 explicit foreground permission action; **I am at this shop** appears only after
 verification. Private history has loading/error/sign-in states, and failures
 link to collection help. See [collection reads and recovery](docs/api/collections-v1.md).
+
+The staging phone venue uses the existing page and ceremony, labelled **Location
+test** and **Staging test venue**. Pre-issuance field checks cancel at confirmation;
+duplicate impressions are not treated as fresh GPS checks. Photos await M6 R2.
