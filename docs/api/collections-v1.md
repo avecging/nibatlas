@@ -34,6 +34,10 @@ Failures use WP2's `{ok:false,error:{code}}`: `invalid_request` (400),
 - The GPS adapter requests one fresh foreground sample (`maximumAge: 0`, high
   accuracy, 20-second timeout). Hidden pages, page exit, cancellation, account
   changes and shop changes discard in-flight state. No watch or stored fix.
+- Outside-area refusal offers only **Try again** and **Cancel**. Retry obtains a
+  new nonce and fresh foreground fix; eligible verification still requires
+  explicit confirmation. Other failures retain help and **Check Passport**,
+  especially when an interrupted issuance may already have committed.
 - Only confirmed `success` runs the existing 780ms ceremony. A duplicate opens
   the historical impression without another press. Reduced motion is retained.
 - Issuance upserts by collection ID into the one shared provider; visited markers,

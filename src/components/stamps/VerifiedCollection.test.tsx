@@ -65,11 +65,32 @@ describe('verified collection journey',()=>{
   });
   it('permits one immediate poor-accuracy retry with a new nonce',async()=>{
     verifyFailure='poor_accuracy';await open();fireEvent.click(screen.getByRole('button',{name:'Check my location'}));
-    fireEvent.click(await screen.findByRole('button',{name:'Try a fresh location'}));
+    fireEvent.click(await screen.findByRole('button',{name:'Try again'}));
     await screen.findByText(/A second reading was still unclear/);
-    expect(screen.queryByRole('button',{name:'Try a fresh location'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button',{name:'Try again'})).not.toBeInTheDocument();
     expect(nonceCount).toBe(2);expect(calls.filter(c=>c.action==='collect')).toHaveLength(0);
     expect(calls[1]?.body['nonce']).not.toBe(calls[3]?.body['nonce']);
+  });
+  it('offers only retry and cancel outside the area, with fresh verification before confirmation',async()=>{
+    verifyFailure='outside_radius';await open();fireEvent.click(screen.getByRole('button',{name:'Check my location'}));
+    await screen.findByRole('alert');
+    const dialog=within(screen.getByRole('dialog'));
+    expect(dialog.getAllByRole('button').map(button=>button.textContent)).toEqual(['Try again','Cancel']);
+    expect(dialog.queryAllByRole('link')).toHaveLength(0);
+    verifyFailure=null;
+    fireEvent.click(dialog.getByRole('button',{name:'Try again'}));
+    await screen.findByRole('button',{name:'I am at this shop'});
+    expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(2);
+    expect(calls.map(c=>c.action)).toEqual(['nonce','verify','nonce','verify']);
+    expect(calls[1]?.body['nonce']).not.toBe(calls[3]?.body['nonce']);
+    fireEvent.click(screen.getByRole('button',{name:'Cancel'}));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(calls.some(c=>c.action==='collect')).toBe(false);
+  });
+  it.each(['service_unavailable','reused_nonce'] as const)('keeps Passport recovery for %s',async(code)=>{
+    verifyFailure=code;await open();fireEvent.click(screen.getByRole('button',{name:'Check my location'}));
+    expect(await screen.findByRole('link',{name:'Check Passport'})).toHaveAttribute('href','/passport');
+    expect(screen.getByRole('link',{name:'Get help with collection'})).toBeInTheDocument();
   });
   it.each(['permission_denied','outside_radius','stale_position','expired_nonce','reused_nonce','throttled','shop_unavailable','service_unavailable','invalid_request'] as const)('shows %s without issuing',async(code)=>{
     verifyFailure=code;await open();fireEvent.click(screen.getByRole('button',{name:'Check my location'}));

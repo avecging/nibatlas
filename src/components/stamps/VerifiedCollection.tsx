@@ -138,7 +138,7 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
         {stage === 'preflight' ? <p>Use your location once to check that you are at this shop. Your precise position is checked and discarded, never stored. <Link href="/privacy" className={styles.dialogLink}>How location is used</Link>.</p> : null}
         {stage === 'checking' || stage === 'issuing' ? <p role="status">{stage === 'checking' ? 'Checking your location… Keep this page visible.':'Keeping your impression…'}</p> : null}
         {stage === 'confirm' ? <p>Your location check passed. Confirm that you are at {shop.name} to collect its stamp.</p> : null}
-        {stage === 'error' ? <><p role="alert">{MESSAGES[failure]}</p>{failure === 'poor_accuracy' && poorRetries >= 1 ? <p>A second reading was still unclear. Please contact support for help.</p>:null}<p><Link className={styles.dialogLink} href="/help#collection-help">Get help with collection</Link></p></>:null}
+        {stage === 'error' ? <><p role="alert">{MESSAGES[failure]}</p>{failure === 'poor_accuracy' && poorRetries >= 1 ? <p>A second reading was still unclear. Please contact support for help.</p>:null}{failure !== 'outside_radius' ? <p><Link className={styles.dialogLink} href="/help#collection-help">Get help with collection</Link></p>:null}</>:null}
       </div>
       <div className={styles.dialogActions}>
         {stage === 'preflight' ? <Button fullWidth onClick={() => void checkLocation()}>Check my location</Button>:null}
@@ -146,9 +146,9 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
         {stage === 'error' && retryable ? <Button fullWidth onClick={() => {
           if (failure === 'poor_accuracy') setPoorRetries(value => value+1);
           void checkLocation();
-        }}>Try a fresh location</Button>:null}
+        }}>Try again</Button>:null}
         {stage === 'error' && failure === 'authentication_required' ? <Button fullWidth onClick={() => {close();signIn();}}>Sign in again</Button>:null}
-        {stage === 'error' ? <ButtonLink href="/passport" fullWidth>Check Passport</ButtonLink>:null}
+        {stage === 'error' && failure !== 'outside_radius' ? <ButtonLink href="/passport" fullWidth>Check Passport</ButtonLink>:null}
         <Button variant="quiet" fullWidth onClick={close}>Cancel</Button>
       </div>
     </div></div>:null}

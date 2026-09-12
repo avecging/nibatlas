@@ -41,6 +41,31 @@ async function fixture(page:Page) {
 }
 
 for(const width of [360,1440]) {
+  test(`outside-area dialog offers only retry and cancel at ${width}px`,async({page},testInfo)=>{
+    await page.setViewportSize({width,height:width===360?800:900});
+    const actions=await fixture(page);
+    let checks=0;
+    await page.route('**/api/v1/stamps/verify',route=>{
+      checks++;
+      return route.fulfill({json:{ok:false,error:{code:'outside_radius'}}});
+    });
+    await page.goto('/shops/m3-api-demo-shop');
+    await page.getByRole('button',{name:'Collect Stamp',exact:true}).click();
+    const dialog=page.getByRole('dialog',{name:'Before you collect'});
+    await dialog.getByRole('button',{name:'Check my location'}).click();
+    await expect(dialog.getByRole('alert')).toBeVisible();
+    await expect(dialog.getByRole('button')).toHaveText(['Try again','Cancel']);
+    await expect(dialog.getByRole('link')).toHaveCount(0);
+    expect((await new AxeBuilder({page}).include('[aria-labelledby="verified-collect-title"]').analyze()).violations).toEqual([]);
+    await evidence(page,testInfo,`outside-area-${width}`);
+    await dialog.getByRole('button',{name:'Try again',exact:true}).click();
+    await expect(dialog.getByRole('alert')).toBeVisible();
+    expect(checks).toBe(2);expect(actions).toEqual(['nonce','nonce']);
+    await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByRole('button',{name:'Collect Stamp',exact:true})).toBeVisible();
+  });
+
   test(`verified collection, Passport and visited map reconcile at ${width}px`,async({page},testInfo)=>{
     await page.setViewportSize({width,height:width===360?800:900});
     if(width===360) await page.emulateMedia({reducedMotion:'reduce'});

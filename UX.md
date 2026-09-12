@@ -105,7 +105,8 @@ Failure paths:
 
 - Permission denied: explain how to enable it; no stamp issued.
 - Accuracy too poor: offer one immediate retry and practical movement advice.
-- Outside geofence: show distance-neutral wording; do not expose anti-abuse thresholds.
+- Outside geofence: show distance-neutral wording with only **Try again** and
+  **Cancel**. Retry starts a fresh check; do not expose anti-abuse thresholds.
 - Duplicate: show the existing collected date and Passport link.
 - Persistent legitimate GPS failure: direct to logged support/manual review; do not silently widen the radius.
 
@@ -413,8 +414,10 @@ only after verification. Never replay cached Near Me coordinates. WP3 connects
 this contract to the existing ceremony and shared map/shop/Passport user state.
 WP3 now provides that connection in API mode. **Check my location** is the
 explicit foreground permission action; **I am at this shop** appears only after
-verification. Private history has loading/error/sign-in states, and failures
-link to collection help. See [collection reads and recovery](docs/api/collections-v1.md).
+verification. Private history has loading/error/sign-in states. Outside-area
+failures offer only **Try again** and **Cancel**; other failures retain collection
+help and Passport recovery, including uncertain issuance. See
+[collection reads and recovery](docs/api/collections-v1.md).
 
 The staging phone venue uses the existing page and ceremony, labelled **Location
 test** and **Staging test venue**. Pre-issuance field checks cancel at confirmation;
