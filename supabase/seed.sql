@@ -1,5 +1,8 @@
--- Deterministic local/test/staging fixtures only. These invented records are explicitly
--- source_quality='demo' and must never enter the production import path. Inserts are idempotent so CI can safely\n-- re-run the staging seed.
+-- Deterministic local/test/staging fixtures only. These invented records are
+-- explicitly source_quality='demo' and must never enter the production import
+-- path. Inserts are idempotent so CI can safely re-run the staging seed.
+
+begin;
 
 insert into public.localities (
   id, country_code, name, name_local, name_local_language_tag,
@@ -143,3 +146,5 @@ where id in (
   '00000000-0000-4000-8000-000000000601',
   '00000000-0000-4000-8000-000000000602'
 );
+
+commit;
