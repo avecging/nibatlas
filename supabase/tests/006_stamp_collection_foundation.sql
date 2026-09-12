@@ -1,5 +1,5 @@
 begin;
-select plan(36);
+select plan(37);
 
 select has_table('public', 'stamps', 'stamps table exists');
 select has_table('public', 'stamp_artwork_versions', 'artwork versions table exists');
@@ -135,10 +135,24 @@ where id in (
   '00000000-0000-4000-8000-000000000612'
 );
 
+-- Force the deferred cross-table invariant now that the test replacement is
+-- complete, then keep it immediate so each negative statement can be caught.
+set constraints all immediate;
+
 select is(
   (select count(*)::integer from public.stamps where status = 'active'),
   2,
   'stamps activate against approved artwork versions'
+);
+
+select throws_ok($retire_only_active_stamp$
+  update public.stamps
+  set status = 'retired'
+  where id = '00000000-0000-4000-8000-000000000611'
+$retire_only_active_stamp$,
+  '23514',
+  'Published shop requires exactly one active Atlas Stamp',
+  'a published shop cannot lose its only active Atlas Stamp'
 );
 
 insert into public.stamps (id, shop_id, name) values (
