@@ -62,7 +62,7 @@ export default function PrivacyPage() {
         Account-backed saving and verified stamp collection require sign-in. These saved
         shops and stamps are kept privately in Supabase with your account and
         appear when you sign in on another device. Existing device saves may be
-        imported after sign-in; simulated impressions are never imported as visits.
+        imported after sign-in; preview impressions are never imported as visits.
         In a standalone demonstration without sign-in configured, saves and preview
         impressions instead stay in this browser and do not require an account.</p>
       <p>Verification keeps limited diagnostics for up to 30 days, with automatic
@@ -132,13 +132,15 @@ export default function PrivacyPage() {
         follow you around the web.
       </p>
 
-      <h2 className="type-h2">Demonstration mode</h2>
-      <p>Fixture and reviewer demonstrations may show simulated impressions held
-        on the device. These do not verify your location and are kept separate
-        from your account Passport. Standalone demo saves also stay on this device
-        when sign-in is unavailable. In those builds, <strong>Download local data</strong>
-        {' '}and <strong>Clear data on this device</strong> act on the browser&rsquo;s
-        local saves and impressions; clearing them does not delete account data.</p>
+      <h2 className="type-h2">Device-only previews</h2>
+      <p>Standalone previews may show impressions held on the device. These do
+        not verify your location and are kept separate from your account Passport.
+        Standalone saves also stay on this device when sign-in is unavailable.
+        In those builds, <strong>Download local data</strong>{" "}
+        exports local saved shops and impressions. <strong>Clear data on this device</strong>{" "}
+        removes those same two things from this browser; clearing them does not
+        delete account data. These controls are under{" "}
+        <Link href="/me#me-device">Me › On this device</Link>.</p>
 
       <p className="type-body-sm">
         More about the catalogue and the countries it covers:{" "}

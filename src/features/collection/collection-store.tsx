@@ -41,6 +41,7 @@ import { clearUnknownShopImportHolds } from "@/src/features/saved/saved-shop-imp
 import { useCatalogue } from "@/src/features/catalogue/CatalogueProvider";
 import { useAccountSession } from "@/src/features/account/AccountSessionProvider";
 import { fetchCollections } from "./collection-client";
+import { EMPTY_PASSPORT_VIEW, type PassportViewRecord } from "@/src/features/passport/passport-view-state";
 
 /**
  * Local collection state, namespaced by mode.
@@ -124,6 +125,8 @@ export interface CollectionStore {
   readonly source?: 'account';
   readonly readStatus?: 'loading' | 'ready' | 'error' | 'signed-out' | 'unavailable';
   readonly accountOwner?: string | null;
+  /** Account-lifetime navigation memory; never serialized to browser storage. */
+  readonly passportViewMemory?: { read(): PassportViewRecord; write(value: PassportViewRecord): void };
   retryRead?(): void;
   acceptIssued?(collection: StampCollection): void;
   readonly savedShopIds: ReadonlySet<string>;
@@ -578,11 +581,16 @@ function AccountCollections({ owner, local, children }: {
   const [revision, setRevision] = useState(0);
   const active = useRef(true);
   const issued = useRef(new Map<string, StampCollection>());
+  const passportViewRef = useRef<PassportViewRecord>(EMPTY_PASSPORT_VIEW);
+  const passportViewMemory = useMemo(() => ({
+    read: () => passportViewRef.current,
+    write: (value: PassportViewRecord) => { passportViewRef.current = value; },
+  }), []);
   const retryRead = useCallback(() => setRevision(value => value + 1), []);
   useEffect(() => {
     active.current = true;
     const pendingIssued = issued.current;
-    return () => { active.current = false; pendingIssued.clear(); };
+    return () => { active.current = false; pendingIssued.clear(); passportViewRef.current=EMPTY_PASSPORT_VIEW; };
   }, []);
   useEffect(() => {
     if (!owner) return;
@@ -623,7 +631,7 @@ function AccountCollections({ owner, local, children }: {
   }, [owner, retryRead]);
   const visited = useMemo(() => new Set(collections.map(row => row.shopId)), [collections]);
   const value: CollectionStore = {
-    ...local, source:'account', accountOwner:owner, collections,
+    ...local, source:'account', accountOwner:owner, passportViewMemory, collections,
     readStatus: owner ? readStatus : session.status === 'signed-out' ? 'signed-out'
       : session.status === 'loading' ? 'loading' : 'unavailable',
     hydrated: owner ? readStatus === 'ready' || collections.length > 0 : session.status === 'signed-out',

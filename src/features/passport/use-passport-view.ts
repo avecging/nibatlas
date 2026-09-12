@@ -68,7 +68,7 @@ export interface PassportViewStore {
  */
 export function usePassportView(): PassportViewStore {
   const { reviewer, resolved } = useReviewerModeStore();
-  const { scope, source } = useCollection();
+  const { scope, source, passportViewMemory } = useCollection();
   const accountMode = source === 'account';
 
   const [record, setRecord] = useState<PassportViewRecord>(EMPTY_PASSPORT_VIEW);
@@ -106,9 +106,12 @@ export function usePassportView(): PassportViewStore {
       // is the safe direction: the audience default applies.
     }
 
-    // A UI mode is a device preference; an account's last visited place is
-    // private history. Keep the latter in this owner-scoped mounted tree only.
-    if (accountMode) stored = { ...stored, place:null, listScrollTop:0 };
+    // Route unmounts must not lose the reader's place. The collection boundary
+    // owns this memory for the account lifetime and discards it on sign-out.
+    if (accountMode) stored = { ...stored,
+      place:passportViewMemory?.read().place ?? null,
+      listScrollTop:passportViewMemory?.read().listScrollTop ?? 0 };
+    passportViewMemory?.write(stored);
 
     /* eslint-disable react-hooks/set-state-in-effect --
        Local storage is an external system that can only be read after mount;
@@ -117,7 +120,7 @@ export function usePassportView(): PassportViewStore {
     setRecord(stored);
     setHydratedFor(scope);
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [accountMode, hydratedFor, resolved, scope]);
+  }, [accountMode, hydratedFor, passportViewMemory, resolved, scope]);
 
   const commit = useCallback(
     (patch: Partial<PassportViewRecord>) => {
@@ -149,6 +152,7 @@ export function usePassportView(): PassportViewStore {
       const serialized = serializePassportView(accountMode ? {...next,place:null,listScrollTop:0} : next);
 
       recordRef.current = next;
+      passportViewMemory?.write(next);
       setRecord(next);
 
       try {
@@ -158,7 +162,7 @@ export function usePassportView(): PassportViewStore {
         // Best effort: the choice still applies for this page view.
       }
     },
-    [accountMode, scope],
+    [accountMode, passportViewMemory, scope],
   );
 
   /**
@@ -203,6 +207,7 @@ export function usePassportView(): PassportViewStore {
 
       lastWrittenRef.current = serialized;
       recordRef.current = next;
+      passportViewMemory?.write(next);
       setRecord(next);
     }
 
@@ -211,7 +216,7 @@ export function usePassportView(): PassportViewStore {
     return () => {
       window.removeEventListener("storage", onStorage);
     };
-  }, [accountMode, hydratedFor, scope]);
+  }, [accountMode, hydratedFor, passportViewMemory, scope]);
 
   const chooseMode = useCallback(
     (mode: PassportMode) => commit({ mode }),

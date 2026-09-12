@@ -46,6 +46,8 @@ Failures use WP2's `{ok:false,error:{code}}`: `invalid_request` (400),
   it never receives account collections, GPS or verification proofs.
   Account Passport place/page memory is kept in the mounted owner scope only;
   the device may remember List/Book choice and whether the cover was opened.
+  The owner-scoped provider survives route unmounts, so returning from a shop
+  restores the list scroll offset and book position without writing either to disk.
 
 ## Explicitly deferred
 

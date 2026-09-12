@@ -178,9 +178,9 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
       {simulatedCollection || collection.source === 'account' ? null : (
         <p className={styles.pendingNote} data-testid="collection-pending">
           <span>
-            <strong>Atlas Stamps are not being issued yet.</strong> Collecting one
-            needs the location check that confirms you are standing in the shop,
-            and that arrives in a later release.
+            <strong>Verified collection is unavailable in this view.</strong>{" "}
+            Use the normal connected catalogue view to collect a stamp with
+            your account. Reviewer previews cannot issue a verified visit.
           </span>
         </p>
       )}

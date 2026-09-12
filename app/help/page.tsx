@@ -25,9 +25,8 @@ export const dynamic = "force-static";
  * About, which derives its list from the catalogue. Two pages both naming the
  * countries is two places to be wrong, and it was already wrong in one of them.
  *
- * Everything on this page has to stay true of the build it ships in. The stamp
- * answers say plainly that the location check is not running yet, in the same
- * terms Privacy and the collection dialog use.
+ * The answers distinguish verified account collections from standalone previews,
+ * in the same terms Privacy and the collection dialog use.
  */
 export default function HelpPage() {
   return (
@@ -84,8 +83,8 @@ export default function HelpPage() {
         gather in your <strong>Passport</strong>, which you can browse as a list or a book, grouped by country and locality.
       </p>
       <p>
-        In the connected catalogue, sign in, choose <strong>Check my location</strong>, then confirm
-        <strong> I am at this shop</strong> after the check passes. A stamp only
+        In the connected catalogue, sign in, choose <strong>Check my location</strong>, then confirm{" "}
+        <strong>I am at this shop</strong> after the check passes. A stamp only
         appears after the server confirms it. Your precise position is discarded.
       </p>
       <p>Standalone demonstrations offer preview impressions instead. Their
