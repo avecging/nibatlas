@@ -23,7 +23,9 @@ export interface StampCollection {
   readonly localityName: string;
   readonly localitySlug: string;
   readonly stamp: ShopStampDesign;
-  readonly simulated: true;
+  readonly simulated: boolean;
+  /** Server UTC timestamp; absent only on legacy reviewer fixtures. */
+  readonly collectedAt?: string;
 }
 
 export interface PassportLocality {

@@ -397,3 +397,9 @@ clients remain unprivileged. Per-nonce encrypted envelopes protect raw GPS from
 database parameter logs. Database cron enforces diagnostic retention. See the
 [API contract](docs/api/stamp-verification-v1.md) and
 [operations runbook](docs/runbooks/stamp-verification.md).
+
+WP3 adds a cookie/verified-claims `GET /api/v1/collections` using the ordinary
+owner client and a bounded owner-scoped RPC. The account collection provider
+keeps history in memory, isolates it from prototype storage, and reconciles
+map/shop/Passport from the same collection IDs. See
+[collection v1](docs/api/collections-v1.md).

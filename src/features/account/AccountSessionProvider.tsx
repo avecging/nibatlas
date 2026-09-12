@@ -163,15 +163,38 @@ export function AccountSessionProvider({ children }: { readonly children: ReactN
     const outcome = await endSession();
 
     if (outcome.ok) {
+      readToken.current += 1;
+      abortRef.current?.abort();
       // Set directly rather than re-read: the server has just told us the
       // session is gone, and a second round trip would leave the signed-in
       // structure on screen while it ran.
       setSession(SIGNED_OUT);
       setAuthResult(null);
+      if (typeof BroadcastChannel !== 'undefined') {
+        const channel = new BroadcastChannel('nib-atlas.session');
+        channel.postMessage('signed-out'); channel.close();
+      }
     }
 
     return outcome;
   }, []);
+
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return;
+    const channel = new BroadcastChannel('nib-atlas.session');
+    channel.onmessage = (event: MessageEvent<unknown>) => {
+      readToken.current += 1;
+      abortRef.current?.abort();
+      if (event.data === 'signed-out') {
+        setSession(SIGNED_OUT);
+        setAuthResult(null);
+      } else {
+        setSession(LOADING);
+        read();
+      }
+    };
+    return () => channel.close();
+  }, [read]);
 
   const acknowledgeAuthResult = useCallback(() => setAuthResult(null), []);
 

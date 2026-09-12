@@ -98,10 +98,12 @@ export function StampCeremony({
         behind that sentence belongs to reviewers.
       */}
       <p className={styles.lede}>
-        {reviewer
+        {!collection.simulated ? "Your verified visit is kept in your private Passport." : reviewer
           ? "Simulated collection. This build does not use your location and issues no real stamp."
           : "A preview impression. Your location was not checked, so this is not a verified visit yet."}
       </p>
+
+      {collection.stamp.commissioned ? <p>Illustrated by {collection.stamp.commissioned.illustratorCredit}</p> : null}
 
       <div
         className={styles.press}

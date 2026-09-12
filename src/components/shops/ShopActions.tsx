@@ -11,6 +11,7 @@ import {
 } from "@/src/components/shops/directions";
 import { passportHrefWithAnchor } from "@/src/components/shops/ShopBackLink";
 import { StampCeremony } from "@/src/components/stamps/StampCeremony";
+import { VerifiedCollection } from "@/src/components/stamps/VerifiedCollection";
 import { Button, ButtonLink } from "@/src/components/ui/Button";
 import { Icon } from "@/src/components/ui/Icon";
 import { MarkerStateBadge } from "@/src/components/ui/StatusBadge";
@@ -171,10 +172,10 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
                 ? "Collect Stamp (simulated)"
                 : "Collect Stamp"}
           </Button>
-        ) : null}
+        ) : collection.source === 'account' && catalogue.resolution.mode === 'api' ? <VerifiedCollection key={`${collection.accountOwner}:${shop.id}`} shop={shop}/> : null}
       </div>
 
-      {simulatedCollection ? null : (
+      {simulatedCollection || collection.source === 'account' ? null : (
         <p className={styles.pendingNote} data-testid="collection-pending">
           <span>
             <strong>Atlas Stamps are not being issued yet.</strong> Collecting one
@@ -184,7 +185,7 @@ export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
         </p>
       )}
 
-      {existing && simulatedCollection ? (
+      {existing ? (
         <p className={styles.collected}>
           <span>
             <strong>Collected {existing.collectedOn}</strong>

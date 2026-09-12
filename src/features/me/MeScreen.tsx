@@ -512,6 +512,7 @@ function Contribute() {
 
 export function MeScreen() {
   const {
+    source,
     scope,
     savedShopIds,
     collections,
@@ -758,7 +759,7 @@ export function MeScreen() {
             so here is the difference between an account that is quietly
             incomplete and one that is honestly early.
           */
-          description="Your account holds your identity. Your saved shops and collected impressions are still kept in this browser and do not sync yet."
+          description={source === "account" ? "Your saved shops and verified stamps are kept privately with your account and available when you sign in on another device." : "Your account holds your identity. Your saved shops and collected impressions are still kept in this browser and do not sync yet."}
           id="me-data"
           title="Privacy and your data"
         >
@@ -776,7 +777,7 @@ export function MeScreen() {
               reviewerAction="Arrives in Milestone 8"
               title="Export account data"
             />
-            {localDataRows}
+            {source === "account" ? null : localDataRows}
           </ul>
         </Section>
       ) : (
@@ -793,11 +794,11 @@ export function MeScreen() {
             the app from a home screen is not stated as deleting its data:
             whether it does depends on the platform, and on several it does not.
           */
-          description="Your saved shops and collected impressions are stored in this browser, on this device. They do not sync to your other devices, and clearing this browser's data clears them."
+          description={source === "account" ? "Signing out clears your displayed Passport. Clearing browser data does not delete stamps held with your account. Account export and deletion tools are not available yet." : "Your saved shops and collected impressions are stored in this browser, on this device. They do not sync to your other devices, and clearing this browser's data clears them."}
           id="me-device"
           title="On this device"
         >
-          <ul className={styles.rows}>{localDataRows}</ul>
+          <ul className={styles.rows}>{source === "account" ? null : localDataRows}</ul>
         </Section>
       )}
 

@@ -620,13 +620,15 @@ Default recommendations are documented above. Escalate only if a proposed change
 
 - WP1 complete in PR #50: stamps, approved versioned artwork, immutable
   owner-readable collection foundation, deterministic fixtures and DB gates.
-- WP2: backend nonce → verify → explicit confirmation → atomic issuance;
+- WP2 complete in PR #51: backend nonce → verify → explicit confirmation → atomic issuance;
   durable throttles, geofence, privacy-safe diagnostics/purge, API contracts,
   snapshots and negative/concurrency tests.
-- WP3 frontend handoff: implement the foreground/no-cache geolocation adapter,
-  one immediate poor-accuracy retry, confirmation/recovery UI, real ceremony,
-  collection reads, shared visited state and Passport cache reconciliation from
-  [the v1 contract](docs/api/stamp-verification-v1.md). No WP2 Passport redesign.
+- WP3 connects the foreground/no-cache geolocation adapter, one immediate
+  poor-accuracy retry, confirmation/recovery UI, existing ceremony, owner-scoped
+  paginated collection reads, shared visited state and Passport reconciliation.
+  See [the collection contract](docs/api/collections-v1.md). Codex implements
+  this authorized contract integration with the existing presentation; Claude
+  retains ownership of subsequent visual refinements. No Passport redesign.
 - Deferred: live-phone/mall field validation until that connection exists;
   geographic seal persistence/coverage sets; founder policy/anomaly UI and general
   audit history (M6); production auth domain, observability alerts and account

@@ -37,3 +37,9 @@ a production import mechanism.
 WP2 migration `20260912000200_m5_verification_service.sql` installs the private
 verification service and pg_cron retention task. Apply it forward; keep the task
 active during application rollback. See `docs/runbooks/stamp-verification.md`.
+# Milestone 5 WP3 collection reads
+
+`20260912000300_m5_collection_reads.sql` adds the authenticated owner-only,
+101-row-bounded history projection used by `/api/v1/collections`. It adds no
+write path. Apply before deploying the WP3 frontend. Rollback the application
+if needed; the additive read function can remain in place.
