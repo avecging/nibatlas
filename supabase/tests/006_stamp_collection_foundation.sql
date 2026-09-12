@@ -52,13 +52,13 @@ insert into auth.users (id, aud, role, email) values
   ('10000000-0000-4000-8000-000000000006', 'authenticated', 'authenticated', 'collector-two@example.test');
 
 insert into public.stamps (id, shop_id, name) values
-  ('00000000-0000-4000-8000-000000000601', '00000000-0000-4000-8000-000000000301', 'Singapore demo Atlas Stamp'),
-  ('00000000-0000-4000-8000-000000000602', '00000000-0000-4000-8000-000000000302', 'Tokyo demo Atlas Stamp');
+  ('00000000-0000-4000-8000-000000000611', '00000000-0000-4000-8000-000000000301', 'Singapore demo Atlas Stamp'),
+  ('00000000-0000-4000-8000-000000000612', '00000000-0000-4000-8000-000000000302', 'Tokyo demo Atlas Stamp');
 
 select throws_ok($activate_without_artwork$
   update public.stamps
   set status = 'active', current_design_version = 1
-  where id = '00000000-0000-4000-8000-000000000601'
+  where id = '00000000-0000-4000-8000-000000000611'
 $activate_without_artwork$,
   '23514',
   'Active stamp requires an approved current artwork version',
@@ -70,15 +70,15 @@ insert into public.stamp_artwork_versions (
   template_data, ink, palette_version, approved_at, approval_evidence_ref
 ) values
   (
-    '00000000-0000-4000-8000-000000000701',
-    '00000000-0000-4000-8000-000000000601', 1,
+    '00000000-0000-4000-8000-000000000711',
+    '00000000-0000-4000-8000-000000000611', 1,
     'generated_template', 'approved',
     '{"tier":"shop","motif":"storefront"}', 'teal', 1,
     '2026-09-12 00:00:00+00', 'test-fixture-approval'
   ),
   (
-    '00000000-0000-4000-8000-000000000702',
-    '00000000-0000-4000-8000-000000000602', 1,
+    '00000000-0000-4000-8000-000000000712',
+    '00000000-0000-4000-8000-000000000612', 1,
     'generated_template', 'approved',
     '{"tier":"shop","motif":"counter"}', 'indigo', 1,
     '2026-09-12 00:00:00+00', 'test-fixture-approval'
@@ -89,7 +89,7 @@ select throws_ok($incomplete_commissioned_art$
     stamp_id, design_version, artwork_kind, approval_status,
     ink, palette_version, approved_at, approval_evidence_ref
   ) values (
-    '00000000-0000-4000-8000-000000000601', 2,
+    '00000000-0000-4000-8000-000000000611', 2,
     'commissioned', 'approved', 'plum', 1,
     '2026-09-12 00:00:00+00', 'missing-files'
   )
@@ -102,7 +102,7 @@ $incomplete_commissioned_art$,
 select throws_ok($mutate_approved_artwork$
   update public.stamp_artwork_versions
   set ink = 'navy'
-  where id = '00000000-0000-4000-8000-000000000701'
+  where id = '00000000-0000-4000-8000-000000000711'
 $mutate_approved_artwork$,
   '55000',
   'Approved stamp artwork versions are immutable',
@@ -111,7 +111,7 @@ $mutate_approved_artwork$,
 
 select throws_ok($delete_approved_artwork$
   delete from public.stamp_artwork_versions
-  where id = '00000000-0000-4000-8000-000000000701'
+  where id = '00000000-0000-4000-8000-000000000711'
 $delete_approved_artwork$,
   '55000',
   'Approved stamp artwork versions are immutable',
@@ -121,8 +121,8 @@ $delete_approved_artwork$,
 update public.stamps
 set status = 'active', current_design_version = 1
 where id in (
-  '00000000-0000-4000-8000-000000000601',
-  '00000000-0000-4000-8000-000000000602'
+  '00000000-0000-4000-8000-000000000611',
+  '00000000-0000-4000-8000-000000000612'
 );
 
 select is(
@@ -132,7 +132,7 @@ select is(
 );
 
 insert into public.stamps (id, shop_id, name) values (
-  '00000000-0000-4000-8000-000000000603',
+  '00000000-0000-4000-8000-000000000613',
   '00000000-0000-4000-8000-000000000301',
   'Conflicting active stamp'
 );
@@ -140,14 +140,14 @@ insert into public.stamp_artwork_versions (
   stamp_id, design_version, artwork_kind, approval_status,
   template_data, ink, palette_version, approved_at, approval_evidence_ref
 ) values (
-  '00000000-0000-4000-8000-000000000603', 1,
+  '00000000-0000-4000-8000-000000000613', 1,
   'generated_template', 'approved', '{"tier":"shop","motif":"nib"}',
   'plum', 1, '2026-09-12 00:00:00+00', 'test-fixture-approval'
 );
 select throws_ok($second_active_shop_stamp$
   update public.stamps
   set status = 'active', current_design_version = 1
-  where id = '00000000-0000-4000-8000-000000000603'
+  where id = '00000000-0000-4000-8000-000000000613'
 $second_active_shop_stamp$,
   '23505',
   null,
@@ -162,12 +162,12 @@ insert into public.stamp_collections (
 ) values (
   '00000000-0000-4000-8000-000000000801',
   '10000000-0000-4000-8000-000000000005',
-  '00000000-0000-4000-8000-000000000601',
+  '00000000-0000-4000-8000-000000000611',
   '00000000-0000-4000-8000-000000000301', 1,
   '2026-09-12 01:00:00+00', 'Asia/Singapore', 'geofence', 1,
   42, 18, 'Singapore demo fixture',
   '{"countryCode":"SG","countryLabel":"Singapore","localityName":"Singapore","localitySlug":"singapore"}',
-  '{"id":"00000000-0000-4000-8000-000000000601","designVersion":1,"artworkKind":"generated_template","ink":"teal","paletteVersion":1,"templateData":{"tier":"shop","motif":"storefront"}}'
+  '{"id":"00000000-0000-4000-8000-000000000611","designVersion":1,"artworkKind":"generated_template","ink":"teal","paletteVersion":1,"templateData":{"tier":"shop","motif":"storefront"}}'
 );
 
 select is((select count(*)::integer from public.stamp_collections), 1,
@@ -190,11 +190,11 @@ select throws_ok($duplicate_collection$
     place_snapshot, stamp_snapshot
   ) values (
     '10000000-0000-4000-8000-000000000005',
-    '00000000-0000-4000-8000-000000000601',
+    '00000000-0000-4000-8000-000000000611',
     '00000000-0000-4000-8000-000000000301', 1, 'Asia/Singapore',
     'geofence', 1, 'Duplicate',
     '{"countryCode":"SG","countryLabel":"Singapore","localityName":"Singapore","localitySlug":"singapore"}',
-    '{"id":"00000000-0000-4000-8000-000000000601","designVersion":1,"artworkKind":"generated_template","ink":"teal","paletteVersion":1,"templateData":{"tier":"shop","motif":"storefront"}}'
+    '{"id":"00000000-0000-4000-8000-000000000611","designVersion":1,"artworkKind":"generated_template","ink":"teal","paletteVersion":1,"templateData":{"tier":"shop","motif":"storefront"}}'
   )
 $duplicate_collection$,
   '23505',
@@ -209,11 +209,11 @@ select throws_ok($wrong_shop_for_stamp$
     place_snapshot, stamp_snapshot
   ) values (
     '10000000-0000-4000-8000-000000000006',
-    '00000000-0000-4000-8000-000000000601',
+    '00000000-0000-4000-8000-000000000611',
     '00000000-0000-4000-8000-000000000302', 1, 'Asia/Singapore',
     'geofence', 1, 'Wrong shop',
     '{"countryCode":"SG","countryLabel":"Singapore","localityName":"Singapore","localitySlug":"singapore"}',
-    '{"id":"00000000-0000-4000-8000-000000000601","designVersion":1,"artworkKind":"generated_template","ink":"teal","paletteVersion":1,"templateData":{"tier":"shop","motif":"storefront"}}'
+    '{"id":"00000000-0000-4000-8000-000000000611","designVersion":1,"artworkKind":"generated_template","ink":"teal","paletteVersion":1,"templateData":{"tier":"shop","motif":"storefront"}}'
   )
 $wrong_shop_for_stamp$,
   '23503',
@@ -228,11 +228,11 @@ select throws_ok($wrong_artwork_snapshot_version$
     place_snapshot, stamp_snapshot
   ) values (
     '10000000-0000-4000-8000-000000000006',
-    '00000000-0000-4000-8000-000000000602',
+    '00000000-0000-4000-8000-000000000612',
     '00000000-0000-4000-8000-000000000302', 1, 'Asia/Tokyo',
     'geofence', 1, 'Wrong version snapshot',
     '{"countryCode":"JP","countryLabel":"Japan","localityName":"Tokyo","localitySlug":"tokyo"}',
-    '{"id":"00000000-0000-4000-8000-000000000602","designVersion":2,"artworkKind":"generated_template","ink":"indigo","paletteVersion":1,"templateData":{"tier":"shop","motif":"counter"}}'
+    '{"id":"00000000-0000-4000-8000-000000000612","designVersion":2,"artworkKind":"generated_template","ink":"indigo","paletteVersion":1,"templateData":{"tier":"shop","motif":"counter"}}'
   )
 $wrong_artwork_snapshot_version$,
   '23514',
@@ -247,11 +247,11 @@ select throws_ok($snapshot_differs_from_artwork$
     place_snapshot, stamp_snapshot
   ) values (
     '10000000-0000-4000-8000-000000000006',
-    '00000000-0000-4000-8000-000000000602',
+    '00000000-0000-4000-8000-000000000612',
     '00000000-0000-4000-8000-000000000302', 1, 'Asia/Tokyo',
     'geofence', 1, 'Altered snapshot',
     '{"countryCode":"JP","countryLabel":"Japan","localityName":"Tokyo","localitySlug":"tokyo"}',
-    '{"id":"00000000-0000-4000-8000-000000000602","designVersion":1,"artworkKind":"generated_template","ink":"plum","paletteVersion":1,"templateData":{"tier":"shop","motif":"counter"}}'
+    '{"id":"00000000-0000-4000-8000-000000000612","designVersion":1,"artworkKind":"generated_template","ink":"plum","paletteVersion":1,"templateData":{"tier":"shop","motif":"counter"}}'
   )
 $snapshot_differs_from_artwork$,
   '23514',
@@ -266,7 +266,7 @@ select throws_ok($raw_coordinates_are_not_columns$
     place_snapshot, stamp_snapshot, latitude, longitude
   ) values (
     '10000000-0000-4000-8000-000000000006',
-    '00000000-0000-4000-8000-000000000602',
+    '00000000-0000-4000-8000-000000000612',
     '00000000-0000-4000-8000-000000000302', 1, 'Asia/Tokyo',
     'geofence', 1, 'Coordinates forbidden', '{}'::jsonb, '{}'::jsonb, 1, 2
   )
@@ -289,11 +289,11 @@ select throws_ok($direct_collection_insert$
     place_snapshot, stamp_snapshot
   ) values (
     '10000000-0000-4000-8000-000000000005',
-    '00000000-0000-4000-8000-000000000602',
+    '00000000-0000-4000-8000-000000000612',
     '00000000-0000-4000-8000-000000000302', 1, 'Asia/Tokyo',
     'geofence', 1, 'Direct insert forbidden',
     '{"countryCode":"JP","countryLabel":"Japan","localityName":"Tokyo","localitySlug":"tokyo"}',
-    '{"id":"00000000-0000-4000-8000-000000000602","designVersion":1,"artworkKind":"generated_template","ink":"indigo","paletteVersion":1,"templateData":{"tier":"shop","motif":"counter"}}'
+    '{"id":"00000000-0000-4000-8000-000000000612","designVersion":1,"artworkKind":"generated_template","ink":"indigo","paletteVersion":1,"templateData":{"tier":"shop","motif":"counter"}}'
   )
 $direct_collection_insert$,
   '42501',
