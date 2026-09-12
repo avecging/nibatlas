@@ -47,7 +47,7 @@ select ok((select encryption_key is null from stamp_private.verification_nonces 
 select is(pg_temp.action(1,'collect','{"confirmedAtShop":false,"countryLabel":"Singapore"}')->>'code','invalid_request','explicit confirmation required');
 
 select pg_temp.start_nonce(2);
-select is(pg_temp.action(2,'verify',pg_temp.fix(2,150.001))->>'code','outside_radius','immediately outside geofence rejected');
+select is(pg_temp.action(2,'verify',pg_temp.fix(2,150.00001))->>'code','outside_radius','immediately outside geofence rejected');
 select pg_temp.start_nonce(3);
 select is(pg_temp.action(3,'verify',pg_temp.fix(3,150))->>'code','confirmation_required','exact boundary is inclusive');
 select pg_temp.start_nonce(4);
@@ -97,6 +97,38 @@ select is(pg_temp.action(17,'verify',pg_temp.fix(17),'10000000-0000-4000-8000-00
 update stamp_private.verification_nonces set expires_at=clock_timestamp()-interval '1 second' where request_id='20000000-0000-4000-8000-000000000017';
 select is(pg_temp.action(17,'collect','{"confirmedAtShop":true,"countryLabel":"Singapore"}','10000000-0000-4000-8000-000000000052')->>'code','expired_nonce','confirmation expiry is enforced');
 
+-- Approved commissioned exports and credit are copied intact, with private
+-- source/licence evidence deliberately absent from the display snapshot.
+insert into public.stamp_artwork_versions(stamp_id,design_version,artwork_kind,approval_status,
+ ink,palette_version,editable_source_key,editable_source_sha256,clean_svg_key,clean_svg_sha256,
+ outlined_svg_key,outlined_svg_sha256,transparent_png_key,transparent_png_sha256,
+ illustrator_credit,illustrator_credit_url,maker_mark_confirmed,rights_basis,approved_at,approval_evidence_ref)
+values('00000000-0000-4000-8000-000000000601',2,'commissioned','approved','plum',1,
+ 'private/source.svg',repeat('a',64),'approved/clean.svg',repeat('b',64),
+ 'approved/outlined.svg',repeat('c',64),'approved/stamp.png',repeat('d',64),
+ 'Demo Illustrator','https://example.test/illustrator',true,'Test-only rights',clock_timestamp(),'private-approval-evidence');
+insert into public.stamp_artwork_versions(stamp_id,design_version,artwork_kind,approval_status,template_data,ink,palette_version)
+values('00000000-0000-4000-8000-000000000601',3,'generated_template','draft','{}','teal',1);
+select throws_ok($$update public.stamps set current_design_version=3 where id='00000000-0000-4000-8000-000000000601'$$,
+ '23514','Active stamp requires an approved current artwork version','unapproved artwork cannot become issuable');
+update public.stamps set current_design_version=2 where id='00000000-0000-4000-8000-000000000601';
+select pg_temp.start_nonce(18,'10000000-0000-4000-8000-000000000052');
+select is(pg_temp.action(18,'verify',pg_temp.fix(18),'10000000-0000-4000-8000-000000000052')->>'code','confirmation_required','commissioned design verifies');
+select is(pg_temp.action(18,'collect','{"confirmedAtShop":true,"countryLabel":"Singapore"}','10000000-0000-4000-8000-000000000052')->>'code','success','commissioned design issues');
+select ok((select stamp_snapshot->>'cleanSvgKey'='approved/clean.svg'
+ and stamp_snapshot->>'cleanSvgSha256'=repeat('b',64)
+ and stamp_snapshot->>'outlinedSvgSha256'=repeat('c',64)
+ and stamp_snapshot->>'transparentPngSha256'=repeat('d',64)
+ and stamp_snapshot->>'illustratorCredit'='Demo Illustrator'
+ and stamp_snapshot->>'illustratorCreditUrl'='https://example.test/illustrator'
+ and not (stamp_snapshot ?| array['editableSourceKey','approvalEvidenceRef','rightsBasis'])
+ from public.stamp_collections where user_id='10000000-0000-4000-8000-000000000052'),
+ 'commissioned snapshot preserves exports/checksums/credit without private evidence');
+update public.shops set name='Changed live shop name' where id='00000000-0000-4000-8000-000000000301';
+select ok((select stamp_design_version=1 and shop_name_snapshot<>'Changed live shop name'
+ from public.stamp_collections where user_id='10000000-0000-4000-8000-000000000051'),
+ 'later redesign and shop edits preserve historical collection');
+
 select ok((select bool_and(public.stamp_verification_rate_limit('10000000-0000-4000-8000-000000000051')) from generate_series(1,12)),'initial budget allows immediate retry flow');
 select is(public.stamp_verification_rate_limit('10000000-0000-4000-8000-000000000051'),false,'rate limit enforced');
 update stamp_private.verification_buckets set window_start=clock_timestamp()-interval '1 day' where period='minute';
@@ -116,7 +148,8 @@ select ok(exists(select 1 from public.verification_attempts),'recent diagnostics
 
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000052","role":"authenticated"}',true);
-select is((select count(*)::integer from public.stamp_collections),0,'owner RLS hides other collection');
+select is((select count(*)::integer from public.stamp_collections),1,'owner RLS returns only the second user collection');
+select ok(not exists(select 1 from public.stamp_collections where user_id='10000000-0000-4000-8000-000000000051'),'owner RLS hides the other collection');
 select throws_ok($$insert into public.stamp_collections(user_id) values('10000000-0000-4000-8000-000000000052')$$,'42501','permission denied for table stamp_collections','browser direct insert denied');
 select throws_ok($$select public.stamp_verification_action('nonce','10000000-0000-4000-8000-000000000052','00000000-0000-4000-8000-000000000301',gen_random_uuid(),repeat('a',64))$$,'42501','permission denied for function stamp_verification_action','browser RPC issuance denied');
 reset role;

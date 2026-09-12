@@ -243,7 +243,9 @@ begin
           else
             point := extensions.st_setsrid(extensions.st_makepoint(lon,lat),4326)::extensions.geography;
             distance := extensions.st_distance(s.location::extensions.geography,point);
-            if extensions.st_dwithin(s.location::extensions.geography,point,radius) then
+            -- One micrometre absorbs geography projection/JSON floating-point roundoff
+            -- at the inclusive boundary; it is not accuracy-based widening.
+            if extensions.st_dwithin(s.location::extensions.geography,point,radius + 0.000001) then
               result := 'confirmation_required';
             else result := 'outside_radius'; end if;
           end if;

@@ -81,7 +81,8 @@ or silently connect fixture Passport records to authenticated collections.
   The honest client must use the foreground/no-cache flow above.
 - PostGIS geography uses `ST_DWithin` with an inclusive 150 m default and reported
   accuracy at most 100 m. Accuracy is never subtracted from distance or used to
-  expand the radius. The exact unrounded distance decides eligibility.
+  expand the radius. Eligibility is evaluated before diagnostic bucketing. A one-micrometre
+  numerical tolerance absorbs floating-point roundoff at the inclusive boundary.
 - Adaptation is a controlled per-shop policy (25–300 m) requiring an editor/admin
   actor and a meaningful reason. It is intentionally not an automatic widening
   algorithm. The public response never exposes the selected policy. Admin UI and

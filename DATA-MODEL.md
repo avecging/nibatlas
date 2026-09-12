@@ -265,7 +265,7 @@ Unique `(user_id, stamp_id)`. The stamp/shop pair and stamp/design-version pair
 are protected by composite foreign keys. `stamp_snapshot` must match the active,
 approved artwork kind, ink, palette version and generated template descriptor or
 commissioned illustrator credit. Authenticated clients have owner-scoped read
-access only; they cannot insert, update or delete. A later server-controlled
+access only; they cannot insert, update or delete. The server-only WP2
 transaction/function verifies and issues atomically. Raw latitude/longitude is
 never written.
 
@@ -273,11 +273,14 @@ never written.
 
 Privacy-limited diagnostic/abuse table:
 
-- `id`, `user_id`, `shop_id`, requested/server timestamps;
-- reported accuracy, computed distance, configured radius;
-- result and failure reason;
-- nonce/request hash and rate-limit bucket;
-- no raw coordinates.
+- `id`, `user_id`, `shop_id`, server-generated request ID and attempt time;
+- coarse accuracy/distance buckets and configured radius;
+- allowlisted result and anomaly flags;
+- no raw coordinates, ciphertext, browser timestamps or arbitrary JSON.
+
+Nonce hashes/keys and rate buckets live separately in the unexposed
+`stamp_private` schema. Neither browser nor service-role direct table reads
+can access diagnostics; controlled server functions own these records.
 
 Default retention: 30 days, automatically purged. Extend only after an explicit privacy decision.
 
