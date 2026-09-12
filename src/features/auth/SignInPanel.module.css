@@ -33,12 +33,6 @@
   line-height: var(--type-body-line);
 }
 
-.lede {
-  color: var(--text-secondary);
-  font-size: var(--type-body-sm-size);
-  line-height: var(--type-body-sm-line);
-}
-
 .error {
   display: flex;
   gap: var(--space-2);
@@ -73,6 +67,25 @@
   flex: 1 1 auto;
   height: 1px;
   background: var(--border-default);
+}
+
+.googleButton {
+  position: relative;
+  border-color: var(--border-default);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.googleButton:hover:not([disabled]) {
+  border-color: var(--border-strong);
+  background: var(--bg-surface-warm);
+}
+
+.googleMark {
+  position: absolute;
+  left: var(--space-4);
+  width: 18px;
+  height: 18px;
 }
 
 .form {

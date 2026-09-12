@@ -190,20 +190,15 @@ export function SignInProvider({ children }: { readonly children: ReactNode }) {
             <SignInPanel
               context={request.context}
               footer={
-                /*
-                 * The way out is a control with a name, not a browser gesture.
-                 * It says what dismissing does — exploring continues — because
-                 * the reader has to be able to tell that this is an
-                 * interruption they can decline rather than a gate.
-                 */
                 <div className={styles.footer}>
-                  <Button fullWidth onClick={dismissSignIn} variant="quiet">
+                  {/* A dismiss action styled as a quiet link, not a bordered CTA. */}
+                  <button
+                    className={styles.dismissLink}
+                    onClick={dismissSignIn}
+                    type="button"
+                  >
                     Not now
-                  </Button>
-                  <p className={styles.footerNote}>
-                    Exploring the map and opening shop pages work without an
-                    account. An account keeps new saved shops with you.
-                  </p>
+                  </button>
                 </div>
               }
               intent={request.intent}

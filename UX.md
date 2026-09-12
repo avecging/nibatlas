@@ -375,6 +375,9 @@ Only show `x / y` where `y` is a clearly versioned curated coverage set. Otherwi
 ## Authentication and interruption
 
 - Authentication is an overlay/route interruption, not the beginning of the product.
+- Keep the sign-in panel procedural rather than explanatory: account rationale belongs behind the **What we store** privacy link, not in introductory sign-in copy.
+- Present email magic link first, followed by an **or** divider and a conventionally styled Google sign-in button using Google's established mark.
+- In the dismissible overlay, **Not now** is a quiet text-link treatment rather than a bordered button. It remains a semantic button because it dismisses the current dialog rather than navigating.
 - Preserve `returnTo`, selected shop, viewport, filters, and intended action.
 - If the action was Save, finish it after successful auth.
 - If the action was Collect, return to the collection preflight; never auto-request location in the auth callback.
