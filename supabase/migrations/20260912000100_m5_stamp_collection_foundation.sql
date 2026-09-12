@@ -170,6 +170,59 @@ create trigger stamp_artwork_versions_protect_approved
   before update or delete on public.stamp_artwork_versions
   for each row execute function public.protect_approved_stamp_artwork();
 
+create function public.assert_published_shop_has_active_stamp()
+returns trigger
+language plpgsql
+set search_path = pg_catalog, public
+as $$
+declare
+  shop_ids uuid[];
+  checked_shop_id uuid;
+begin
+  if tg_table_name = 'shops' then
+    shop_ids := array[new.id];
+  elsif tg_op = 'INSERT' then
+    shop_ids := array[new.shop_id];
+  elsif tg_op = 'DELETE' then
+    shop_ids := array[old.shop_id];
+  else
+    shop_ids := array[old.shop_id, new.shop_id];
+  end if;
+
+  foreach checked_shop_id in array shop_ids loop
+    if exists (
+      select 1 from public.shops
+      where id = checked_shop_id and publication_status = 'published'
+    ) and (
+      select count(*) from public.stamps
+      where shop_id = checked_shop_id
+        and status = 'active'
+        and stamp_type = 'atlas'
+    ) <> 1 then
+      raise exception 'Published shop requires exactly one active Atlas Stamp'
+        using errcode = '23514';
+    end if;
+  end loop;
+
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
+end;
+$$;
+
+-- Deferred enforcement allows an admin transaction to create/approve/activate
+-- a replacement before retiring the old design. The transaction still cannot
+-- commit a published shop with zero active Atlas Stamps.
+create constraint trigger shops_require_active_atlas_stamp
+  after insert or update of publication_status on public.shops
+  deferrable initially deferred
+  for each row execute function public.assert_published_shop_has_active_stamp();
+create constraint trigger stamps_keep_published_shop_collectable
+  after insert or update or delete on public.stamps
+  deferrable initially deferred
+  for each row execute function public.assert_published_shop_has_active_stamp();
+
 create table public.stamp_collections (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -325,5 +378,6 @@ using ((select auth.uid()) = user_id);
 
 revoke all on function public.validate_active_stamp_artwork() from public;
 revoke all on function public.protect_approved_stamp_artwork() from public;
+revoke all on function public.assert_published_shop_has_active_stamp() from public;
 revoke all on function public.validate_collection_timezone() from public;
 revoke all on function public.validate_collection_stamp_snapshot() from public;
