@@ -312,7 +312,7 @@ alter table public.stamp_collections enable row level security;
 alter table public.stamp_collections force row level security;
 
 revoke all on table public.stamps, public.stamp_artwork_versions,
-  public.stamp_collections from public, anon, authenticated;
+  public.stamp_collections from public, anon, authenticated, service_role;
 grant all on table public.stamps, public.stamp_artwork_versions to service_role;
 grant select, insert on table public.stamp_collections to service_role;
 grant select on table public.stamp_collections to authenticated;
