@@ -185,7 +185,9 @@ test("clusters and individual markers stay at their projected positions across z
   }
 
   await expectProjectedPositions();
-  await searchDestination(page, "Tokyo", /^Tokyo/);
+  // Bugis contains two distinct shop points at every supported breakpoint;
+  // Tokyo's fitted viewport can legitimately contain just one shop on tablet.
+  await searchDestination(page, "Bugis", /^Bugis/);
   const markers = page.locator("[data-shop-id][data-marker-state]");
   await expect(markers.first()).toBeVisible();
   expect(await markers.count()).toBeGreaterThan(1);
