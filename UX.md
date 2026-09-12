@@ -403,3 +403,11 @@ The implementation is not coherent until users can complete these without coachi
 4. User with poor GPS understands why collection failed and how to retry.
 5. Successful collection updates shop, map, and Passport exactly once.
 6. User can browse Passport and return to the originating map/shop context.
+
+## Milestone 5 backend handoff
+
+The two-stage collect journey now has a backend contract at
+[stamp verification v1](docs/api/stamp-verification-v1.md). Presentation must
+acquire a fresh foreground fix for a new nonce, then show **I am at this shop**
+only after verification. Never replay cached Near Me coordinates. WP3 connects
+this contract to the existing ceremony and shared map/shop/Passport user state.

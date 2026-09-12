@@ -12,3 +12,9 @@ SQL policy, migration, and geographic-query tests begin with the production-shap
 - `006_stamp_collection_foundation.sql` covers Atlas Stamp artwork approval,
   immutable versioning, collection snapshot integrity, idempotency, privacy and
   owner-only reads.
+
+- `007_stamp_verification.sql` covers nonce binding/replay, freshness, accuracy,
+  geofence edges, retention, controlled adaptation, snapshots and private grants.
+- `scripts/verification/concurrency.py` runs eight separate database sessions
+  against independent verified nonces and asserts one collection. CI runs it
+  after pgTAP and before the existing database performance gate.
