@@ -198,3 +198,12 @@ Changes require an explicit product decision if they alter any of these:
 - Approved commissioned artwork remains intact and attributable to its
   illustrator.
 - Public geography describes only the sourced catalogue currently present; it never promises national completeness or a future rollout order.
+
+## Collection implementation clarification — Milestone 5 WP2
+
+Adaptive geofencing uses controlled shop-specific settings with a recorded
+admin/editor reason. A poor-accuracy retry never automatically widens the radius.
+Verification precedes explicit confirmation and does not itself issue a stamp.
+The 150 m default and maximum accepted reported accuracy of 100 m are unchanged.
+See [the backend contract](docs/api/stamp-verification-v1.md) for request timing,
+privacy, recovery and frontend integration.

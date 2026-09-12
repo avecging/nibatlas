@@ -33,3 +33,7 @@ rounds to reduce shared-runner noise.
 
 The local `seed.sql` contains only deterministic records marked `demo`. It is not
 a production import mechanism.
+
+WP2 migration `20260912000200_m5_verification_service.sql` installs the private
+verification service and pg_cron retention task. Apply it forward; keep the task
+active during application rollback. See `docs/runbooks/stamp-verification.md`.

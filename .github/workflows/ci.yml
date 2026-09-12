@@ -111,6 +111,8 @@ jobs:
       - run: supabase start -x realtime,imgproxy,edge-runtime,logflare,vector,supavisor
       - run: supabase db reset
       - run: supabase test db
+      - name: Concurrent stamp issuance
+        run: python3 scripts/verification/concurrency.py
       - name: Read performance (50k synthetic shops)
         run: |
           project_id="$(awk -F'"' '/^project_id = / { print $2; exit }' supabase/config.toml)"

@@ -384,3 +384,12 @@ All exposed tables have RLS explicitly enabled in migrations. Service-role crede
 - Fixtures never share the production import pipeline without explicit environment guard.
 - Real seed/import rows require source URL/type and checked date.
 - Synthetic performance data is generated only in test environments and is visibly marked.
+
+## Milestone 5 WP2 implementation
+
+`verification_attempts` is now implemented with private 30-day diagnostics.
+Nonces, per-shop policy and throttles live in the unexposed `stamp_private`
+schema. Collection diagnostics remain null/empty; issuance snapshots are built
+server-side. The service role no longer has direct collection INSERT permission.
+See [the verification contract](docs/api/stamp-verification-v1.md) for the
+precise schema/policy, clocks, privacy boundary and retention job.

@@ -387,3 +387,13 @@ Cost controls:
 - [Supabase PostGIS](https://supabase.com/docs/guides/database/extensions/postgis)
 - [MapTiler pricing](https://www.maptiler.com/cloud/pricing/)
 - [GitHub deployment environments](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments)
+
+## Milestone 5 WP2 verification boundary
+
+The cookie/verified-claims Worker authenticates three same-origin endpoints:
+`stamps/nonce`, `stamps/verify`, and `stamps/collect`. Only its isolated service
+client can invoke the transactional verification RPC; catalogue/auth/saved
+clients remain unprivileged. Per-nonce encrypted envelopes protect raw GPS from
+database parameter logs. Database cron enforces diagnostic retention. See the
+[API contract](docs/api/stamp-verification-v1.md) and
+[operations runbook](docs/runbooks/stamp-verification.md).

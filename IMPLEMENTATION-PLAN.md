@@ -615,3 +615,19 @@ The following are later setup decisions, not reasons to pause coding:
 - whether staging Supabase stays on a pausable free project or adds roughly $10/month for always-on compute.
 
 Default recommendations are documented above. Escalate only if a proposed change alters a product invariant, privacy rule, MVP boundary, or cross-agent contract.
+
+## Milestone 5 work-package status (12 September 2026)
+
+- WP1 complete in PR #50: stamps, approved versioned artwork, immutable
+  owner-readable collection foundation, deterministic fixtures and DB gates.
+- WP2: backend nonce → verify → explicit confirmation → atomic issuance;
+  durable throttles, geofence, privacy-safe diagnostics/purge, API contracts,
+  snapshots and negative/concurrency tests.
+- WP3 frontend handoff: implement the foreground/no-cache geolocation adapter,
+  one immediate poor-accuracy retry, confirmation/recovery UI, real ceremony,
+  collection reads, shared visited state and Passport cache reconciliation from
+  [the v1 contract](docs/api/stamp-verification-v1.md). No WP2 Passport redesign.
+- Deferred: live-phone/mall field validation until that connection exists;
+  geographic seal persistence/coverage sets; founder policy/anomaly UI and general
+  audit history (M6); production auth domain, observability alerts and account
+  lifecycle (M8). No hardware location attestation or IP/device tracking added.
