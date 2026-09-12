@@ -149,6 +149,10 @@ export function AccountSessionProvider({ children }: { readonly children: ReactN
       // job: from here the pending intent is the server's cookie, which is the
       // copy that completes the action.
       forgetPendingFlow();
+      if (typeof BroadcastChannel !== 'undefined') {
+        const channel = new BroadcastChannel('nib-atlas.session');
+        channel.postMessage('changed'); channel.close();
+      }
     }
     /* eslint-enable react-hooks/set-state-in-effect */
 

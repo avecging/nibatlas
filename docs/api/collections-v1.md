@@ -44,6 +44,8 @@ Failures use WP2's `{ok:false,error:{code}}`: `invalid_request` (400),
   or collection history. Visibility refresh and server checks recover stale tabs.
 - Browser storage retains existing reviewer fixtures and interface preferences;
   it never receives account collections, GPS or verification proofs.
+  Account Passport place/page memory is kept in the mounted owner scope only;
+  the device may remember List/Book choice and whether the cover was opened.
 
 ## Explicitly deferred
 

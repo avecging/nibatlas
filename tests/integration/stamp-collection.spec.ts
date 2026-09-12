@@ -1,6 +1,12 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { ISSUED_STAMP, STAMP_OWNER } from '../../src/test/stamp';
+
+async function evidence(page:Page,info:TestInfo,name:string) {
+  const path=info.outputPath(`${name}.png`);
+  await page.screenshot({path});
+  await info.attach(name,{path,contentType:'image/png'});
+}
 
 async function fixture(page:Page) {
   let collected=false;
@@ -48,29 +54,30 @@ for(const width of [360,1440]) {
     const confirm=page.getByRole('dialog',{name:'Confirm your visit'});
     await expect(confirm).toBeVisible();expect(actions).toEqual(['nonce','verify']);
     expect((await new AxeBuilder({page}).include('[aria-labelledby="verified-collect-title"]').analyze()).violations).toEqual([]);
-    await testInfo.attach(`confirmation-${width}`,{body:await page.screenshot(),contentType:'image/png'});
+    await evidence(page,testInfo,`confirmation-${width}`);
     await confirm.getByRole('button',{name:'I am at this shop',exact:true}).click();
     const ceremony=page.getByTestId('stamp-ceremony');await expect(ceremony).toBeVisible();
     await expect(ceremony).toContainText('Historical Demo Shop');await expect(ceremony).toContainText('2026-09-12');
     await expect(ceremony.locator('[data-phase]')).toHaveAttribute('data-phase','settled');
     expect((await new AxeBuilder({page}).include('[data-testid="stamp-ceremony"]').analyze()).violations).toEqual([]);
-    await testInfo.attach(`impression-${width}`,{body:await page.screenshot(),contentType:'image/png'});
+    await evidence(page,testInfo,`impression-${width}`);
     await ceremony.getByRole('link',{name:'Open in Passport'}).click();
     await expect(page).toHaveURL(/\/passport\/jp\/tokyo\?stamp=/);
     await expect(page.getByText('Historical Demo Shop').first()).toBeVisible();
     await page.reload();await expect(page.getByText('Historical Demo Shop').first()).toBeVisible();
-    await testInfo.attach(`passport-${width}`,{body:await page.screenshot(),contentType:'image/png'});
+    await evidence(page,testInfo,`passport-${width}`);
     const stored=await page.evaluate(()=>JSON.stringify({...localStorage,...sessionStorage}));
     expect(stored).not.toContain('Historical Demo Shop');expect(stored).not.toContain('latitude');expect(stored).not.toContain('nonce');
     await page.goto('/');
     const dismiss=page.getByRole('button',{name:'Dismiss introduction'});if(await dismiss.isVisible().catch(()=>false))await dismiss.click();
     const marker=page.getByRole('button',{name:/^M3 API Demo Shop, Tokyo\./});
-    await expect(marker).toHaveAccessibleName(/visited/i);
+    await expect(marker).toHaveAccessibleName(/\. Visited\.$/);
     await page.goto('/shops/m3-api-demo-shop');
     await page.getByRole('button',{name:'View Atlas Stamp'}).click();
     await expect(page.getByText('Already in your Passport')).toBeVisible();
     expect(actions).toEqual(['nonce','verify','collect']);
-    await page.goto('/me');await page.getByRole('button',{name:'Sign out',exact:true}).click();
+    await page.goto('/me');await page.getByRole('button',{name:/^Sign out/}).click();
+    await expect(page.getByRole('button',{name:/^Sign in/}).first()).toBeVisible();
     await page.goto('/passport');await expect(page.getByText('Your private Passport')).toBeVisible();
     await expect(page.getByText('Historical Demo Shop')).toHaveCount(0);
   });
