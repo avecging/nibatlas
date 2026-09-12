@@ -100,3 +100,46 @@ insert into public.shop_shop_types (shop_id, shop_type_id, source_id, is_primary
     '00000000-0000-4000-8000-000000000502', true
   )
 on conflict do nothing;
+
+-- Milestone 5 generated-template Atlas Stamps. These remain visibly tied to
+-- demo shops and provide deterministic staging data until commissioned artwork
+-- has completed its separate approval workflow.
+insert into public.stamps (id, shop_id, name) values
+  (
+    '00000000-0000-4000-8000-000000000601',
+    '00000000-0000-4000-8000-000000000301',
+    'M2 Singapore Demo Atlas Stamp'
+  ),
+  (
+    '00000000-0000-4000-8000-000000000602',
+    '00000000-0000-4000-8000-000000000302',
+    'M2 Tokyo Demo Atlas Stamp'
+  )
+on conflict (id) do nothing;
+
+insert into public.stamp_artwork_versions (
+  id, stamp_id, design_version, artwork_kind, approval_status, template_data,
+  ink, palette_version, approved_at, approval_evidence_ref
+) values
+  (
+    '00000000-0000-4000-8000-000000000701',
+    '00000000-0000-4000-8000-000000000601', 1,
+    'generated_template', 'approved',
+    '{"tier":"shop","motif":"storefront"}',
+    'teal', 1, '2026-09-12 00:00:00+00', 'deterministic-demo-fixture'
+  ),
+  (
+    '00000000-0000-4000-8000-000000000702',
+    '00000000-0000-4000-8000-000000000602', 1,
+    'generated_template', 'approved',
+    '{"tier":"shop","motif":"counter"}',
+    'indigo', 1, '2026-09-12 00:00:00+00', 'deterministic-demo-fixture'
+  )
+on conflict (id) do nothing;
+
+update public.stamps
+set status = 'active', current_design_version = 1
+where id in (
+  '00000000-0000-4000-8000-000000000601',
+  '00000000-0000-4000-8000-000000000602'
+);
