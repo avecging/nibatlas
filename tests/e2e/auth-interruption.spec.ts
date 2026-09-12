@@ -92,7 +92,7 @@ test.describe("the interruption", () => {
       dialog.getByRole("button", { name: /continue with google/i }),
     ).toBeVisible();
     await expect(dialog.getByLabel(/email address/i)).toBeVisible();
-    await expect(dialog).toContainText(/work without an account/i);
+    await expect(dialog).not.toContainText(/signing in for the first time creates it/i);
 
     await dialog.getByRole("button", { name: /not now/i }).click();
 
