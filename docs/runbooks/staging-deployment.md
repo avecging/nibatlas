@@ -11,6 +11,8 @@ PR is open, or through an explicit manual workflow run.
 - `NEXT_PUBLIC_MAPTILER_KEY`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_ACCESS_TOKEN`
+- `SUPABASE_DB_PASSWORD`
 
 The workflow fixes `NEXT_PUBLIC_CATALOGUE_MODE=api-demo`; it is not a secret and
 must not be changed to fixture mode. The URL and publishable key are browser-safe
@@ -20,6 +22,18 @@ permitted for these reads.
 
 The MapTiler browser key must be restricted to the exact staging origin. Never
 write any of these values to workflow output, repository variables, or files.
+
+`SUPABASE_ACCESS_TOKEN` must be a short-lived scoped token restricted to the
+`nibatlas-staging` project. Grant only Project Settings read and Connection
+Pooling read. The deployment queries that project directly, verifies its name,
+and retrieves its IPv4 pooler connection for GitHub-hosted runners. It combines
+the pooler URL with the separately stored database password only in process,
+masks the derived URL before use, and never writes it to disk. Do not replace
+the identity check with account-wide project enumeration or Supabase CLI
+linking, either of which requires broader token access.
+
+`SUPABASE_DB_PASSWORD` is used only by the CLI migration connection. Neither
+Supabase credential is exposed to the application build or Cloudflare Worker.
 
 ## Deployment
 
