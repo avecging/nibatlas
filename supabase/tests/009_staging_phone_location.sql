@@ -2,8 +2,8 @@ begin;
 select plan(11);
 select is(current_setting('nibatlas.fixture_environment', true), null::text, 'fixture opt-in is absent by default');
 set local nibatlas.fixture_environment = 'staging';
-\ir ../fixtures/staging-phone-location.sql
-\ir ../fixtures/staging-phone-location.sql
+\ir fixtures/staging-phone-location.inc
+\ir fixtures/staging-phone-location.inc
 set constraints all immediate;
 select is((select count(*)::integer from public.shops where slug = 'location-test-fairprice-compassvale-link'), 1, 'fixture is idempotent');
 select is(public.shop_detail('location-test-fairprice-compassvale-link')->>'primaryType', 'test_venue', 'non-pen test type reaches detail');
