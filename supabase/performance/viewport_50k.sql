@@ -2,6 +2,9 @@
 begin;
 
 alter table public.shops disable trigger shops_validate_timezone;
+-- This benchmark measures catalogue reads, not collectability. Its 50,000
+-- synthetic shops are rolled back and intentionally have no stamp fixtures.
+alter table public.shops disable trigger shops_require_active_atlas_stamp;
 
 insert into public.shops (
   id, slug, name, country_code, city_display, timezone, location,
@@ -59,6 +62,7 @@ where s.slug like 'perf-global-%'
   and substring(s.slug from '([0-9]+)$')::integer <= 10000;
 
 alter table public.shops enable trigger shops_validate_timezone;
+alter table public.shops enable trigger shops_require_active_atlas_stamp;
 analyze public.shops;
 analyze public.shop_aliases;
 analyze public.shop_shop_types;
