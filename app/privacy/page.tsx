@@ -40,7 +40,8 @@ export default function PrivacyPage() {
 
       <h2 className="type-h2">When location is used</h2>
       <p>
-        Location is requested once, in the foreground, at the moment you tap{" "}
+        For verified collection, location is requested once, in the foreground,
+        after you choose the location check from{" "}
         <strong>Collect Stamp</strong>{" "}
         while you are at a shop. Your browser asks you first, and you can
         decline. The position is checked against that shop&rsquo;s location and
@@ -58,10 +59,12 @@ export default function PrivacyPage() {
 
       <h2 className="type-h2">Browsing and personal actions</h2>
       <p>The map, search and shop pages are available without an account.
-        Saving a shop and collecting a verified stamp require sign-in. Saved
+        Account-backed saving and verified stamp collection require sign-in. These saved
         shops and stamps are kept privately in Supabase with your account and
         appear when you sign in on another device. Existing device saves may be
-        imported after sign-in; simulated impressions are never imported as visits.</p>
+        imported after sign-in; simulated impressions are never imported as visits.
+        In a standalone demonstration without sign-in configured, saves and preview
+        impressions instead stay in this browser and do not require an account.</p>
       <p>Verification keeps limited diagnostics for up to 30 days, with automatic
         deletion normally running every ten minutes. These include the shop,
         attempt time, outcome, coarse accuracy and distance ranges, and limited
@@ -132,7 +135,10 @@ export default function PrivacyPage() {
       <h2 className="type-h2">Demonstration mode</h2>
       <p>Fixture and reviewer demonstrations may show simulated impressions held
         on the device. These do not verify your location and are kept separate
-        from your account Passport.</p>
+        from your account Passport. Standalone demo saves also stay on this device
+        when sign-in is unavailable. In those builds, <strong>Download local data</strong>
+        {' '}and <strong>Clear data on this device</strong> act on the browser&rsquo;s
+        local saves and impressions; clearing them does not delete account data.</p>
 
       <p className="type-body-sm">
         More about the catalogue and the countries it covers:{" "}

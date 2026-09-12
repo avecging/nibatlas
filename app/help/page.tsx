@@ -84,17 +84,22 @@ export default function HelpPage() {
         gather in your <strong>Passport</strong>, which you can browse as a list or a book, grouped by country and locality.
       </p>
       <p>
-        Sign in, choose <strong>Check my location</strong>, then confirm
+        In the connected catalogue, sign in, choose <strong>Check my location</strong>, then confirm
         <strong> I am at this shop</strong> after the check passes. A stamp only
         appears after the server confirms it. Your precise position is discarded.
       </p>
+      <p>Standalone demonstrations offer preview impressions instead. Their
+        collection dialog explains that no location check runs and that the
+        impression stays on the device; it is not a verified visit.</p>
 
       <h2 className="type-h2">Questions</h2>
 
       <h3 className="type-h3">Do I need an account?</h3>
       <p>
-        Browsing does not require an account. Saving shops and collecting verified
+        Browsing does not require an account. Account-backed saves and verified
         stamps do, so your private collection is available across devices.
+        In a standalone demo without sign-in configured, saves and preview
+        impressions need no account and remain in this browser.
         See <Link href="/privacy">Privacy</Link>.
       </p>
 
@@ -140,7 +145,9 @@ export default function HelpPage() {
       <p>
         Less than you would expect, and{" "}
         <Link href="/privacy">Privacy</Link> says exactly what. The short version:
-        location is used only when you ask, your saves and verified stamps are held with your account, and your Passport is private.
+        location is used only when you ask, account saves and verified stamps are
+        held privately with your account, and standalone demo records stay in
+        this browser.
       </p>
 
       <h3 className="type-h3" id="collection-help">Trouble collecting a stamp?</h3>
