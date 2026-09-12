@@ -411,3 +411,7 @@ The two-stage collect journey now has a backend contract at
 acquire a fresh foreground fix for a new nonce, then show **I am at this shop**
 only after verification. Never replay cached Near Me coordinates. WP3 connects
 this contract to the existing ceremony and shared map/shop/Passport user state.
+WP3 now provides that connection in API mode. **Check my location** is the
+explicit foreground permission action; **I am at this shop** appears only after
+verification. Private history has loading/error/sign-in states, and failures
+link to collection help. See [collection reads and recovery](docs/api/collections-v1.md).

@@ -33,14 +33,15 @@ export default function PrivacyPage() {
 
       <h2 className="type-h2">Nib Atlas does not track where you go</h2>
       <p>
-        There is no background location, no location history, and no automatic
+        There is no background location, no continuous location history, and no automatic
         visit detection. Panning the map, opening a shop page, and searching for a
         place never involve your position at all.
       </p>
 
       <h2 className="type-h2">When location is used</h2>
       <p>
-        Location is requested once, in the foreground, at the moment you tap{" "}
+        For verified collection, location is requested once, in the foreground,
+        after you choose the location check from{" "}
         <strong>Collect Stamp</strong>{" "}
         while you are at a shop. Your browser asks you first, and you can
         decline. The position is checked against that shop&rsquo;s location and
@@ -56,18 +57,19 @@ export default function PrivacyPage() {
         and shop pages continue to work exactly as before.
       </p>
 
-      <h2 className="type-h2">Browsing and saving without an account</h2>
-      <p>
-        The map, search, and every shop page are available anonymously — and so is
-        saving a shop or keeping an impression. Neither needs an account.
-      </p>
-      <p>
-        <strong>What you save stays on this device.</strong>{" "}
-        It is held in this browser&rsquo;s storage, it is not sent to Nib Atlas,
-        it does not appear on your other devices, and clearing this
-        browser&rsquo;s data clears it. Signing in does not sync these items yet;
-        they remain on this device in this build.
-      </p>
+      <h2 className="type-h2">Browsing and personal actions</h2>
+      <p>The map, search and shop pages are available without an account.
+        Account-backed saving and verified stamp collection require sign-in. These saved
+        shops and stamps are kept privately in Supabase with your account and
+        appear when you sign in on another device. Existing device saves may be
+        imported after sign-in; preview impressions are never imported as visits.
+        In a standalone demonstration without sign-in configured, saves and preview
+        impressions instead stay in this browser and do not require an account.</p>
+      <p>Verification keeps limited diagnostics for up to 30 days, with automatic
+        deletion normally running every ten minutes. These include the shop,
+        attempt time, outcome, coarse accuracy and distance ranges, and limited
+        abuse indicators. They contain no raw coordinates. Short-lived verification
+        proofs and rate-limit counters are deleted separately.</p>
 
       <h2 className="type-h2">Signing in</h2>
       <p>
@@ -94,23 +96,15 @@ export default function PrivacyPage() {
       </p>
 
       <h2 className="type-h2">Your data, your call</h2>
-      <p>
-        Saved shops and collected impressions currently stay in this browser, and
-        two controls act on them. <strong>Download local data</strong> hands you a
-        machine-readable copy of your saved shops and collected impressions, and{" "}
-        <strong>Clear data on this device</strong> removes those same two things
-        from this browser. Both are in{" "}
-        <Link href="/me#me-device">Me &rsaquo; On this device</Link>. Clearing your
-        browser&rsquo;s own site data for Nib Atlas removes everything it has kept
-        here, including those.
-      </p>
+      <p>Signing out clears the Passport displayed in this browser. Clearing site
+        data does not delete saved shops or stamps held with your account.
+        Account export and deletion controls are not available yet. For help,
+        see <Link href="/help">Help</Link>.</p>
       <h2 className="type-h2">When you send us something</h2>
       <p>
-        Apart from account sign-in, two things on Nib Atlas send information away
-        from your browser, and both are ones you choose to use:{" "}
+        Alongside account, save and collection requests, you may choose to send:{" "}
         <Link href="/suggest-shop">suggesting a pen shop</Link>, and reporting
-        something wrong with a listing from that shop&rsquo;s own page. Nothing
-        else does.
+        something wrong with a listing from that shop&rsquo;s own page.
       </p>
       <p>
         <strong>What is sent is what you typed</strong> — the shop, and what you
@@ -138,13 +132,15 @@ export default function PrivacyPage() {
         follow you around the web.
       </p>
 
-      <h2 className="type-h2">Location is not switched on yet</h2>
-      <p>
-        The location check described above is not running in this build. Collecting
-        a stamp keeps a preview impression on this device so you can see how the
-        Passport works; nothing about your position is requested, checked, or sent
-        anywhere.
-      </p>
+      <h2 className="type-h2">Device-only previews</h2>
+      <p>Standalone previews may show impressions held on the device. These do
+        not verify your location and are kept separate from your account Passport.
+        Standalone saves also stay on this device when sign-in is unavailable.
+        In those builds, <strong>Download local data</strong>{" "}
+        exports local saved shops and impressions. <strong>Clear data on this device</strong>{" "}
+        removes those same two things from this browser; clearing them does not
+        delete account data. These controls are under{" "}
+        <Link href="/me#me-device">Me › On this device</Link>.</p>
 
       <p className="type-body-sm">
         More about the catalogue and the countries it covers:{" "}

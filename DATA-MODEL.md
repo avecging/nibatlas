@@ -396,3 +396,8 @@ schema. Collection diagnostics remain null/empty; issuance snapshots are built
 server-side. The service role no longer has direct collection INSERT permission.
 See [the verification contract](docs/api/stamp-verification-v1.md) for the
 precise schema/policy, clocks, privacy boundary and retention job.
+
+WP3 adds `list_stamp_collections(p_after uuid)` for bounded owner-only history.
+It returns saved historical fields plus a nullable current published shop slug
+for navigation. Archiving a shop does not remove a collection. No table mutation,
+collection-write permission, or historical-snapshot rewrite is introduced.

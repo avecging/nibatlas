@@ -18,3 +18,8 @@ SQL policy, migration, and geographic-query tests begin with the production-shap
 - `scripts/verification/concurrency.py` runs eight separate database sessions
   against independent verified nonces and asserts one collection. CI runs it
   after pgTAP and before the existing database performance gate.
+# Milestone 5 WP3
+
+`008_collection_reads.sql` verifies owner isolation, anonymous/service-role
+denial, exclusive cursors, unchanged insert grants, historical snapshots after
+catalogue edits, and archived-shop history without a public navigation alias.

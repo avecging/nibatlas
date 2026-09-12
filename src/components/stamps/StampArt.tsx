@@ -177,6 +177,13 @@ export function StampArt({
   subtitle,
   detail = "full",
 }: StampArtProps) {
+  if (stamp.commissioned) {
+    // Never replace approved artwork with a generated imitation. M6 supplies
+    // checksum-bound delivery for the approved exports; history/credit remain.
+    return <figure className={styles.stamp} aria-label={`Shop stamp, ${title}`}>
+      <p>Artwork temporarily unavailable</p>
+    </figure>;
+  }
   const ink = `var(--ink-${stamp.ink})`;
   const filterId = `stamp-edge-${stamp.id}`;
   const grainId = `stamp-grain-${stamp.id}`;

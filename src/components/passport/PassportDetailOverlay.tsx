@@ -113,7 +113,8 @@ function ImpressionDetail({
         </div>
       </dl>
 
-      <div className={styles.actions}>
+      {collection.stamp.commissioned ? <p>Illustrated by {collection.stamp.commissioned.illustratorCredit}</p> : null}
+      {collection.shopSlug ? <div className={styles.actions}>
         <ButtonLink
           href={`/shops/${collection.shopSlug}?from=passport&back=${encodeURIComponent(
             // The anchor, not just the route: a stamp opened from a locality's
@@ -125,7 +126,7 @@ function ImpressionDetail({
         >
           Open shop
         </ButtonLink>
-      </div>
+      </div> : <p>This shop page is no longer available.</p>}
     </>
   );
 }

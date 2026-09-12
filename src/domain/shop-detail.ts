@@ -221,6 +221,16 @@ export interface ShopDetail extends ShopMapSummary {
 export type StampTier = "shop" | "locality" | "country";
 
 export interface ShopStampDesign {
+  /** Preserved approved export metadata. Asset delivery is owned by M6. */
+  readonly commissioned?: {
+    readonly illustratorCredit: string;
+    readonly cleanSvgKey: string;
+    readonly cleanSvgSha256: string;
+    readonly outlinedSvgKey: string;
+    readonly outlinedSvgSha256: string;
+    readonly transparentPngKey: string;
+    readonly transparentPngSha256: string;
+  };
   readonly id: string;
   readonly tier: StampTier;
   readonly motif: StampMotif;

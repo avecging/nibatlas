@@ -1,0 +1,110 @@
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { VerifiedCollection } from './VerifiedCollection';
+import { CollectionProvider, useCollection } from '@/src/features/collection/collection-store';
+import { CatalogueProvider } from '@/src/features/catalogue/CatalogueProvider';
+import { ReviewerModeProvider } from '@/src/features/reviewer/ReviewerModeProvider';
+import { prototypeShopDetails } from '@/src/fixtures/prototype-catalogue';
+import { ISSUED_STAMP, STAMP_OWNER } from '@/src/test/stamp';
+import type { AccountSession } from '@/src/features/account/account-session';
+import type { StampFailureCode } from '@/src/api/v1/stamp-verification';
+
+const account=vi.hoisted(()=>({session:{status:'signed-in',userId:'10000000-0000-4000-8000-000000000051',displayName:null,identityLabel:'fixture@example.test'} as AccountSession,refresh:vi.fn()}));
+const requestSignIn=vi.hoisted(()=>vi.fn());
+vi.mock('@/src/features/account/AccountSessionProvider',()=>({useAccountSession:()=>account}));
+vi.mock('@/src/features/auth/SignInProvider',()=>({useSignInPrompt:()=>({requestSignIn})}));
+const shop={...prototypeShopDetails[0]!,id:ISSUED_STAMP.shopId,slug:ISSUED_STAMP.shopSlug,name:'Current Demo Name'};
+let rows: unknown[];
+let calls:{action:string;body:Record<string,unknown>}[];
+let verifyFailure:StampFailureCode|null;
+let nonceCount:number;
+let readFailure:boolean;
+function Probe(){const store=useCollection();return <><output data-testid="count">{store.passport.stampCount}</output><output data-testid="visited">{String(store.isVisited(shop.id))}</output><output data-testid="seals">{store.seals.length}</output><VerifiedCollection shop={shop}/></>;}
+function App(){return <ReviewerModeProvider><CatalogueProvider mode="api"><CollectionProvider><Probe/></CollectionProvider></CatalogueProvider></ReviewerModeProvider>;}
+beforeEach(()=>{
+  window.localStorage.clear();window.history.replaceState({},'','/shops/m3-api-demo-shop');
+  rows=[];calls=[];nonceCount=0;verifyFailure=null;readFailure=false;
+  account.session={status:'signed-in',userId:STAMP_OWNER,identityLabel:'fixture@example.test',displayName:null};
+  requestSignIn.mockClear();
+  vi.spyOn(document,'visibilityState','get').mockReturnValue('visible');
+  Object.defineProperty(navigator,'geolocation',{configurable:true,value:{getCurrentPosition:vi.fn((success:PositionCallback)=>success({coords:{latitude:1,longitude:2,accuracy:100}} as GeolocationPosition))}});
+  vi.stubGlobal('fetch',vi.fn(async(input:string,init?:RequestInit)=>{
+    if(input.startsWith('/api/v1/collections')) return readFailure ? Response.json({}, {status:503}) : Response.json({ownerId:STAMP_OWNER,collections:rows,nextCursor:null});
+    const action=input.split('/').at(-1)!;
+    const body=JSON.parse(String(init?.body)) as Record<string,unknown>;
+    calls.push({action,body});
+    if(action==='nonce') {nonceCount++;return Response.json(rows.length ? {ok:true,status:'duplicate',collection:rows[0]} : {ok:true,status:'nonce_issued',requestId:STAMP_OWNER,nonce:String(nonceCount).padStart(64,'0')});}
+    if(action==='verify') return Response.json(verifyFailure ? {ok:false,error:{code:verifyFailure}} : {ok:true,status:'confirmation_required'});
+    rows=[ISSUED_STAMP];return Response.json({ok:true,status:'success',collection:ISSUED_STAMP});
+  }));
+});
+afterEach(()=>{vi.restoreAllMocks();vi.unstubAllGlobals();});
+async function open(){render(<App/>);fireEvent.click(await screen.findByRole('button',{name:'Collect Stamp'}));await screen.findByRole('button',{name:'Check my location'});}
+async function verify(){fireEvent.click(screen.getByRole('button',{name:'Check my location'}));await screen.findByRole('button',{name:'I am at this shop'});}
+
+describe('verified collection journey',()=>{
+  it('does not request location before consent or issue before confirmation; updates shared state once',async()=>{
+    await open();expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
+    await verify();expect(calls.map(c=>c.action)).toEqual(['nonce','verify']);expect(screen.getByTestId('count')).toHaveTextContent('0');
+    fireEvent.click(screen.getByRole('button',{name:'I am at this shop'}));
+    const ceremony=await screen.findByTestId('stamp-ceremony');
+    expect(ceremony).toHaveTextContent('Historical Demo Shop');expect(ceremony).toHaveTextContent('2026-09-12');
+    expect(ceremony).not.toHaveTextContent('preview impression');
+    await waitFor(()=>expect(screen.getByTestId('count')).toHaveTextContent('1'));
+    expect(screen.getByTestId('visited')).toHaveTextContent('true');expect(screen.getByTestId('seals')).toHaveTextContent('0');
+    expect(calls[2]?.body).toEqual({shopId:shop.id,requestId:STAMP_OWNER,nonce:'1'.padStart(64,'0'),confirmedAtShop:true});
+    expect(JSON.stringify(window.localStorage)).not.toContain('Historical Demo Shop');
+    expect(JSON.stringify(window.localStorage)).not.toContain('latitude');
+  });
+  it('opens a duplicate without another geolocation check or press',async()=>{
+    rows=[ISSUED_STAMP];render(<App/>);
+    fireEvent.click(await screen.findByRole('button',{name:'View Atlas Stamp'}));
+    expect(await screen.findByText('Already in your Passport')).toBeInTheDocument();
+    expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
+    expect(calls).toHaveLength(0);
+  });
+  it('permits one immediate poor-accuracy retry with a new nonce',async()=>{
+    verifyFailure='poor_accuracy';await open();fireEvent.click(screen.getByRole('button',{name:'Check my location'}));
+    fireEvent.click(await screen.findByRole('button',{name:'Try a fresh location'}));
+    await screen.findByText(/A second reading was still unclear/);
+    expect(screen.queryByRole('button',{name:'Try a fresh location'})).not.toBeInTheDocument();
+    expect(nonceCount).toBe(2);expect(calls.filter(c=>c.action==='collect')).toHaveLength(0);
+    expect(calls[1]?.body['nonce']).not.toBe(calls[3]?.body['nonce']);
+  });
+  it.each(['permission_denied','outside_radius','stale_position','expired_nonce','reused_nonce','throttled','shop_unavailable','service_unavailable','invalid_request'] as const)('shows %s without issuing',async(code)=>{
+    verifyFailure=code;await open();fireEvent.click(screen.getByRole('button',{name:'Check my location'}));
+    expect(await screen.findByRole('alert')).not.toHaveTextContent(/150|100|radius|metres|threshold/i);
+    expect(calls.some(c=>c.action==='collect')).toBe(false);
+  });
+  it('sends denial without coordinates',async()=>{
+    Object.defineProperty(navigator,'geolocation',{configurable:true,value:{getCurrentPosition:(_success:PositionCallback,error:PositionErrorCallback)=>error({code:1} as GeolocationPositionError)}});
+    verifyFailure='permission_denied';await open();fireEvent.click(screen.getByRole('button',{name:'Check my location'}));
+    await screen.findByRole('alert');expect(calls[1]?.body).toMatchObject({permission:'denied'});expect(calls[1]?.body).not.toHaveProperty('position');
+  });
+  it('invalidates verification on hide before explicit confirmation',async()=>{
+    await open();await verify();
+    act(()=>{vi.spyOn(document,'visibilityState','get').mockReturnValue('hidden');document.dispatchEvent(new Event('visibilitychange'));});
+    await screen.findByRole('alert');expect(screen.queryByRole('button',{name:'I am at this shop'})).not.toBeInTheDocument();
+    expect(calls.some(c=>c.action==='collect')).toBe(false);
+  });
+  it('clears private impressions and active dialogs on sign-out',async()=>{
+    rows=[ISSUED_STAMP];const view=render(<App/>);
+    fireEvent.click(await screen.findByRole('button',{name:'View Atlas Stamp'}));await screen.findByTestId('stamp-ceremony');
+    account.session={status:'signed-out'};view.rerender(<App/>);
+    await waitFor(()=>expect(screen.queryByTestId('stamp-ceremony')).not.toBeInTheDocument());
+    expect(screen.getByTestId('count')).toHaveTextContent('0');expect(screen.getByTestId('visited')).toHaveTextContent('false');
+  });
+  it('returns sign-in to preflight without requesting location',async()=>{
+    account.session={status:'signed-out'};render(<App/>);
+    fireEvent.click(await screen.findByRole('button',{name:'Collect Stamp'}));
+    expect(requestSignIn).toHaveBeenCalledWith(expect.objectContaining({intent:{type:'collect-shop',shopSlug:shop.slug},returnTo:expect.stringContaining('collect=1')}));
+    expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
+  });
+  it('keeps an issued impression when a reconciliation read fails',async()=>{
+    await open();await verify();readFailure=true;
+    fireEvent.click(screen.getByRole('button',{name:'I am at this shop'}));await screen.findByTestId('stamp-ceremony');
+    await waitFor(()=>expect(screen.getByTestId('count')).toHaveTextContent('1'));
+    fireEvent.click(within(screen.getByTestId('stamp-ceremony')).getByRole('button',{name:'Back to shop'}));
+    expect(screen.getByRole('button',{name:'View Atlas Stamp'})).toBeInTheDocument();
+  });
+});

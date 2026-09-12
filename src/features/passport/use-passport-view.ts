@@ -68,7 +68,8 @@ export interface PassportViewStore {
  */
 export function usePassportView(): PassportViewStore {
   const { reviewer, resolved } = useReviewerModeStore();
-  const { scope } = useCollection();
+  const { scope, source, passportViewMemory } = useCollection();
+  const accountMode = source === 'account';
 
   const [record, setRecord] = useState<PassportViewRecord>(EMPTY_PASSPORT_VIEW);
   const [hydratedFor, setHydratedFor] = useState<string | null>(null);
@@ -105,6 +106,13 @@ export function usePassportView(): PassportViewStore {
       // is the safe direction: the audience default applies.
     }
 
+    // Route unmounts must not lose the reader's place. The collection boundary
+    // owns this memory for the account lifetime and discards it on sign-out.
+    if (accountMode) stored = { ...stored,
+      place:passportViewMemory?.read().place ?? null,
+      listScrollTop:passportViewMemory?.read().listScrollTop ?? 0 };
+    passportViewMemory?.write(stored);
+
     /* eslint-disable react-hooks/set-state-in-effect --
        Local storage is an external system that can only be read after mount;
        this is the documented "subscribe to an external store" case. */
@@ -112,7 +120,7 @@ export function usePassportView(): PassportViewStore {
     setRecord(stored);
     setHydratedFor(scope);
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [hydratedFor, resolved, scope]);
+  }, [accountMode, hydratedFor, passportViewMemory, resolved, scope]);
 
   const commit = useCallback(
     (patch: Partial<PassportViewRecord>) => {
@@ -123,6 +131,7 @@ export function usePassportView(): PassportViewStore {
         // Re-read rather than trusting this tab's copy: another tab may have
         // changed a field this patch does not name.
         stored = parsePassportView(window.localStorage.getItem(key));
+        if (accountMode) stored = { ...stored, place:recordRef.current.place, listScrollTop:recordRef.current.listScrollTop };
       } catch {
         // Storage is unreadable; the in-memory record is the best base there is.
       }
@@ -140,9 +149,10 @@ export function usePassportView(): PassportViewStore {
          */
         ...(recordRef.current.coverSeen ? { coverSeen: true } : {}),
       });
-      const serialized = serializePassportView(next);
+      const serialized = serializePassportView(accountMode ? {...next,place:null,listScrollTop:0} : next);
 
       recordRef.current = next;
+      passportViewMemory?.write(next);
       setRecord(next);
 
       try {
@@ -152,7 +162,7 @@ export function usePassportView(): PassportViewStore {
         // Best effort: the choice still applies for this page view.
       }
     },
-    [scope],
+    [accountMode, passportViewMemory, scope],
   );
 
   /**
@@ -186,7 +196,8 @@ export function usePassportView(): PassportViewStore {
         // Unreadable storage resolves to nothing remembered.
       }
 
-      const serialized = serializePassportView(next);
+      if (accountMode) next = {...next,place:recordRef.current.place,listScrollTop:recordRef.current.listScrollTop};
+      const serialized = serializePassportView(accountMode ? {...next,place:null,listScrollTop:0} : next);
 
       // Already held — usually the echo of a value this tab wrote, or of one it
       // has already adopted. Writing it back would bounce the event home.
@@ -196,6 +207,7 @@ export function usePassportView(): PassportViewStore {
 
       lastWrittenRef.current = serialized;
       recordRef.current = next;
+      passportViewMemory?.write(next);
       setRecord(next);
     }
 
@@ -204,7 +216,7 @@ export function usePassportView(): PassportViewStore {
     return () => {
       window.removeEventListener("storage", onStorage);
     };
-  }, [hydratedFor, scope]);
+  }, [accountMode, hydratedFor, passportViewMemory, scope]);
 
   const chooseMode = useCallback(
     (mode: PassportMode) => commit({ mode }),

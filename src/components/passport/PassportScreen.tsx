@@ -11,7 +11,7 @@ import {
   type PassportDetailSubject,
 } from "@/src/components/passport/PassportDetailOverlay";
 import { PASSPORT_ANCHOR_PARAM } from "@/src/components/shops/ShopBackLink";
-import { ButtonLink } from "@/src/components/ui/Button";
+import { Button, ButtonLink } from "@/src/components/ui/Button";
 import { Icon } from "@/src/components/ui/Icon";
 import type { CountryCode } from "@/src/domain/geo";
 import {
@@ -21,6 +21,7 @@ import {
 } from "@/src/domain/passport";
 import type { EarnedSeal } from "@/src/domain/seals";
 import { useAccountSession } from "@/src/features/account/AccountSessionProvider";
+import { useSignInPrompt } from "@/src/features/auth/SignInProvider";
 import { useCollection } from "@/src/features/collection/collection-store";
 import { noopTelemetry } from "@/src/features/map/telemetry";
 import {
@@ -145,8 +146,16 @@ function PassportEmpty() {
   );
 }
 
+function PassportSignIn() {
+  const { requestSignIn } = useSignInPrompt();
+  return <div className={styles.notice}><h1 className={styles.noticeTitle}>Your private Passport</h1>
+    <p>Sign in to see the stamps collected with your account.</p>
+    <Button onClick={() => requestSignIn({context:'Open your Passport'})}>Sign in</Button></div>;
+}
+
 export function PassportScreen({ target }: { readonly target: PassportTarget }) {
-  const { passport, seals, countryProgress, hydrated } = useCollection();
+  const collectionStore = useCollection();
+  const { passport, seals, countryProgress, hydrated } = collectionStore;
   const { session } = useAccountSession();
   const view = usePassportView();
   /*
@@ -498,6 +507,14 @@ export function PassportScreen({ target }: { readonly target: PassportTarget }) 
     };
   }, [ready, rememberOverviewScroll, rememberScroll]);
 
+  if (collectionStore.source === 'account' && collectionStore.readStatus === 'signed-out') {
+    return <PassportSignIn/>;
+  }
+  if (collectionStore.source === 'account' && passport.stampCount === 0 && (collectionStore.readStatus === 'error' || collectionStore.readStatus === 'unavailable')) {
+    return <div className={styles.notice}><h1 className={styles.noticeTitle}>Passport could not be loaded</h1>
+      <p role="alert">Your stamps are still kept with your account. Please try again.</p>
+      <Button onClick={collectionStore.retryRead}>Try again</Button></div>;
+  }
   if (!ready) {
     return <PassportSettling />;
   }
@@ -542,6 +559,7 @@ export function PassportScreen({ target }: { readonly target: PassportTarget }) 
       data-app-frame={view.mode === "book" ? "fixed" : "flow"}
     >
       <div className={styles.toolbar}>
+        {collectionStore.readStatus === 'error' ? <p role="status">Passport refresh failed. Your loaded impressions are still shown. <Button compact onClick={collectionStore.retryRead}>Try again</Button></p> : null}
         {/*
           List on the left, Book on the right. Two buttons rather than a
           radiogroup: each one is a control that switches the view immediately,

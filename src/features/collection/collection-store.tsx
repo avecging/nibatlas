@@ -38,6 +38,10 @@ import {
 } from "@/src/fixtures/prototype-passport";
 import { useReviewerModeStore } from "@/src/features/reviewer/ReviewerModeProvider";
 import { clearUnknownShopImportHolds } from "@/src/features/saved/saved-shop-import-holds";
+import { useCatalogue } from "@/src/features/catalogue/CatalogueProvider";
+import { useAccountSession } from "@/src/features/account/AccountSessionProvider";
+import { fetchCollections } from "./collection-client";
+import { EMPTY_PASSPORT_VIEW, type PassportViewRecord } from "@/src/features/passport/passport-view-state";
 
 /**
  * Local collection state, namespaced by mode.
@@ -118,6 +122,13 @@ function baselineFor(scope: CollectionScope): PersistedState {
 }
 
 export interface CollectionStore {
+  readonly source?: 'account';
+  readonly readStatus?: 'loading' | 'ready' | 'error' | 'signed-out' | 'unavailable';
+  readonly accountOwner?: string | null;
+  /** Account-lifetime navigation memory; never serialized to browser storage. */
+  readonly passportViewMemory?: { read(): PassportViewRecord; write(value: PassportViewRecord): void };
+  retryRead?(): void;
+  acceptIssued?(collection: StampCollection): void;
   readonly savedShopIds: ReadonlySet<string>;
   readonly collections: readonly StampCollection[];
   readonly userShopState: UserShopState;
@@ -281,6 +292,7 @@ export function localCollectionDate(timezone: string, today: Date): string {
 
 export function CollectionProvider({ children }: { readonly children: ReactNode }) {
   const { reviewer, resolved } = useReviewerModeStore();
+  const catalogue = useCatalogue();
   const scope: CollectionScope = reviewer ? "reviewer" : "normal";
 
   /*
@@ -547,6 +559,89 @@ export function CollectionProvider({ children }: { readonly children: ReactNode 
     visitedSet,
   ]);
 
+  if (resolved && !catalogue.simulatedCollection && !reviewer) {
+    return <AccountCollectionBoundary local={value}>{children}</AccountCollectionBoundary>;
+  }
+  return <CollectionContext.Provider value={value}>{children}</CollectionContext.Provider>;
+}
+
+/** Remount all private state on identity change, including pending response guards. */
+function AccountCollectionBoundary({ local, children }: { readonly local: CollectionStore; readonly children: ReactNode }) {
+  const { session } = useAccountSession();
+  const owner = session.status === 'signed-in' ? session.userId : null;
+  return <AccountCollections key={owner ?? session.status} owner={owner} local={local}>{children}</AccountCollections>;
+}
+
+function AccountCollections({ owner, local, children }: {
+  readonly owner: string | null; readonly local: CollectionStore; readonly children: ReactNode;
+}) {
+  const { session, refresh } = useAccountSession();
+  const [collections, setCollections] = useState<readonly StampCollection[]>([]);
+  const [readStatus, setReadStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [revision, setRevision] = useState(0);
+  const active = useRef(true);
+  const issued = useRef(new Map<string, StampCollection>());
+  const passportViewRef = useRef<PassportViewRecord>(EMPTY_PASSPORT_VIEW);
+  const passportViewMemory = useMemo(() => ({
+    read: () => passportViewRef.current,
+    write: (value: PassportViewRecord) => { passportViewRef.current = value; },
+  }), []);
+  const retryRead = useCallback(() => setRevision(value => value + 1), []);
+  useEffect(() => {
+    active.current = true;
+    const pendingIssued = issued.current;
+    return () => { active.current = false; pendingIssued.clear(); passportViewRef.current=EMPTY_PASSPORT_VIEW; };
+  }, []);
+  useEffect(() => {
+    if (!owner) return;
+    const controller = new AbortController();
+    void fetchCollections(controller.signal, owner).then(rows => {
+      if (controller.signal.aborted) return;
+      // A read started before issuance cannot erase the newly issued impression.
+      const merged = new Map(rows.map(row => [row.id, row]));
+      for (const [id, row] of issued.current) if (!merged.has(id)) merged.set(id, row);
+      setCollections([...merged.values()]);
+      setReadStatus('ready');
+    }).catch(() => {
+      if (!controller.signal.aborted) setReadStatus('error');
+    });
+    return () => controller.abort();
+  }, [owner, revision]);
+  useEffect(() => {
+    if (!owner) return;
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') { refresh(); retryRead(); }
+    };
+    const channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('nib-atlas.collections');
+    if (channel) channel.onmessage = () => { refresh(); retryRead(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { channel?.close(); document.removeEventListener('visibilitychange', onVisible); };
+  }, [owner, refresh, retryRead]);
+  const acceptIssued = useCallback((collection: StampCollection) => {
+    if (!active.current || !owner || collection.simulated) return;
+    issued.current.set(collection.id, collection);
+    setCollections(current => [...current.filter(row => row.id !== collection.id), collection]);
+    setReadStatus('ready');
+    retryRead();
+    // Invalidation contains no identity, collection, coordinates or nonce.
+    if (typeof BroadcastChannel !== 'undefined') {
+      const channel = new BroadcastChannel('nib-atlas.collections');
+      channel.postMessage('changed'); channel.close();
+    }
+  }, [owner, retryRead]);
+  const visited = useMemo(() => new Set(collections.map(row => row.shopId)), [collections]);
+  const value: CollectionStore = {
+    ...local, source:'account', accountOwner:owner, passportViewMemory, collections,
+    readStatus: owner ? readStatus : session.status === 'signed-out' ? 'signed-out'
+      : session.status === 'loading' ? 'loading' : 'unavailable',
+    hydrated: owner ? readStatus === 'ready' || collections.length > 0 : session.status === 'signed-out',
+    passport:buildPassport(collections),
+    // Geographic awards need their own persisted/versioned backend (deferred).
+    seals:[],countryProgress:[],localitySeal:() => undefined,countrySeal:() => undefined,
+    userShopState:{ savedShopIds:local.savedShopIds,visitedShopIds:visited },
+    isVisited:id => visited.has(id), collectionForShop:id => collections.find(row => row.shopId === id),
+    collectStamp:() => { throw new Error('Verified issuance required'); }, retryRead:() => {refresh();retryRead();},acceptIssued,
+  };
   return <CollectionContext.Provider value={value}>{children}</CollectionContext.Provider>;
 }
 

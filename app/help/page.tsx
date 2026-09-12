@@ -25,9 +25,8 @@ export const dynamic = "force-static";
  * About, which derives its list from the catalogue. Two pages both naming the
  * countries is two places to be wrong, and it was already wrong in one of them.
  *
- * Everything on this page has to stay true of the build it ships in. The stamp
- * answers say plainly that the location check is not running yet, in the same
- * terms Privacy and the collection dialog use.
+ * The answers distinguish verified account collections from standalone previews,
+ * in the same terms Privacy and the collection dialog use.
  */
 export default function HelpPage() {
   return (
@@ -81,24 +80,26 @@ export default function HelpPage() {
       <p>
         When you are at a shop, <strong>Collect Stamp</strong> keeps the visit as
         an ink impression for that shop, with the place and the date. Impressions
-        gather in your <strong>Passport</strong>, which reads as a book: a page
-        per locality, with seals for places you have worked through.
+        gather in your <strong>Passport</strong>, which you can browse as a list or a book, grouped by country and locality.
       </p>
       <p>
-        <strong>The location check is not running yet.</strong> Collecting today
-        keeps a preview impression on your device so you can see how the Passport
-        works. It is not a verified visit, and the interface says so wherever it
-        appears.
+        In the connected catalogue, sign in, choose <strong>Check my location</strong>, then confirm{" "}
+        <strong>I am at this shop</strong> after the check passes. A stamp only
+        appears after the server confirms it. Your precise position is discarded.
       </p>
+      <p>Standalone demonstrations offer preview impressions instead. Their
+        collection dialog explains that no location check runs and that the
+        impression stays on the device; it is not a verified visit.</p>
 
       <h2 className="type-h2">Questions</h2>
 
       <h3 className="type-h3">Do I need an account?</h3>
       <p>
-        No. The map, search, every shop page, saving, and collecting all work
-        without one. What you save and collect is kept in this browser and is not
-        sent to Nib Atlas — see <Link href="/privacy">Privacy</Link>. Accounts
-        arrive later, to carry the same things between your devices.
+        Browsing does not require an account. Account-backed saves and verified
+        stamps do, so your private collection is available across devices.
+        In a standalone demo without sign-in configured, saves and preview
+        impressions need no account and remain in this browser.
+        See <Link href="/privacy">Privacy</Link>.
       </p>
 
       <h3 className="type-h3">Where does Nib Atlas cover?</h3>
@@ -143,9 +144,21 @@ export default function HelpPage() {
       <p>
         Less than you would expect, and{" "}
         <Link href="/privacy">Privacy</Link> says exactly what. The short version:
-        browsing never involves your location, what you save and collect stays in
-        this browser, and your Passport is private with nobody to show it to.
+        location is used only when you ask, account saves and verified stamps are
+        held privately with your account, and standalone demo records stay in
+        this browser.
       </p>
+
+      <h3 className="type-h3" id="collection-help">Trouble collecting a stamp?</h3>
+      <p>Keep the shop page visible while checking location. If permission was
+        denied, enable this site in your browser location settings. For an unclear
+        reading, try once more near an entrance or window. If it still fails,
+        contact us with the shop name and the message shown. Do not send your
+        coordinates. Support can review the issue; contacting us does not
+        automatically issue a stamp.</p>
+      <p>If the result was interrupted, open Passport or start a fresh check.
+        An existing stamp is returned with its original date, without another
+        ceremony. If asked to pause, try again later.</p>
 
       <p className="type-body-sm">
         If your question is not here, write to us at{" "}

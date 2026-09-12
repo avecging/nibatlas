@@ -355,7 +355,10 @@ test.describe("product-facing destinations", () => {
     await expect(page.getByText(/Raw coordinates are never stored/i)).toBeVisible();
     await expect(page.getByText(/no background location/i)).toBeVisible();
     await expect(page.getByText(/checked against that shop/i)).toBeVisible();
-    await expect(page.getByText(/not running in this build/i)).toBeVisible();
+    await expect(page.getByText(/after you choose the location check/i)).toBeVisible();
+    await expect(page.getByText(/Standalone previews may show impressions/i)).toContainText(
+      /do not verify your location/i,
+    );
   });
 
   test("About Nib Atlas is reachable from Me and uses product language", async ({ page }) => {
@@ -557,18 +560,17 @@ test.describe("copy that has to be true of every record", () => {
     expect(description?.toLowerCase()).not.toContain("hour");
   });
 
-  test("Privacy and Me describe local storage, not an account requirement", async ({
+  test("Privacy distinguishes account records from standalone local storage", async ({
     page,
   }) => {
     await page.goto("/privacy");
     await expectMode(page, "off");
 
-    await expect(page.getByText(/What you save stays on this device/i)).toBeVisible();
-    await expect(page.getByText(/does not appear on\s+your other devices/i)).toBeVisible();
-    // Saving works anonymously, so Privacy may not say it needs an account.
-    expect(await visibleText(page)).not.toMatch(
-      /An account\s+is needed only to keep things that must persist/i,
-    );
+    const text = await visibleText(page);
+    expect(text).toMatch(/Account-backed saving and verified stamp collection require sign-in/i);
+    expect(text).toMatch(/appear when you sign in on another device/i);
+    expect(text).toMatch(/standalone demonstration without sign-in configured, saves and preview impressions instead stay in this browser and do not require an account/i);
+    expect(text).toMatch(/preview impressions are never imported as visits/i);
 
     await page.goto("/me");
     const device = page.getByRole("region", { name: /on this device/i });

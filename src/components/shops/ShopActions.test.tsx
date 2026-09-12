@@ -357,7 +357,7 @@ describe("simulated collection across catalogue modes", () => {
     expect(screen.queryByRole("button", { name: /collect stamp/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /view atlas stamp/i })).not.toBeInTheDocument();
     expect(screen.getByTestId("collection-pending")).toHaveTextContent(
-      /not being issued yet/i,
+      /verified collection is unavailable in this view/i,
     );
     // Directions do not depend on the mode and stay.
     expect(screen.getByRole("link", { name: /directions/i })).toBeInTheDocument();
