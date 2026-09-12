@@ -109,6 +109,9 @@ jobs:
 
           supabase db push --db-url "$db_url" --dry-run
           supabase db push --db-url "$db_url" --include-seed
+          psql "$db_url" --no-psqlrc --single-transaction -v ON_ERROR_STOP=1 \
+            -c "set nibatlas.fixture_environment = 'staging'" \
+            -f supabase/fixtures/staging-phone-location.sql
           unset db_url encoded_password pooler_url
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint

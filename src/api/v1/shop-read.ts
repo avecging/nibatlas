@@ -1,7 +1,7 @@
 import { isCountryCode, type CountryCode, type GeoPoint, type ViewportBounds } from "@/src/domain/geo";
 import { isLanguageTag, type LanguageTag } from "@/src/domain/language";
 import {
-  SHOP_TYPES,
+  SHOP_RECORD_TYPES,
   type MarkerState,
   type OperationalStatus,
   type ShopMapSummary,
@@ -238,6 +238,10 @@ function mapShop(value: unknown, at: string): ShopMapSummary {
     throw new ShopReadContractError(`${at}.specialtyLine must be string or null`);
   }
 
+  if (item["primaryType"] === "test_venue" && item["sourceQuality"] !== "demo") {
+    throw new ShopReadContractError("Test venues must remain demo data");
+  }
+
   const output: ShopMapSummary = {
     id: string(item["id"], `${at}.id`),
     slug: string(item["slug"], `${at}.slug`),
@@ -245,7 +249,7 @@ function mapShop(value: unknown, at: string): ShopMapSummary {
     countryCode: countryCode(item["countryCode"], `${at}.countryCode`),
     localityName: string(item["localityName"], `${at}.localityName`),
     position: point(item["position"], `${at}.position`),
-    primaryType: enumValue(item["primaryType"], SHOP_TYPES, `${at}.primaryType`),
+    primaryType: enumValue(item["primaryType"], SHOP_RECORD_TYPES, `${at}.primaryType`),
     specialtyLine: specialty,
     operationalStatus: enumValue(item["operationalStatus"], OPERATIONAL_STATUSES, `${at}.operationalStatus`),
     markerState: enumValue(item["markerState"], MARKER_STATES, `${at}.markerState`),
@@ -342,7 +346,7 @@ export function decodeNearbyShopsV1(value: unknown): NearbyShopsV1 {
         ),
         primaryType: enumValue(
           shop["primaryType"],
-          SHOP_TYPES,
+          SHOP_RECORD_TYPES,
           `nearby.shops[${index}].primaryType`,
         ),
         operationalStatus: enumValue(
@@ -401,6 +405,10 @@ export function decodeShopDetailV1(value: unknown): ShopDetailReadV1 | null {
   const openingHoursNote = optional("openingHoursNote");
   const lastVerifiedAt = optional("lastVerifiedAt");
 
+  if (Array.isArray(item["shopTypes"]) && item["shopTypes"].includes("test_venue") && base.sourceQuality !== "demo") {
+    throw new ShopReadContractError("Test venues must remain demo data");
+  }
+
   const services = arrayOf("services", (entry, index) => {
     const service = record(entry, `detail.services[${index}]`);
     const accessMode = service["accessMode"] === undefined ? undefined : enumValue(service["accessMode"], ACCESS_MODES, `detail.services[${index}].accessMode`);
@@ -453,7 +461,7 @@ export function decodeShopDetailV1(value: unknown): ShopDetailReadV1 | null {
     ...base,
     timezone: string(item["timezone"], "detail.timezone"),
     positionPrecision: enumValue(item["positionPrecision"], POSITION_PRECISIONS, "detail.positionPrecision"),
-    shopTypes: arrayOf("shopTypes", (entry, index) => enumValue(entry, SHOP_TYPES, `detail.shopTypes[${index}]`)),
+    shopTypes: arrayOf("shopTypes", (entry, index) => enumValue(entry, SHOP_RECORD_TYPES, `detail.shopTypes[${index}]`)),
     specialties: stringArray(item["specialties"], "detail.specialties"),
     services,
     brands: stringArray(item["brands"], "detail.brands"),

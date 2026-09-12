@@ -623,16 +623,27 @@ Default recommendations are documented above. Escalate only if a proposed change
 - WP2 complete in PR #51: backend nonce → verify → explicit confirmation → atomic issuance;
   durable throttles, geofence, privacy-safe diagnostics/purge, API contracts,
   snapshots and negative/concurrency tests.
-- WP3 connects the foreground/no-cache geolocation adapter, one immediate
+- WP3 complete in PR #53: connects the foreground/no-cache geolocation adapter, one immediate
   poor-accuracy retry, confirmation/recovery UI, existing ceremony, owner-scoped
   paginated collection reads, shared visited state and Passport reconciliation.
   See [the collection contract](docs/api/collections-v1.md). Codex implements
   this authorized contract integration with the existing presentation; Claude
   retains ownership of subsequent visual refinements. No Passport redesign.
-- Deferred: live-phone/mall field validation until that connection exists;
+- Staging phone fixture and field-test procedure: `docs/runbooks/staging-phone-test.md`.
+  Physical results remain pending; photos await M6 R2 delivery.
+- Deferred: broader live-phone/mall field validation;
   geographic seal persistence/coverage sets; founder policy/anomaly UI and general
   audit history (M6); production auth domain, observability alerts and account
   lifecycle (M8). No hardware location attestation or IP/device tracking added.
+
+## Next focused packages
+
+M6 WP1: existing user/editor/admin authorization, protected server operations,
+restricted audit history, negative tests and secure founder-role assignment.
+Later packages: shop edit/preview/publish/closure; commissioned approval/credits/R2;
+CSV/JSON validation, deduplication and dry runs. Geographic seals/coverage sets,
+commissioned delivery, broader indoor acceptance and account export/deletion remain
+deferred. No redesign, events/calendar or private notes in these packages.
 
 ## Milestone 6 focused package status
 

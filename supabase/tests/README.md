@@ -23,3 +23,14 @@ SQL policy, migration, and geographic-query tests begin with the production-shap
 `008_collection_reads.sql` verifies owner isolation, anonymous/service-role
 denial, exclusive cursors, unchanged insert grants, historical snapshots after
 catalogue edits, and archived-shop history without a public navigation alias.
+
+The phone fixture test includes an untracked `.inc` copy because Supabase's
+pg_prove container mounts only this directory. Before `supabase test db`, run:
+
+```sh
+mkdir -p supabase/tests/fixtures
+cp supabase/fixtures/staging-phone-location.sql supabase/tests/fixtures/staging-phone-location.inc
+```
+
+CI also asserts that running the source fixture without the staging opt-in fails.
+The fixture test runs twice inside a rolled-back transaction.

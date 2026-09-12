@@ -119,6 +119,15 @@ jobs:
       - run: supabase db reset
       - name: Repeat deterministic demo seed
         run: docker exec -i supabase_db_nibatlas psql -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/seed.sql
+      - name: Reject unguarded phone fixture and stage its test include
+        run: |
+          if docker exec -i supabase_db_nibatlas psql -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/fixtures/staging-phone-location.sql; then
+            echo "Phone fixture accepted without staging opt-in" >&2
+            exit 1
+          fi
+          # pg_prove mounts only the tests directory; .inc is not a test file.
+          mkdir -p supabase/tests/fixtures
+          cp supabase/fixtures/staging-phone-location.sql supabase/tests/fixtures/staging-phone-location.inc
       - run: supabase test db
       - name: Concurrent stamp issuance
         run: python3 scripts/verification/concurrency.py

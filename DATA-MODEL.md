@@ -402,6 +402,13 @@ It returns saved historical fields plus a nullable current published shop slug
 for navigation. Archiving a shop does not remove a collection. No table mutation,
 collection-write permission, or historical-snapshot rewrite is introduced.
 
+Staging phone testing adds `test_venue` as a record type, separate from the four
+public pen-shop filter types. Database constraints require its records to remain
+`source_quality=demo`; no invented pen attributes are required. The fixture is
+outside migrations/default seed and needs an explicit staging environment guard.
+`position_precision=street` means approximate sourced venue/address precision,
+not surveyed entrance, unit or floor precision.
+
 ## Milestone 6 WP1 implementation
 
 `admin_audit_log` now records profile role changes with allowlisted before/after

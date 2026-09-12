@@ -404,6 +404,10 @@ keeps history in memory, isolates it from prototype storage, and reconciles
 map/shop/Passport from the same collection IDs. See
 [collection v1](docs/api/collections-v1.md).
 
+The named-project staging deployment also applies the separately guarded phone
+fixture atomically. This fixture is excluded from the default seed and production
+imports; no location-policy overrides or competing image storage are added.
+
 ## Milestone 6 WP1 admin boundary
 
 Admin access uses an ordinary cookie-bound client and live `profiles.role` RPC

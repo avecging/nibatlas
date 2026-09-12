@@ -34,10 +34,23 @@ const shops = [
   },
 ];
 
+// Public staging venue used only by the focused rendering integration journey.
+const phoneVenue = {
+  id: "00000000-0000-4000-8000-000000000304",
+  slug: "location-test-fairprice-compassvale-link",
+  name: "Location test — FairPrice Compassvale Link",
+  countryCode: "SG", localityName: "Singapore",
+  position: { latitude: 1.3824209, longitude: 103.8938611 },
+  primaryType: "test_venue", specialtyLine: null, operationalStatus: "unknown",
+  markerState: "unvisited", sourceQuality: "demo", fixtureNotice: "Demo data",
+  shortDescription: "Staging GPS test at a real supermarket inside Aspella. Not a fountain pen shop, partner or endorsement. Generated test stamp.",
+  addressLines: ["277C Compassvale Link", "#01-13 Aspella, Singapore 543277"],
+};
+
 function detail(shop) {
   return {
     ...shop,
-    timezone: "Asia/Tokyo",
+    timezone: shop.countryCode === "SG" ? "Asia/Singapore" : "Asia/Tokyo",
     positionPrecision: "street",
     shopTypes: [shop.primaryType],
     specialties: [],
@@ -123,7 +136,7 @@ const server = createServer(async (request, response) => {
       });
       return;
     case "shop_detail": {
-      const shop = shops.find((candidate) => candidate.slug === args.p_slug);
+      const shop = [...shops, phoneVenue].find((candidate) => candidate.slug === args.p_slug);
       send(response, 200, shop ? detail(shop) : null);
       return;
     }
