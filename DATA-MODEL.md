@@ -401,3 +401,13 @@ WP3 adds `list_stamp_collections(p_after uuid)` for bounded owner-only history.
 It returns saved historical fields plus a nullable current published shop slug
 for navigation. Archiving a shop does not remove a collection. No table mutation,
 collection-write permission, or historical-snapshot rewrite is introduced.
+
+## Milestone 6 WP1 implementation
+
+`admin_audit_log` now records profile role changes with allowlisted before/after
+role summaries, actor/target UUIDs, actor kind, request UUID and timestamp. No raw
+request data. Direct table access is denied; only admins can use the bounded
+read RPC. Update/delete/truncate are blocked. The service role loses broad profile
+mutation privileges; database-owner `assign_profile_role` performs audited setup.
+Audit starts at migration time. Canonical catalogue-change events and their
+transactional hooks follow with each later admin write package.

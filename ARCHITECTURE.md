@@ -403,3 +403,11 @@ owner client and a bounded owner-scoped RPC. The account collection provider
 keeps history in memory, isolates it from prototype storage, and reconciles
 map/shop/Passport from the same collection IDs. See
 [collection v1](docs/api/collections-v1.md).
+
+## Milestone 6 WP1 admin boundary
+
+Admin access uses an ordinary cookie-bound client and live `profiles.role` RPC
+checks, with a second role check inside privileged audit reads. No service role
+or client-editable metadata grants admin access. The only role assignment path
+is the database-owner procedure, with an atomic role-change audit trigger.
+See [admin setup and limitations](docs/runbooks/admin-authorization.md).

@@ -633,3 +633,11 @@ Default recommendations are documented above. Escalate only if a proposed change
   geographic seal persistence/coverage sets; founder policy/anomaly UI and general
   audit history (M6); production auth domain, observability alerts and account
   lifecycle (M8). No hardware location attestation or IP/device tracking added.
+
+## Milestone 6 focused package status
+
+WP1 implements current-role authorization, admin-only bounded audit reads,
+profile-role change history, owner-only founder bootstrap, and negative tests.
+See `docs/runbooks/admin-authorization.md`. Shop editing/publishing/closure,
+commissioned artwork and R2 delivery, imports/dry runs/deduplication are separate
+later packages. No admin UI redesign or broader M6 functionality is included.
