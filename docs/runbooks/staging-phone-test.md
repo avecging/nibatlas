@@ -42,12 +42,16 @@ floor/unit detection or universal indoor/mall reliability.
   commissioned art or reuse of the supermarket's branding.
 - Separate `supabase/fixtures/staging-phone-location.sql`, excluded from default
   seed and migrations. Deployment verifies the project name `nibatlas-staging`
-  before applying it atomically with an explicit staging-only opt-in.
+  before applying it atomically with an explicit staging-only opt-in, **after**
+  the compatible Worker has deployed. A failed build never publishes the venue.
 - Repeat deployment preserves approved artwork and immutable collections.
 - Production uses its separate database, imports must exclude all demo records,
   and production API mode rejects demo detail. This fixture must never be part
   of a production seed/import. A test venue cannot be relabelled as sourced.
 - No extra secrets, service, geofence override or accuracy-policy change.
+- Rollbacks must retain the test-type decoder (PR #54 onward), or first archive
+  this test venue through trusted SQL before restoring an older Worker. Keep all
+  collected history; do not delete the venue or impressions.
 
 After merge, run **Actions → Deploy staging → Run workflow → main**. Wait for
 success, then open the route above using the URL in the deployment summary.
