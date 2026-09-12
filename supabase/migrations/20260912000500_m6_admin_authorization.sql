@@ -74,13 +74,13 @@ revoke all on function public.assign_profile_role(uuid,text) from public, anon, 
 
 create function public.admin_access()
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
-declare current_role text;
+declare v_profile_role text;
 begin
-  select role into current_role from public.profiles where id = auth.uid();
-  if current_role is null or current_role not in ('editor', 'admin') then
+  select role into v_profile_role from public.profiles where id = auth.uid();
+  if v_profile_role is null or v_profile_role not in ('editor', 'admin') then
     raise exception 'Admin access denied' using errcode = '42501';
   end if;
-  return jsonb_build_object('role', current_role);
+  return jsonb_build_object('role', v_profile_role);
 end;
 $$;
 revoke all on function public.admin_access() from public, anon, service_role;
