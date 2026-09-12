@@ -197,7 +197,12 @@ Composite primary key `(user_id, shop_id)`. RLS permits users to read/insert/del
 Campaign and merchant-issued stamp relationships remain conceptually reserved
 but are not migrated into this MVP table before those features exist.
 
-MVP invariant: exactly one active Atlas Stamp per published shop, enforced with a partial unique index. Retiring/redesigning a stamp must not alter collected historical snapshots.
+MVP invariant: exactly one active Atlas Stamp per published shop. A partial
+unique index enforces the upper bound, while deferred cross-table constraint
+triggers enforce the lower bound at transaction commit. This permits an approved
+replacement to be activated transactionally, but never permits a published shop
+to finish a write with no active stamp. Retiring/redesigning a stamp must not
+alter collected historical snapshots.
 
 ### `stamp_artwork_versions`
 
