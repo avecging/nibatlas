@@ -105,7 +105,9 @@ jobs:
           persist-credentials: false
       - uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1 # v1
         with:
-          version: latest
+          # Keep database CI reproducible and avoid the rate-limited
+          # unauthenticated "latest release" lookup.
+          version: 2.117.0
       - run: supabase start -x realtime,imgproxy,edge-runtime,logflare,vector,supavisor
       - run: supabase db reset
       - run: supabase test db
