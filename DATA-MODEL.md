@@ -408,3 +408,13 @@ public pen-shop filter types. Database constraints require its records to remain
 outside migrations/default seed and needs an explicit staging environment guard.
 `position_precision=street` means approximate sourced venue/address precision,
 not surveyed entrance, unit or floor precision.
+
+## Milestone 6 WP1 implementation
+
+`admin_audit_log` now records profile role changes with allowlisted before/after
+role summaries, actor/target UUIDs, actor kind, request UUID and timestamp. No raw
+request data. Direct table access is denied; only admins can use the bounded
+read RPC. Update/delete/truncate are blocked. The service role loses broad profile
+mutation privileges; database-owner `assign_profile_role` performs audited setup.
+Audit starts at migration time. Canonical catalogue-change events and their
+transactional hooks follow with each later admin write package.

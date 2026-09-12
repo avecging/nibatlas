@@ -1,0 +1,45 @@
+begin;
+select plan(26);
+select ok((select relrowsecurity and relforcerowsecurity from pg_class where oid = 'public.admin_audit_log'::regclass), 'audit RLS forced');
+select ok(not has_table_privilege('anon', 'public.admin_audit_log', 'SELECT'), 'anonymous audit denied');
+select ok(not has_table_privilege('authenticated', 'public.admin_audit_log', 'SELECT'), 'authenticated direct audit denied');
+select ok(not has_table_privilege('service_role', 'public.admin_audit_log', 'INSERT'), 'service direct audit append denied');
+select ok(not has_column_privilege('service_role', 'public.profiles', 'role', 'UPDATE'), 'service cannot assign roles');
+select ok(not has_table_privilege('service_role', 'public.profiles', 'INSERT'), 'service cannot replace profiles to elevate');
+select ok(not has_function_privilege('authenticated', 'public.assign_profile_role(uuid,text)', 'EXECUTE'), 'no authenticated role RPC');
+select ok(not has_function_privilege('service_role', 'public.assign_profile_role(uuid,text)', 'EXECUTE'), 'no service role RPC');
+select ok(not has_function_privilege('anon', 'public.admin_access()', 'EXECUTE'), 'anonymous access RPC denied');
+insert into auth.users (id, raw_user_meta_data) values
+('60000000-0000-4000-8000-000000000001', '{"role":"admin"}'),
+('60000000-0000-4000-8000-000000000002', '{}'),
+('60000000-0000-4000-8000-000000000003', '{}');
+select is((select role from public.profiles where id = '60000000-0000-4000-8000-000000000001'), 'user', 'metadata cannot grant admin');
+select public.assign_profile_role('60000000-0000-4000-8000-000000000002', 'editor');
+select public.assign_profile_role('60000000-0000-4000-8000-000000000003', 'admin');
+select is((select count(*)::integer from public.admin_audit_log), 2, 'role changes audited atomically');
+select public.assign_profile_role('60000000-0000-4000-8000-000000000003', 'admin');
+select is((select count(*)::integer from public.admin_audit_log), 2, 'idempotent assignment creates no false change');
+select ok((select bool_and(before_summary = '{"role":"user"}'::jsonb and actor_kind = 'database_operator' and actor_user_id is null) from public.admin_audit_log), 'summaries contain roles only and honest operator attribution');
+select throws_ok($$update public.admin_audit_log set action='profile_role_changed'$$, '42501', 'Audit history is append-only', 'no rewriting audit');
+select throws_ok($$delete from public.admin_audit_log$$, '42501', 'Audit history is append-only', 'no deleting audit');
+select throws_ok($$truncate public.admin_audit_log$$, '42501', 'Audit history is append-only', 'no truncating audit');
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"60000000-0000-4000-8000-000000000001","role":"authenticated","user_metadata":{"role":"admin"}}',true);
+select throws_ok('select public.admin_access()', '42501', 'Admin access denied', 'ordinary user denied even with spoofed metadata');
+select throws_ok('select public.list_admin_audit()', '42501', 'Admin access denied', 'direct audit RPC checks role');
+select throws_ok($$select public.assign_profile_role('60000000-0000-4000-8000-000000000001','admin')$$, '42501', 'permission denied for function assign_profile_role', 'direct assignment denied');
+select set_config('request.jwt.claims','{"sub":"60000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
+select is(public.admin_access()->>'role','editor','editor gets foundation access');
+select throws_ok('select public.list_admin_audit()', '42501', 'Admin access denied', 'editor cannot read account role history');
+select set_config('request.jwt.claims','{"sub":"60000000-0000-4000-8000-000000000003","role":"authenticated"}',true);
+select is(public.admin_access()->>'role','admin','admin gets foundation access');
+select is(jsonb_array_length(public.list_admin_audit()),2,'admin can read bounded audit');
+reset role;
+select public.assign_profile_role('60000000-0000-4000-8000-000000000003','user');
+set local role authenticated;
+select throws_ok('select public.admin_access()', '42501', 'Admin access denied', 'revocation works with unchanged JWT');
+select throws_ok('select public.list_admin_audit()', '42501', 'Admin access denied', 'revocation also applies inside privileged read');
+reset role;
+select is((select count(*)::integer from public.admin_audit_log),3,'revocation audited');
+select * from finish();
+rollback;

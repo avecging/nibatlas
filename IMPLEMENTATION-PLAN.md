@@ -644,3 +644,11 @@ Later packages: shop edit/preview/publish/closure; commissioned approval/credits
 CSV/JSON validation, deduplication and dry runs. Geographic seals/coverage sets,
 commissioned delivery, broader indoor acceptance and account export/deletion remain
 deferred. No redesign, events/calendar or private notes in these packages.
+
+## Milestone 6 focused package status
+
+WP1 implements current-role authorization, admin-only bounded audit reads,
+profile-role change history, owner-only founder bootstrap, and negative tests.
+See `docs/runbooks/admin-authorization.md`. Shop editing/publishing/closure,
+commissioned artwork and R2 delivery, imports/dry runs/deduplication are separate
+later packages. No admin UI redesign or broader M6 functionality is included.
