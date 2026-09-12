@@ -38,7 +38,7 @@ floor/unit detection or universal indoor/mall reliability.
 - Reserved IDs end in `304` (venue), `504` (source), `604` (stamp), `704` (art).
 - `source_quality=demo`, `demo_fixture` provenance, and `test_venue` type. The
   four public pen-shop filters remain unchanged. No pen services or brands.
-- Generated indigo storefront template, explicitly named as a test stamp; no
+- Generated navy ink-bottle test template, explicitly named as a test stamp; no
   commissioned art or reuse of the supermarket's branding.
 - Separate `supabase/fixtures/staging-phone-location.sql`, excluded from default
   seed and migrations. Deployment verifies the project name `nibatlas-staging`

@@ -48,8 +48,8 @@ insert into public.stamp_artwork_versions (
   ink, palette_version, approved_at, approval_evidence_ref
 ) values (
   '00000000-0000-4000-8000-000000000704', '00000000-0000-4000-8000-000000000604',
-  1, 'generated_template', 'approved', '{"tier":"shop","motif":"storefront"}',
-  'indigo', 1, '2026-09-12 00:00:00+00', 'generated-staging-test-not-commissioned'
+  1, 'generated_template', 'approved', '{"tier":"shop","motif":"ink-bottle"}',
+  'navy', 1, '2026-09-12 00:00:00+00', 'generated-staging-test-not-commissioned'
 ) on conflict (id) do nothing;
 update public.stamps set status = 'active', current_design_version = 1
 where id = '00000000-0000-4000-8000-000000000604' and status = 'draft' and current_design_version is null;
