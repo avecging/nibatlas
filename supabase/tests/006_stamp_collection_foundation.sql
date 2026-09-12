@@ -51,6 +51,16 @@ insert into auth.users (id, aud, role, email) values
   ('10000000-0000-4000-8000-000000000005', 'authenticated', 'authenticated', 'collector-one@example.test'),
   ('10000000-0000-4000-8000-000000000006', 'authenticated', 'authenticated', 'collector-two@example.test');
 
+-- The seed proves the real staging path. Retire its active fixtures inside this
+-- rolled-back transaction so the tests can exercise activation using isolated
+-- identifiers without violating the one-active-stamp-per-shop invariant.
+update public.stamps
+set status = 'retired'
+where id in (
+  '00000000-0000-4000-8000-000000000601',
+  '00000000-0000-4000-8000-000000000602'
+);
+
 insert into public.stamps (id, shop_id, name) values
   ('00000000-0000-4000-8000-000000000611', '00000000-0000-4000-8000-000000000301', 'Singapore demo Atlas Stamp'),
   ('00000000-0000-4000-8000-000000000612', '00000000-0000-4000-8000-000000000302', 'Tokyo demo Atlas Stamp');
