@@ -1,7 +1,7 @@
 import { isCountryCode, type CountryCode, type GeoPoint } from "@/src/domain/geo";
 import { isLanguageTag, type LanguageTag } from "@/src/domain/language";
 import {
-  SHOP_TYPES,
+  SHOP_RECORD_TYPES,
   type OperationalStatus,
   type ShopMapSummary,
   type ShopType,
@@ -153,6 +153,10 @@ export function decodeSavedShopV1(value: unknown, at = "shop"): SavedShopV1 {
     throw new SavedShopContractError(`${at}.countryCode must be an ISO alpha-2-shaped code`);
   }
 
+  if (item["primaryType"] === "test_venue" && item["sourceQuality"] !== "demo") {
+    throw new SavedShopContractError("Test venues must remain demo data");
+  }
+
   const output: SavedShopV1 = {
     id,
     slug: string(item["slug"], `${at}.slug`),
@@ -160,7 +164,7 @@ export function decodeSavedShopV1(value: unknown, at = "shop"): SavedShopV1 {
     countryCode: country as CountryCode,
     localityName: string(item["localityName"], `${at}.localityName`),
     position: point(item["position"], `${at}.position`),
-    primaryType: oneOf(item["primaryType"], SHOP_TYPES, `${at}.primaryType`) as ShopType,
+    primaryType: oneOf(item["primaryType"], SHOP_RECORD_TYPES, `${at}.primaryType`) as ShopType,
     specialtyLine:
       item["specialtyLine"] === null
         ? null

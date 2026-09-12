@@ -153,3 +153,9 @@ describe("v1 shop read runtime contract", () => {
     );
   });
 });
+
+it("renders a demo test venue without inventing a pen-shop type", () => {
+  const venue = { ...detail(), primaryType: "test_venue", shopTypes: ["test_venue"], services: [] };
+  expect(decodeShopDetailV1(venue)?.primaryType).toBe("test_venue");
+  expect(() => decodeShopDetailV1({ ...venue, sourceQuality: "sourced" })).toThrow(/must remain demo/);
+});

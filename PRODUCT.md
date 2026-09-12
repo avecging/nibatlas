@@ -207,3 +207,10 @@ Verification precedes explicit confirmation and does not itself issue a stamp.
 The 150 m default and maximum accepted reported accuracy of 100 m are unchanged.
 See [the backend contract](docs/api/stamp-verification-v1.md) for request timing,
 privacy, recovery and frontend integration.
+
+## Staging field-test exception (12 September 2026)
+
+The founder-approved FairPrice Compassvale Link supermarket is solely a labelled
+`demo` / `test_venue` fixture for phone verification. It is not a pen-shop listing,
+partner, endorsement or real catalogue coverage. Existing collection policy is
+unchanged. See [field-test procedure](docs/runbooks/staging-phone-test.md).
