@@ -44,7 +44,9 @@ Failures use WP2's `{ok:false,error:{code}}`: `invalid_request` (400),
   with appropriate retry/cancel or permission/support recovery, without a Passport
   detour. **Check Passport** is offered only after a collection request may have
   committed. Keep that recovery across retries/cancellation while its outcome is
-  unknown; actual duplicates still open the original impression.
+  unknown; following **Check Passport** requests fresh account history instead of
+  relying on the earlier reconciliation read. Actual duplicates still open the
+  original impression.
 - Only confirmed `success` runs the existing 780ms ceremony. A duplicate opens
   the historical impression without another press. Reduced motion is retained.
 - Issuance upserts by collection ID into the one shared provider; visited markers,

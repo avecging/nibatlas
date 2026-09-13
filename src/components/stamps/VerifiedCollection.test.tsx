@@ -120,6 +120,26 @@ describe('verified collection journey',()=>{
     expect(await screen.findByRole('link',{name:'Check Passport'})).toBeInTheDocument();
     expect(calls.map(c=>c.action)).toEqual(['nonce','verify','collect','nonce']);
   });
+  it('refreshes Passport when a lost response committed after the first empty reconciliation',async()=>{
+    collectFailure='service_unavailable';await open();await verify();
+    const original=fetch;
+    let reads=0;
+    vi.stubGlobal('fetch',vi.fn(async(input:string,init?:RequestInit)=>{
+      const response=await original(input,init);
+      if (input.startsWith('/api/v1/collections')) reads++;
+      return response;
+    }));
+    fireEvent.click(screen.getByRole('button',{name:'I am at this shop'}));
+    const recovery=await screen.findByRole('link',{name:'Check Passport'});
+    await waitFor(()=>expect(reads).toBe(1));
+    expect(screen.getByTestId('count')).toHaveTextContent('0');
+    rows=[ISSUED_STAMP];
+    // Routing is covered by integration; keep this unit test's provider mounted.
+    recovery.addEventListener('click',event=>event.preventDefault(),{once:true});
+    fireEvent.click(recovery);
+    await waitFor(()=>expect(screen.getByTestId('count')).toHaveTextContent('1'));
+    expect(screen.queryByTestId('stamp-ceremony')).not.toBeInTheDocument();
+  });
   it.each(['throttled','expired_nonce'] as const)('keeps an explicit issuance refusal (%s) at the shop',async(code)=>{
     collectFailure=code;await open();await verify();
     fireEvent.click(screen.getByRole('button',{name:'I am at this shop'}));

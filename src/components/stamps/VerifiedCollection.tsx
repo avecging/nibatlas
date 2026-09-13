@@ -180,7 +180,7 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
           void checkLocation();
         }}>Try again</Button>:null}
         {stage === 'error' && failure === 'authentication_required' ? <Button fullWidth onClick={() => {cancel();signIn();}}>Sign in again</Button>:null}
-        {stage === 'error' && issuanceUncertain && failure !== 'outside_radius' ? <ButtonLink href="/passport" fullWidth>Check Passport</ButtonLink>:null}
+        {stage === 'error' && issuanceUncertain && failure !== 'outside_radius' ? <ButtonLink href="/passport" fullWidth onClick={() => store.retryRead?.()}>Check Passport</ButtonLink>:null}
         <Button variant="quiet" fullWidth onClick={cancel}>Cancel</Button>
       </div>
     </div></div>:null}
