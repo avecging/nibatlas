@@ -429,3 +429,16 @@ full catalogue and existing approved-active-stamp prerequisite. Catalogue writes
 append status/fingerprint audit summaries without recording source notes or raw
 field values. See `docs/adr/0012-shop-administration.md` for transitions, locking,
 field semantics and the intentionally separate artwork/import integration points.
+
+## M6 WP3 first-slice media transport
+
+`media_uploads` records a private upload UUID, environment, existing shop and
+optional commissioned draft artwork-version FK, purpose, immutable object key,
+SHA-256, expected size/MIME, source reference, rights/credit/alt metadata, expiry
+and server-validated dimensions. Its pending/validated states describe transport,
+not approval. Artwork rights/credit are copied from the existing version and
+rechecked at finalization. No approval evidence is copied. Direct API-role table
+access is revoked; the isolated Worker RPC enforces the live editor/admin role
+and uploader identity. Initiation/finalization append existing audit fingerprints;
+validated rows are immutable. Existing artwork, images and collections are not
+rewritten or attached by this foundation. See `docs/api/admin-media-v1.md`.
