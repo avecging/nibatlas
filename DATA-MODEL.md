@@ -418,3 +418,14 @@ read RPC. Update/delete/truncate are blocked. The service role loses broad profi
 mutation privileges; database-owner `assign_profile_role` performs audited setup.
 Audit starts at migration time. Canonical catalogue-change events and their
 transactional hooks follow with each later admin write package.
+
+## Milestone 6 WP2 implementation
+
+`shop_working_copies` stores bounded private edit documents, revision UUIDs and
+canonical base fingerprints. No direct client/service-role grants; role-checked
+RPCs own access. Unpublished shops may have null country/timezone/location;
+published geography remains non-null by constraint. Publication validates the
+full catalogue and existing approved-active-stamp prerequisite. Catalogue writes
+append status/fingerprint audit summaries without recording source notes or raw
+field values. See `docs/adr/0012-shop-administration.md` for transitions, locking,
+field semantics and the intentionally separate artwork/import integration points.

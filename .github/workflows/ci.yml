@@ -57,6 +57,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
+      - name: Shop administration browser evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: shop-admin-browser-evidence
+          path: test-results/**/admin-*.png
+          retention-days: 14
 
   api-integration:
     name: API-mode integration

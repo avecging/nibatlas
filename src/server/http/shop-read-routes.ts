@@ -11,8 +11,8 @@ import {
   ShopReadConfigurationError,
 } from "@/src/server/adapters/supabase-shop-reads";
 
-const PUBLIC_LIST_CACHE = "public, max-age=30, s-maxage=300, stale-while-revalidate=600";
-const PUBLIC_DETAIL_CACHE = "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400";
+const PUBLIC_LIST_CACHE = "no-store";
+const PUBLIC_DETAIL_CACHE = "no-store";
 const PRIVATE_NO_STORE = "private, no-store";
 const OPERATIONAL_STATUSES = [
   "open",

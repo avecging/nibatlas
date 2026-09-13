@@ -1,5 +1,16 @@
 import { expect, test, type Page } from "@playwright/test";
 
+test("live detail and correction pages render without static output caching", async ({ request }) => {
+  for (const suffix of ["", "/report"]) {
+    const response = await request.get(`/shops/m3-api-demo-shop${suffix}`);
+    expect(response.status()).toBe(200);
+    expect(response.headers()["cache-control"]).toContain("no-store");
+    expect(await response.text()).toContain("M3 API Demo Shop");
+    const missing = await request.get(`/shops/unpublished-unknown-shop${suffix}`);
+    expect(missing.status()).toBe(404);
+  }
+});
+
 async function openMap(page: Page) {
   await page.goto("/");
   await expect(page.getByTestId("map-canvas")).toBeVisible();

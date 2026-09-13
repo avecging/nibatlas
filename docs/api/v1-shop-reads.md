@@ -33,7 +33,7 @@ The response is the shared `ShopMapSummary` projection plus `truncated` and
 User-owned Saved/Visited state is not accepted here; public results always begin
 as `unvisited` and Milestone 3 merges user state separately.
 
-Cache: `s-maxage=300`, with stale-while-revalidate.
+Cache: `no-store` so catalogue publication/status changes reach the next request.
 
 ## `GET /api/v1/shops/search`
 
@@ -41,7 +41,7 @@ Required `q` is trimmed and limited to 1–120 characters. Optional `limit` is
 `1..50`, default `20`. Results are canonical shops, not destination-geocoder
 results, and may identify the matched alias.
 
-Cache: `s-maxage=300`, with stale-while-revalidate.
+Cache: `no-store` so catalogue publication/status changes reach the next request.
 
 ## `GET /api/v1/shops/[slug]`
 
@@ -53,7 +53,7 @@ This wire projection is deliberately one adapter step before frontend
 maps any remaining presentation-only fields. It must not bypass the evidence
 rules below.
 
-Cache: `s-maxage=3600`, with stale-while-revalidate.
+Cache: `no-store` so archival and closure cannot be served from a stale CDN response.
 
 ### Evidence contract
 

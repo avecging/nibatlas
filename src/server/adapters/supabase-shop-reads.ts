@@ -54,6 +54,7 @@ export async function callShopReadRpc(
     try {
       response = await fetch(`${baseUrl}/rest/v1/rpc/${rpc}`, {
         method: "POST",
+        cache: "no-store",
         headers: {
           apikey: publishableKey,
           Authorization: `Bearer ${publishableKey}`,

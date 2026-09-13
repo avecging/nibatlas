@@ -3,16 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ContributeForm } from "@/src/components/contribute/ContributeForm";
-import { readCatalogueMode } from "@/src/features/catalogue/catalogue-mode";
 import { shopCorrectionHref } from "@/src/features/contribute/contribute-links";
 import { shopIdentityForRequest } from "@/src/features/shops/server-shop-identity-source";
-import { prototypeShopDetails } from "@/src/fixtures/prototype-catalogue";
 
-export function generateStaticParams() {
-  return readCatalogueMode().mode === "fixture"
-    ? prototypeShopDetails.map((shop) => ({ slug: shop.slug }))
-    : [];
-}
+// Resolve current public identity on every request, including after archival.
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
