@@ -323,3 +323,30 @@ test("editor supports zoom and reduced motion", async ({ page }) => {
     ),
   ).toBe(true);
 });
+
+
+test("dirty edits survive global links and browser Back @short", async ({ page }) => {
+  await setup(page);
+  await page.goto("/admin/shops");
+  await page.getByRole("main").getByRole("link", { name: "M6 Demo shop", exact: true }).click();
+  await page.getByLabel("Shop name").fill("Keep these unsaved edits");
+  const rejectLeave = async (click: () => Promise<unknown>, type: string) => {
+    const dialog = page.waitForEvent("dialog");
+    const action = click();
+    const prompt = await dialog;
+    expect(prompt.type()).toBe(type);
+    await prompt.dismiss();
+    await action;
+    await expect(page).toHaveURL(new RegExp(`/admin/shops/${id}$`));
+    await expect(page.getByLabel("Shop name")).toHaveValue("Keep these unsaved edits");
+  };
+  await rejectLeave(() => page.getByRole("banner").getByRole("link").first().click(), "confirm");
+  const bottomLink = page.getByRole("navigation").last().getByRole("link").first();
+  if (await bottomLink.isVisible()) await rejectLeave(() => bottomLink.click(), "confirm");
+  await rejectLeave(() => page.getByRole("link", { name: "All shops", exact: true }).click(), "confirm");
+  await rejectLeave(() => page.evaluate(() => history.back()), "beforeunload");
+  await page.getByRole("button", { name: "Save changes privately" }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("Changes saved privately");
+  await page.goBack();
+  await expect(page).toHaveURL(/\/admin\/shops$/);
+});

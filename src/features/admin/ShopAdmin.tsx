@@ -1,6 +1,5 @@
 "use client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { useAccountSession } from "@/src/features/account/AccountSessionProvider";
 import {
@@ -196,8 +195,7 @@ export function ShopAdmin({ id }: { id?: string }) {
   );
 }
 function Workspace({ id }: { id: string | null }) {
-  const router = useRouter(),
-    controller = useRef<AbortController | null>(null),
+  const controller = useRef<AbortController | null>(null),
     feedback = useRef<HTMLParagraphElement>(null);
   const [record, setRecord] = useState<ShopRecord | null>(null),
     [draft, setDraft] = useState<Document | null>(null),
@@ -250,11 +248,40 @@ function Workspace({ id }: { id: string | null }) {
   }, [id]);
   useEffect(() => {
     if (!dirty) return;
+    let leaving = false;
     const warn = (e: BeforeUnloadEvent) => {
+      if (leaving) return;
       e.preventDefault();
+      e.returnValue = "";
+    };
+    const guardLink = (e: MouseEvent) => {
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const link = e.target instanceof Element ? e.target.closest<HTMLAnchorElement>("a[href]") : null;
+      if (!link || link.hasAttribute("download") || (link.target && link.target !== "_self")) return;
+      const destination = new URL(link.href);
+      if (destination.origin === location.origin && destination.pathname === location.pathname && destination.search === location.search) {
+        // In-page focus links must not add a same-document history entry.
+        if (destination.hash) {
+          e.preventDefault();
+          const target = document.getElementById(decodeURIComponent(destination.hash.slice(1)));
+          target?.focus();
+          target?.scrollIntoView();
+        }
+        return;
+      }
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (window.confirm("Leave without saving your edits?")) {
+        leaving = true;
+        window.location.assign(link.href);
+      }
     };
     window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
+    document.addEventListener("click", guardLink, true);
+    return () => {
+      window.removeEventListener("beforeunload", warn);
+      document.removeEventListener("click", guardLink, true);
+    };
   }, [dirty]);
   const announce = (text: string) => {
     setMessage(text);
@@ -363,7 +390,7 @@ function Workspace({ id }: { id: string | null }) {
           <ul className={styles.list}>
             {list.map((s) => (
               <li key={s.id}>
-                <Link href={`/admin/shops/${s.id}`}>{s.name}</Link>
+                <a href={`/admin/shops/${s.id}`}>{s.name}</a>
                 <span>
                   {s.publicationStatus} ·{" "}
                   {s.operationalStatus.replaceAll("_", " ")}
@@ -407,7 +434,8 @@ function Workspace({ id }: { id: string | null }) {
                       },
                     }),
                   );
-                  router.push(`/admin/shops/${result.id}`);
+                  // Native entry gives browser Back a document boundary for beforeunload.
+                  window.location.assign(`/admin/shops/${result.id}`);
                 });
               }}
             >
@@ -440,12 +468,10 @@ function Workspace({ id }: { id: string | null }) {
           <div className={styles.toolbar}>
             <Link
               href="/admin/shops"
-              onClick={(e) => {
-                if (
-                  dirty &&
-                  !window.confirm("Leave without saving your edits?")
-                )
-                  e.preventDefault();
+              prefetch={false}
+              onNavigate={(e) => {
+                e.preventDefault();
+                window.location.assign("/admin/shops");
               }}
             >
               All shops

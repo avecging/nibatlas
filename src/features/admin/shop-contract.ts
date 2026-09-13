@@ -134,7 +134,7 @@ export const GROUPS: {
       }),
       f("claims", "Claims supported", {
         kind: "claims",
-        hint: "One specific claim per line. Publicly visible.",
+        hint: "One token per line, matching only researched facts. Examples: Name, Location, Address, Opening hours, Shop type: Fountain Pen Specialist. Publicly visible.",
       }),
       f("evidence_note", "Private evidence note", { kind: "long" }),
     ],

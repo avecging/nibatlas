@@ -293,15 +293,36 @@ begin
   return null;
 end; $$;
 revoke all on function public.audit_catalogue_change() from public, anon, authenticated, service_role;
+create function public.reject_catalogue_truncate()
+returns trigger language plpgsql set search_path = '' as $$
+begin
+  raise exception 'Catalogue truncation is forbidden; use audited row operations' using errcode='42501';
+end; $$;
+revoke all on function public.reject_catalogue_truncate() from public, anon, authenticated, service_role;
 do $$ declare t text; begin
   foreach t in array array['shops','shop_working_copies','shop_sources','shop_source_claims','shop_aliases','shop_links','shop_shop_types','shop_services','shop_specialties','shop_brands'] loop
     execute format('create trigger catalogue_audit after insert or update or delete on public.%I for each row execute function public.audit_catalogue_change()',t);
+    execute format('create trigger catalogue_no_truncate before truncate on public.%I for each statement execute function public.reject_catalogue_truncate()',t);
   end loop;
 end; $$;
 
+-- Match only case/whitespace-normalized tokens, never substrings or unrelated
+-- claims. Private drafts may retain incomplete evidence; publication may not.
+create function public.shop_claim_supported(d jsonb, token text, source_id text default null)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists(select 1 from jsonb_array_elements(d->'sources') r,
+    jsonb_array_elements_text(r->'claims') c
+    where (source_id is null or r->>'id'=source_id)
+      and r->>'status'='active' and r->>'checked_at' is not null
+      and (r->>'source_url' is not null or r->>'source_type' in ('founder_visit','demo_fixture'))
+      and lower(regexp_replace(btrim(c), '[[:space:]]+', ' ', 'g'))
+        = lower(regexp_replace(btrim(token), '[[:space:]]+', ' ', 'g')));
+$$;
+revoke all on function public.shop_claim_supported(jsonb,text,text) from public, anon, authenticated, service_role;
+
 create function public.shop_publication_errors(p_id uuid, d jsonb)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
-declare errors jsonb:='[]'; s jsonb:=d->'shop';
+declare errors jsonb:='[]'; s jsonb:=d->'shop'; token text; k text; r jsonb; required text[]:=array['Name','Location'];
 begin
   if s->>'country_code' is null or s->>'timezone' is null or s->>'latitude' is null or s->>'longitude' is null or s->>'locality_id' is null then
     errors:=errors||'"Add country, locality, timezone and sourced coordinates."'::jsonb;
@@ -309,10 +330,35 @@ begin
   if not exists(select 1 from jsonb_array_elements(d->'types') t where t->>'is_primary'='true') then
     errors:=errors||'"Choose one primary shop type."'::jsonb;
   end if;
-  if not exists(select 1 from jsonb_array_elements(d->'sources') r where r->>'checked_at' is not null
-    and (r->>'source_url' is not null or r->>'source_type' in ('founder_visit','demo_fixture'))) then
-    errors:=errors||'"Add a dated source with a URL, or a documented founder visit."'::jsonb;
-  end if;
+  for k, token in select * from (values
+    ('short_description','Short description'),('address_line_1','Address'),('address_line_2','Address'),
+    ('neighbourhood','Neighbourhood'),('phone','Phone'),('postal_code','Postal code'),
+    ('website_url','Website'),('opening_hours','Opening hours')) fields(field_name,claim) loop
+    if s->>k is not null then required:=array_append(required,token); end if;
+  end loop;
+  if s->>'operational_status'<>'unknown' then required:=array_append(required,'Operational status'); end if;
+  for r in select value from jsonb_array_elements(d->'aliases') loop
+    required:=array_append(required,case when r->>'alias_type'='local_name' then 'Local-script name' else 'Alias: '||(r->>'alias') end);
+  end loop;
+  for r in select value from jsonb_array_elements(d->'links') where value->>'is_official'='true' loop
+    required:=array_append(required,'Official link: '||(r->>'link_type'));
+  end loop;
+  for token in select distinct unnest(required) loop
+    if not public.shop_claim_supported(d,token) then
+      errors:=errors||jsonb_build_array('Add an active dated source supporting: '||token||'.');
+    end if;
+  end loop;
+  foreach k in array array['types','services','specialties','brands'] loop
+    for r in select value from jsonb_array_elements(d->k) loop
+      if k='types' then select 'Shop type: '||t.label into token from public.shop_types t where t.id=(r->>'shop_type_id')::uuid;
+      elsif k='services' then select 'Service: '||t.label into token from public.services t where t.id=(r->>'service_id')::uuid;
+      elsif k='specialties' then select 'Specialty: '||t.label into token from public.specialties t where t.id=(r->>'specialty_id')::uuid;
+      else select 'Brand: '||t.name into token from public.brands t where t.id=(r->>'brand_id')::uuid; end if;
+      if (k='services' and r->>'source_id' is null) or not public.shop_claim_supported(d,token,r->>'source_id') then
+        errors:=errors||jsonb_build_array('Add matching source support for: '||token||'.');
+      end if;
+    end loop;
+  end loop;
   if not exists(select 1 from public.stamps st join public.stamp_artwork_versions av on av.stamp_id=st.id and av.design_version=st.current_design_version
     where st.shop_id=p_id and st.status='active' and st.stamp_type='atlas' and av.approval_status='approved') then
     errors:=errors||'"Prepare an active Atlas Stamp with approved artwork (artwork package)."'::jsonb;

@@ -8,6 +8,9 @@ select ok(not has_function_privilege('anon','public.admin_shop_write(text,uuid,t
 select ok(not has_function_privilege('service_role','public.admin_shop_write(text,uuid,text,jsonb)','EXECUTE'),'service role cannot invoke writes');
 select ok(not has_function_privilege('authenticated','public.apply_shop_document(uuid,jsonb)','EXECUTE'),'apply helper cannot bypass role guard');
 select ok(not has_function_privilege('authenticated','public.shop_edit_document(uuid)','EXECUTE'),'projection helper is not public');
+select ok(not has_function_privilege('authenticated','public.shop_claim_supported(jsonb,text,text)','EXECUTE'),'claim helper has no direct account grant');
+select is((select count(*)::int from pg_trigger where tgname='catalogue_no_truncate' and not tgisinternal),10,'every audited catalogue table rejects truncation');
+select throws_ok('truncate public.shop_links','42501','Catalogue truncation is forbidden; use audited row operations','database operator cannot silently truncate catalogue links');
 insert into auth.users(id) values('61000000-0000-4000-8000-000000000001'),('61000000-0000-4000-8000-000000000002'),('61000000-0000-4000-8000-000000000003');
 select public.assign_profile_role('61000000-0000-4000-8000-000000000002','editor');
 select public.assign_profile_role('61000000-0000-4000-8000-000000000003','admin');
@@ -22,6 +25,11 @@ insert into checks values('history',(select to_jsonb(c) from public.stamp_collec
 create function pg_temp.change(action text, shop uuid, document jsonb default null) returns jsonb language sql as $$
  select public.admin_shop_write(action,shop,public.admin_shop_read(shop)->>'revision',document);
 $$;
+create function pg_temp.publication_code(d jsonb) returns text language plpgsql as $$
+begin
+  perform pg_temp.change('save','00000000-0000-4000-8000-000000000301',d);
+  return pg_temp.change('publish','00000000-0000-4000-8000-000000000301')->>'code';
+end; $$;
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"61000000-0000-4000-8000-000000000001","role":"authenticated","user_metadata":{"role":"admin"}}',true);
 select throws_ok('select public.admin_shop_list()','42501','Admin access denied','ordinary user cannot list drafts');
@@ -43,6 +51,18 @@ select throws_ok($$select pg_temp.change('save','61000000-0000-4000-8000-0000000
 select throws_ok($$select pg_temp.change('temporarily_closed','61000000-0000-4000-8000-000000000090')$$,'22023','Invalid status transition','lifecycle status operation requires publication');
 -- Published edits are a separate private working copy.
 insert into checks values('original',public.admin_shop_read('00000000-0000-4000-8000-000000000301'));
+select is(pg_temp.publication_code(jsonb_set((select value->'document' from checks where key='original'),'{shop,address_line_1}','"Unsupported address"')),'publication_incomplete','an unrelated source cannot publish an address');
+select is(pg_temp.publication_code(jsonb_set((select value->'document' from checks where key='original'),'{shop,opening_hours}','{"entries":[{"day":"monday","opens":"09:00","closes":"17:00"}]}')),'publication_incomplete','a source for another fact cannot publish opening hours');
+select is(pg_temp.publication_code(jsonb_set((select value->'document' from checks where key='original'),'{sources,0,claims}','[]')),'publication_incomplete','an empty claims list cannot publish public facts');
+select is(pg_temp.publication_code(jsonb_set((select value->'document' from checks where key='original'),'{sources,0,status}','"stale"')),'publication_incomplete','stale evidence cannot satisfy publication');
+select is(public.shop_detail('m2-singapore-demo-fixture')->>'addressLines',null,'failed publication leaves unsupported address private');
+select is(pg_temp.publication_code(jsonb_set(jsonb_set(jsonb_set(
+(select value->'document' from checks where key='original'),'{shop,address_line_1}','"Explicit demo address"'),
+'{shop,opening_hours}','{"entries":[{"day":"monday","opens":"09:00","closes":"17:00"}]}'),
+'{sources,0,claims}',(select value->'document'->'sources'->0->'claims' from checks where key='original') || '["  ADDRESS  "," opening   HOURS "]')),
+null,'matching active source tokens allow publication with case and whitespace normalization');
+
+update checks set value=public.admin_shop_read('00000000-0000-4000-8000-000000000301') where key='original';
 select lives_ok($$select pg_temp.change('save','00000000-0000-4000-8000-000000000301',jsonb_set((select value->'document' from checks where key='original'),'{shop,name}','"Private revised demo name"'))$$,'save unpublished changes');
 select is(public.shop_detail('m2-singapore-demo-fixture')->>'name','M2 Singapore Demo Fixture','public detail keeps old name before publication');
 select is(public.admin_shop_read('00000000-0000-4000-8000-000000000301')->'document'->'shop'->>'name','Private revised demo name','authorized preview sees saved name');
@@ -78,7 +98,7 @@ set local role authenticated;
 select lives_ok($new$select pg_temp.change('save','61000000-0000-4000-8000-000000000090',
 jsonb_set(jsonb_set(jsonb_set((select value from checks where key='new_doc'),'{shop}',
 (select value->'shop' from checks where key='new_doc') || '{"country_code":"SG","locality_id":"00000000-0000-4000-8000-000000000201","timezone":"Asia/Singapore","latitude":1.3,"longitude":103.8,"source_quality":"demo"}'),
-'{sources}','[{"id":"61000000-0000-4000-8000-000000000092","label":"Explicit demo fixture","source_type":"demo_fixture","checked_at":"2026-09-01","reliability":"unknown","status":"active","claims":["Name"]}]'),
+'{sources}','[{"id":"61000000-0000-4000-8000-000000000092","label":"Explicit demo fixture","source_type":"demo_fixture","checked_at":"2026-09-01","reliability":"unknown","status":"active","claims":["Name","Location","Shop type: Fountain Pen Specialist","Shop type: Stationery Store"]}]'),
 '{types}','[{"shop_type_id":"00000000-0000-4000-8000-000000000101","is_primary":true}]'))$new$,'save valid new draft');
 select lives_ok($$select pg_temp.change('publish','61000000-0000-4000-8000-000000000090')$$,'publish new shop once approved stamp exists');
 select is(public.shop_detail('private-demo')->>'name','Explicit test draft','new valid shop becomes public');
