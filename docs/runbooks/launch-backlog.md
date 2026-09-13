@@ -12,7 +12,7 @@ presentation, privacy, artwork, or geographic policy.
 | #52 — shop contrast | Reproduced on the collected action during hydration: interpolated foreground/background lose AA contrast. Change those colours together and retain border animation. Audit the transition rather than waiting it away. |
 | #56 — results keyboard access | The sheet's scroll container has no independent focus target when its content has no controls. Add a named keyboard focus target; verify empty/populated results and callback feedback at short mobile sizes, with normal/reduced motion. |
 | #58 — Passport recovery | Nonce/verification failures could suggest Passport before any collect request. Track uncertain issuance separately. Keep fresh verification, explicit confirmation, original duplicates and reconciliation after interrupted issuance. The founder's original phone failure code remains unknown. |
-| Passport scroll restoration | CI #232 also needed retries for a country-route round trip. Retain the assertion and investigate any reproducible failure; a passing retry is not evidence that the cause is fixed. |
+| Passport scroll restoration test | Reproduced CI #232's country-route flake. The fixed 300 px offset hides the link under the sticky toolbar; Playwright auto-scrolls before clicking and can overwrite the remembered offset. Choose a nonzero offset that leaves the link exposed, assert its hit target, then require restoration within 10 px. No application scroll behavior changes. |
 
 ## Next Milestone 6 packages
 

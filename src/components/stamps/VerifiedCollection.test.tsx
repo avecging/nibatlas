@@ -126,6 +126,24 @@ describe('verified collection journey',()=>{
     expect(await screen.findByRole('alert')).not.toHaveTextContent(/Passport/);
     expect(screen.queryByRole('link',{name:'Check Passport'})).not.toBeInTheDocument();
   });
+  it.each(['Cancel','Escape'] as const)('reconciles a committed stamp when %s aborts its pending response',async(control)=>{
+    await open();await verify();
+    const original=fetch;
+    vi.stubGlobal('fetch',vi.fn((input:string,init?:RequestInit)=>{
+      if (!input.endsWith('/collect')) return original(input,init);
+      rows=[ISSUED_STAMP];
+      return new Promise<Response>((_resolve,reject)=>init?.signal?.addEventListener('abort',()=>reject(new Error('aborted'))));
+    }));
+    fireEvent.click(screen.getByRole('button',{name:'I am at this shop'}));
+    await within(screen.getByRole('dialog')).findByRole('status');
+    expect(screen.getByTestId('count')).toHaveTextContent('0');
+    if (control === 'Cancel') fireEvent.click(screen.getByRole('button',{name:'Cancel'}));
+    else fireEvent.keyDown(document,{key:'Escape'});
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await waitFor(()=>expect(screen.getByTestId('count')).toHaveTextContent('1'));
+    expect(screen.getByRole('button',{name:'View Atlas Stamp'})).toBeInTheDocument();
+    expect(screen.queryByTestId('stamp-ceremony')).not.toBeInTheDocument();
+  });
   it('offers reconciliation when an issuance response is interrupted by backgrounding',async()=>{
     await open();await verify();
     const original=fetch;

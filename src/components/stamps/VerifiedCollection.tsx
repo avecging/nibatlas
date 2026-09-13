@@ -60,7 +60,13 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
     const url = new URL(window.location.href); url.searchParams.delete('collect');
     window.history.replaceState(window.history.state,'',`${url.pathname}${url.search}${url.hash}`);
   },[]);
-  const dialogRef = useDialogFocus<HTMLDivElement>(open && owner !== null,close);
+  const cancel = useCallback(() => {
+    // Aborting fetch cannot undo an issuance already committed by the server.
+    // Refresh the shared account history even if the reader leaves the dialog.
+    if (issuanceUncertain) store.retryRead?.();
+    close();
+  },[close,issuanceUncertain,store]);
+  const dialogRef = useDialogFocus<HTMLDivElement>(open && owner !== null,cancel);
   useEffect(() => {
     const invalidate = () => {
       if (!pending.current && !binding.current) return;
@@ -161,9 +167,9 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
           if (failure === 'poor_accuracy') setPoorRetries(value => value+1);
           void checkLocation();
         }}>Try again</Button>:null}
-        {stage === 'error' && failure === 'authentication_required' ? <Button fullWidth onClick={() => {close();signIn();}}>Sign in again</Button>:null}
+        {stage === 'error' && failure === 'authentication_required' ? <Button fullWidth onClick={() => {cancel();signIn();}}>Sign in again</Button>:null}
         {stage === 'error' && issuanceUncertain && failure !== 'outside_radius' ? <ButtonLink href="/passport" fullWidth>Check Passport</ButtonLink>:null}
-        <Button variant="quiet" fullWidth onClick={close}>Cancel</Button>
+        <Button variant="quiet" fullWidth onClick={cancel}>Cancel</Button>
       </div>
     </div></div>:null}
     {ceremony ? <StampCeremony collection={ceremony.collection} alreadyCollected={ceremony.duplicate}

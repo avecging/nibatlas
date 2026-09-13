@@ -322,9 +322,22 @@ test.describe("List mode", () => {
   }) => {
     await page.goto("/passport");
 
-    const remembered = await scrollAndRemember(page, 300);
+    const japan = page.getByRole("link", { name: "Japan" });
+    await expect(japan).toBeVisible();
+    // Keep the link below the sticky toolbar. At a fixed 300 px, clicking it
+    // can first auto-scroll to zero, legitimately changing the saved position.
+    const toolbarHeight = await page.getByRole("group", { name: "Passport view" })
+      .evaluate(node => node.parentElement!.getBoundingClientRect().height);
+    const target = await japan.evaluate((node, height) => Math.min(300,
+      Math.floor(node.getBoundingClientRect().top + window.scrollY - height - 24)), toolbarHeight);
+    expect(target).toBeGreaterThan(0);
+    const remembered = await scrollAndRemember(page, target);
+    expect(await japan.evaluate(node => {
+      const rect = node.getBoundingClientRect();
+      return node.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+    })).toBe(true);
 
-    await page.getByRole("link", { name: "Japan" }).click();
+    await japan.click();
     await expect(page.getByRole("heading", { level: 1, name: "Japan" })).toBeVisible();
 
     // The crumb, not the bottom navigation: both are called Passport.
@@ -335,10 +348,10 @@ test.describe("List mode", () => {
     await expect(page.getByText("Shop stamps")).toBeVisible();
 
     await expect
-      .poll(async () => page.evaluate(() => Math.round(window.scrollY)), {
+      .poll(async () => Math.abs(await page.evaluate(() => Math.round(window.scrollY)) - remembered), {
         timeout: 5000,
       })
-      .toBeGreaterThan(remembered - 10);
+      .toBeLessThan(10);
   });
 
   test("does not carry the overview offset onto a locality route", async ({ page }) => {
