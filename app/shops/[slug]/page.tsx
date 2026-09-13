@@ -9,23 +9,14 @@ import { ShopDetailUnavailable } from "@/src/components/shops/ShopDetailUnavaila
 import { ShopDetailView } from "@/src/components/shops/ShopDetailView";
 import { shopMetaDescription } from "@/src/components/shops/shop-metadata";
 import detailStyles from "@/src/components/shops/ShopDetailView.module.css";
-import { readCatalogueMode } from "@/src/features/catalogue/catalogue-mode";
 import { shopDetailForRequest } from "@/src/features/shops/server-shop-detail-source";
-import { prototypeShopDetails } from "@/src/fixtures/prototype-catalogue";
 
 /**
- * Prerendered slugs.
- *
- * Only fixture mode has a slug list to enumerate at build time. In API mode the
- * catalogue is a database this build knows nothing about, so the route renders
- * on request instead — which is also what keeps a published shop appearing
- * without a redeploy. Either way the `/shops/[slug]` URL is unchanged.
+ * Publication, closure and archive must be reflected on the next request.
+ * An empty generateStaticParams list still opts unknown slugs into static
+ * generation; it cannot be combined with the live no-store catalogue reads.
  */
-export function generateStaticParams() {
-  return readCatalogueMode().mode === "fixture"
-    ? prototypeShopDetails.map((shop) => ({ slug: shop.slug }))
-    : [];
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,

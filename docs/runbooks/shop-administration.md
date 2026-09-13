@@ -63,6 +63,8 @@ Do not roll back by deleting tables or impressions. Retain the new published
 geography constraint and audit history. A pre-WP2 CDN response may persist until
 its previous TTL expires; use a fresh/no-cache acceptance request or purge old
 cached catalogue URLs. New responses are no-store.
+Shop detail and correction pages explicitly render on each request; they do not
+retain statically generated HTML after publication or archival.
 
 Next packages stay separate: artwork/media #32 with #19/#28, then catalogue
 imports. About accuracy #17 remains before real catalogue launch; geographic seal
