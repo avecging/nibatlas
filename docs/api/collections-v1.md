@@ -33,11 +33,23 @@ Failures use WP2's `{ok:false,error:{code}}`: `invalid_request` (400),
   **Check my location**, then **I am at this shop** after server verification.
 - The GPS adapter requests one fresh foreground sample (`maximumAge: 0`, high
   accuracy, 20-second timeout). Hidden pages, page exit, cancellation, account
-  changes and shop changes discard in-flight state. No watch or stored fix.
+  changes and shop changes discard in-flight location/confirmation state. No watch
+  or stored fix. Once confirmation has sent issuance, Cancel/Escape closes the
+  dialog and refreshes history, but lets that already-authorized response settle.
+  Navigation/unmount and backgrounding likewise detach issuance for settlement.
+  Its result updates only the original account store, even after navigation;
+  it cannot reopen the dialog, replay a ceremony, or enter a different account.
+  If that store has unmounted, a generic invalidation makes its replacement read
+  its own authenticated history; no old impression or identity crosses stores.
 - Outside-area refusal offers only **Try again** and **Cancel**. Retry obtains a
   new nonce and fresh foreground fix; eligible verification still requires
-  explicit confirmation. Other failures retain help and **Check Passport**,
-  especially when an interrupted issuance may already have committed.
+  explicit confirmation. Before any issuance request, failures stay at the shop
+  with appropriate retry/cancel or permission/support recovery, without a Passport
+  detour. **Check Passport** is offered only after a collection request may have
+  committed. Keep that recovery across retries/cancellation while its outcome is
+  unknown; following **Check Passport** requests fresh account history instead of
+  relying on the earlier reconciliation read. Actual duplicates still open the
+  original impression.
 - Only confirmed `success` runs the existing 780ms ceremony. A duplicate opens
   the historical impression without another press. Reduced motion is retained.
 - Issuance upserts by collection ID into the one shared provider; visited markers,

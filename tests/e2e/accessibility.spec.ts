@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubMagicLink, stubSession } from "../support/auth";
-import { seedSampleCollection } from "../support/local-state";
+import { seedEmptyCollection, seedSampleCollection } from "../support/local-state";
 
 const ROUTES = [
   { path: "/", name: "map" },
@@ -73,7 +73,7 @@ for (const route of ROUTES) {
     const results = await analyze(page);
 
     expect(
-      results.violations.map((violation) => `${violation.id}: ${violation.nodes.length}`),
+      results.violations.map(({ id, nodes }) => ({ id, nodes })),
     ).toEqual([]);
   });
 }
@@ -211,6 +211,42 @@ test("the callback's result banner is accessible over the map", async ({ page })
   );
   expect((await analyze(page)).violations).toEqual([]);
 });
+
+for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+  test(`empty and populated results support keyboard scrolling (${reducedMotion}) @short`, async ({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 1440) >= 1024, 'Mobile/tablet results sheet');
+    await seedEmptyCollection(page, 'normal');
+    await stubSession(page, { kind: 'signed-out' });
+    await page.emulateMedia({ reducedMotion });
+    await page.goto('/?authError=expired_link');
+    await expect(page.getByRole('alert', { name: /sign-in result/i })).toBeVisible();
+    const dismiss = page.getByRole('button', { name: 'Dismiss introduction' });
+    if (await dismiss.isVisible()) { await dismiss.focus(); await page.keyboard.press('Enter'); }
+    const handle = page.getByRole('button', { name: /results sheet/i });
+    await handle.click();
+    await page.getByRole('group', { name: 'Visit status' }).getByRole('button', { name: 'Saved', exact: true }).click();
+    await expect(page.getByText(/no shops match this area/i)).toBeVisible();
+    await handle.focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(page.getByTestId('results-sheet')).toHaveAttribute('data-state', 'peek');
+    await settled(page, '[data-testid="results-sheet"]');
+    expect((await analyze(page)).violations).toEqual([]);
+    const scroll = page.getByRole('region', { name: 'Shop results', exact: true });
+    await scroll.focus();
+    await expect(scroll).toBeFocused();
+    await page.keyboard.press('End');
+    const dimensions = await scroll.evaluate(node => ({ top: node.scrollTop, overflow: node.scrollHeight - node.clientHeight }));
+    if (dimensions.overflow > 1) await expect.poll(() => scroll.evaluate(node => node.scrollTop)).toBeGreaterThan(0);
+    await handle.focus();
+    await page.keyboard.press('ArrowUp');
+    await page.getByRole('group', { name: 'Visit status' }).getByRole('button', { name: 'All', exact: true }).click();
+    await expect(page.getByRole('list', { name: /shops in the searched area/i })).toBeVisible();
+    await scroll.focus();
+    await page.keyboard.press('Tab');
+    await expect(scroll.getByRole('button', { name: 'All', exact: true })).toBeFocused();
+    expect((await analyze(page)).violations).toEqual([]);
+  });
+}
 
 /*
  * Both Passport modes, and the overlay that sits over either of them. The route
@@ -417,4 +453,19 @@ test("the Passport and its overlays meet it too", async ({ page }) => {
   await expect(page.getByRole("button", { name: /previous page/i })).toBeVisible();
 
   expect(await undersizedControls(page)).toEqual([]);
+});
+
+// Slow the existing colour transition to audit its intermediate colours.
+// This exposed #52 on the old button; waiting for it to finish would hide it.
+test('collected action keeps contrast during collection hydration',async({page})=>{
+ await seedSampleCollection(page);await stubSession(page,{kind:'signed-out'});
+ await page.addInitScript(()=>{
+  const observer=new MutationObserver(()=>{
+   if(!document.head || document.getElementById('slow-transition')) return;
+   const style=document.createElement('style');style.id='slow-transition';style.textContent='button { transition-duration: 5s !important; }';document.head.append(style);
+  });observer.observe(document,{subtree:true,childList:true});
+ });
+ await page.goto('/shops/ginza-itoya-main-store');
+ await expect(page.getByRole('button',{name:'View Atlas Stamp'})).toBeVisible();
+ expect((await new AxeBuilder({page}).include('button').analyze()).violations).toEqual([]);
 });

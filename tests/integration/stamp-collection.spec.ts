@@ -66,6 +66,33 @@ for(const width of [360,1440]) {
     await expect(page.getByRole('button',{name:'Collect Stamp',exact:true})).toBeVisible();
   });
 
+  test(`Passport recovery follows the request phase at ${width}px`,async({page},testInfo)=>{
+    await page.setViewportSize({width,height:width===360?800:900});
+    const actions=await fixture(page);
+    await page.route('**/api/v1/stamps/verify',route=>route.fulfill({json:{ok:false,error:{code:'service_unavailable'}}}));
+    await page.goto('/shops/m3-api-demo-shop');
+    await page.getByRole('button',{name:'Collect Stamp',exact:true}).click();
+    const dialog=page.getByRole('dialog');
+    await dialog.getByRole('button',{name:'Check my location'}).click();
+    await expect(dialog.getByRole('alert')).not.toContainText('Passport');
+    await expect(dialog.getByRole('link',{name:'Check Passport'})).toHaveCount(0);
+    await expect(page).toHaveURL('/shops/m3-api-demo-shop');
+    expect(actions).toEqual(['nonce']);
+    expect((await new AxeBuilder({page}).include('[aria-labelledby="verified-collect-title"]').analyze()).violations).toEqual([]);
+    await evidence(page,testInfo,`check-failure-${width}`);
+    await page.unroute('**/api/v1/stamps/verify');
+    await page.route('**/api/v1/stamps/collect',route=>route.abort('failed'));
+    await dialog.getByRole('button',{name:'Try again',exact:true}).click();
+    await dialog.getByRole('button',{name:'I am at this shop'}).click();
+    await expect(dialog.getByRole('link',{name:'Check Passport'})).toHaveAttribute('href','/passport');
+    await expect(dialog.getByRole('alert')).toContainText('collection request');
+    await expect(page.getByTestId('stamp-ceremony')).toHaveCount(0);
+    expect((await new AxeBuilder({page}).include('[aria-labelledby="verified-collect-title"]').analyze()).violations).toEqual([]);
+    await evidence(page,testInfo,`uncertain-issuance-${width}`);
+    await dialog.getByRole('link',{name:'Check Passport'}).click();
+    await expect(page).toHaveURL('/passport');
+  });
+
   test(`verified collection, Passport and visited map reconcile at ${width}px`,async({page},testInfo)=>{
     await page.setViewportSize({width,height:width===360?800:900});
     if(width===360) await page.emulateMedia({reducedMotion:'reduce'});

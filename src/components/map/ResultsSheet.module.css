@@ -80,6 +80,8 @@
 .scroll {
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* Keep the keyboard focus ring inside the sheet's clipped scroll area. */
+  outline-offset: -3px;
 }
 
 .filters {

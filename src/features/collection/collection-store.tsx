@@ -609,20 +609,31 @@ function AccountCollections({ owner, local, children }: {
   }, [owner, revision]);
   useEffect(() => {
     if (!owner) return;
+    const onChanged = () => { refresh(); retryRead(); };
     const onVisible = () => {
-      if (document.visibilityState === 'visible') { refresh(); retryRead(); }
+      if (document.visibilityState === 'visible') onChanged();
     };
     const channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('nib-atlas.collections');
-    if (channel) channel.onmessage = () => { refresh(); retryRead(); };
+    if (channel) channel.onmessage = onChanged;
     document.addEventListener('visibilitychange', onVisible);
-    return () => { channel?.close(); document.removeEventListener('visibilitychange', onVisible); };
+    window.addEventListener('nib-atlas.collections-changed',onChanged);
+    return () => {
+      channel?.close(); document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('nib-atlas.collections-changed',onChanged);
+    };
   }, [owner, refresh, retryRead]);
   const acceptIssued = useCallback((collection: StampCollection) => {
-    if (!active.current || !owner || collection.simulated) return;
-    issued.current.set(collection.id, collection);
-    setCollections(current => [...current.filter(row => row.id !== collection.id), collection]);
-    setReadStatus('ready');
-    retryRead();
+    if (!owner || collection.simulated) return;
+    if (active.current) {
+      issued.current.set(collection.id, collection);
+      setCollections(current => [...current.filter(row => row.id !== collection.id), collection]);
+      setReadStatus('ready');
+      retryRead();
+    } else {
+      // A same-page replacement may already have read before this late commit.
+      // It must fetch its own authenticated history, never accept this old row.
+      window.dispatchEvent(new Event('nib-atlas.collections-changed'));
+    }
     // Invalidation contains no identity, collection, coordinates or nonce.
     if (typeof BroadcastChannel !== 'undefined') {
       const channel = new BroadcastChannel('nib-atlas.collections');

@@ -27,10 +27,10 @@ const MESSAGES: Record<Failure,string> = {
   outside_radius:'We could not confirm that you are at this shop. Check that you have the right shop, then try again at its entrance.',
   invalid_nonce:'The location check is no longer valid. Start a new check.',
   expired_nonce:'The location check expired. Start a new check before confirming.',
-  reused_nonce:'That check has already been used. Check your Passport or start again to recover the original impression.',
+  reused_nonce:'That location check has already been used. Start a new check.',
   throttled:'Please pause your attempts and try again later.',
   shop_unavailable:'Stamp collection is currently unavailable at this shop.',
-  service_unavailable:'We could not confirm the result. Check your Passport or try again; an issued stamp will not be issued twice.',
+  service_unavailable:'The location check is unavailable right now. Please try again.',
   invalid_request:'The request could not be accepted. Reopen the shop page and try again.',
   position_unavailable:'Your browser could not find your location. Check your device location settings and try again.',
 };
@@ -45,42 +45,67 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
   const [stage,setStage] = useState<'preflight'|'checking'|'confirm'|'issuing'|'error'>('preflight');
   const [failure,setFailure] = useState<Failure>('service_unavailable');
   const [poorRetries,setPoorRetries] = useState(0);
+  // A nonce or verification failure cannot issue an impression. Once a collect
+  // request was sent, keep recovery available across retries/cancel until its
+  // result is known; a later failed check cannot disprove that earlier issuance.
+  const [issuanceUncertain,setIssuanceUncertain] = useState(false);
+  const uncertainRequests = useRef(new Set<AbortController>());
   const [ceremony,setCeremony] = useState<{collection:StampCollection;duplicate:boolean}|null>(null);
   const binding = useRef<VerificationBindingV1|null>(null);
   const pending = useRef<AbortController|null>(null);
   const owner = session.status === 'signed-in' ? session.userId : null;
   const existing = store.collectionForShop(shop.id);
+  const discardPending = useCallback(() => {
+    // Location/confirmation work is cancellable. Already-authorized issuance
+    // must settle into its original account even after navigation or hiding.
+    if (pending.current && !uncertainRequests.current.has(pending.current)) pending.current.abort();
+    pending.current=null; binding.current=null;
+  },[]);
   const close = useCallback(() => {
-    pending.current?.abort(); pending.current=null; binding.current=null;
+    discardPending();
     setOpen(false); setStage('preflight'); setPoorRetries(0);
     const url = new URL(window.location.href); url.searchParams.delete('collect');
     window.history.replaceState(window.history.state,'',`${url.pathname}${url.search}${url.hash}`);
-  },[]);
-  const dialogRef = useDialogFocus<HTMLDivElement>(open && owner !== null,close);
+  },[discardPending]);
+  const cancel = useCallback(() => {
+    if (issuanceUncertain) store.retryRead?.();
+    close();
+  },[close,issuanceUncertain,store]);
+  const dialogRef = useDialogFocus<HTMLDivElement>(open && owner !== null,cancel);
   useEffect(() => {
     const invalidate = () => {
       if (!pending.current && !binding.current) return;
-      pending.current?.abort(); pending.current=null; binding.current=null;
+      discardPending();
       setFailure('stale_position'); setStage('error');
     };
     const hidden = () => { if (document.visibilityState !== 'visible') invalidate(); };
     document.addEventListener('visibilitychange',hidden);
     window.addEventListener('pagehide',invalidate);
     return () => {
-      pending.current?.abort(); pending.current=null; binding.current=null;
+      discardPending();
       document.removeEventListener('visibilitychange',hidden);
       window.removeEventListener('pagehide',invalidate);
     };
-  },[owner,shop.id]);
-  const fail = (code:Failure) => {
+  },[discardPending,owner,shop.id]);
+  const settleRefusal = (controller:AbortController) => {
+    uncertainRequests.current.delete(controller);
+    setIssuanceUncertain(uncertainRequests.current.size > 0);
+  };
+  const settleIssued = () => {
+    // One original impression settles every attempt for this shop/account.
+    uncertainRequests.current.clear();
+    setIssuanceUncertain(false);
+  };
+  const fail = (code:Failure, mayHaveIssued = uncertainRequests.current.size > 0) => {
     binding.current=null; pending.current=null; setFailure(code); setStage('error');
-    if (code === 'reused_nonce' || code === 'service_unavailable') store.retryRead?.();
+    if (mayHaveIssued && (code === 'reused_nonce' || code === 'service_unavailable')) store.retryRead?.();
   };
   const receiveCollection = (response:StampResponseV1) => {
     if (!response.ok || (response.status !== 'success' && response.status !== 'duplicate')) return false;
     const collection = decodeCollection(response.collection,shop.slug);
     if (collection.shopId !== shop.id) { fail('service_unavailable'); return true; }
     store.acceptIssued?.(collection);
+    settleIssued();
     close(); setCeremony({collection,duplicate:response.status === 'duplicate'});
     return true;
   };
@@ -112,10 +137,30 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
     if (document.visibilityState !== 'visible') { fail('stale_position'); return; }
     const proof=binding.current; binding.current=null;
     const controller=new AbortController(); pending.current=controller; setStage('issuing');
+    uncertainRequests.current.add(controller);
+    setIssuanceUncertain(true);
     const response=await stampRequest('collect',{...proof,confirmedAtShop:true},controller.signal);
-    if (controller.signal.aborted || pending.current !== controller) return;
-    if (!response.ok) { fail(response.error.code); return; }
-    if (!receiveCollection(response)) fail('service_unavailable');
+    if (controller.signal.aborted) return;
+    if (pending.current !== controller) {
+      // Cancelled dialogs never reopen or replay a ceremony. The account store
+      // survives navigation and rejects acceptance after its owner is unmounted.
+      if (response.ok && (response.status === 'success' || response.status === 'duplicate')) {
+        const collection=decodeCollection(response.collection,shop.slug);
+        if (collection.shopId === shop.id) { store.acceptIssued?.(collection); settleIssued(); }
+        else store.retryRead?.();
+      } else {
+        if (!response.ok && !['service_unavailable','reused_nonce'].includes(response.error.code)) settleRefusal(controller);
+        store.retryRead?.();
+      }
+      return;
+    }
+    if (!response.ok) {
+      // An explicit refusal settles this attempt, but cannot settle an older
+      // interrupted one. Network/invalid-response failures remain uncertain.
+      if (!['service_unavailable','reused_nonce'].includes(response.error.code)) settleRefusal(controller);
+      fail(response.error.code); return;
+    }
+    if (!receiveCollection(response)) fail('service_unavailable',true);
   }
   function signIn() {
     const url=new URL(currentReturnTo(),window.location.origin); url.searchParams.set('collect','1');
@@ -138,7 +183,9 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
         {stage === 'preflight' ? <p>Use your location once to check that you are at this shop. Your precise position is checked and discarded, never stored. <Link href="/privacy" className={styles.dialogLink}>How location is used</Link>.</p> : null}
         {stage === 'checking' || stage === 'issuing' ? <p role="status">{stage === 'checking' ? 'Checking your location… Keep this page visible.':'Keeping your impression…'}</p> : null}
         {stage === 'confirm' ? <p>Your location check passed. Confirm that you are at {shop.name} to collect its stamp.</p> : null}
-        {stage === 'error' ? <><p role="alert">{MESSAGES[failure]}</p>{failure === 'poor_accuracy' && poorRetries >= 1 ? <p>A second reading was still unclear. Please contact support for help.</p>:null}{failure !== 'outside_radius' ? <p><Link className={styles.dialogLink} href="/help#collection-help">Get help with collection</Link></p>:null}</>:null}
+        {stage === 'error' ? <><p role="alert">{issuanceUncertain && ['service_unavailable','reused_nonce','stale_position'].includes(failure)
+          ? 'We could not confirm the result of your collection request. Check your Passport before trying again; an issued stamp will not be issued twice.'
+          : MESSAGES[failure]}</p>{issuanceUncertain && !['outside_radius','service_unavailable','reused_nonce','stale_position'].includes(failure) ? <p>An earlier collection request may have completed. Check your Passport before trying again.</p>:null}{failure === 'poor_accuracy' && poorRetries >= 1 ? <p>A second reading was still unclear. Please contact support for help.</p>:null}{failure !== 'outside_radius' ? <p><Link className={styles.dialogLink} href="/help#collection-help">Get help with collection</Link></p>:null}</>:null}
       </div>
       <div className={styles.dialogActions}>
         {stage === 'preflight' ? <Button fullWidth onClick={() => void checkLocation()}>Check my location</Button>:null}
@@ -147,9 +194,9 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
           if (failure === 'poor_accuracy') setPoorRetries(value => value+1);
           void checkLocation();
         }}>Try again</Button>:null}
-        {stage === 'error' && failure === 'authentication_required' ? <Button fullWidth onClick={() => {close();signIn();}}>Sign in again</Button>:null}
-        {stage === 'error' && failure !== 'outside_radius' ? <ButtonLink href="/passport" fullWidth>Check Passport</ButtonLink>:null}
-        <Button variant="quiet" fullWidth onClick={close}>Cancel</Button>
+        {stage === 'error' && failure === 'authentication_required' ? <Button fullWidth onClick={() => {cancel();signIn();}}>Sign in again</Button>:null}
+        {stage === 'error' && issuanceUncertain && failure !== 'outside_radius' ? <ButtonLink href="/passport" fullWidth onClick={() => store.retryRead?.()}>Check Passport</ButtonLink>:null}
+        <Button variant="quiet" fullWidth onClick={cancel}>Cancel</Button>
       </div>
     </div></div>:null}
     {ceremony ? <StampCeremony collection={ceremony.collection} alreadyCollected={ceremony.duplicate}

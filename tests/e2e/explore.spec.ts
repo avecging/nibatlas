@@ -64,6 +64,12 @@ async function panMap(page: Page, fractionX: number, fractionY: number) {
   const dx = box!.width * fractionX;
   const dy = box!.height * fractionY;
 
+  // A visible map container can still be covered by the mobile results sheet.
+  // Fail at the gesture's cause rather than timing out waiting for camera state.
+  expect(await page.evaluate(({ x, y }) =>
+    document.elementFromPoint(x, y)?.matches('.maplibregl-canvas'),
+  { x: startX, y: startY })).toBe(true);
+
   await page.mouse.move(startX, startY);
   await page.mouse.down();
   for (let step = 1; step <= 20; step += 1) {
@@ -630,13 +636,15 @@ test("applying after a pan commits the camera and the filters together", async (
 }) => {
   await openMap(page);
   await searchDestination(page, "Tokyo", /^Tokyo/);
-  await raiseSheet(page);
 
   const explore = page.getByTestId("explore");
 
   await panMap(page, -0.45, -0.3);
   await expect(explore).toHaveAttribute("data-search-offer", "offer");
 
+  // Raise the sheet only after the map gesture: at Half it covers the drag's
+  // starting point on a phone and can receive the gesture itself.
+  await raiseSheet(page);
   await page.getByRole("button", { name: /^filters/i }).click();
 
   const drawer = page.getByRole("dialog", { name: "Filters" });
