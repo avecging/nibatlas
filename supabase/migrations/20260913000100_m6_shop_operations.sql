@@ -181,7 +181,7 @@ begin
       end if;
     end loop;
   end loop;
-  if (select count(*) from jsonb_array_elements(d->'types') r where r->>'is_primary'='true')>1
+  if (select count(*) from jsonb_array_elements(d->'types') where value->>'is_primary'='true')>1
     or (select count(*)<>count(distinct lower(value->>'alias')) from jsonb_array_elements(d->'aliases'))
     or (select count(*)<>count(distinct value->>'url') from jsonb_array_elements(d->'links')) then
     raise exception 'Duplicate catalogue item' using errcode='22023';
@@ -193,7 +193,7 @@ end; $$;
 revoke all on function public.validate_shop_document(uuid,jsonb) from public, anon, authenticated, service_role;
 create function public.apply_shop_document(p_id uuid, p_document jsonb)
 returns void language plpgsql security definer set search_path = '' as $$
-declare s public.shops; r jsonb;
+declare s public.shops;
 begin
   s := jsonb_populate_record(null::public.shops, p_document->'shop');
   update public.shops set

@@ -157,7 +157,7 @@ test("founder edits, previews, publishes, closes and archives @short", async ({
     page.getByRole("button", { name: "Preview saved version", exact: true }),
   ).toBeDisabled();
   await page.getByRole("button", { name: "Save changes privately" }).click();
-  await expect(page.getByRole("alert")).toContainText(
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
     "Changes saved privately",
   );
   await page
@@ -187,7 +187,7 @@ test("founder edits, previews, publishes, closes and archives @short", async ({
   await page
     .getByRole("button", { name: "Confirm publish", exact: true })
     .click();
-  await expect(page.getByRole("alert")).toHaveText("Shop published.");
+  await expect(page.getByRole("main").getByRole("alert")).toHaveText("Shop published.");
   for (const action of ["temporarily closed", "open", "permanently closed"]) {
     await page
       .getByRole("button", { name: `Mark ${action}`, exact: true })
@@ -195,7 +195,7 @@ test("founder edits, previews, publishes, closes and archives @short", async ({
     await page
       .getByRole("button", { name: `Confirm ${action}`, exact: true })
       .click();
-    await expect(page.getByRole("alert")).toContainText(
+    await expect(page.getByRole("main").getByRole("alert")).toContainText(
       "Operational status updated",
     );
   }
@@ -203,7 +203,7 @@ test("founder edits, previews, publishes, closes and archives @short", async ({
   await page
     .getByRole("button", { name: "Confirm archive", exact: true })
     .click();
-  await expect(page.getByRole("alert")).toContainText("Shop archived");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("Shop archived");
   await expect(page.getByLabel("Shop name")).toBeDisabled();
   expect(state.actions).toEqual([
     "save",
@@ -232,8 +232,8 @@ test("draft editor is accessible and preserves unknown information @short", asyn
     ).violations,
   ).toEqual([]);
   const sizes = await page.evaluate(() => ({
-    width: document.documentElement.clientWidth,
-    scroll: document.documentElement.scrollWidth,
+    width: globalThis.document.documentElement.clientWidth,
+    scroll: globalThis.document.documentElement.scrollWidth,
   }));
   expect(sizes.scroll).toBeLessThanOrEqual(sizes.width);
   for (const control of await page
@@ -265,7 +265,7 @@ test("create flow and revision conflict preserve the unsaved work", async ({
   state.conflict();
   await page.getByLabel("Shop name").fill("Uncommitted demo");
   await page.getByRole("button", { name: "Save changes privately" }).click();
-  await expect(page.getByRole("alert")).toContainText(
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
     "changed in another session",
   );
   await expect(page.getByLabel("Shop name")).toHaveValue("Uncommitted demo");
@@ -280,7 +280,7 @@ test("denied and signed-out visitors see no editor data", async ({ page }) => {
     }),
   );
   await page.goto(`/admin/shops/${id}`);
-  await expect(page.getByRole("alert")).toContainText(
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
     "does not have catalogue access",
   );
   await expect(page.getByLabel("Shop name")).toHaveCount(0);
