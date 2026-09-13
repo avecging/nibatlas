@@ -55,36 +55,38 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
   const pending = useRef<AbortController|null>(null);
   const owner = session.status === 'signed-in' ? session.userId : null;
   const existing = store.collectionForShop(shop.id);
+  const discardPending = useCallback(() => {
+    // Location/confirmation work is cancellable. Already-authorized issuance
+    // must settle into its original account even after navigation or hiding.
+    if (pending.current && !uncertainRequests.current.has(pending.current)) pending.current.abort();
+    pending.current=null; binding.current=null;
+  },[]);
   const close = useCallback(() => {
-    pending.current?.abort(); pending.current=null; binding.current=null;
+    discardPending();
     setOpen(false); setStage('preflight'); setPoorRetries(0);
     const url = new URL(window.location.href); url.searchParams.delete('collect');
     window.history.replaceState(window.history.state,'',`${url.pathname}${url.search}${url.hash}`);
-  },[]);
+  },[discardPending]);
   const cancel = useCallback(() => {
-    // Confirmation already authorized this write. Detach its response from the
-    // dialog instead of aborting it: the server may commit after the first read.
-    // Location checks are still aborted by close().
-    if (stage === 'issuing') pending.current=null;
     if (issuanceUncertain) store.retryRead?.();
     close();
-  },[close,issuanceUncertain,stage,store]);
+  },[close,issuanceUncertain,store]);
   const dialogRef = useDialogFocus<HTMLDivElement>(open && owner !== null,cancel);
   useEffect(() => {
     const invalidate = () => {
       if (!pending.current && !binding.current) return;
-      pending.current?.abort(); pending.current=null; binding.current=null;
+      discardPending();
       setFailure('stale_position'); setStage('error');
     };
     const hidden = () => { if (document.visibilityState !== 'visible') invalidate(); };
     document.addEventListener('visibilitychange',hidden);
     window.addEventListener('pagehide',invalidate);
     return () => {
-      pending.current?.abort(); pending.current=null; binding.current=null;
+      discardPending();
       document.removeEventListener('visibilitychange',hidden);
       window.removeEventListener('pagehide',invalidate);
     };
-  },[owner,shop.id]);
+  },[discardPending,owner,shop.id]);
   const settleRefusal = (controller:AbortController) => {
     uncertainRequests.current.delete(controller);
     setIssuanceUncertain(uncertainRequests.current.size > 0);

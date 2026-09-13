@@ -250,6 +250,20 @@ describe('verified collection journey',()=>{
     expect(await screen.findByRole('link',{name:'Check Passport'})).toBeInTheDocument();
     expect(screen.queryByTestId('stamp-ceremony')).not.toBeInTheDocument();
   });
+  it.each(['navigation','sign-out','backgrounding'] as const)('settles a late issuance after direct %s without pressing Cancel',async(interruption)=>{
+    const view=await open();await verify();const responses=deferIssuance();
+    fireEvent.click(screen.getByRole('button',{name:'I am at this shop'}));
+    if (interruption === 'navigation') view.rerender(<App showAction={false}/>);
+    else if (interruption === 'sign-out') {account.session={status:'signed-out'};view.rerender(<App/>);}
+    else act(()=>{vi.spyOn(document,'visibilityState','get').mockReturnValue('hidden');document.dispatchEvent(new Event('visibilitychange'));});
+    expect(screen.getByTestId('count')).toHaveTextContent('0');
+    await act(async()=>{
+      rows=[ISSUED_STAMP];
+      responses[0]!(Response.json({ok:true,status:'success',collection:ISSUED_STAMP}));
+    });
+    await waitFor(()=>expect(screen.getByTestId('count')).toHaveTextContent(interruption === 'sign-out' ? '0':'1'));
+    expect(screen.queryByTestId('stamp-ceremony')).not.toBeInTheDocument();
+  });
   it('sends denial without coordinates',async()=>{
     Object.defineProperty(navigator,'geolocation',{configurable:true,value:{getCurrentPosition:(_success:PositionCallback,error:PositionErrorCallback)=>error({code:1} as GeolocationPositionError)}});
     verifyFailure='permission_denied';await open();fireEvent.click(screen.getByRole('button',{name:'Check my location'}));

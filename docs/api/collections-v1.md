@@ -36,6 +36,7 @@ Failures use WP2's `{ok:false,error:{code}}`: `invalid_request` (400),
   changes and shop changes discard in-flight location/confirmation state. No watch
   or stored fix. Once confirmation has sent issuance, Cancel/Escape closes the
   dialog and refreshes history, but lets that already-authorized response settle.
+  Navigation/unmount and backgrounding likewise detach issuance for settlement.
   Its result updates only the original account store, even after navigation;
   it cannot reopen the dialog, replay a ceremony, or enter a different account.
 - Outside-area refusal offers only **Try again** and **Cancel**. Retry obtains a
