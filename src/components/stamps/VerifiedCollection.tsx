@@ -61,11 +61,13 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
     window.history.replaceState(window.history.state,'',`${url.pathname}${url.search}${url.hash}`);
   },[]);
   const cancel = useCallback(() => {
-    // Aborting fetch cannot undo an issuance already committed by the server.
-    // Refresh the shared account history even if the reader leaves the dialog.
+    // Confirmation already authorized this write. Detach its response from the
+    // dialog instead of aborting it: the server may commit after the first read.
+    // Location checks are still aborted by close().
+    if (stage === 'issuing') pending.current=null;
     if (issuanceUncertain) store.retryRead?.();
     close();
-  },[close,issuanceUncertain,store]);
+  },[close,issuanceUncertain,stage,store]);
   const dialogRef = useDialogFocus<HTMLDivElement>(open && owner !== null,cancel);
   useEffect(() => {
     const invalidate = () => {
@@ -125,7 +127,17 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
     const controller=new AbortController(); pending.current=controller; setStage('issuing');
     setIssuanceUncertain(true);
     const response=await stampRequest('collect',{...proof,confirmedAtShop:true},controller.signal);
-    if (controller.signal.aborted || pending.current !== controller) return;
+    if (controller.signal.aborted) return;
+    if (pending.current !== controller) {
+      // Cancelled dialogs never reopen or replay a ceremony. The account store
+      // survives navigation and rejects acceptance after its owner is unmounted.
+      if (response.ok && (response.status === 'success' || response.status === 'duplicate')) {
+        const collection=decodeCollection(response.collection,shop.slug);
+        if (collection.shopId === shop.id) store.acceptIssued?.(collection);
+        else store.retryRead?.();
+      } else store.retryRead?.();
+      return;
+    }
     if (!response.ok) {
       // An explicit refusal settles this attempt, but cannot settle an older
       // interrupted one. Network/invalid-response failures remain uncertain.

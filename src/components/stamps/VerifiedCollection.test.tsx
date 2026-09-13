@@ -21,8 +21,8 @@ let nonceFailure:StampFailureCode|null;
 let collectFailure:StampFailureCode|null;
 let nonceCount:number;
 let readFailure:boolean;
-function Probe(){const store=useCollection();return <><output data-testid="count">{store.passport.stampCount}</output><output data-testid="visited">{String(store.isVisited(shop.id))}</output><output data-testid="seals">{store.seals.length}</output><VerifiedCollection shop={shop}/></>;}
-function App(){return <ReviewerModeProvider><CatalogueProvider mode="api"><CollectionProvider><Probe/></CollectionProvider></CatalogueProvider></ReviewerModeProvider>;}
+function Probe({showAction=true}:{showAction?:boolean}){const store=useCollection();return <><output data-testid="count">{store.passport.stampCount}</output><output data-testid="visited">{String(store.isVisited(shop.id))}</output><output data-testid="seals">{store.seals.length}</output>{showAction ? <VerifiedCollection shop={shop}/>:null}</>;}
+function App({showAction=true}:{showAction?:boolean}){return <ReviewerModeProvider><CatalogueProvider mode="api"><CollectionProvider><Probe showAction={showAction}/></CollectionProvider></CatalogueProvider></ReviewerModeProvider>;}
 beforeEach(()=>{
   window.localStorage.clear();window.history.replaceState({},'','/shops/m3-api-demo-shop');
   rows=[];calls=[];nonceCount=0;verifyFailure=null;nonceFailure=null;collectFailure=null;readFailure=false;
@@ -42,7 +42,7 @@ beforeEach(()=>{
   }));
 });
 afterEach(()=>{vi.restoreAllMocks();vi.unstubAllGlobals();});
-async function open(){render(<App/>);fireEvent.click(await screen.findByRole('button',{name:'Collect Stamp'}));await screen.findByRole('button',{name:'Check my location'});}
+async function open(){const view=render(<App/>);fireEvent.click(await screen.findByRole('button',{name:'Collect Stamp'}));await screen.findByRole('button',{name:'Check my location'});return view;}
 async function verify(){fireEvent.click(screen.getByRole('button',{name:'Check my location'}));await screen.findByRole('button',{name:'I am at this shop'});}
 
 describe('verified collection journey',()=>{
@@ -126,13 +126,14 @@ describe('verified collection journey',()=>{
     expect(await screen.findByRole('alert')).not.toHaveTextContent(/Passport/);
     expect(screen.queryByRole('link',{name:'Check Passport'})).not.toBeInTheDocument();
   });
-  it.each(['Cancel','Escape'] as const)('reconciles a committed stamp when %s aborts its pending response',async(control)=>{
+  it.each(['Cancel','Escape'] as const)('reconciles an already committed stamp when %s closes the dialog',async(control)=>{
     await open();await verify();
     const original=fetch;
+    let finish!:(response:Response)=>void;
     vi.stubGlobal('fetch',vi.fn((input:string,init?:RequestInit)=>{
       if (!input.endsWith('/collect')) return original(input,init);
       rows=[ISSUED_STAMP];
-      return new Promise<Response>((_resolve,reject)=>init?.signal?.addEventListener('abort',()=>reject(new Error('aborted'))));
+      return new Promise<Response>(resolve=>{finish=resolve;});
     }));
     fireEvent.click(screen.getByRole('button',{name:'I am at this shop'}));
     await within(screen.getByRole('dialog')).findByRole('status');
@@ -142,6 +143,37 @@ describe('verified collection journey',()=>{
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     await waitFor(()=>expect(screen.getByTestId('count')).toHaveTextContent('1'));
     expect(screen.getByRole('button',{name:'View Atlas Stamp'})).toBeInTheDocument();
+    await act(async()=>finish(Response.json({ok:true,status:'success',collection:ISSUED_STAMP})));
+    expect(screen.queryByTestId('stamp-ceremony')).not.toBeInTheDocument();
+  });
+  it.each(['Cancel','Escape','navigate','sign out','lost response'] as const)('handles issuance committed after cancellation and %s',async(control)=>{
+    const view=await open();await verify();
+    const original=fetch;
+    let finish!:(response:Response)=>void;
+    let issuanceSignal:AbortSignal|null|undefined;
+    let reads=0;
+    vi.stubGlobal('fetch',vi.fn((input:string,init?:RequestInit)=>{
+      if (input.startsWith('/api/v1/collections')) reads++;
+      if (!input.endsWith('/collect')) return original(input,init);
+      issuanceSignal=init?.signal;
+      return new Promise<Response>(resolve=>{finish=resolve;});
+    }));
+    fireEvent.click(screen.getByRole('button',{name:'I am at this shop'}));
+    await within(screen.getByRole('dialog')).findByRole('status');
+    if (control === 'Escape') fireEvent.keyDown(document,{key:'Escape'});
+    else fireEvent.click(screen.getByRole('button',{name:'Cancel'}));
+    await waitFor(()=>expect(reads).toBe(1));
+    expect(screen.getByTestId('count')).toHaveTextContent('0');
+    expect(issuanceSignal?.aborted).toBe(false);
+    if (control === 'navigate') view.rerender(<App showAction={false}/>);
+    if (control === 'sign out') {account.session={status:'signed-out'};view.rerender(<App/>);}
+    await act(async()=>{
+      rows=[ISSUED_STAMP];
+      finish(control === 'lost response' ? Response.json({}, {status:503})
+        : Response.json({ok:true,status:'success',collection:ISSUED_STAMP}));
+    });
+    await waitFor(()=>expect(screen.getByTestId('count')).toHaveTextContent(control === 'sign out' ? '0':'1'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.queryByTestId('stamp-ceremony')).not.toBeInTheDocument();
   });
   it('offers reconciliation when an issuance response is interrupted by backgrounding',async()=>{

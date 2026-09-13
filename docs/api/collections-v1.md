@@ -33,7 +33,11 @@ Failures use WP2's `{ok:false,error:{code}}`: `invalid_request` (400),
   **Check my location**, then **I am at this shop** after server verification.
 - The GPS adapter requests one fresh foreground sample (`maximumAge: 0`, high
   accuracy, 20-second timeout). Hidden pages, page exit, cancellation, account
-  changes and shop changes discard in-flight state. No watch or stored fix.
+  changes and shop changes discard in-flight location/confirmation state. No watch
+  or stored fix. Once confirmation has sent issuance, Cancel/Escape closes the
+  dialog and refreshes history, but lets that already-authorized response settle.
+  Its result updates only the original account store, even after navigation;
+  it cannot reopen the dialog, replay a ceremony, or enter a different account.
 - Outside-area refusal offers only **Try again** and **Cancel**. Retry obtains a
   new nonce and fresh foreground fix; eligible verification still requires
   explicit confirmation. Before any issuance request, failures stay at the shop
