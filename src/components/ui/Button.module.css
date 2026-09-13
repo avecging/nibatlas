@@ -69,6 +69,14 @@
   color: var(--white);
 }
 
+/* Reversed text and the pale collected surface cannot cross-fade: their
+ * intermediate colours lose AA contrast while collection state hydrates.
+ * Change the ink/surface together; retain the quiet border transition. */
+.stamp,
+.collected {
+  transition-property: border-color;
+}
+
 .stamp:hover:not([disabled]) {
   border-color: var(--action-collect-hover);
   background: var(--action-collect-hover);

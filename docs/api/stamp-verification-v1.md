@@ -33,8 +33,15 @@ Founder-approved phone-test UX decision, 12 September 2026: an outside-area
 refusal offers only **Try again** and **Cancel**, removing Help and Check Passport
 from that state. This replaces the previous outside-area support requirement.
 Retry still creates a new nonce and fix and requires explicit confirmation after
-eligibility. Other failures retain support and uncertain-issuance Passport recovery;
-the verification policy and distance-neutral responses are unchanged.
+eligibility. Other failures retain support; the verification policy and
+distance-neutral responses are unchanged.
+
+Founder-authorized recovery follow-up, 13 September 2026 (#58): failures before
+any collection request stay at the shop, with no Check Passport action or message.
+Nonce creation and verification cannot issue a stamp. Once an explicit collection
+request may have committed, retain Passport reconciliation across interruption,
+retry and cancellation until the outcome is known. Actual duplicate responses
+still open the original impression. Outside-area refusal retains its two actions.
 
 ## Response contract
 
@@ -55,10 +62,10 @@ configured radii, anomaly flags, provider errors or throttle thresholds are retu
 | `outside_radius` | 422 | Distance-neutral message; only Try again (new nonce/fix) and Cancel |
 | `invalid_nonce` | 409 | Restart; includes wrong user/shop/request |
 | `expired_nonce` | 409 | Restart; server deadline elapsed |
-| `reused_nonce` | 409 | Reconcile collection, then restart if necessary |
+| `reused_nonce` | 409 | Restart check; reconcile first only if issuance may have committed |
 | `throttled` | 429 | Pause attempts; offer retry later |
 | `shop_unavailable` | 404 | Refresh shop; collection currently unavailable |
-| `service_unavailable` | 503 | Keep context; retry/reconcile before ceremony |
+| `service_unavailable` | 503 | Keep shop context and retry; reconcile only if issuance may have committed |
 | `invalid_request` | 400 | Do not automatically replay malformed data |
 
 Success/duplicate shape: `{ok:true,status,collection,invalidate}`. `collection`

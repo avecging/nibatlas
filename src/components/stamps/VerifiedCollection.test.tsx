@@ -17,13 +17,15 @@ const shop={...prototypeShopDetails[0]!,id:ISSUED_STAMP.shopId,slug:ISSUED_STAMP
 let rows: unknown[];
 let calls:{action:string;body:Record<string,unknown>}[];
 let verifyFailure:StampFailureCode|null;
+let nonceFailure:StampFailureCode|null;
+let collectFailure:StampFailureCode|null;
 let nonceCount:number;
 let readFailure:boolean;
 function Probe(){const store=useCollection();return <><output data-testid="count">{store.passport.stampCount}</output><output data-testid="visited">{String(store.isVisited(shop.id))}</output><output data-testid="seals">{store.seals.length}</output><VerifiedCollection shop={shop}/></>;}
 function App(){return <ReviewerModeProvider><CatalogueProvider mode="api"><CollectionProvider><Probe/></CollectionProvider></CatalogueProvider></ReviewerModeProvider>;}
 beforeEach(()=>{
   window.localStorage.clear();window.history.replaceState({},'','/shops/m3-api-demo-shop');
-  rows=[];calls=[];nonceCount=0;verifyFailure=null;readFailure=false;
+  rows=[];calls=[];nonceCount=0;verifyFailure=null;nonceFailure=null;collectFailure=null;readFailure=false;
   account.session={status:'signed-in',userId:STAMP_OWNER,identityLabel:'fixture@example.test',displayName:null};
   requestSignIn.mockClear();
   vi.spyOn(document,'visibilityState','get').mockReturnValue('visible');
@@ -33,8 +35,9 @@ beforeEach(()=>{
     const action=input.split('/').at(-1)!;
     const body=JSON.parse(String(init?.body)) as Record<string,unknown>;
     calls.push({action,body});
-    if(action==='nonce') {nonceCount++;return Response.json(rows.length ? {ok:true,status:'duplicate',collection:rows[0]} : {ok:true,status:'nonce_issued',requestId:STAMP_OWNER,nonce:String(nonceCount).padStart(64,'0')});}
+    if(action==='nonce') {nonceCount++;if(nonceFailure) return Response.json({ok:false,error:{code:nonceFailure}});return Response.json(rows.length ? {ok:true,status:'duplicate',collection:rows[0]} : {ok:true,status:'nonce_issued',requestId:STAMP_OWNER,nonce:String(nonceCount).padStart(64,'0')});}
     if(action==='verify') return Response.json(verifyFailure ? {ok:false,error:{code:verifyFailure}} : {ok:true,status:'confirmation_required'});
+    if(collectFailure) return Response.json({ok:false,error:{code:collectFailure}});
     rows=[ISSUED_STAMP];return Response.json({ok:true,status:'success',collection:ISSUED_STAMP});
   }));
 });
@@ -87,8 +90,8 @@ describe('verified collection journey',()=>{
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(calls.some(c=>c.action==='collect')).toBe(false);
   });
-  it.each(['service_unavailable','reused_nonce'] as const)('keeps Passport recovery for %s',async(code)=>{
-    verifyFailure=code;await open();fireEvent.click(screen.getByRole('button',{name:'Check my location'}));
+  it.each(['service_unavailable','reused_nonce'] as const)('keeps Passport recovery after an issuance request returns %s',async(code)=>{
+    collectFailure=code;await open();await verify();fireEvent.click(screen.getByRole('button',{name:'I am at this shop'}));
     expect(await screen.findByRole('link',{name:'Check Passport'})).toHaveAttribute('href','/passport');
     expect(screen.getByRole('link',{name:'Get help with collection'})).toBeInTheDocument();
   });
@@ -96,6 +99,44 @@ describe('verified collection journey',()=>{
     verifyFailure=code;await open();fireEvent.click(screen.getByRole('button',{name:'Check my location'}));
     expect(await screen.findByRole('alert')).not.toHaveTextContent(/150|100|radius|metres|threshold/i);
     expect(calls.some(c=>c.action==='collect')).toBe(false);
+    expect(screen.queryByRole('link',{name:'Check Passport'})).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).not.toHaveTextContent(/Passport/);
+  });
+  it('keeps a nonce failure at the shop without requesting location or Passport recovery',async()=>{
+    nonceFailure='service_unavailable';await open();fireEvent.click(screen.getByRole('button',{name:'Check my location'}));
+    expect(await screen.findByRole('alert')).not.toHaveTextContent(/Passport/);
+    expect(screen.queryByRole('link',{name:'Check Passport'})).not.toBeInTheDocument();
+    expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
+    expect(calls.map(c=>c.action)).toEqual(['nonce']);
+  });
+  it('retains uncertain issuance recovery across cancel and a later failed check',async()=>{
+    collectFailure='service_unavailable';await open();await verify();
+    fireEvent.click(screen.getByRole('button',{name:'I am at this shop'}));
+    await screen.findByRole('link',{name:'Check Passport'});
+    fireEvent.click(screen.getByRole('button',{name:'Cancel'}));
+    fireEvent.click(screen.getByRole('button',{name:'Collect Stamp'}));
+    nonceFailure='service_unavailable';
+    fireEvent.click(screen.getByRole('button',{name:'Check my location'}));
+    expect(await screen.findByRole('link',{name:'Check Passport'})).toBeInTheDocument();
+    expect(calls.map(c=>c.action)).toEqual(['nonce','verify','collect','nonce']);
+  });
+  it.each(['throttled','expired_nonce'] as const)('keeps an explicit issuance refusal (%s) at the shop',async(code)=>{
+    collectFailure=code;await open();await verify();
+    fireEvent.click(screen.getByRole('button',{name:'I am at this shop'}));
+    expect(await screen.findByRole('alert')).not.toHaveTextContent(/Passport/);
+    expect(screen.queryByRole('link',{name:'Check Passport'})).not.toBeInTheDocument();
+  });
+  it('offers reconciliation when an issuance response is interrupted by backgrounding',async()=>{
+    await open();await verify();
+    const original=fetch;
+    vi.stubGlobal('fetch',vi.fn((input:string,init?:RequestInit)=>input.endsWith('/collect')
+      ? new Promise<Response>((_resolve,reject)=>init?.signal?.addEventListener('abort',()=>reject(new Error('aborted'))))
+      : original(input,init)));
+    fireEvent.click(screen.getByRole('button',{name:'I am at this shop'}));
+    await within(screen.getByRole('dialog')).findByRole('status');
+    act(()=>{vi.spyOn(document,'visibilityState','get').mockReturnValue('hidden');document.dispatchEvent(new Event('visibilitychange'));});
+    expect(await screen.findByRole('link',{name:'Check Passport'})).toBeInTheDocument();
+    expect(screen.queryByTestId('stamp-ceremony')).not.toBeInTheDocument();
   });
   it('sends denial without coordinates',async()=>{
     Object.defineProperty(navigator,'geolocation',{configurable:true,value:{getCurrentPosition:(_success:PositionCallback,error:PositionErrorCallback)=>error({code:1} as GeolocationPositionError)}});
@@ -107,6 +148,7 @@ describe('verified collection journey',()=>{
     act(()=>{vi.spyOn(document,'visibilityState','get').mockReturnValue('hidden');document.dispatchEvent(new Event('visibilitychange'));});
     await screen.findByRole('alert');expect(screen.queryByRole('button',{name:'I am at this shop'})).not.toBeInTheDocument();
     expect(calls.some(c=>c.action==='collect')).toBe(false);
+    expect(screen.queryByRole('link',{name:'Check Passport'})).not.toBeInTheDocument();
   });
   it('clears private impressions and active dialogs on sign-out',async()=>{
     rows=[ISSUED_STAMP];const view=render(<App/>);

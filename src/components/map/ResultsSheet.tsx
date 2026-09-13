@@ -172,7 +172,9 @@ export function ResultsSheet({
         </button>
       </div>
       <div className={styles.summary}>{summary}</div>
-      <div className={styles.scroll}>{children}</div>
+      <div className={styles.scroll} role="region" aria-label="Shop results" tabIndex={0}>
+        {children}
+      </div>
     </section>
   );
 }

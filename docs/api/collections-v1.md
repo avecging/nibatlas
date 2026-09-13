@@ -36,8 +36,11 @@ Failures use WP2's `{ok:false,error:{code}}`: `invalid_request` (400),
   changes and shop changes discard in-flight state. No watch or stored fix.
 - Outside-area refusal offers only **Try again** and **Cancel**. Retry obtains a
   new nonce and fresh foreground fix; eligible verification still requires
-  explicit confirmation. Other failures retain help and **Check Passport**,
-  especially when an interrupted issuance may already have committed.
+  explicit confirmation. Before any issuance request, failures stay at the shop
+  with appropriate retry/cancel or permission/support recovery, without a Passport
+  detour. **Check Passport** is offered only after a collection request may have
+  committed. Keep that recovery across retries/cancellation while its outcome is
+  unknown; actual duplicates still open the original impression.
 - Only confirmed `success` runs the existing 780ms ceremony. A duplicate opens
   the historical impression without another press. Reduced motion is retained.
 - Issuance upserts by collection ID into the one shared provider; visited markers,

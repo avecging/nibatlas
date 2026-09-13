@@ -416,7 +416,9 @@ WP3 now provides that connection in API mode. **Check my location** is the
 explicit foreground permission action; **I am at this shop** appears only after
 verification. Private history has loading/error/sign-in states. Outside-area
 failures offer only **Try again** and **Cancel**; other failures retain collection
-help and Passport recovery, including uncertain issuance. See
+help. Passport recovery appears only when a collection request may have committed,
+including a response lost during interruption; nonce/location-check failures alone
+do not send the reader to Passport. Actual duplicates open the original impression. See
 [collection reads and recovery](docs/api/collections-v1.md).
 
 The staging phone venue uses the existing page and ceremony, labelled **Location
