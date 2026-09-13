@@ -39,6 +39,8 @@ Failures use WP2's `{ok:false,error:{code}}`: `invalid_request` (400),
   Navigation/unmount and backgrounding likewise detach issuance for settlement.
   Its result updates only the original account store, even after navigation;
   it cannot reopen the dialog, replay a ceremony, or enter a different account.
+  If that store has unmounted, a generic invalidation makes its replacement read
+  its own authenticated history; no old impression or identity crosses stores.
 - Outside-area refusal offers only **Try again** and **Cancel**. Retry obtains a
   new nonce and fresh foreground fix; eligible verification still requires
   explicit confirmation. Before any issuance request, failures stay at the shop

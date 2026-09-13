@@ -264,6 +264,32 @@ describe('verified collection journey',()=>{
     await waitFor(()=>expect(screen.getByTestId('count')).toHaveTextContent(interruption === 'sign-out' ? '0':'1'));
     expect(screen.queryByTestId('stamp-ceremony')).not.toBeInTheDocument();
   });
+  it.each([STAMP_OWNER,'20000000-0000-4000-8000-000000000051'])('refreshes replacement account %s after a late original-account commit',async(nextOwner)=>{
+    const view=await open();await verify();const responses=deferIssuance();
+    fireEvent.click(screen.getByRole('button',{name:'I am at this shop'}));
+    account.session={status:'signed-out'};view.rerender(<App/>);
+    const original=fetch;
+    let reads=0;
+    vi.stubGlobal('fetch',vi.fn((input:string,init?:RequestInit)=>{
+      if (!input.startsWith('/api/v1/collections')) return original(input,init);
+      reads++;
+      return Promise.resolve(Response.json({ownerId:nextOwner,collections:nextOwner === STAMP_OWNER ? rows:[],nextCursor:null}));
+    }));
+    account.session={status:'signed-in',userId:nextOwner,identityLabel:'fixture@example.test',displayName:null};
+    view.rerender(<App/>);
+    await waitFor(()=>expect(reads).toBe(1));
+    expect(screen.getByTestId('count')).toHaveTextContent('0');
+    const invalidation=vi.fn();window.addEventListener('nib-atlas.collections-changed',invalidation,{once:true});
+    await act(async()=>{
+      rows=[ISSUED_STAMP];
+      responses[0]!(Response.json({ok:true,status:'success',collection:ISSUED_STAMP}));
+    });
+    await waitFor(()=>expect(reads).toBeGreaterThan(1));
+    await waitFor(()=>expect(screen.getByTestId('count')).toHaveTextContent(nextOwner === STAMP_OWNER ? '1':'0'));
+    expect(invalidation).toHaveBeenCalledOnce();
+    expect(invalidation.mock.calls[0]![0]).not.toHaveProperty('detail');
+    expect(screen.queryByTestId('stamp-ceremony')).not.toBeInTheDocument();
+  });
   it('sends denial without coordinates',async()=>{
     Object.defineProperty(navigator,'geolocation',{configurable:true,value:{getCurrentPosition:(_success:PositionCallback,error:PositionErrorCallback)=>error({code:1} as GeolocationPositionError)}});
     verifyFailure='permission_denied';await open();fireEvent.click(screen.getByRole('button',{name:'Check my location'}));
