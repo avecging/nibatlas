@@ -62,7 +62,7 @@ describe("GET /api/v1/shops/viewport", () => {
     const payload = await response.json() as { shops: Array<Record<string, unknown>> };
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("Cache-Control")).toContain("s-maxage=300");
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(payload.shops[0]).not.toHaveProperty("publicationStatus");
     expect(payload).not.toHaveProperty("zoom");
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
@@ -181,7 +181,7 @@ describe("GET /api/v1/shops/[slug]", () => {
     const payload = await response.json() as Record<string, unknown>;
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("Cache-Control")).toContain("s-maxage=3600");
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(payload).not.toHaveProperty("evidenceNote");
     expect(payload).toMatchObject({
       primaryType: "fountain_pen_specialist",

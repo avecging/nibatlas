@@ -654,3 +654,14 @@ profile-role change history, owner-only founder bootstrap, and negative tests.
 See `docs/runbooks/admin-authorization.md`. Shop editing/publishing/closure,
 commissioned artwork and R2 delivery, imports/dry runs/deduplication are separate
 later packages. No admin UI redesign or broader M6 functionality is included.
+
+### M6 WP2 — shop operations
+
+Adds the founder/editor shop list, draft creation, private revision editing and
+preview, explicit publish, closure and archive operations. Current-role checks,
+transactional catalogue audit and immutable impressions build on WP1. See
+`docs/runbooks/shop-administration.md` and `docs/adr/0012-shop-administration.md`.
+New-shop publication retains the existing approved-active-stamp prerequisite;
+artwork preparation is WP3, not synthesized by WP2. Physical-phone acceptance
+remains pending separately. Subsequent packages: WP3 artwork/media #32 coordinated
+with #19/#28; WP4 catalogue imports/dry runs/deduplication.

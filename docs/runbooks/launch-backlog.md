@@ -50,3 +50,9 @@ presentation, privacy, artwork, or geographic policy.
 The broader launch gates still include real-phone checks, production setup,
 privacy/account lifecycle, monitoring and catalogue quality. One successful
 indoor staging collection does not complete the remaining phone checklist.
+
+M6 WP2 implements shop operations in `docs/runbooks/shop-administration.md`.
+Issue #30 semantics are documented in ADR 0012; phone/postal/record-review fields
+remain intentionally omitted publicly. The remaining phone checklist is unchanged.
+Next implementation is M6 WP3 artwork/media, then WP4 imports. New shops remain
+private until their existing active-approved-stamp publication prerequisite is met.

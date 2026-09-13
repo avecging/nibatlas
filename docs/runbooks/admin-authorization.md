@@ -95,3 +95,12 @@ Catalogue edit/preview/publish/close, canonical-change audit hooks, commissioned
 approval/credits/R2, photo processing, imports/deduplication/dry runs and anomaly
 review are later focused packages. This role foundation grants no new direct
 canonical-table writes, private Passport reads or verification diagnostics access.
+
+## M6 WP2 extension
+
+Shop operations are now at `/admin/shops`; see [the operating guide](shop-administration.md).
+The restrictions described above as future writes are implemented for shop
+catalogue operations: editor/admin only, same-origin requests, live role locks,
+revision checks and atomic audit. The audit endpoint also projects catalogue
+status/fingerprint summaries. Role changes remain operator-only, audit read
+remains admin-only, and artwork/media/import work remains separate.

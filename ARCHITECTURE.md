@@ -415,3 +415,9 @@ checks, with a second role check inside privileged audit reads. No service role
 or client-editable metadata grants admin access. The only role assignment path
 is the database-owner procedure, with an atomic role-change audit trigger.
 See [admin setup and limitations](docs/runbooks/admin-authorization.md).
+
+M6 WP2 adds ordinary cookie-client shop RPCs with role checks inside each read and
+write transaction, same-origin bounded HTTP mutations and revision conflicts.
+Private working copies are published atomically; public catalogue responses use
+no-store to reflect closure/archive on a fresh request. No service key is used.
+See `docs/adr/0012-shop-administration.md` and the shop administration runbook.
