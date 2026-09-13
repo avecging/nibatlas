@@ -43,3 +43,9 @@ active during application rollback. See `docs/runbooks/stamp-verification.md`.
 101-row-bounded history projection used by `/api/v1/collections`. It adds no
 write path. Apply before deploying the WP3 frontend. Rollback the application
 if needed; the additive read function can remain in place.
+
+M6 WP3 first slice: `20260913000200_m6_media_upload_foundation.sql` adds private
+transport manifests, a service-only live-role RPC and existing audit extension.
+No artwork/image/collection data is rewritten; R2 bindings and upload limitations
+are in `docs/runbooks/media-uploads.md`. Apply through the normal reset/deploy
+path; do not drop immutable media or audit history for rollback.

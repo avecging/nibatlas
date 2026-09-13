@@ -421,3 +421,11 @@ write transaction, same-origin bounded HTTP mutations and revision conflicts.
 Private working copies are published atomically; public catalogue responses use
 no-store to reflect closure/archive on a fresh request. No service key is used.
 See `docs/adr/0012-shop-administration.md` and the shop administration runbook.
+
+M6 WP3's first slice uses `MEDIA_BUCKET`/`MEDIA_ENV` bindings for private,
+environment-separated PNG intake. Bounded same-origin Worker uploads validate
+before R2 persistence; conditional creates prevent overwrites. Finalization reads
+and validates stored bytes before its service-only database RPC records a
+transport receipt with current-role enforcement and atomic audit. This is separate
+from approval/public delivery and changes no existing artwork or collection.
+See `docs/api/admin-media-v1.md` and `docs/runbooks/media-uploads.md`.

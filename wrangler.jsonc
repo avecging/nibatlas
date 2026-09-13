@@ -3,7 +3,10 @@
   "name": "nibatlas-staging",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-08-18",
-  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
@@ -13,7 +16,25 @@
   },
   "env": {
     "production": {
-      "name": "nibatlas-production"
+      "name": "nibatlas-production",
+      "vars": {
+        "MEDIA_ENV": "production"
+      },
+      "r2_buckets": [
+        {
+          "binding": "MEDIA_BUCKET",
+          "bucket_name": "nibatlas-production-images"
+        }
+      ]
     }
-  }
+  },
+  "vars": {
+    "MEDIA_ENV": "staging"
+  },
+  "r2_buckets": [
+    {
+      "binding": "MEDIA_BUCKET",
+      "bucket_name": "nibatlas-staging-images"
+    }
+  ]
 }

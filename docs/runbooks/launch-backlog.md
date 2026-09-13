@@ -60,3 +60,10 @@ Issue #30 semantics are documented in ADR 0012; phone/postal/record-review field
 remain intentionally omitted publicly. The remaining phone checklist is unchanged.
 Next implementation is M6 WP3 artwork/media, then WP4 imports. New shops remain
 private until their existing active-approved-stamp publication prerequisite is met.
+
+WP3 first bounded slice is now drafted: private R2/PNG upload transport and audited
+server finalization, documented in `media-uploads.md`. SVG/source validation,
+artwork approval/attachment/public delivery and shop-photo processing/UI remain
+WP3 work. No issue #32/#19/#28 completion is claimed. Latest successful staging
+is PR #60 merge `25198d3c500bfeb4c4e609caf67dd093a4d27aff`, deployment run
+34767040059; founder admin and physical-phone acceptance remain pending.

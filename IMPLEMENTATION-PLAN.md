@@ -665,3 +665,15 @@ New-shop publication retains the existing approved-active-stamp prerequisite;
 artwork preparation is WP3, not synthesized by WP2. Physical-phone acceptance
 remains pending separately. Subsequent packages: WP3 artwork/media #32 coordinated
 with #19/#28; WP4 catalogue imports/dry runs/deduplication.
+
+### M6 WP3 — first bounded slice (draft implementation)
+
+Private PNG transport foundation: environment-separated R2 bindings, authorized
+initiation, bounded byte/content validation, immutable keys and server-validated
+finalization with transactional audit. See `docs/api/admin-media-v1.md` and
+`docs/runbooks/media-uploads.md`. `media_uploads` is a transport receipt linked to
+existing targets, not an approval model. It does not modify artwork versions,
+photo records or collected impressions. SVG/editable-source validation, approval,
+attachment, public delivery and the photo UI remain subsequent WP3 slices. WP4
+catalogue imports follows artwork/media. Founder admin and phone acceptance stay
+pending; do not infer completion from automated checks or prior indoor success.
