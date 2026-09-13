@@ -265,6 +265,10 @@ test("create flow and revision conflict preserve the unsaved work", async ({
   await page.getByLabel("Shop name").fill("Another demo");
   await page.getByLabel("URL name").fill("another-demo");
   await page.getByRole("button", { name: "Create draft", exact: true }).click();
+  // The create form contains the same name field while navigation is pending.
+  // Wait for the editor before making another edit, rather than matching that form.
+  await expect(page).toHaveURL(/\/admin\/shops\/[a-f0-9-]{36}$/);
+  await expect(page.getByRole("group", { name: "Catalogue details", exact: true })).toBeVisible();
   await expect(page.getByLabel("Shop name")).toHaveValue("Another demo");
   state.conflict();
   await page.getByLabel("Shop name").fill("Uncommitted demo");
