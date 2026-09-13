@@ -44,6 +44,13 @@ beforeEach(()=>{
 afterEach(()=>{vi.restoreAllMocks();vi.unstubAllGlobals();});
 async function open(){const view=render(<App/>);fireEvent.click(await screen.findByRole('button',{name:'Collect Stamp'}));await screen.findByRole('button',{name:'Check my location'});return view;}
 async function verify(){fireEvent.click(screen.getByRole('button',{name:'Check my location'}));await screen.findByRole('button',{name:'I am at this shop'});}
+function deferIssuance(){
+  const original=fetch;
+  const responses:((response:Response)=>void)[]=[];
+  vi.stubGlobal('fetch',vi.fn((input:string,init?:RequestInit)=>input.endsWith('/collect')
+    ? new Promise<Response>(resolve=>responses.push(resolve)) : original(input,init)));
+  return responses;
+}
 
 describe('verified collection journey',()=>{
   it('does not request location before consent or issue before confirmation; updates shared state once',async()=>{
@@ -195,6 +202,41 @@ describe('verified collection journey',()=>{
     await waitFor(()=>expect(screen.getByTestId('count')).toHaveTextContent(control === 'sign out' ? '0':'1'));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.queryByTestId('stamp-ceremony')).not.toBeInTheDocument();
+  });
+  it.each(['throttled','expired_nonce','invalid_request'] as const)('clears a detached %s refusal before a later failed location check',async(code)=>{
+    await open();await verify();const responses=deferIssuance();
+    fireEvent.click(screen.getByRole('button',{name:'I am at this shop'}));
+    fireEvent.click(screen.getByRole('button',{name:'Cancel'}));
+    await act(async()=>responses[0]!(Response.json({ok:false,error:{code}})));
+    fireEvent.click(screen.getByRole('button',{name:'Collect Stamp'}));
+    nonceFailure='service_unavailable';
+    fireEvent.click(screen.getByRole('button',{name:'Check my location'}));
+    expect(await screen.findByRole('alert')).not.toHaveTextContent(/Passport/);
+    expect(screen.queryByRole('link',{name:'Check Passport'})).not.toBeInTheDocument();
+  });
+  it('does not let an older detached refusal clear a newer uncertain issuance',async()=>{
+    await open();await verify();const responses=deferIssuance();
+    fireEvent.click(screen.getByRole('button',{name:'I am at this shop'}));
+    fireEvent.click(screen.getByRole('button',{name:'Cancel'}));
+    fireEvent.click(screen.getByRole('button',{name:'Collect Stamp'}));await verify();
+    fireEvent.click(screen.getByRole('button',{name:'I am at this shop'}));
+    await act(async()=>responses[0]!(Response.json({ok:false,error:{code:'expired_nonce'}})));
+    await act(async()=>responses[1]!(Response.json({ok:false,error:{code:'service_unavailable'}})));
+    expect(await screen.findByRole('link',{name:'Check Passport'})).toBeInTheDocument();
+  });
+  it('settles detached refusals arriving in reverse order',async()=>{
+    await open();const responses=deferIssuance();
+    for(let attempt=0;attempt<2;attempt++){
+      await verify();fireEvent.click(screen.getByRole('button',{name:'I am at this shop'}));
+      fireEvent.click(screen.getByRole('button',{name:'Cancel'}));
+      if (attempt === 0) fireEvent.click(screen.getByRole('button',{name:'Collect Stamp'}));
+    }
+    await act(async()=>responses[1]!(Response.json({ok:false,error:{code:'throttled'}})));
+    await act(async()=>responses[0]!(Response.json({ok:false,error:{code:'expired_nonce'}})));
+    fireEvent.click(screen.getByRole('button',{name:'Collect Stamp'}));nonceFailure='service_unavailable';
+    fireEvent.click(screen.getByRole('button',{name:'Check my location'}));
+    expect(await screen.findByRole('alert')).not.toHaveTextContent(/Passport/);
+    expect(screen.queryByRole('link',{name:'Check Passport'})).not.toBeInTheDocument();
   });
   it('offers reconciliation when an issuance response is interrupted by backgrounding',async()=>{
     await open();await verify();

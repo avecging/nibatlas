@@ -49,6 +49,7 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
   // request was sent, keep recovery available across retries/cancel until its
   // result is known; a later failed check cannot disprove that earlier issuance.
   const [issuanceUncertain,setIssuanceUncertain] = useState(false);
+  const uncertainRequests = useRef(new Set<AbortController>());
   const [ceremony,setCeremony] = useState<{collection:StampCollection;duplicate:boolean}|null>(null);
   const binding = useRef<VerificationBindingV1|null>(null);
   const pending = useRef<AbortController|null>(null);
@@ -84,7 +85,16 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
       window.removeEventListener('pagehide',invalidate);
     };
   },[owner,shop.id]);
-  const fail = (code:Failure, mayHaveIssued = issuanceUncertain) => {
+  const settleRefusal = (controller:AbortController) => {
+    uncertainRequests.current.delete(controller);
+    setIssuanceUncertain(uncertainRequests.current.size > 0);
+  };
+  const settleIssued = () => {
+    // One original impression settles every attempt for this shop/account.
+    uncertainRequests.current.clear();
+    setIssuanceUncertain(false);
+  };
+  const fail = (code:Failure, mayHaveIssued = uncertainRequests.current.size > 0) => {
     binding.current=null; pending.current=null; setFailure(code); setStage('error');
     if (mayHaveIssued && (code === 'reused_nonce' || code === 'service_unavailable')) store.retryRead?.();
   };
@@ -93,7 +103,7 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
     const collection = decodeCollection(response.collection,shop.slug);
     if (collection.shopId !== shop.id) { fail('service_unavailable'); return true; }
     store.acceptIssued?.(collection);
-    setIssuanceUncertain(false);
+    settleIssued();
     close(); setCeremony({collection,duplicate:response.status === 'duplicate'});
     return true;
   };
@@ -125,6 +135,7 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
     if (document.visibilityState !== 'visible') { fail('stale_position'); return; }
     const proof=binding.current; binding.current=null;
     const controller=new AbortController(); pending.current=controller; setStage('issuing');
+    uncertainRequests.current.add(controller);
     setIssuanceUncertain(true);
     const response=await stampRequest('collect',{...proof,confirmedAtShop:true},controller.signal);
     if (controller.signal.aborted) return;
@@ -133,17 +144,19 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
       // survives navigation and rejects acceptance after its owner is unmounted.
       if (response.ok && (response.status === 'success' || response.status === 'duplicate')) {
         const collection=decodeCollection(response.collection,shop.slug);
-        if (collection.shopId === shop.id) store.acceptIssued?.(collection);
+        if (collection.shopId === shop.id) { store.acceptIssued?.(collection); settleIssued(); }
         else store.retryRead?.();
-      } else store.retryRead?.();
+      } else {
+        if (!response.ok && !['service_unavailable','reused_nonce'].includes(response.error.code)) settleRefusal(controller);
+        store.retryRead?.();
+      }
       return;
     }
     if (!response.ok) {
       // An explicit refusal settles this attempt, but cannot settle an older
       // interrupted one. Network/invalid-response failures remain uncertain.
-      const uncertain = issuanceUncertain || ['service_unavailable','reused_nonce'].includes(response.error.code);
-      setIssuanceUncertain(uncertain);
-      fail(response.error.code,uncertain); return;
+      if (!['service_unavailable','reused_nonce'].includes(response.error.code)) settleRefusal(controller);
+      fail(response.error.code); return;
     }
     if (!receiveCollection(response)) fail('service_unavailable',true);
   }
