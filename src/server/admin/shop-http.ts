@@ -162,7 +162,8 @@ export async function handleShopAdmin(
     if (
       value.code === "publication_incomplete" &&
       Array.isArray(value.requirements) &&
-      value.requirements.every((v) => typeof v === "string")
+      value.requirements.length <= 10 &&
+      value.requirements.every((v) => typeof v === "string" && v.length <= 300)
     )
       return json(
         {

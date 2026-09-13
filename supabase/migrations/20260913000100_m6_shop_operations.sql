@@ -237,6 +237,11 @@ where existing.shop_id=excluded.shop_id and (existing.alias,existing.language_ta
 insert into public.shop_links as existing (shop_id,id,link_type,url,label,is_official,sort_order) select p_id,r.id,r.link_type,r.url,r.label,r.is_official,r.sort_order from jsonb_populate_recordset(null::public.shop_links,p_document->'links') r
 on conflict (id) do update set link_type=excluded.link_type,url=excluded.url,label=excluded.label,is_official=excluded.is_official,sort_order=excluded.sort_order
 where existing.shop_id=excluded.shop_id and (existing.link_type,existing.url,existing.label,existing.is_official,existing.sort_order) is distinct from (excluded.link_type,excluded.url,excluded.label,excluded.is_official,excluded.sort_order);
+-- Release a replaced primary flag before inserting its successor, regardless of
+-- the order of the submitted type array. The whole change remains atomic.
+update public.shop_shop_types set is_primary=false where shop_id=p_id and is_primary
+  and not exists(select 1 from jsonb_array_elements(p_document->'types') t
+    where (t->>'shop_type_id')::uuid=shop_type_id and t->>'is_primary'='true');
 insert into public.shop_shop_types as existing (shop_id,shop_type_id,note,source_id,last_verified_at,is_primary) select p_id,r.shop_type_id,r.note,r.source_id,r.last_verified_at,r.is_primary from jsonb_populate_recordset(null::public.shop_shop_types,p_document->'types') r
 on conflict (shop_id,shop_type_id) do update set note=excluded.note,source_id=excluded.source_id,last_verified_at=excluded.last_verified_at,is_primary=excluded.is_primary
 where existing.shop_id=excluded.shop_id and (existing.note,existing.source_id,existing.last_verified_at,existing.is_primary) is distinct from (excluded.note,excluded.source_id,excluded.last_verified_at,excluded.is_primary);

@@ -82,6 +82,10 @@ jsonb_set(jsonb_set(jsonb_set((select value from checks where key='new_doc'),'{s
 '{types}','[{"shop_type_id":"00000000-0000-4000-8000-000000000101","is_primary":true}]'))$new$,'save valid new draft');
 select lives_ok($$select pg_temp.change('publish','61000000-0000-4000-8000-000000000090')$$,'publish new shop once approved stamp exists');
 select is(public.shop_detail('private-demo')->>'name','Explicit test draft','new valid shop becomes public');
+select lives_ok($$select pg_temp.change('save','61000000-0000-4000-8000-000000000090',jsonb_set(public.admin_shop_read('61000000-0000-4000-8000-000000000090')->'document','{types}',
+'[{"shop_type_id":"00000000-0000-4000-8000-000000000102","is_primary":true},{"shop_type_id":"00000000-0000-4000-8000-000000000101","is_primary":false}]'))$$,'save primary type change with successor first');
+select lives_ok($$select pg_temp.change('publish','61000000-0000-4000-8000-000000000090')$$,'primary type replacement is independent of array order');
+select is(public.shop_detail('private-demo')->>'primaryType','stationery_store','new primary type is projected');
 select lives_ok($$select pg_temp.change('save','61000000-0000-4000-8000-000000000090',jsonb_set(public.admin_shop_read('61000000-0000-4000-8000-000000000090')->'document','{shop,name}','"Discard this edit"'))$$,'save another edit');
 select lives_ok($$select pg_temp.change('discard','61000000-0000-4000-8000-000000000090')$$,'discard private changes');
 select is(public.shop_detail('private-demo')->>'name','Explicit test draft','discard preserves published data');

@@ -187,7 +187,9 @@ test("founder edits, previews, publishes, closes and archives @short", async ({
   await page
     .getByRole("button", { name: "Confirm publish", exact: true })
     .click();
-  await expect(page.getByRole("main").getByRole("alert")).toHaveText("Shop published.");
+  await expect(page.getByRole("main").getByRole("alert")).toHaveText(
+    "Shop published.",
+  );
   for (const action of ["temporarily closed", "open", "permanently closed"]) {
     await page
       .getByRole("button", { name: `Mark ${action}`, exact: true })
@@ -203,7 +205,9 @@ test("founder edits, previews, publishes, closes and archives @short", async ({
   await page
     .getByRole("button", { name: "Confirm archive", exact: true })
     .click();
-  await expect(page.getByRole("main").getByRole("alert")).toContainText("Shop archived");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "Shop archived",
+  );
   await expect(page.getByLabel("Shop name")).toBeDisabled();
   expect(state.actions).toEqual([
     "save",
@@ -292,4 +296,26 @@ test("denied and signed-out visitors see no editor data", async ({ page }) => {
     ),
   ).toBeVisible();
   await expect(page.getByLabel("Shop name")).toHaveCount(0);
+});
+
+test("editor supports zoom and reduced motion", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await setup(page);
+  await page.goto(`/admin/shops/${id}`);
+  await expect(page.getByLabel("Shop name")).toBeVisible();
+  await page.evaluate(() => {
+    globalThis.document.body.style.zoom = "2";
+  });
+  await page.getByLabel("Shop name").fill("Zoomed demo edit");
+  await page.getByRole("button", { name: "Save changes privately" }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "Changes saved privately",
+  );
+  expect(
+    await page.evaluate(
+      () =>
+        globalThis.document.documentElement.scrollWidth <=
+        globalThis.document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
 });

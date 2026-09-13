@@ -21,6 +21,8 @@ import {
 import styles from "./ShopAdmin.module.css";
 
 const messages: Record<string, string> = {
+  publication_incomplete:
+    "Publication requirements changed. Reload the saved version to review them.",
   authentication_required:
     "Sign in with your founder or editor account, then return here.",
   forbidden: "This account does not have catalogue access.",
@@ -467,6 +469,13 @@ function Workspace({ id }: { id: string | null }) {
             <Preview document={record.document} options={options} />
           ) : (
             <form
+              onInvalid={(e) => {
+                let section = (e.target as HTMLElement).closest("details");
+                while (section) {
+                  section.open = true;
+                  section = section.parentElement?.closest("details") ?? null;
+                }
+              }}
               onSubmit={(e) => {
                 e.preventDefault();
                 void mutate("save");

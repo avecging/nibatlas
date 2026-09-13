@@ -143,3 +143,24 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+.admin h1 {
+  font-family: var(--font-source-serif), Georgia, serif;
+  font-size: 32px;
+  line-height: 1.2;
+  font-weight: 600;
+}
+.admin h2 {
+  font-family: var(--font-source-serif), Georgia, serif;
+  font-size: 24px;
+  line-height: 1.3;
+  font-weight: 600;
+}
+.admin h3 {
+  font-size: 20px;
+  line-height: 1.3;
+  font-weight: 600;
+}
+.admin h4 {
+  font-weight: 600;
+}

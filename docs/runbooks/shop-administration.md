@@ -3,6 +3,7 @@
 Use `/admin/shops` on the staging site after Deploy staging finishes. Sign in with
 the existing founder account. Roles are separate in staging and production; use
 [the existing setup procedure](admin-authorization.md) if access is missing.
+The [HTTP contract](../api/admin-shops-v1.md) documents the bounded API.
 No new secret, storage service or account-role setup is required for an existing
 admin. Editor can maintain catalogue; admin alone can read the audit endpoint.
 

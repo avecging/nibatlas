@@ -104,7 +104,8 @@ lower zoom and an overcomplicated refusal dialog. The focused fix preserves the
 sourced venue point and existing verification policy, corrects marker positioning,
 and gives an outside-area refusal only **Try again** and **Cancel**.
 
-These observations do not establish an entrance-versus-interior pass. Permission
+The founder separately confirmed a successful indoor collection. This confirms
+one interior success, not a complete entrance-versus-interior comparison. Permission
 recovery, interruption/backgrounding, duplicate/reload persistence and sign-out
 isolation still need explicit field results. The existing impression is immutable;
 use the account/order instructions above for any further GPS checks. Recheck the
