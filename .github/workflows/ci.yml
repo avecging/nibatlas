@@ -144,3 +144,31 @@ jobs:
           docker exec -i "supabase_db_${project_id}" psql -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/performance/viewport_50k.sql
       - if: always()
         run: supabase stop --no-backup
+
+  worker-auth:
+    name: Worker authentication
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: 11.19.0
+          run_install: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24
+      - uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1
+        with:
+          version: 2.117.0
+      - run: supabase start -x realtime,imgproxy,edge-runtime,logflare,vector,supavisor
+      - run: supabase db reset
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/prepare-worker-auth-test.mjs
+      - run: pnpm build:cloudflare
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec playwright test --config playwright.worker.config.ts
+      - if: always()
+        run: supabase stop --no-backup

@@ -55,9 +55,18 @@ For the catalogue-access fix, after **Deploy staging** succeeds:
 6. In a signed-out browser, confirm `/admin/shops` asks for sign-in and its APIs
    reject access. An ordinary signed-in account must also remain denied.
 
-The fix needs only the normal Worker deployment, not a database migration.
-The automated session-refresh regression covers an expiring session as well as
-fresh sessions; no token manipulation is needed for this manual check.
+The confirmed create-draft fix requires migration
+`20260914000100_m6_deferred_catalogue_constraint.sql` as well as the Worker
+release. The normal staging deployment applies it automatically. There is no
+role reassignment or second catalogue membership to maintain. The regression
+runs real Auth/PostgREST requests through the compiled Worker and checks refresh
+cookies and transaction completion; no token manipulation is needed manually.
+
+If a request fails, retain the `shop_admin_failure` browser-console reference.
+It identifies the HTTP phase and a safe database-error category without account
+information or credentials. The page's `nibatlas-release` metadata and response's
+`X-Nib-Atlas-Release` identify the deployed commit. See the
+[authorization diagnosis](admin-authorization.md#confirmed-draft-create-failure-after-pr-64).
 
 - Mobile and desktop: create an incomplete draft, save a changed name, preview,
   and confirm the signed-out public URL is unavailable.

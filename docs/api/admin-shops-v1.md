@@ -24,7 +24,8 @@ bytes. Unexpected fields, queries and actions are rejected; no delete or restore
 verb exists. Contract fields and controlled form metadata are in
 `src/features/admin/shop-contract.ts`. SQL revalidates direct RPC requests.
 
-401/403 means missing identity/role, 400 malformed request, 404 missing shop,
+401 means missing identity. 403 covers denied role/origin or a database permission
+error; use the safe diagnostic stage to distinguish them. 400 means malformed request, 404 missing shop,
 409 stale revision or duplicate identity, 422 invalid data/reference/transition
 or publication requirements, and 503 unavailable service. Raw provider errors
 are never forwarded. A publication-incomplete response includes a bounded list
@@ -41,3 +42,19 @@ revision atomically, preserving related source IDs and historical collections.
 The SQL helper projection is not granted to any API role. The existing public
 read RPCs continue to select published canonical tables only. See ADR 0012 and
 the shop administration runbook for publication prerequisites and lifecycle rules.
+
+## Request diagnostics
+
+Responses include `X-Admin-Request-Id`; a failed request also includes
+`X-Admin-Failure-Stage` (`identity`, `access`, `origin`, `validation`,
+`catalogue_rpc`, or `response`). The browser console and server logs use the same
+reference. These diagnostics contain no tokens, cookies, account identifiers,
+request documents or provider messages. Server logs may include a SQLSTATE and
+boolean origin comparisons. `X-Admin-Database-Reason`, when present, classifies
+a permission failure as role denial, a table/function/schema privilege, row
+security, or another permission error; it never includes provider error text. The audit transaction retains its own existing
+request ID and authenticated actor attribution.
+
+`X-Nib-Atlas-Release` and the page's `nibatlas-release` HTML metadata identify the
+build commit. GitHub builds embed `GITHUB_SHA`; local builds say `development`.
+This lets an investigation distinguish a stale page from the deployed route.

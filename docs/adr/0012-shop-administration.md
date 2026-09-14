@@ -99,3 +99,14 @@ introduced. Source dates are entered deliberately; selecting a date stores UTC
 midnight for that date. Unedited imported timestamps preserve their precision.
 Appointment/accessibility remain internal pending their per-field provenance
 contract. Unknown fields stay null; no source statement is silently broadened.
+
+## Deferred constraints at the API transaction boundary
+
+The M5 published-shop stamp checker originally ran as its invoker. PostgREST
+fires deferred constraints after the M6 write RPC's SECURITY DEFINER scope has
+ended, so an authenticated admin could pass authorization and perform the write
+but still lose the transaction to a private-table permission error. The checker
+now runs with its trusted owner's read authority, an empty search path, and no
+direct API execute grants. The invariant, table/RLS boundary, current-role lock
+and atomic audit are unchanged. SQL tests force deferred checks before restoring
+the operator role; the compiled Worker browser suite also checks real commits.

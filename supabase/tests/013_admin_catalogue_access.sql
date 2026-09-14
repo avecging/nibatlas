@@ -19,6 +19,10 @@ select ok(jsonb_array_length(public.admin_shop_options()->'types')>0,'admin read
 select is(public.admin_shop_write('create','63000000-0000-4000-8000-000000000090',null,
   '{"name":"Explicit admin test draft","slug":"explicit-admin-test-draft"}')->>'publicationStatus',
   'draft','admin creates a private draft');
+-- PostgREST commits as authenticated, outside the write RPC's definer scope.
+select lives_ok('set constraints all immediate',
+  'admin draft passes deferred invariants under the API caller');
+set constraints all deferred;
 select lives_ok($$select public.admin_shop_write('save','63000000-0000-4000-8000-000000000090',
   public.admin_shop_read('63000000-0000-4000-8000-000000000090')->>'revision',
   jsonb_set(public.admin_shop_read('63000000-0000-4000-8000-000000000090')->'document',
@@ -44,6 +48,12 @@ select is(public.admin_shop_write('temporarily_closed','00000000-0000-4000-8000-
 select is(public.admin_shop_write('archive','00000000-0000-4000-8000-000000000301',
   public.admin_shop_read('00000000-0000-4000-8000-000000000301')->>'revision')->>'publicationStatus',
   'archived','admin archives a shop');
+select lives_ok('set constraints all immediate',
+  'publication and archive pass deferred invariants under the API caller');
+select ok(not has_table_privilege('authenticated','public.shops','SELECT'),
+  'constraint fix grants no direct private catalogue reads');
+select ok(not has_function_privilege('authenticated','public.assert_published_shop_has_active_stamp()','EXECUTE'),
+  'constraint checker is trigger-only');
 reset role;
 select ok(exists(select 1 from public.admin_audit_log where actor_user_id='63000000-0000-4000-8000-000000000001'
   and entity_type='shop_working_copies'),'admin saves remain audited');
