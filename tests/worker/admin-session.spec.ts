@@ -58,7 +58,7 @@ for (const role of ["admin", "editor"] as const) {
     await page.goto("/admin/shops");
     await expect(page.getByRole("button", { name: "Search", exact: true })).toBeEnabled();
     await page.getByText("Create a draft shop", { exact: true }).click();
-    await page.getByLabel("Shop name", { exact: true }).fill("Explicit Worker test draft");
+    await page.getByLabel(/^Shop name(?: \*)?$/).fill("Explicit Worker test draft");
     await page.getByLabel("URL name", { exact: true }).fill(`worker-test-${randomUUID()}`);
     const previousRefreshToken = await expireCookie(context);
     const creating = page.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith("/api/v1/admin/shops"));
@@ -74,14 +74,15 @@ for (const role of ["admin", "editor"] as const) {
     expect(refreshed.expires_at > Date.now() / 1000).toBe(true);
     expect(refreshed.refresh_token !== previousRefreshToken).toBe(true);
     const id = uuid(new URL(page.url()).pathname.split("/").at(-1)!);
-    await expect(page.getByLabel("Shop name", { exact: true })).toHaveValue("Explicit Worker test draft");
-    await page.getByLabel("Shop name", { exact: true }).fill("Edited Worker test draft");
+    await expect(page.getByLabel(/^Shop name(?: \*)?$/)).toHaveValue("Explicit Worker test draft");
+    await page.getByLabel(/^Shop name(?: \*)?$/).fill("Edited Worker test draft");
     const saving = page.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith(`/api/v1/admin/shops/${id}`));
     await page.getByRole("button", { name: "Save changes privately" }).click();
     expect((await saving).status()).toBe(200);
     await page.reload();
-    await expect(page.getByLabel("Shop name", { exact: true })).toHaveValue("Edited Worker test draft");
+    await expect(page.getByLabel(/^Shop name(?: \*)?$/)).toHaveValue("Edited Worker test draft");
     await page.getByRole("button", { name: "Preview saved version", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Edited Worker test draft", exact: true })).toBeVisible();
     expect(sql(`select publication_status='draft' from public.shops where id='${id}';`)).toBe("t");
     expect(sql(`select count(*)>=1 and bool_and(actor_user_id='${actor}' and actor_kind='account') from public.admin_audit_log where entity_id='${id}' and action='catalogue_insert';`)).toBe("t");
     // A role change must still be enforced with a valid, already issued token.
