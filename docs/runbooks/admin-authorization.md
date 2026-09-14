@@ -2,7 +2,17 @@
 
 M6 WP1 uses existing `profiles.role`: `user`, `editor`, `admin`. Founder is an
 operational responsibility, not a fourth role. Assign the founder `admin`.
-This package has no shop editor, upload form, publishing or import endpoint.
+
+| Name | What it means today |
+| --- | --- |
+| `admin` | Full access to the current administration tools, including catalogue operations and audit reads. No second catalogue assignment. |
+| `editor` | Delegated catalogue access: list, create, edit, preview, publish, close and archive, subject to the same workflow rules. No admin audit access or role assignment. |
+| Founder | The person responsible for Nib Atlas; their account uses `admin`. It is not a stored role, claim or membership. |
+| `user` | Ordinary account; no catalogue administration access. |
+
+Role assignment itself remains a database-owner operation. Full administration
+access does not bypass publication evidence, approved artwork, revision checks,
+private user data boundaries, or functions that have not been built yet.
 
 ## Security contract
 
@@ -10,6 +20,9 @@ This package has no shop editor, upload form, publishing or import endpoint.
   user-editable metadata, email strings, request headers or a cached JWT role.
 - Every admin request invokes `admin_access()` with the ordinary user client.
   It reads the current database role. No service-role key is used here.
+- Shop identity verification, role resolution and catalogue RPCs share that
+  same request-scoped client, including any refreshed session. Never construct
+  another cookie client after checking access and use it for the operation.
 - `GET /api/v1/admin/access` permits editor/admin; everyone else gets 401/403.
 - `GET /api/v1/admin/audit?after=<UUID>` permits admin only. The audit RPC checks
   the live role again inside its security-definer read. Editors do not need
@@ -104,3 +117,24 @@ catalogue operations: editor/admin only, same-origin requests, live role locks,
 revision checks and atomic audit. The audit endpoint also projects catalogue
 status/fingerprint summaries. Role changes remain operator-only, audit read
 remains admin-only, and artwork/media/import work remains separate.
+
+## M6 catalogue-access regression (14 September 2026)
+
+The reported combination was a successful `{"role":"admin"}` access check and
+a catalogue `forbidden` response. Inspection found one role system, not two.
+A read-only staging diagnostic confirmed current migrations, authenticated-only
+RPC grants, and successful access/list/options calls under an existing admin
+profile. It did not change roles, grants, records or RLS, or expose account IDs.
+
+The shop HTTP route nevertheless created two independent cookie clients. A
+regression using the real Supabase SSR client reproduces `403` when the guard
+refreshes its session but the second client sees the original request cookies
+and its refresh fails. The route now uses one client throughout. The test fails
+before this change and passes afterward; the founder's exact browser session
+was not accessible during diagnosis, so live acceptance remains necessary.
+
+This is an application deployment, with no migration or second founder-role
+assignment. If the problem remains after deployment, check the access endpoint
+in the same browser and staging origin first. A successful admin response means
+do not reassign roles; investigate the failed catalogue request/session instead.
+If access itself fails, use the existing verified-project/UID setup procedure.

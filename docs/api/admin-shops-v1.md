@@ -4,6 +4,11 @@ All reads and mutations use verified cookie identity and the live database
 `editor`/`admin` role. Audit reads retain their existing admin-only boundary.
 No service-role credential, email allowlist or JWT metadata authorizes access.
 Private data is never embedded in the HTML shell or persisted in browser storage.
+`admin` includes every catalogue operation; `editor` is delegated catalogue
+access. Founder is a responsibility fulfilled by an admin, not another stored
+role or membership. Identity, role and shop calls use one request-scoped Supabase
+client so token refresh cannot split the guard from the operation. Each database
+RPC still checks the live role independently; publication rules are unchanged.
 
 | Route | Method | Body / query | Result |
 | --- | --- | --- | --- |

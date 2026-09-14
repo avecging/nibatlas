@@ -8,6 +8,25 @@ private Passport access, artwork approval, imports or media permissions are adde
 Codex implements the minimal admin presentation authorized for this package;
 existing public design ownership and product invariants remain unchanged.
 
+### Authorization clarification and session repair — 14 September 2026
+
+`profiles.role` is the only account-role authority. `admin` includes all catalogue
+operations plus current admin-only tools; `editor` delegates catalogue operations
+without admin audit access. Founder is the operational name for the existing
+admin account, never another role or table membership. Workflow prerequisites
+apply equally to admins and editors.
+
+The founder acceptance report exposed a request-session defect: the role guard
+and catalogue RPC used independently constructed cookie clients. During refresh,
+the second client could reuse stale incoming cookies and lose the session that
+the guard had verified. Share one request-scoped client across identity, live-role
+and operation calls. Database guards/grants/RLS already permit admin and remain
+unchanged. This implements the existing documented contract; no new hierarchy,
+schema, migration, email allowlist or role assignment is introduced. Real-client
+route regressions and the full admin SQL lifecycle supplement the existing
+editor SQL tests and mocked frontend journeys. Staging diagnostics confirmed
+database access, while the exact founder browser session remains a manual check.
+
 ## Working copies
 
 Save creates/replaces one private working copy per shop. Public canonical tables

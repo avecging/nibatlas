@@ -8,8 +8,11 @@ export async function shopAdminRoute(
   id: string | null = null,
 ) {
   try {
-    const gateway = await createAdminGateway();
     const session = await createSupabaseServerClient();
+    // Identity, live role and catalogue RPCs must share the request's session,
+    // including a token refreshed during getClaims(). A second client can read
+    // stale incoming cookies and lose the authority the guard just verified.
+    const gateway = await createAdminGateway(session);
     return await handleShopAdmin(request, path, id, {
       ...gateway,
       async call(name, args) {

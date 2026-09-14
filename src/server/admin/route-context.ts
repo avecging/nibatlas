@@ -1,9 +1,11 @@
 import { createSupabaseServerClient } from '@/src/server/supabase/server-client';
 import { AdminForbiddenError, adminFailure, handleAdminRead, type AdminGateway } from './http';
 
-export async function createAdminGateway(): Promise<AdminGateway> {
+export async function createAdminGateway(
+  client?: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+): Promise<AdminGateway> {
   // Ordinary cookie-bound client only; no service-role key for admin requests.
-  const session = await createSupabaseServerClient();
+  const session = client ?? await createSupabaseServerClient();
   const rpc = async (name: string, args?: Record<string, unknown>) => {
     const { data, error } = await session.rpc(name, args);
     if (error?.code === '42501') throw new AdminForbiddenError();
