@@ -33,18 +33,24 @@ async function login(context: BrowserContext, role: "admin" | "editor" | "user")
   await context.addCookies([...jar].filter(([, value]) => value).map(([name, value]) => ({ name, value, url: origin, httpOnly: true, secure: true, sameSite: "Lax" as const })));
   return { actor, client };
 }
-async function expireCookie(context: BrowserContext) {
+async function browserSession(context: BrowserContext) {
   const cookies = (await context.cookies()).filter((cookie) => /-auth-token(?:\.\d+)?$/.test(cookie.name));
   if (!cookies[0]) throw Error("Browser did not receive an Auth session cookie");
   const encoded = cookies.sort((a, b) => a.name.localeCompare(b.name)).map((cookie) => cookie.value).join("");
   const session = JSON.parse(Buffer.from(encoded.slice("base64-".length), "base64url").toString());
+  return { cookies, session };
+}
+async function expireCookie(context: BrowserContext) {
+  const { cookies, session } = await browserSession(context);
+  const previousRefreshToken: string = session.refresh_token;
   // Keep both genuine GoTrue tokens. Expiring only the stored session timestamp
   // forces SSR to exercise the real refresh endpoint at the next POST boundary.
   session.expires_at = 1;
   const value = "base64-" + Buffer.from(JSON.stringify(session)).toString("base64url");
-  const name = cookies[0].name.replace(/\.\d+$/, "");
+  const name = cookies[0]!.name.replace(/\.\d+$/, "");
   await context.clearCookies({ name: /-auth-token(?:\.\d+)?$/ });
   await context.addCookies([{ name, value, url: origin, httpOnly: true, secure: true, sameSite: "Lax" }]);
+  return previousRefreshToken;
 }
 for (const role of ["admin", "editor"] as const) {
   test(`${role}: browser list → real refresh on create → save → reopen and attributed audit`, async ({ page, context }) => {
@@ -54,16 +60,20 @@ for (const role of ["admin", "editor"] as const) {
     await page.getByText("Create a draft shop", { exact: true }).click();
     await page.getByLabel("Shop name", { exact: true }).fill("Explicit Worker test draft");
     await page.getByLabel("URL name", { exact: true }).fill(`worker-test-${randomUUID()}`);
-    await expireCookie(context);
+    const previousRefreshToken = await expireCookie(context);
     const creating = page.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith("/api/v1/admin/shops"));
     await page.getByRole("button", { name: "Create draft", exact: true }).click();
     const created = await creating;
     // Only safe status/stage metadata in failure output, never cookie values.
     expect({ status: created.status(), stage: created.headers()["x-admin-failure-stage"] }).toEqual({ status: 201, stage: undefined });
     expect((await created.headersArray()).some((header) => header.name.toLowerCase() === "set-cookie")).toBe(true);
-    const record = await created.json();
-    const id = uuid(record.id);
-    await expect(page).toHaveURL(`${origin}/admin/shops/${id}`);
+    // Creation deliberately performs a full navigation. Read the new URL, not
+    // a response body that Chromium discards when the old document unloads.
+    await expect(page).toHaveURL(/\/admin\/shops\/[a-f0-9-]{36}$/);
+    const refreshed = (await browserSession(context)).session;
+    expect(refreshed.expires_at > Date.now() / 1000).toBe(true);
+    expect(refreshed.refresh_token !== previousRefreshToken).toBe(true);
+    const id = uuid(new URL(page.url()).pathname.split("/").at(-1)!);
     await expect(page.getByLabel("Shop name", { exact: true })).toHaveValue("Explicit Worker test draft");
     await page.getByLabel("Shop name", { exact: true }).fill("Edited Worker test draft");
     const saving = page.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith(`/api/v1/admin/shops/${id}`));
