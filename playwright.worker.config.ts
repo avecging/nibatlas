@@ -9,7 +9,7 @@ export default defineConfig({
   timeout: 60_000,
   reporter: "list",
   use: {
-    baseURL: "https://127.0.0.1:8787",
+    baseURL: "https://localhost:8787",
     ignoreHTTPSErrors: true,
     trace: "off",
     screenshot: "off",
@@ -17,7 +17,7 @@ export default defineConfig({
   },
   webServer: {
     command: "pnpm exec wrangler dev --local --ip 127.0.0.1 --port 8787 --local-protocol https",
-    url: "https://127.0.0.1:8787/api/health",
+    url: "https://localhost:8787/api/health",
     ignoreHTTPSErrors: true,
     timeout: 120_000,
   },

@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { createServerClient } from "@supabase/ssr";
 import { test, expect, type BrowserContext } from "@playwright/test";
 
-const origin = "https://127.0.0.1:8787";
+const origin = "https://localhost:8787";
 function sql(query: string) {
   return execFileSync("docker", ["exec", "-i", "supabase_db_nibatlas", "psql", "-U", "postgres", "-d", "postgres", "-At", "-v", "ON_ERROR_STOP=1"], { input: query, encoding: "utf8" }).trim();
 }
