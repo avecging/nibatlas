@@ -21,6 +21,7 @@ export async function shopAdminRoute(
     response = await handleShopAdmin(request, path, id, {
       ...gateway,
       async call(name, args) {
+        stage = "catalogue_rpc";
         const { data, error } = await session.rpc(name, args);
         if (error) databaseCode = /^[A-Z0-9]{5}$/.test(error.code) ? error.code : "other";
         if (error?.code === "42501") {
@@ -33,6 +34,7 @@ export async function shopAdminRoute(
           throw new AdminForbiddenError();
         }
         if (error) throw new ShopOperationError(error.code);
+        stage = "response";
         return data;
       },
     }, (value) => { stage = value; });
