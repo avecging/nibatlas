@@ -1,12 +1,13 @@
 // @vitest-environment node
 import { beforeEach,describe,it,expect,vi } from 'vitest';
 import { AdminForbiddenError } from '@/src/server/admin/http';
+import { createHash } from 'node:crypto';
 import { handleMedia, MediaOperationError, type MediaGateway, type Upload } from './http';
-import { png } from './png.fixture';
+import { displayMetadata, png } from './png.fixture';
 import { validatePng } from './png';
 const id='70000000-0000-4000-8000-000000000001';
 const actor='70000000-0000-4000-8000-000000000002';
-const bytes=png(); const checked=validatePng(bytes,false);
+const bytes=png(2,2,{chunks:displayMetadata()}); const checked=validatePng(bytes,false);
 let upload:Upload, gateway:MediaGateway;
 const stream=()=>new ReadableStream<Uint8Array>({start(c){c.enqueue(bytes);c.close();}});
 function req(method='GET',body?: string|Uint8Array,headers:Record<string,string>={}) {
@@ -64,6 +65,29 @@ describe('private media HTTP boundary',()=>{
       expect((await handleMedia(req('PUT',body,{'content-type':type}),id,gateway)).status).toBe(422);
     }
     expect(gateway.store.putOnce).not.toHaveBeenCalled();
+  });
+  it('still binds SHA-256 to the exact display metadata bytes',async()=>{
+    const chunks=displayMetadata(); chunks.reverse();
+    const changed=png(2,2,{chunks});
+    expect(changed.length).toBe(bytes.length);
+    expect(validatePng(changed,false).sha256).not.toBe(checked.sha256);
+    expect((await handleMedia(req('PUT',changed,{'content-type':'image/png'}),id,gateway)).status).toBe(422);
+    expect(gateway.store.putOnce).not.toHaveBeenCalled();
+    gateway.store.get=async()=>({size:changed.length,contentType:'image/png',body:new ReadableStream({start(c){c.enqueue(changed);c.close();}})});
+    expect((await handleMedia(req('POST'),id,gateway)).status).toBe(422);
+    expect(gateway.operation).not.toHaveBeenCalledWith('finalize',expect.anything(),expect.anything());
+  });
+  it.each(['eXIf','tEXt','zTXt','iTXt','iCCP','tIME','vpAg','acTL','fcTL','fdAT'])('rejects %s alongside safe chunks before storage and finalization',async metadata=>{
+    const bad=png(2,2,{chunks:displayMetadata(),metadata});
+    upload.byteSize=bad.length; upload.sha256=createHash('sha256').update(bad).digest('hex');
+    upload.storageKey=`staging/media/${id}/v1/${upload.sha256}.png`;
+    const response=await handleMedia(req('PUT',bad,{'content-type':'image/png'}),id,gateway);
+    expect(response.status).toBe(422);expect(await response.text()).toContain('invalid_upload');
+    expect(gateway.store.putOnce).not.toHaveBeenCalled();
+    gateway.store.get=async()=>({size:bad.length,contentType:'image/png',body:new ReadableStream({start(c){c.enqueue(bad);c.close();}})});
+    expect((await handleMedia(req('POST'),id,gateway)).status).toBe(422);
+    expect(gateway.operation).not.toHaveBeenCalledWith('finalize',expect.anything(),expect.anything());
+    expect(upload.status).toBe('pending');
   });
   it('finalizes using freshly read and validated object bytes',async()=>{
     expect((await handleMedia(req('POST'),id,gateway)).status).toBe(200);

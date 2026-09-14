@@ -33,10 +33,17 @@ document the platform APIs used by the adapter/validator.
 After deployment, sign in as the existing staging editor/admin. On that same
 staging origin, use browser DevTools to run the snippet below after reviewing it.
 It opens a file chooser and prompts for an existing shop UUID and the required
-source/rights/credit/alt metadata. Use your own metadata-free supported PNG and a
+source/rights/credit/alt metadata. Use your own supported PNG without EXIF/text/ICC metadata and a
 labelled test shop. It does not read authentication cookies or print secrets.
 This is temporary developer verification, not the later founder photo interface.
 Do not upload identifiable people without permission.
+
+Normal 8-bit RGB/RGBA, non-interlaced PNG exports may include `sRGB`, `gAMA`
+and `pHYs` display information. These do not need to be removed. Each may appear
+only once before image data; exact lengths, numeric values and colour consistency
+are checked as specified in the API contract. All other ancillary chunks, including
+EXIF, text, timestamps, unknown chunks and ICC profiles, remain unsupported.
+The upload preserves the file byte-for-byte; it does not strip or convert anything.
 
 ```js
 const picker = document.createElement('input');
@@ -82,6 +89,29 @@ the request. Prepare the draft through the later artwork management flow or
 explicit operator test SQL, never by changing an approved version. No artwork
 creation endpoint or approval UI is included here.
 
+### Retesting the founder PNG rejection
+
+The founder reported a 420 × 595 RGBA export with
+`IHDR → pHYs → sRGB → gAMA → IDAT → IEND`. The original validator rejected it at
+`pHYs` before R2 write; it independently rejected `sRGB` and `gAMA` too. Initiation
+only checks the manifest, so a private ID followed by PUT `422 invalid_upload`
+was consistent with that overly restrictive subset. The revised validator accepts
+this structure when the display values and remaining file checks pass. A synthetic
+regression fixture reproduces the reported structure; the private original was
+not supplied to automated tests.
+
+After deploying the fix from main, repeat the snippet with the same original PNG
+and a labelled staging shop, using `purpose: 'shop_photo'`. Expect PUT success and
+finalization `validated` with width 420 and height 595, without a public URL. This
+size remains invalid for `artwork_png`, which still requires 1200 × 800 RGBA with
+transparent pixels. No photo or approved artwork is attached or replaced.
+
+The snippet creates a new session. Alternatively, retry the exact bytes on the old
+ID if it is still pending and unexpired, then finalize. Leave the failed manifest
+and audit intact; do not delete records or change its checksum. An expired session
+requires a new initiation. Report only success/error code and dimensions, not
+private IDs, credentials, image content or permission evidence.
+
 ## Recovery and operating limits
 
 - No automatic file deletion is configured. For occasional expired pending files,
@@ -104,11 +134,14 @@ creation endpoint or approval UI is included here.
 
 ## Acceptance still pending
 
-Latest observed successful staging deployment: PR #60 merge
-`25198d3c500bfeb4c4e609caf67dd093a4d27aff`,
-[run 34767040059](https://github.com/avecging/nibatlas/actions/runs/34767040059).
-The connector still exposes no workflow-dispatch operation. No new deployment
-was requested in this draft-implementation session.
+Latest verified staging deployment before the display-chunk fix: PR #62 merge
+`f375e5fd16f1e31f97aad7d72a120e1b07a6ea98`,
+[run 34795716499](https://github.com/avecging/nibatlas/actions/runs/34795716499).
+All five [post-merge CI jobs](https://github.com/avecging/nibatlas/actions/runs/34778910781)
+passed. The founder confirmed bucket setup and deployment worked. Live initiation
+succeeded, but the original PNG PUT failed as described above; successful live
+upload/finalization after this fix remains pending. The connector still exposes
+no workflow-dispatch operation; use the existing manual Deploy staging workflow.
 
 Founder shop-admin acceptance in `shop-administration.md` remains pending.
 Follow `staging-phone-test.md` for the remaining physical-phone acceptance;
