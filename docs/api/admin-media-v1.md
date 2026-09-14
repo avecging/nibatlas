@@ -44,12 +44,31 @@ shops. Archived shops cannot receive new uploads or finalize pending ones.
 ## File validation and identity
 
 The supported first-slice PNG subset is 8-bit RGB or RGBA, non-interlaced,
-1–2048 px on each axis, at most 5 MiB. Only IHDR, nonempty IDAT and IEND chunks are accepted, with at most 1024 chunks.
+1–2048 px on each axis, at most 5 MiB. IHDR, consecutive nonempty IDAT and IEND
+are required, with at most 1024 chunks total. Three optional display chunks are
+accepted once each, after IHDR and before the first IDAT, in any relative order:
+
+| Chunk | Required payload |
+| --- | --- |
+| `sRGB` | Exactly 1 byte: rendering intent 0–3 |
+| `gAMA` | Exactly 4 bytes: gamma × 100000, integer 1–2147483647; must be 45455 when `sRGB` is also present |
+| `pHYs` | Exactly 9 bytes: two integer pixel densities 0–2147483647 and unit 0 (unspecified) or 1 (metre) |
+
+These fixed numeric fields describe colour and pixel density, not location,
+timestamps, authorship or arbitrary text. Density never overrides IHDR dimensions
+or drives allocations. Rules follow the [PNG specification](https://www.w3.org/TR/png-3/)
+sections 5.6, 7.1, 11.3.2.2, 11.3.2.5 and 11.3.4.3; the nonzero gamma requirement
+rejects a meaningless declaration rather than silently repairing it.
+
 Validate signature, chunk ordering/bounds, every CRC, deflate completion and
 bounded decompression, exact scanline length, all five PNG filter modes, actual
-size and SHA-256. Reject trailing bytes and unsupported chunks, including EXIF,
-text, colour profiles, palette PNG and animation. Thus metadata is rejected
-**before R2 persistence**, not stripped after storing GPS. Artwork requires RGBA,
+size and SHA-256 over the entire original file, including display chunks. Reject
+trailing bytes and every other chunk, including EXIF (`eXIf`), text (`tEXt`,
+`zTXt`, `iTXt`), embedded ICC profiles (`iCCP`), timestamps (`tIME`), unknown
+ancillary chunks, palette PNG and animation (`acTL`, `fcTL`, `fdAT`). Sensitive or
+unsupported metadata is rejected **before R2 persistence**, not stripped after
+storing GPS. Fixed display declarations are not a general metadata allowlist or
+a guarantee against sensitive content encoded in pixels. Artwork requires RGBA,
 1200 × 800 and transparent pixels. Files are never rewritten or converted.
 
 This intentionally narrow subset can reject otherwise valid illustrator PNGs.

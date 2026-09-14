@@ -14,7 +14,7 @@ export function crc32(bytes: Uint8Array): number {
   return (crc ^ 0xffffffff) >>> 0;
 }
 
-/** Strict subset: RGB/RGBA 8-bit, non-interlaced, no metadata or animation.
+/** Strict subset: RGB/RGBA 8-bit, non-interlaced, only fixed display metadata.
  * Reject unsupported exports unchanged; never rewrite a commissioned file.
  */
 export function validatePng(bytes: Uint8Array, artwork: boolean) {
@@ -23,6 +23,8 @@ export function validatePng(bytes: Uint8Array, artwork: boolean) {
   if (!b.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) invalid();
   let offset = 8, width = 0, height = 0, channels = 0, ended = false, chunkCount = 0;
   const parts: Buffer[] = [];
+  const displayChunks = new Set<string>();
+  let gamma: number | undefined;
   while (offset < b.length) {
     if (++chunkCount > 1024 || offset + 12 > b.length) invalid();
     const size = b.readUInt32BE(offset), end = offset + 12 + size;
@@ -37,6 +39,21 @@ export function validatePng(bytes: Uint8Array, artwork: boolean) {
           ![2,6].includes(colour) || b[offset+18] || b[offset+19] || b[offset+20]) invalid();
       channels = colour === 6 ? 4 : 3;
       if (artwork && (width !== 1200 || height !== 800 || channels !== 4)) invalid();
+    } else if (type === 'sRGB' || type === 'gAMA' || type === 'pHYs') {
+      // PNG permits each once, after IHDR and before the consecutive IDAT run.
+      if (parts.length || displayChunks.has(type)) invalid();
+      displayChunks.add(type);
+      if (type === 'sRGB') {
+        if (size !== 1 || b[offset + 8]! > 3) invalid();
+      } else if (type === 'gAMA') {
+        if (size !== 4) invalid();
+        gamma = b.readUInt32BE(offset + 8);
+        if (gamma === 0 || gamma > 0x7fffffff) invalid();
+      } else {
+        if (size !== 9 || b[offset + 16]! > 1 ||
+            b.readUInt32BE(offset + 8) > 0x7fffffff ||
+            b.readUInt32BE(offset + 12) > 0x7fffffff) invalid();
+      }
     } else if (type === 'IDAT' && size > 0 && !ended) {
       parts.push(b.subarray(offset + 8, end - 4));
     } else if (type === 'IEND' && size === 0 && parts.length && end === b.length) {
@@ -45,6 +62,8 @@ export function validatePng(bytes: Uint8Array, artwork: boolean) {
     offset = end;
   }
   if (!ended) invalid();
+  // Avoid contradictory colour declarations regardless of their relative order.
+  if (displayChunks.has('sRGB') && gamma !== undefined && gamma !== 45455) invalid();
   const stride = width * channels, expected = (stride + 1) * height;
   const compressed = Buffer.concat(parts);
   let raw: Buffer;
