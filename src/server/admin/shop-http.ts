@@ -12,6 +12,7 @@ import {
   object,
   UUID,
 } from "@/src/features/admin/shop-contract";
+export type ShopAdminStage = "identity" | "access" | "origin" | "validation" | "catalogue_rpc" | "response";
 export interface ShopAdminGateway extends AdminGateway {
   call(name: string, args?: Record<string, unknown>): Promise<unknown>;
 }
@@ -58,9 +59,14 @@ export async function handleShopAdmin(
   path: "list" | "options" | "shop",
   id: string | null,
   gateway: ShopAdminGateway,
+  stage: (value: ShopAdminStage) => void = () => {},
 ): Promise<Response> {
   try {
-    const role = await authorizeAdmin(gateway, "editor");
+    const role = await authorizeAdmin({
+      ...gateway,
+      getIdentity: () => { stage("identity"); return gateway.getIdentity(); },
+      getAccess: () => { stage("access"); return gateway.getAccess(); },
+    }, "editor");
     if (role instanceof Response) return role;
     const params = new URL(request.url).searchParams;
     if (id !== null && !UUID.test(id)) return adminFailure("invalid_request");
@@ -97,8 +103,10 @@ export async function handleShopAdmin(
     }
     if (request.method !== "POST" || path === "options" || [...params].length)
       return adminFailure("invalid_request");
+    stage("origin");
     if (request.headers.get("origin") !== new URL(request.url).origin)
       return adminFailure("forbidden");
+    stage("validation");
     let data: Record<string, unknown>;
     try {
       data = await body(request);
@@ -152,12 +160,14 @@ export async function handleShopAdmin(
     } catch {
       return adminFailure("invalid_request");
     }
+    stage("catalogue_rpc");
     const result = await gateway.call("admin_shop_write", {
       p_action: data.action,
       p_id: id ?? data.id,
       p_revision: data.revision ?? null,
       p_document: data.document ?? null,
     });
+    stage("response");
     const value = object(result);
     if (
       value.code === "publication_incomplete" &&

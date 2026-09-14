@@ -138,3 +138,34 @@ assignment. If the problem remains after deployment, check the access endpoint
 in the same browser and staging origin first. A successful admin response means
 do not reassign roles; investigate the failed catalogue request/session instead.
 If access itself fails, use the existing verified-project/UID setup procedure.
+
+## Confirmed draft-create failure after PR #64
+
+Fresh staging Google login could list shops but could not create a draft. This
+was not another role model, a duplicate founder identity, or a lost cookie. Safe
+request diagnostics showed that identity, `admin_access()` and the same-origin
+check passed; PostgREST returned `42501` from `admin_shop_write`.
+
+The M5 `assert_published_shop_has_active_stamp()` constraint is deferred until
+transaction end. The M6 write RPC had already returned from its SECURITY DEFINER
+scope when the constraint ran as PostgREST's `authenticated` caller. That caller
+correctly has no direct `shops` table access, so the checker failed with
+`permission denied for table shops` and rolled back the draft and audit event.
+The list has no write-triggered deferred constraint. A rolled-back SQL probe
+also missed this until it forced constraints before resetting the caller role.
+
+Migration `20260914000100_m6_deferred_catalogue_constraint.sql` makes only this
+trigger checker SECURITY DEFINER, with an empty search path and no direct API
+execution grants. It retains the exact published-shop/active-stamp invariant.
+No table permissions, RLS policies, user roles or write-RPC role locks change.
+Admin means full founder access; editor means delegated catalogue access;
+founder remains a human responsibility, not an additional database assignment.
+
+The Worker authentication CI job uses genuine local Supabase Auth sessions and
+PostgREST with the compiled OpenNext Worker over HTTPS. It expires the stored
+session timestamp while retaining genuine tokens, creates through the browser,
+checks refresh response cookies, saves, reopens, previews, and verifies the
+account-attributed audit event. It also covers editor, ordinary/anonymous users,
+role revocation, and direct authenticated RPC creation. SQL tests now force
+constraints while still authenticated. No service-role application client or
+mocked browser routes are involved.
