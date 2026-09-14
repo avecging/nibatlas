@@ -66,7 +66,9 @@ async function api(path: string, signal: AbortSignal, body?: unknown) {
     const stage = response.headers.get("X-Admin-Failure-Stage");
     if (requestId && UUID.test(requestId) && stage &&
         ["identity", "access", "origin", "validation", "catalogue_rpc", "response"].includes(stage)) {
-      console.warn(JSON.stringify({ event: "shop_admin_failure", requestId, stage, status: response.status }));
+      const reason = response.headers.get("X-Admin-Database-Reason");
+      const databaseReason = ["role_denied", "function_privilege", "table_privilege", "schema_privilege", "row_security", "other_permission"].includes(reason ?? "") ? reason : undefined;
+      console.warn(JSON.stringify({ event: "shop_admin_failure", requestId, stage, status: response.status, databaseReason }));
     }
     throw new RequestFailure(value.error?.code ?? "service_unavailable");
   }
