@@ -1,7 +1,7 @@
 # R2 upload foundation — M6 WP3
 
-Read [the API and limitations](../api/admin-media-v1.md). This is a private PNG
-transport foundation. It cannot publish artwork/photos or make a new shop's
+Read [the API and limitations](../api/admin-media-v1.md). This is private PNG/JPEG
+transport within WP3. JPEG shop photos are processed before storage. It cannot publish artwork/photos or make a new shop's
 stamp publication prerequisite disappear.
 
 ## Cloudflare setup (once, before deploying this PR)
@@ -33,7 +33,7 @@ document the platform APIs used by the adapter/validator.
 After deployment, sign in as the existing staging editor/admin. On that same
 staging origin, use browser DevTools to run the snippet below after reviewing it.
 It opens a file chooser and prompts for an existing shop UUID and the required
-source/rights/credit/alt metadata. Use your own supported PNG without EXIF/text/ICC metadata and a
+source/rights/credit/alt metadata. Use your own supported PNG or ordinary JPEG photo and a
 labelled test shop. It does not read authentication cookies or print secrets.
 This is temporary developer verification, not the later founder photo interface.
 Do not upload identifiable people without permission.
@@ -43,11 +43,11 @@ and `pHYs` display information. These do not need to be removed. Each may appear
 only once before image data; exact lengths, numeric values and colour consistency
 are checked as specified in the API contract. All other ancillary chunks, including
 EXIF, text, timestamps, unknown chunks and ICC profiles, remain unsupported.
-The upload preserves the file byte-for-byte; it does not strip or convert anything.
+PNG uploads preserve the file byte-for-byte. JPEG shop photos follow the processing rules below.
 
 ```js
 const picker = document.createElement('input');
-picker.type = 'file'; picker.accept = 'image/png';
+picker.type = 'file'; picker.accept = 'image/png,image/jpeg';
 picker.onchange = async () => {
   const file = picker.files[0];
   if (!file) return;
@@ -56,7 +56,7 @@ picker.onchange = async () => {
     b => b.toString(16).padStart(2, '0')).join('');
   const manifest = {
     shopId: prompt('Existing staging shop UUID'), purpose: 'shop_photo',
-    sha256, byteSize: file.size, contentType: 'image/png',
+    sha256, byteSize: file.size, contentType: file.type,
     sourceRef: prompt('Source/original file reference'),
     rightsBasis: prompt('Ownership or explicit reuse permission'),
     creditText: prompt('Photographer credit'), altText: prompt('Describe the image')
@@ -70,7 +70,7 @@ picker.onchange = async () => {
   };
   const upload = await call(base, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(manifest)});
   console.info('Private upload ID:', upload.id); // Keep for recovery.
-  await call(`${base}/${upload.id}`, {method:'PUT', headers:{'Content-Type':'image/png'}, body:bytes});
+  await call(`${base}/${upload.id}`, {method:'PUT', headers:{'Content-Type':file.type}, body:bytes});
   console.info(await call(`${base}/${upload.id}`, {method:'POST'}));
 };
 picker.click();
@@ -100,17 +100,72 @@ this structure when the display values and remaining file checks pass. A synthet
 regression fixture reproduces the reported structure; the private original was
 not supplied to automated tests.
 
-After deploying the fix from main, repeat the snippet with the same original PNG
-and a labelled staging shop, using `purpose: 'shop_photo'`. Expect PUT success and
-finalization `validated` with width 420 and height 595, without a public URL. This
-size remains invalid for `artwork_png`, which still requires 1200 × 800 RGBA with
-transparent pixels. No photo or approved artwork is attached or replaced.
+Founder-reported acceptance (14 September 2026): separate staging/production
+bucket setup and deployment worked, and the original PNG now finishes as
+`validated`. No repeat is required just because earlier notes said pending.
+No additional device details, dimensions returned by the live run, timings or
+individual observations were supplied. Keep failed manifests and audit intact.
 
-The snippet creates a new session. Alternatively, retry the exact bytes on the old
-ID if it is still pending and unexpired, then finalize. Leave the failed manifest
-and audit intact; do not delete records or change its checksum. An expired session
-requires a new initiation. Report only success/error code and dimensions, not
-private IDs, credentials, image content or permission evidence.
+## JPEG photo intake — same WP3, separate from artwork
+
+Choose an ordinary `.jpg`/`.jpeg` photo in the same harness, up to **5 MiB**,
+**8192 px per axis** and **24 million pixels**. Supported: 8-bit, three-component
+baseline and progressive JPEG, EXIF orientations 1–8, and bounded ICC profiles.
+EXIF/GPS, XMP, IPTC, comments and other APP metadata do not reach R2.
+Unsupported: HEIC/HEIF, JPEG XL, CMYK/YCCK, grayscale JPEG, lossless/arithmetic/
+12-bit JPEG, multiple-picture/MPO files, malformed EXIF orientation/ICC chunk
+sequences, truncated files and appended bytes. Export those as ordinary RGB JPEG;
+no manual PNG conversion is needed for supported photos.
+
+The server decodes through `PHOTO_IMAGES`, resizes to **at most 1024 px on the
+longest edge**, preserves aspect ratio (nearest whole pixel, minimum 1 px), does
+not enlarge/crop, applies orientation to decoded pixels and encodes a clean RGBA
+PNG. This bounded private working photo fits the existing 5 MiB storage and
+validator budget even at square dimensions. It is not a high-resolution original
+archive or a public delivery variant. Keep your own original if you need it later.
+
+The original checksum/size/MIME remain the **input** identity. A separate output
+checksum/size/MIME/dimensions and immutable key describe the exact processed PNG.
+Only those output bytes are stored. PNG and commissioned-artwork uploads never
+enter this photo transformation path.
+
+### Cloudflare setup for this slice (after review, before staging deployment)
+
+1. In Cloudflare, confirm Images is enabled for the Nib Atlas account. This uses
+   its Workers binding, not Images-hosted storage or a public transformation URL.
+2. After merge, use the existing **Actions → Deploy staging → Run workflow → main**.
+   The repository declares `PHOTO_IMAGES` for staging and production and applies
+   the additive migration before deploying. Keep R2 buckets private as above.
+3. Run the harness once with a supported JPEG you own. Expect `validated`, no
+   public URL. Check orientation/metadata with synthetic runtime verification
+   before release; actual photo display awaits the attachment/delivery/UI slice.
+
+No new secret is needed. Missing Images configuration fails JPEG closed; PNG
+intake does not depend on the Images binding. Do not paste credentials in chat.
+
+### Retry and rollback details
+
+Output identity is reserved in an audited transaction **before** the conditional
+R2 write. A storage failure leaves a private pending receipt; retry the same exact
+JPEG and finalize within 24 hours. If processing now yields different bytes,
+`409 upload_conflict` requires a new session; never replace the reserved output.
+If PUT succeeded but its response was lost, try POST finalization first. Missing
+output returns `409 upload_incomplete`; then retry PUT. GET alone reports status,
+not whether the object exists. Every finalization reads/decompresses stored PNG
+bytes independently and checks the reserved output identity. A completed POST is
+idempotent. Rejected/missing output never becomes validated or public.
+
+Cloudflare decoding/availability errors are redacted as `503 service_unavailable`;
+preflight, output validation and byte/MIME mismatches return `422 invalid_upload`.
+For a repeatable decoder failure, use a fresh ordinary RGB JPEG export and a new
+session; do not weaken validation. No claim is made to detect every pixel-level
+corruption that still decodes as a JPEG; transformed output must be a fully valid
+bounded PNG. Decoder behavior is additionally a staging runtime gate.
+
+Worker rollback keeps the additive columns, private objects and all audit/history.
+The older Worker supports existing PNG sessions; JPEG sessions require redeploying
+this Worker or a new compatible version. Do not run JPEG traffic on the older
+Worker or delete receipts to roll back.
 
 ## Recovery and operating limits
 
@@ -132,23 +187,21 @@ private IDs, credentials, image content or permission evidence.
 - Before public media launch, confirm backup/export and spend alerts with M8.
   This intake limit is not a complete infrastructure budget alarm.
 
-## Acceptance still pending
+## Acceptance and remaining verification
 
-Latest verified staging deployment before the display-chunk fix: PR #62 merge
-`f375e5fd16f1e31f97aad7d72a120e1b07a6ea98`,
-[run 34795716499](https://github.com/avecging/nibatlas/actions/runs/34795716499).
-All five [post-merge CI jobs](https://github.com/avecging/nibatlas/actions/runs/34778910781)
-passed. The founder confirmed bucket setup and deployment worked. Live initiation
-succeeded, but the original PNG PUT failed as described above; successful live
-upload/finalization after this fix remains pending. The connector still exposes
-no workflow-dispatch operation; use the existing manual Deploy staging workflow.
+Verified baseline: main `65e249f21815a94fa926b1cb936354e56404b35b`,
+[CI](https://github.com/avecging/nibatlas/actions/runs/34838929027) and
+[staging deployment](https://github.com/avecging/nibatlas/actions/runs/34838944866)
+succeeded. Founder reports bucket setup/deployment, original PNG `validated`, and
+the physical-phone checklist worked. These results are carried forward; no
+invented device details, timings or per-check observations are recorded.
+The draft-create fix is confirmed separately from broader shop-admin acceptance.
 
-Founder shop-admin acceptance in `shop-administration.md` remains pending.
-Follow `staging-phone-test.md` for the remaining physical-phone acceptance;
-previous indoor success is confirmed but does not complete permission recovery,
-interruption/backgrounding, duplicate/reload or sign-out isolation. Never erase
-impressions, rotate stamp IDs or weaken duplicate protection. Entrance/interior
-photo **display** acceptance waits for the later delivery/UI slice.
+JPEG is a new slice. Local Images emulation is not remote production fidelity;
+staging still needs actual Images processing, R2 write/read, RPC finalization and
+private-output inspection. No JPEG deployment or photo **display** acceptance is
+claimed. The UI/attachment/public delivery remain later WP3 work.
 
 Keep #17 About accuracy before real catalogue launch and #27 with geographic seal
-delivery. No social, notification, QR/NFC or merchant work is included.
+delivery. Preserve existing impressions and duplicate protection. No social,
+notification, QR/NFC or merchant work is included.

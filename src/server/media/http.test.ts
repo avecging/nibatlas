@@ -145,3 +145,75 @@ it('new media audit summaries remain admin-only and bounded',async()=>{
   const r=await handleAdminRead(new Request('https://nib.test/audit'),'audit',gateway);
   expect(r.status).toBe(200);expect(await r.text()).not.toContain('secret');
 });
+
+describe('JPEG photo transport identity',()=>{
+  beforeEach(async()=>{
+    const {jpeg}=await import('./jpeg.fixture');
+    upload={...upload,contentType:'image/jpeg',storageKey:null,sha256:createHash('sha256').update(jpeg).digest('hex'),byteSize:jpeg.length,output:null};
+    gateway.images={input:vi.fn(()=>({transform:()=>({output:async()=>({response:()=>new Response(png(24,16),{headers:{'content-type':'image/png'}})})})}))};
+    gateway.operation=vi.fn(async(action,_id,payload)=>{
+      if(action==='prepare') {
+        const output=payload as NonNullable<Upload['output']>;
+        upload={...upload,output,storageKey:`staging/media/${id}/v1/${output.sha256}.png`};
+      }
+      if(action==='finalize') upload={...upload,status:'validated',width:upload.output!.width,height:upload.output!.height};
+      return upload;
+    });
+  });
+  it('accepts JPEG photo manifests but rejects JPEG artwork',async()=>{
+    expect((await handleMedia(req('POST',JSON.stringify({...photo,contentType:'image/jpeg'}),{'content-type':'application/json'}),null,gateway)).status).toBe(201);
+    expect((await handleMedia(req('POST',JSON.stringify({...photo,contentType:'image/jpeg',purpose:'artwork_png',artworkVersionId:id}),{'content-type':'application/json'}),null,gateway)).status).toBe(400);
+  });
+  it('binds transformed bytes, keeps input checksum, and independently finalizes stored output',async()=>{
+    const {jpeg}=await import('./jpeg.fixture');const originalHash=upload.sha256;
+    expect((await handleMedia(req('PUT',jpeg,{'content-type':'image/jpeg'}),id,gateway)).status).toBe(200);
+    expect(upload.sha256).toBe(originalHash);expect(upload.output!.sha256).not.toBe(originalHash);
+    const [key,stored]=(gateway.store.putOnce as ReturnType<typeof vi.fn>).mock.calls[0]!;
+    expect(key).toContain(upload.output!.sha256);expect(Buffer.from(stored).equals(jpeg)).toBe(false);
+    expect(validatePng(stored,false)).toEqual(upload.output);
+    gateway.store.get=vi.fn(async()=>({size:stored.length,contentType:'image/png',body:new ReadableStream({start(c){c.enqueue(stored);c.close();}})}));
+    expect((await handleMedia(req('POST'),id,gateway)).status).toBe(200);
+    expect(gateway.operation).toHaveBeenLastCalledWith('finalize',id,upload.output);
+    expect(gateway.images!.input).toHaveBeenCalledTimes(1); // Finalization does not trust/reprocess the original.
+  });
+  it('rejects checksum/MIME before decoder, and unprepared finalization',async()=>{
+    const {jpeg}=await import('./jpeg.fixture');
+    expect((await handleMedia(req('POST'),id,gateway)).status).toBe(409);
+    expect((await handleMedia(req('PUT',jpeg,{'content-type':'image/png'}),id,gateway)).status).toBe(422);
+    upload.sha256='f'.repeat(64);
+    expect((await handleMedia(req('PUT',jpeg,{'content-type':'image/jpeg'}),id,gateway)).status).toBe(422);
+    expect(gateway.images!.input).not.toHaveBeenCalled();expect(gateway.store.putOnce).not.toHaveBeenCalled();
+  });
+  it('never persists when processing or the live-role prepare transaction fails',async()=>{
+    const {jpeg}=await import('./jpeg.fixture');
+    gateway.operation=vi.fn(async action=>{if(action==='prepare') throw new AdminForbiddenError();return upload;});
+    expect((await handleMedia(req('PUT',jpeg,{'content-type':'image/jpeg'}),id,gateway)).status).toBe(403);
+    expect(gateway.store.putOnce).not.toHaveBeenCalled();
+    gateway.images=undefined;
+    expect((await handleMedia(req('PUT',jpeg,{'content-type':'image/jpeg'}),id,gateway)).status).toBe(503);
+  });
+  it('does not finalize substituted output or source JPEG content in R2',async()=>{
+    const {jpeg}=await import('./jpeg.fixture');
+    await handleMedia(req('PUT',jpeg,{'content-type':'image/jpeg'}),id,gateway);
+    for(const [type,b] of [['image/jpeg',jpeg],['image/png',png(25,16)]] as const) {
+      gateway.store.get=async()=>({size:b.length,contentType:type,body:new ReadableStream({start(c){c.enqueue(b);c.close();}})});
+      expect((await handleMedia(req('POST'),id,gateway)).status).toBe(422);
+    }
+    expect(gateway.operation).not.toHaveBeenCalledWith('finalize',expect.anything(),expect.anything());
+  });
+  it('rejects metadata-bearing processor output before reservation or persistence',async()=>{
+    const {jpeg}=await import('./jpeg.fixture');
+    gateway.images={input:()=>({transform:()=>({output:async()=>({response:()=>new Response(png(24,16,{metadata:'eXIf'}),{headers:{'content-type':'image/png'}})})})})};
+    expect((await handleMedia(req('PUT',jpeg,{'content-type':'image/jpeg'}),id,gateway)).status).toBe(422);
+    expect(gateway.operation).not.toHaveBeenCalledWith('prepare',expect.anything(),expect.anything());
+    expect(gateway.store.putOnce).not.toHaveBeenCalled();
+  });
+  it('keeps prepared identity pending on storage failure and supports same-file retry',async()=>{
+    const {jpeg}=await import('./jpeg.fixture');
+    gateway.store.putOnce=vi.fn().mockRejectedValueOnce(new Error('provider failure')).mockResolvedValue(undefined);
+    expect((await handleMedia(req('PUT',jpeg,{'content-type':'image/jpeg'}),id,gateway)).status).toBe(503);
+    const preparedKey=upload.storageKey;expect(upload.status).toBe('pending');
+    expect((await handleMedia(req('PUT',jpeg,{'content-type':'image/jpeg'}),id,gateway)).status).toBe(200);
+    expect(upload.storageKey).toBe(preparedKey);
+  });
+});

@@ -17,7 +17,7 @@ export function crc32(bytes: Uint8Array): number {
 /** Strict subset: RGB/RGBA 8-bit, non-interlaced, only fixed display metadata.
  * Reject unsupported exports unchanged; never rewrite a commissioned file.
  */
-export function validatePng(bytes: Uint8Array, artwork: boolean) {
+export function validatePng(bytes: Uint8Array, artwork: boolean, pixels?: Uint8Array) {
   if (bytes.length > MAX_MEDIA_BYTES || bytes.length < 57) invalid();
   const b = Buffer.from(bytes);
   if (!b.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) invalid();
@@ -91,6 +91,13 @@ export function validatePng(bytes: Uint8Array, artwork: boolean) {
       }
       row[x]=(raw[start+1+x]!+predictor)&255;
       if (channels===4 && x%4===3 && row[x]===0) transparent=true;
+    }
+    if (pixels) {
+      for (let x=0;x<width;x++) {
+        const at=(y*width+x)*4;
+        pixels.set(row.subarray(x*channels,x*channels+3),at);
+        pixels[at+3]=channels===4 ? row[x*channels+3]! : 255;
+      }
     }
     previous=row;
   }

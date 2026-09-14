@@ -41,7 +41,11 @@ still obey the publication, evidence, revision and archival rules below.
 
 Use clearly named demo/test drafts; do not invent facts about real businesses.
 
-For the catalogue-access fix, after **Deploy staging** succeeds:
+The founder has confirmed the draft-create fix. Broader shop administration
+acceptance below remains separate; draft creation alone does not prove
+publication, closure, archival, conflicts or audit review. Keep these instructions
+for new regressions, not a mandatory repeat of the confirmed fix:
+
 
 1. In your existing signed-in staging browser, open `/api/v1/admin/access` and
    confirm `{"role":"admin"}`. No second role assignment is needed.
@@ -83,12 +87,10 @@ information or credentials. The page's `nibatlas-release` metadata and response'
 - Existing impressions remain unchanged after editing/closure/archive. Sign out;
   private admin fields disappear and direct APIs reject access.
 
-Automated tests use explicit demo fixtures. Real-phone permission denial,
-backgrounding/network interruption, duplicate/reload persistence and sign-out
-isolation remain separately pending in [the phone checklist](staging-phone-test.md).
-Prior indoor collection success does not complete that checklist. Use an account
-that has never collected the test stamp for pre-issuance GPS steps. Never erase
-impressions, rotate stamp IDs or bypass throttles to repeat a test.
+Automated tests use explicit demo fixtures. The founder reports the physical-phone
+checklist worked; see [the recorded result](staging-phone-test.md). No device,
+timing or individual observations are invented. Do not repeat those checks solely
+because old notes said pending. Preserve impressions, stamp IDs and throttles.
 
 ## Deployment and rollback
 

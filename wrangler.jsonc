@@ -25,7 +25,10 @@
           "binding": "MEDIA_BUCKET",
           "bucket_name": "nibatlas-production-images"
         }
-      ]
+      ],
+      "images": {
+        "binding": "PHOTO_IMAGES"
+      }
     }
   },
   "vars": {
@@ -36,5 +39,8 @@
       "binding": "MEDIA_BUCKET",
       "bucket_name": "nibatlas-staging-images"
     }
-  ]
+  ],
+  "images": {
+    "binding": "PHOTO_IMAGES"
+  }
 }

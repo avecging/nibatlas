@@ -632,7 +632,8 @@ Default recommendations are documented above. Escalate only if a proposed change
 - Staging phone fixture and field-test procedure: `docs/runbooks/staging-phone-test.md`.
   Initial founder field feedback confirms refusal away from the venue and a
   successful collection, plus successful admin checks. The runbook records the
-  limited observations and remaining field checklist; photos await M6 R2 delivery.
+  initial observations; the founder later reported the physical-phone checklist
+  worked. Photos await M6 R2 delivery/display acceptance.
 - Deferred: broader live-phone/mall field validation;
   geographic seal persistence/coverage sets; founder policy/anomaly UI and general
   audit history (M6); production auth domain, observability alerts and account
@@ -662,11 +663,10 @@ preview, explicit publish, closure and archive operations. Current-role checks,
 transactional catalogue audit and immutable impressions build on WP1. See
 `docs/runbooks/shop-administration.md` and `docs/adr/0012-shop-administration.md`.
 New-shop publication retains the existing approved-active-stamp prerequisite;
-artwork preparation is WP3, not synthesized by WP2. Physical-phone acceptance
-remains pending separately. Subsequent packages: WP3 artwork/media #32 coordinated
+artwork preparation is WP3, not synthesized by WP2. Physical-phone checklist success is founder-reported separately. Subsequent packages: WP3 artwork/media #32 coordinated
 with #19/#28; WP4 catalogue imports/dry runs/deduplication.
 
-### M6 WP3 — first bounded slice (draft implementation)
+### M6 WP3 — private intake slices
 
 Private PNG transport foundation: environment-separated R2 bindings, authorized
 initiation, bounded byte/content validation, immutable keys and server-validated
@@ -675,5 +675,14 @@ finalization with transactional audit. See `docs/api/admin-media-v1.md` and
 existing targets, not an approval model. It does not modify artwork versions,
 photo records or collected impressions. SVG/editable-source validation, approval,
 attachment, public delivery and the photo UI remain subsequent WP3 slices. WP4
-catalogue imports follows artwork/media. Founder admin and phone acceptance stay
-pending; do not infer completion from automated checks or prior indoor success.
+catalogue imports follows artwork/media. PNG finalization and the physical-phone checklist are founder-reported successful.
+The draft-create fix is confirmed separately from broader shop-admin acceptance.
+Do not invent device details/timings or reopen confirmed checks solely because
+older notes said pending. Photo display acceptance has not happened.
+
+The next WP3 draft implements JPEG shop-photo processing with Cloudflare Images,
+bounded orientation/resize/metadata-free output, separate immutable input/output
+identity and independently validated finalization. It uses the existing CI gates;
+review/merge and remote staging runtime verification follow in the next session.
+Attachment/public delivery and the simple founder photo interface follow later.
+No commissioned artwork is processed or replaced. WP4 remains imports.

@@ -1,16 +1,19 @@
 import { authorizeAdmin, AdminForbiddenError, adminFailure, type AdminGateway } from '@/src/server/admin/http';
 import { ADMIN_HEADERS } from '@/src/server/admin/shop-http';
 import { UUID, object } from '@/src/features/admin/shop-contract';
+import { digest, processJpeg, type PhotoImages } from './jpeg';
 import { InvalidMedia, MAX_MEDIA_BYTES, readBounded, validatePng } from './png';
 
 export interface Upload {
-  id: string; storageKey: string; sha256: string; byteSize: number;
+  id: string; storageKey: string | null; sha256: string; byteSize: number;
+  contentType?: 'image/png' | 'image/jpeg';
+  output?: {sha256:string;byteSize:number;width:number;height:number} | null;
   purpose: 'artwork_png' | 'shop_photo'; status: 'pending' | 'validated';
   expiresAt: string; width: number | null; height: number | null;
 }
 export function decodeUpload(value: unknown, id: string): Upload {
   const row=object(value);
-  if (row.id!==id || typeof row.storageKey!=='string' ||
+  if (row.id!==id || (typeof row.storageKey!=='string' && !(row.storageKey===null && row.contentType==='image/jpeg' && row.status==='pending')) ||
       typeof row.sha256!=='string' || !/^[a-f0-9]{64}$/.test(row.sha256) ||
       typeof row.byteSize!=='number' || !Number.isInteger(row.byteSize) || row.byteSize<1 || row.byteSize>MAX_MEDIA_BYTES ||
       !['artwork_png','shop_photo'].includes(String(row.purpose)) || !['pending','validated'].includes(String(row.status)) ||
@@ -19,7 +22,17 @@ export function decodeUpload(value: unknown, id: string): Upload {
     const n=row[key];
     if (row.status==='pending' ? n!==null : typeof n!=='number' || !Number.isInteger(n) || n<1 || n>2048) throw Error('Invalid dimensions');
   }
-  return { id, storageKey:row.storageKey, sha256:row.sha256, byteSize:row.byteSize,
+  if (!['image/png','image/jpeg'].includes(String(row.contentType ?? 'image/png')) || (row.contentType==='image/jpeg' && row.purpose!=='shop_photo')) throw Error('Invalid MIME');
+  let output: Upload['output']=null;
+  if(row.output!=null) {
+    const o=object(row.output);
+    if(typeof o.sha256!=='string' || !/^[a-f0-9]{64}$/.test(o.sha256) ||
+      typeof o.byteSize!=='number' || !Number.isInteger(o.byteSize) || o.byteSize<1 || o.byteSize>MAX_MEDIA_BYTES ||
+      [o.width,o.height].some(n=>typeof n!=='number' || !Number.isInteger(n) || n<1 || n>1024)) throw Error('Invalid output');
+    output={sha256:o.sha256,byteSize:o.byteSize,width:o.width as number,height:o.height as number};
+  }
+  if(row.contentType==='image/jpeg' && ((row.storageKey!==null)!==(output!==null) || (row.status==='validated' && (!output || row.width!==output.width || row.height!==output.height)))) throw Error('Invalid output identity');
+  return { id, contentType:(row.contentType ?? 'image/png') as 'image/png' | 'image/jpeg', output, storageKey:row.storageKey, sha256:row.sha256, byteSize:row.byteSize,
     purpose:row.purpose as Upload['purpose'], status:row.status as Upload['status'],
     expiresAt:row.expiresAt, width:row.width as number|null, height:row.height as number|null };
 }
@@ -28,8 +41,9 @@ export interface PrivateMediaStore {
   get(key: string): Promise<{ size: number; contentType: string | undefined; body: ReadableStream<Uint8Array> } | null>;
 }
 export interface MediaGateway extends AdminGateway {
-  operation(action: 'initiate' | 'read' | 'finalize', id: string, payload?: Record<string, unknown>): Promise<Upload>;
+  operation(action: 'initiate' | 'read' | 'prepare' | 'finalize', id: string, payload?: Record<string, unknown>): Promise<Upload>;
   store: PrivateMediaStore;
+  images?: PhotoImages | undefined;
 }
 export class MediaOperationError extends Error {
   constructor(readonly code: string) { super('Media operation failed'); }
@@ -55,7 +69,7 @@ export async function handleMedia(request: Request, id: string | null, gateway: 
             (data.artworkVersionId!==undefined && (typeof data.artworkVersionId!=='string' || !UUID.test(data.artworkVersionId))) ||
             !['artwork_png','shop_photo'].includes(String(data.purpose)) ||
             (data.purpose==='artwork_png') !== (data.artworkVersionId!==undefined) ||
-            data.contentType!=='image/png' || typeof data.sha256!=='string' || !/^[a-f0-9]{64}$/.test(data.sha256) ||
+            !(data.contentType==='image/png' || (data.contentType==='image/jpeg' && data.purpose==='shop_photo')) || typeof data.sha256!=='string' || !/^[a-f0-9]{64}$/.test(data.sha256) ||
             typeof data.byteSize!=='number' || !Number.isInteger(data.byteSize) || data.byteSize<1 || data.byteSize>MAX_MEDIA_BYTES) throw Error();
         for (const [key, max] of [['sourceRef',2000],['altText',1000], ...(data.purpose==='shop_photo' ? [['rightsBasis',2000],['creditText',300]] : [])] as [string,number][]) {
           if (typeof data[key]!=='string' || !data[key].trim() || data[key].length>max) throw Error();
@@ -76,18 +90,33 @@ export async function handleMedia(request: Request, id: string | null, gateway: 
       return request.method==='POST' ? json(projection(upload)) : fail('upload_finalized',409);
     }
     if (Date.parse(upload.expiresAt)<=Date.now()) return fail('upload_expired',410);
+    const jpeg=upload.contentType==='image/jpeg';
     let bytes: Uint8Array;
+    if(jpeg && request.method==='PUT') {
+      if(upload.purpose!=='shop_photo' || request.headers.get('content-type')!=='image/jpeg') return fail('invalid_upload',422);
+      if(!gateway.images) return adminFailure('service_unavailable');
+      const input=await readBounded(request.body,upload.byteSize);
+      if(input.length!==upload.byteSize || digest(input)!==upload.sha256) return fail('invalid_upload',422);
+      const processed=await processJpeg(input,gateway.images);
+      // Bind once before R2. A lost response/retry cannot choose a second output.
+      const prepared=await gateway.operation('prepare',id,processed.checked);
+      if(!prepared.storageKey || !prepared.output || prepared.output.sha256!==processed.checked.sha256 || prepared.output.byteSize!==processed.checked.byteSize || prepared.output.width!==processed.checked.width || prepared.output.height!==processed.checked.height) throw Error('Invalid prepared output');
+      await gateway.store.putOnce(prepared.storageKey,processed.bytes);
+      return json({id,status:'uploaded',next:'finalize'});
+    }
+    const expected=jpeg ? upload.output : upload;
+    if(!expected || !upload.storageKey) return fail('upload_incomplete',409);
     if (request.method==='PUT') {
       if (request.headers.get('content-type')!=='image/png') return fail('invalid_upload',422);
       bytes=await readBounded(request.body,upload.byteSize);
     } else {
       const stored=await gateway.store.get(upload.storageKey);
       if (!stored) return fail('upload_incomplete',409);
-      if (stored.size!==upload.byteSize || stored.contentType!=='image/png') return fail('invalid_upload',422);
-      bytes=await readBounded(stored.body,upload.byteSize);
+      if (stored.size!==expected.byteSize || stored.contentType!=='image/png') return fail('invalid_upload',422);
+      bytes=await readBounded(stored.body,expected.byteSize);
     }
     const checked=validatePng(bytes,upload.purpose==='artwork_png');
-    if (checked.sha256!==upload.sha256 || checked.byteSize!==upload.byteSize) return fail('invalid_upload',422);
+    if (checked.sha256!==expected.sha256 || checked.byteSize!==expected.byteSize || (jpeg && (checked.width!==upload.output?.width || checked.height!==upload.output?.height))) return fail('invalid_upload',422);
     // Recheck current authority after body transfer/validation, before storage mutation.
     await gateway.operation('read',id);
     if (request.method==='PUT') {
