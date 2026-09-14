@@ -90,3 +90,13 @@ for (const role of [null, "user"] as const) {
     expect(response.status()).toBe(role ? 403 : 401);
   });
 }
+
+test("admin: direct authenticated PostgREST create keeps the actor", async ({ context }) => {
+  const { actor, client } = await login(context, "admin");
+  const id = randomUUID();
+  const result = await client.rpc("admin_shop_write", { p_action: "create", p_id: id, p_revision: null, p_document: { name: "Direct RPC test draft", slug: `rpc-test-${id}` } });
+  // Only this disposable test database's error text; no Auth payloads or tokens.
+  expect(result.error && { code: result.error.code, message: result.error.message }).toBeNull();
+  expect(result.data.publicationStatus).toBe("draft");
+  expect(sql(`select bool_and(actor_user_id='${actor}' and actor_kind='account') from public.admin_audit_log where entity_id='${id}';`)).toBe("t");
+});
