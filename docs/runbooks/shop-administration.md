@@ -6,6 +6,10 @@ the existing founder account. Roles are separate in staging and production; use
 The [HTTP contract](../api/admin-shops-v1.md) documents the bounded API.
 No new secret, storage service or account-role setup is required for an existing
 admin. Editor can maintain catalogue; admin alone can read the audit endpoint.
+`admin` automatically includes all catalogue permissions. “Founder” describes
+the person using that admin account; there is no separate founder role or
+catalogue membership to maintain. Ordinary accounts remain denied. All roles
+still obey the publication, evidence, revision and archival rules below.
 
 1. Choose **Create a draft shop**. Enter name and a unique lowercase URL name.
 2. Open the draft and enter only sourced facts. Choose the existing locality and
@@ -36,6 +40,24 @@ admin. Editor can maintain catalogue; admin alone can read the audit endpoint.
 ## Staging acceptance (founder)
 
 Use clearly named demo/test drafts; do not invent facts about real businesses.
+
+For the catalogue-access fix, after **Deploy staging** succeeds:
+
+1. In your existing signed-in staging browser, open `/api/v1/admin/access` and
+   confirm `{"role":"admin"}`. No second role assignment is needed.
+2. Open `/admin/shops`. Confirm the catalogue list loads without the access error.
+3. Choose **Create a draft shop**, name it **Admin acceptance test draft**, and
+   give it a unique URL name, such as `admin-acceptance-test-20260914`.
+4. Choose **Create draft**. Change the name to **Admin acceptance test draft edited**
+   and choose **Save changes privately**.
+5. Return to **All shops**, reopen the draft, and confirm the changed name is
+   still present. Choose **Preview saved version**. Keep this test draft private.
+6. In a signed-out browser, confirm `/admin/shops` asks for sign-in and its APIs
+   reject access. An ordinary signed-in account must also remain denied.
+
+The fix needs only the normal Worker deployment, not a database migration.
+The automated session-refresh regression covers an expiring session as well as
+fresh sessions; no token manipulation is needed for this manual check.
 
 - Mobile and desktop: create an incomplete draft, save a changed name, preview,
   and confirm the signed-out public URL is unavailable.
