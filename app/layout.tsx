@@ -30,6 +30,7 @@ export const metadata: Metadata = {
     template: "%s · Nib Atlas",
   },
   description: "Find fountain pen shops. Visit them. Keep the impression.",
+  other: { "nibatlas-release": process.env.NIBATLAS_RELEASE ?? "development" },
 };
 
 export const viewport: Viewport = {

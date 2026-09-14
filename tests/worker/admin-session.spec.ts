@@ -34,7 +34,7 @@ async function login(context: BrowserContext, role: "admin" | "editor" | "user")
   return { actor, client };
 }
 async function expireCookie(context: BrowserContext) {
-  const cookies = (await context.cookies()).filter((cookie) => cookie.name.includes("-auth-token"));
+  const cookies = (await context.cookies()).filter((cookie) => /-auth-token(?:\.\d+)?$/.test(cookie.name));
   if (!cookies[0]) throw Error("Browser did not receive an Auth session cookie");
   const encoded = cookies.sort((a, b) => a.name.localeCompare(b.name)).map((cookie) => cookie.value).join("");
   const session = JSON.parse(Buffer.from(encoded.slice("base64-".length), "base64url").toString());
@@ -43,7 +43,7 @@ async function expireCookie(context: BrowserContext) {
   session.expires_at = 1;
   const value = "base64-" + Buffer.from(JSON.stringify(session)).toString("base64url");
   const name = cookies[0].name.replace(/\.\d+$/, "");
-  await context.clearCookies({ name: /-auth-token/ });
+  await context.clearCookies({ name: /-auth-token(?:\.\d+)?$/ });
   await context.addCookies([{ name, value, url: origin, httpOnly: true, secure: true, sameSite: "Lax" }]);
 }
 for (const role of ["admin", "editor"] as const) {

@@ -31,12 +31,21 @@ export async function shopAdminRoute(
     response = adminFailure("service_unavailable");
   }
   response.headers.set("X-Admin-Request-Id", requestId);
+  response.headers.set("X-Nib-Atlas-Release", process.env.NIBATLAS_RELEASE ?? "development");
   if (!response.ok) {
     response.headers.set("X-Admin-Failure-Stage", stage);
+    let originHostMatches = false;
+    let originProtocolMatches = false;
+    try {
+      const origin = new URL(request.headers.get("origin") ?? "");
+      originHostMatches = origin.hostname === new URL(request.url).hostname;
+      originProtocolMatches = origin.protocol === new URL(request.url).protocol;
+    } catch { /* Missing or opaque Origin remains rejected. */ }
     console.warn(JSON.stringify({ event: "shop_admin_failure", requestId, stage, status: response.status, databaseCode,
       originPresent: request.headers.has("origin"),
       originMatches: request.headers.get("origin") === new URL(request.url).origin,
       requestProtocol: new URL(request.url).protocol,
+      requestPort: new URL(request.url).port, originHostMatches, originProtocolMatches,
     }));
   }
   return response;

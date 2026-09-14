@@ -9,6 +9,7 @@ import {
   GROUPS,
   HOURS_FIELDS,
   SHOP_FIELDS,
+  UUID,
   type Document,
   type Field,
   type Options,
@@ -58,8 +59,17 @@ async function api(path: string, signal: AbortSignal, body?: unknown) {
       : {}),
   });
   const value = await response.json();
-  if (!response.ok)
+  if (!response.ok) {
+    // A support reference only. Never log the request body, account, cookies,
+    // tokens, provider messages, or the response document.
+    const requestId = response.headers.get("X-Admin-Request-Id");
+    const stage = response.headers.get("X-Admin-Failure-Stage");
+    if (requestId && UUID.test(requestId) && stage &&
+        ["identity", "access", "origin", "validation", "catalogue_rpc", "response"].includes(stage)) {
+      console.warn(JSON.stringify({ event: "shop_admin_failure", requestId, stage, status: response.status }));
+    }
     throw new RequestFailure(value.error?.code ?? "service_unavailable");
+  }
   return value;
 }
 function Input({
