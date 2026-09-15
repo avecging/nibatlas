@@ -1,14 +1,16 @@
 # Staging deployment
 
-The staging Worker is `nibatlas-staging`. It is deployed by GitHub Actions from
-the `staging` branch, from the Milestone 3 WP3 integration branch while its final
-PR is open, or through an explicit manual workflow run.
+The staging Worker is `nibatlas-staging`. The workflow runs on pushes to
+`staging` or an explicit **Actions → Deploy staging → Run workflow** on the
+intended ref (normally reviewed/merged `main`). It does not automatically run
+on a main push or an old integration branch. Production is separate.
 
 ## Required GitHub repository secrets
 
 - `CLOUDFLARE_ACCOUNT_ID`
 - `CLOUDFLARE_API_TOKEN`
 - `NEXT_PUBLIC_MAPTILER_KEY`
+- `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - `SUPABASE_ACCESS_TOKEN`
@@ -34,6 +36,21 @@ linking, either of which requires broader token access.
 
 `SUPABASE_DB_PASSWORD` is used only by the CLI migration connection. Neither
 Supabase credential is exposed to the application build or Cloudflare Worker.
+
+## Feature prerequisites
+
+The build-time list above is separate from Worker runtime secrets/bindings:
+
+| Feature | Setup source |
+| --- | --- |
+| Email/Google login | `auth-local-staging.md`: Supabase provider configuration and redirects |
+| Collection and media | `stamp-verification.md`: existing server-only `SUPABASE_SERVICE_ROLE_KEY`; shared by both features |
+| Contribution forms | `contribution-intake.md`: `CONTRIBUTE_SCRIPT_URL`, `CONTRIBUTE_SHARED_SECRET`, `TURNSTILE_SECRET_KEY` |
+| Private media | `media-uploads.md`: private environment-separated R2 buckets, `MEDIA_BUCKET`, `MEDIA_ENV`, and `PHOTO_IMAGES` for JPEG |
+
+Keep runtime secrets in the staging Worker, not browser/build variables. The
+workflow does not provision these dashboard settings. A green deployment smoke
+is not acceptance of every configured feature. Never reuse production secrets.
 
 ## Deployment
 
@@ -65,8 +82,9 @@ accessibility, reduced-motion, database-reset, and Cloudflare-build suites.
 
 ## Catalogue boundary
 
-`api-demo` is staging-only and accepts only records already marked
+`api-demo` is staging-only and additionally accepts demo records marked
 `sourceQuality: "demo"` with their own fixture notice and `demo_fixture` evidence.
+It also accepts valid sourced records; it is not a demo-only catalogue filter.
 It does not transform demo provenance into a real source kind. Production uses
 `api`, which fails closed on those records. Production catalogue import remains
 Milestone 6/7 work and is not performed by this deployment.

@@ -1,8 +1,26 @@
 # Nib Atlas Data Model
 
-**Status:** Production-shaped MVP model
-**Version:** 1.3
-**Last updated:** 12 September 2026
+**Status:** Implemented MVP schema with explicitly marked planned entities
+**Version:** 1.4
+**Last updated:** 15 September 2026
+
+## Implementation status
+
+This is a domain summary, not an exact SQL column/grant reference. The ordered
+[migrations](supabase/migrations/README.md) establish the implemented schema;
+feature API contracts establish what callers can access. A migrated table does
+not imply a complete UI, public endpoint or hosted runtime acceptance.
+
+| Entities | Repository status |
+| --- | --- |
+| `profiles`, `saved_shops` | Implemented account tables with owner-scoped access |
+| `localities`, `shops`, `shop_aliases`, `shop_links`, `shop_images`, attributes/join tables, `shop_sources`, `shop_source_claims` | Implemented catalogue tables; public access uses bounded safe projections. `shop_images` existence does not mean photo attachment/delivery is complete |
+| `stamps`, `stamp_artwork_versions`, `stamp_collections` | Implemented versioned artwork and immutable collection foundations; commissioned upload/approval delivery remains incomplete |
+| `verification_attempts`, `stamp_private` policy/nonces/rate buckets | Implemented internal verification records, not direct public APIs |
+| `admin_audit_log`, `shop_working_copies`, `media_uploads` | Implemented restricted internal records, accessed through controlled operations |
+| `import_batches` | Planned for M6 WP4; no migration/table yet |
+| `contributions` | Planned database moderation model; current forms use Worker → Apps Script → Google Sheets |
+| Campaign entities and `stamps.campaign_id` | Future only; not migrated |
 
 ## Modelling principles
 
@@ -284,7 +302,7 @@ can access diagnostics; controlled server functions own these records.
 
 Default retention: 30 days, automatically purged. Extend only after an explicit privacy decision.
 
-### `import_batches`
+### `import_batches` — planned, not migrated
 
 `id`, source filename/key, content hash, contract version, imported by/at, dry-run flag, row counts, error report key, status.
 
@@ -292,13 +310,19 @@ Enables repeatable and auditable countrywide data operations.
 
 ### `admin_audit_log`
 
-`id`, actor, action, entity type/id, before summary, after summary, request ID, created timestamp. Append-only to editors.
+`id`, actor, action, entity type/id, before summary, after summary, request ID,
+created timestamp. Implemented internal append-only audit: controlled server
+operations write; admins use a bounded read RPC. Editors have no direct table
+append/read access. See the M6 implementation sections below.
 
 ## Contributions
 
-Schema is defined for compatibility, but migration/UI can be deferred until Phase 2.
+The database model below is planned, not migrated. Suggestion/correction forms
+already exist and write to Google Sheets through the Worker and Apps Script; see
+`docs/runbooks/contribution-intake.md`. Database-backed review/apply tooling is
+deferred to Phase 2.
 
-### `contributions`
+### `contributions` — planned, not migrated
 
 - `id`
 - `submitter_id null`
@@ -349,7 +373,12 @@ Query strategy:
 8. At launch scale, allow MapLibre client clustering of a bounded GeoJSON set.
 9. At global/tens-of-thousands scale, add server-side zoom-dependent clustering or vector tiles without changing the frontend domain contract.
 
-Cache public viewport results by rounded bounds + zoom + filter hash. Fetch/merge user-specific saved and visited IDs separately so public data remains cacheable.
+Current public catalogue HTTP responses and Supabase fetches use `no-store`;
+see `docs/adr/0012-shop-administration.md`. New requests read current catalogue
+state; already-open results refresh through explicit reload/search. Per-request
+memoization remains. Cross-request caching by bounds/zoom/filter is a future
+optimization requiring reliable invalidation. Continue to fetch/merge private
+saved and visited state separately.
 
 ### Near Me and collection verification
 

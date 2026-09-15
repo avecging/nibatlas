@@ -2,7 +2,8 @@
 
 **Status:** Planned; execute immediately before closed beta  
 **Target:** Nib Atlas staging/beta deployment  
-**Owner:** Codex for configuration/code handoff; founder owns tester allowlist  
+**Owner:** GPT implementation and review coordination per `AGENTS.md`; founder owns tester allowlist
+
 **Last updated:** 26 August 2026
 
 ## Decision
@@ -93,7 +94,8 @@ Access will block the existing unauthenticated Playwright staging smoke test. Be
 6. Rotate the token after the beta or immediately on suspected exposure.
 7. Keep production unable to consume staging credentials.
 
-Codex should prepare and review this workflow change in a separate infrastructure PR. It is not part of Claude Code's Milestone 1 frontend PR.
+Prepare this workflow change in a focused infrastructure PR with independent
+review under `AGENTS.md`. Do not bundle it with unrelated frontend work.
 
 ### 5. Verify before invitations
 

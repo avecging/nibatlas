@@ -63,12 +63,16 @@ private until their existing active-approved-stamp publication prerequisite is m
 
 WP3 private R2/PNG transport is merged (#62/#63). The founder reports separate
 bucket setup/deployment worked and the original PNG now completes as `validated`.
-The current verified baseline is `65e249f21815a94fa926b1cb936354e56404b35b`,
-CI run 34838929027 and staging run 34838944866, both successful.
 The draft-create fix (#65) is confirmed separately from broader admin acceptance.
 
-The next bounded WP3 slice adds safe JPEG shop-photo intake, separate input/output
-identity and private finalization. CI/review/merge and remote Images/R2 acceptance
-remain pending for that draft. Photo attachment, public delivery and founder UI,
-SVG/source validation and commissioned approval remain later WP3 work. #32/#19/#28
-are not complete. Photo display acceptance has not happened. WP4 remains imports.
+JPEG shop-photo intake is merged in #66 and deployed to staging at
+`4d4949ab211734a109ec011a4f4988f5d3c52b13`; main CI 34923140046 and staging run
+34950217860 succeeded. Remote Images/R2/finalization acceptance remains;
+continue from `jpeg-intake-handoff.md`. Photo attachment, public delivery and
+founder UI, SVG/source validation and commissioned approval remain later WP3
+work. #32/#19/#28 are not complete. Photo display acceptance has not happened.
+WP4 remains imports.
+
+Passport animation stays in place for launch despite founder-reported roughness.
+[Issue #68](https://github.com/avecging/nibatlas/issues/68) tracks post-launch
+investigation, polish and resolution of the opening-geometry specification.

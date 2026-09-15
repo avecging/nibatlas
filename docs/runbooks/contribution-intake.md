@@ -252,23 +252,30 @@ spreadsheet — which makes that account's owner the party responsible for it. T
 privacy policy names Google as the recipient and states the retention period. If
 that account changes, the privacy policy has to change with it.
 
+## Keep the working setup
+
+Reuse the current spreadsheet, Apps Script project, deployment URL and secrets.
+No replacement, redeployment or secret rotation is needed for this documentation
+correction. The setup steps above are for initial setup or a diagnosed repair,
+not instructions to rebuild a working intake.
+
 ## Later, when production exists
 
-Nothing in this runbook creates or assumes a production Worker. When
-`nibatlas-production` is actually created, this becomes a deployment step rather
-than a setup step:
+Production setup is a separate launch task; this runbook does not create it or
+require a replacement for the existing intake. Decide then whether the existing
+intake becomes production's intake or remains staging's. If staging continues
+accepting test submissions alongside production, give that test intake its own
+Apps Script project, spreadsheet and secret so test and real submissions remain
+separate. The existing setup can be retained for either role.
 
-1. Add the production hostname to the Turnstile widget's hostname list. A widget
-   renders on listed hosts only, so this has to happen before the first
-   production build, not after it.
-2. Decide whether production shares this spreadsheet and Apps Script deployment
-   or gets its own. Sharing is simpler and keeps one review queue; separating
-   keeps test submissions out of the real one. Either way the shared secret
-   should differ between environments, so a leak from one does not write to the
-   other.
-3. Set the same three secrets with `--env production`, plus
-   `NEXT_PUBLIC_TURNSTILE_SITE_KEY` wherever the production build runs — it is
-   read at build time, so a runtime secret alone leaves the widget absent and
-   every submission refused.
-4. Confirm the production privacy copy still names the right Google account as
-   the recipient, if the spreadsheet's owner changed.
+The current script reads one project-level `CONTRIBUTE_SHARED_SECRET` and writes
+to its bound spreadsheet. Two deployments of that same project do not create
+independent secrets or destination sheets. Do not overwrite the working project's
+property while expecting its other deployment to keep the old value.
+
+When production is configured, add its hostname to Turnstile and set
+`NEXT_PUBLIC_TURNSTILE_SITE_KEY` for the production build. Configure the same
+three server-only Worker secrets from step 4 for the production environment.
+Verify the intended destination sheet and privacy copy. If two environments
+operate, verify they cannot write to each other's intake. No live configuration
+changes are part of this documentation update.

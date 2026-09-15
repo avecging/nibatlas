@@ -162,12 +162,18 @@ Time spent, feed depth, and daily streaks are not north-star measures.
 - Listings added merely to imply worldwide scale, satisfy a country count, or fulfil a public rollout promise.
 - Monetary or redeemable value attached to stamps.
 
+## Existing contribution intake
+
+Shop suggestions and listing corrections already use public forms, a protected
+Worker forwarding path and a Google Sheets review queue. They never overwrite
+canonical records. See `docs/runbooks/contribution-intake.md` for operations.
+The later moderation platform/database is separate from this existing intake.
+
 ## Phase 2 candidates
 
 Phase 2 begins only after evidence shows that the core discovery-and-collection loop is useful.
 
-- Moderated missing-shop and correction submissions.
-- Contribution review queue.
+- Database-backed contribution moderation and review/apply tooling beyond the existing Sheets queue.
 - Named saved-shop trips.
 - Community tips and authorized photo contributions.
 - Accessibility detail and richer structured services.

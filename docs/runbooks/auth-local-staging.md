@@ -44,8 +44,9 @@ place its secret only in an ignored local environment file referenced by
 
 ## Hosted staging checklist
 
-These are dashboard actions for the existing **nibatlas-staging** project. They
-are deliberately deferred to WP6 so WP2 cannot alter hosted infrastructure.
+These are setup/recovery actions for **nibatlas-staging**. Check existing settings
+before changing them; the application auth flow is implemented. Do not reset
+working provider configuration merely because an older milestone called it pending.
 
 ### URL configuration
 
@@ -84,7 +85,7 @@ fill up with replies to one. So **do not** set reply-to to `hello@nibatlas.com`
 — that is the mailbox this decision exists to keep clear. Treat `login@` as
 unmonitored: nobody reads what arrives there.
 
-Until WP6 has configured and verified that sender, the interface deliberately
+Until hosted delivery has verified that sender, the interface deliberately
 says only to look for a Nib Atlas sign-in message. Do not name `login@` in the
 sent state before hosted delivery proves that it is the address recipients
 actually see.
@@ -119,8 +120,8 @@ and one validated pending intent:
 
 The flow is held in a short-lived, HttpOnly, SameSite=Lax cookie. A successful
 callback converts only the intent into a ten-minute pending cookie and clears the
-flow cookie. Failed and expired callbacks clear both. WP5 will consume a
-deferred Save once; Collect returns to its shop preflight and does not request
+flow cookie. Failed and expired callbacks clear both. The saved-shop flow consumes
+a deferred Save once; Collect returns to its shop preflight and does not request
 location during the callback.
 
 ## Rollback

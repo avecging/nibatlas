@@ -41,7 +41,20 @@ Passport has four presentation states:
 
 Opening and turning are distinct transitions. The implementation must not reuse a generic card flip with different labels.
 
-Persist the user's current logical page **durably, per device** — not for one browser session. Returning from a shop opens the Passport at the page the reader left, and a later visit resumes the last spread read, unless the user explicitly chooses the cover. Remember it as content the page holds rather than as a page number: page numbers move as the collection grows.
+Remember position as content, not a page number: pagination changes as the
+collection grows. Storage depends on the collection source:
+
+- **Account/API mode:** keep place, collection anchor and list scroll position in
+  owner-scoped memory only. Returning from a shop within that mounted account
+  restores the position. Reload or owner disposal does not promise restoration;
+  sign-out/account changes discard it. Never write account geography, impression
+  IDs or scroll position to local storage.
+- **Fixture/reviewer mode:** its audience-separated device store may persist the
+  simulated collection's reading position across reloads and browser sessions.
+- List/Book choice and whether the cover was opened may persist per device in
+  either mode; these preferences do not identify visited places.
+
+See `docs/api/collections-v1.md` for the account boundary.
 
 Book mode is one of two peer presentations of the same collection; `UX.md` covers the List mode this specification does not describe.
 
@@ -64,7 +77,13 @@ The cover treatment should include the Nib Atlas mark and title with restrained 
 
 ### Opening
 
-- The spine stays fixed in world space.
+**Launch exception (15 September 2026):** keep the existing animation. The founder
+reports that it works but remains jerky. Smoothness and the conflict between the
+original fixed-position requirement below and whole-Passport centring are deferred
+to [post-launch issue #68](https://github.com/avecging/nibatlas/issues/68). The original rule below is not a pre-launch
+rewrite instruction, and retaining the animation is not full visual acceptance.
+
+- Original target, deferred for resolution: the spine stays fixed in world space.
 - The front cover rotates around its bound left edge.
 - The cover's right edge travels in an arc; the cover does not scale through zero, mirror, dissolve, or rotate around its centre.
 - Reveal the page block progressively as the cover opens.
@@ -207,4 +226,7 @@ If 3D transforms or pointer events are unavailable, show the same semantic pages
 10. Keyboard and labelled controls complete the same journey.
 11. Reduced motion removes spatial animation without removing content.
 12. Returning from a stamp's shop restores the prior Passport context, including the exact page when a locality spans more than one.
-13. A remembered page survives a reload and a new browser session on the same device.
+13. Fixture/reviewer reading position survives reload and a new browser session.
+14. Account reading position survives route navigation in owner-scoped memory,
+    never enters device storage, and is discarded on owner disposal. Device
+    List/Book preference may persist without private geography.

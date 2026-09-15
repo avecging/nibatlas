@@ -99,7 +99,11 @@ Lock-in: low for data, moderate for Auth/RLS integration. Database contents are 
 - Query only committed viewport bounds.
 - Handle antimeridian explicitly.
 - Cap individual shop results.
-- Cache public projections by rounded viewport, zoom, and filter hash.
+- Public catalogue HTTP responses and Supabase fetches use `no-store` so new
+  requests see current publication/closure state. Per-request memoization remains.
+  Cross-request caching is deferred until reliable invalidation is designed and
+  measured; see `docs/adr/0012-shop-administration.md`. Already-open results
+  refresh through the existing reload/search flow, not automatic live updates.
 - Merge authenticated saved/visited state separately.
 - Move low-zoom aggregation to server clusters/PostGIS vector tiles only when density requires it.
 
@@ -282,10 +286,9 @@ Run on every PR:
 
 - `main`: production/deployable source of truth.
 - `staging`: optional integration/promotion branch; keep short-lived and regularly synchronized.
-- `agent/claude-*`: Claude Code frontend work.
-- `agent/codex-*`: Codex backend/platform work.
+- Short-lived task branches: GPT implements end to end and initiates review per `AGENTS.md`.
 
-Prefer short-lived branches and PRs over permanent `claude/frontend` and `codex/platform-foundation` branches, which drift and create integration debt. Only one agent edits migrations, root package configuration, generated types, deployment configuration, or CI in a given milestone.
+Prefer short-lived branches and PRs over permanent `claude/frontend` and `codex/platform-foundation` branches, which drift and create integration debt. Coordinate concurrent edits to migrations, root package configuration, generated types, deployment configuration and CI; no conductor/orchestrator is currently onboarded.
 
 ## Security and privacy baseline
 

@@ -25,12 +25,11 @@ private user data boundaries, or functions that have not been built yet.
   another cookie client after checking access and use it for the operation.
 - `GET /api/v1/admin/access` permits editor/admin; everyone else gets 401/403.
 - `GET /api/v1/admin/audit?after=<UUID>` permits admin only. The audit RPC checks
-  the live role again inside its security-definer read. Editors do not need
-  account-role history to edit catalogue data in a later package.
+  the live role again inside its security-definer read. Editors do not need account-role history to edit catalogue data.
 - Both endpoints are dynamic, private/no-store, return allowlisted fields and
   generic failures, and reject unexpected parameters. There are no mutation
-  verbs. Future writes require same-origin checks, narrow contracts, a fresh
-  role check inside their transaction and atomic audit; this read guard alone
+  verbs. Catalogue/media writes require same-origin checks, narrow contracts, a fresh
+  role check inside their transaction and atomic audit; the access read guard alone
   is not a write-security implementation.
 - Direct audit table access is denied to anon/authenticated/service-role clients.
   Profile role UPDATE/INSERT/DELETE is removed from the service role; existing
@@ -86,7 +85,7 @@ select public.assign_profile_role('PASTE-USER-UID'::uuid, 'admin');
    changes to take effect.
 7. Open `/api/v1/admin/audit` on that same site. Expect the assignment event with
    `database_operator`, the previous role and `admin`. Keep this account history
-   private. The admin editing interface comes in a later package.
+   private. The catalogue interface is `/admin/shops`; see `shop-administration.md`.
 8. Sign out (or use a signed-out browser) and reopen the access/audit endpoints.
    Expect `authentication_required`, with no audit rows. An ordinary signed-in
    account gets `forbidden`.
@@ -104,19 +103,16 @@ provider error redaction and explicit nested projection. SQL tests cover RLS,
 direct-request grants, audited assignment, no-op assignment, immutable history,
 role spoofing and revocation with the same JWT.
 
-Catalogue edit/preview/publish/close, canonical-change audit hooks, commissioned
-approval/credits/R2, photo processing, imports/deduplication/dry runs and anomaly
-review are later focused packages. This role foundation grants no new direct
-canonical-table writes, private Passport reads or verification diagnostics access.
+Current catalogue operations use same-origin requests, live role locks,
+revision checks and atomic audit. The audit projects catalogue status/fingerprint
+summaries as well as role changes. Use `shop-administration.md` for operations,
+`../api/admin-shops-v1.md` for the wire contract, and `media-uploads.md` for media.
+Role assignment remains operator-only and audit reads admin-only.
 
-## M6 WP2 extension
+## Historical incident records — read only for a related regression
 
-Shop operations are now at `/admin/shops`; see [the operating guide](shop-administration.md).
-The restrictions described above as future writes are implemented for shop
-catalogue operations: editor/admin only, same-origin requests, live role locks,
-revision checks and atomic audit. The audit endpoint also projects catalogue
-status/fingerprint summaries. Role changes remain operator-only, audit read
-remains admin-only, and artwork/media/import work remains separate.
+The records below explain PR #64/#65. Current setup above and founder acceptance
+below take precedence over their original pending/deferred wording.
 
 ## M6 catalogue-access regression (14 September 2026)
 
@@ -172,7 +168,7 @@ mocked browser routes are involved.
 
 ## Founder acceptance update — 14 September 2026
 
-The draft-create fix is founder-confirmed. Broader shop-admin acceptance remains
-separate in `shop-administration.md`. PNG finalization and the physical-phone
-checklist are also founder-reported successful; neither implies photo display
-acceptance. Do not restart PR #64/#65 investigations without new evidence.
+The draft-create fix is founder-confirmed. The current acceptance record and
+remaining shop-operation checks are in `shop-administration.md`. Do not restart
+PR #64/#65 investigations without new evidence. Phone acceptance belongs in
+`staging-phone-test.md`; media acceptance belongs in `media-uploads.md`.

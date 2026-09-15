@@ -57,7 +57,9 @@ The mark should feel drawn and owned, not assembled from a stock nib icon and a 
 
 ### Required production work
 
-The deck concept is a construction direction, not final vector artwork. Before public launch, produce a custom SVG master and test it at:
+The founder mark is implemented in `src/components/brand/NibAtlasMark.tsx`.
+Preserve it. Before public launch, validate the mark and any needed simplified
+small-size variant at:
 
 - 16 px favicon;
 - 24–32 px navigation mark;
@@ -148,11 +150,8 @@ Brass is not a default button or status colour.
 
 ### Plum is the collection action, not the impression
 
-Recorded 28 August 2026, from the founder's staging review of Milestone 1.5 WP4.
-
-`Collect Stamp` was Vermilion before anything had been collected, which made an
-invitation read as a warning and collapsed the action and its outcome into one
-colour. The uncollected action is now solid Plum:
+Use solid Plum for the uncollected action. It distinguishes the invitation
+from the Vermilion collected result.
 
 - **Reserved.** Plum is for stamp-collection actions. Nothing else in the
   interface may claim it.
@@ -203,8 +202,6 @@ as in the amber outline.
 
 ### Operational status has three levels of attention
 
-Recorded 30 August 2026, from the second staging review of Milestone 1.5 WP4.
-
 | Status | Treatment |
 | --- | --- |
 | Open | `success` on `success-surface`, check icon |
@@ -236,16 +233,8 @@ interaction values, not standalone colours for arbitrary component use.
 
 ### Impression material
 
-Recorded 31 August 2026, from Milestone 1.5 WP5.
-
-An Atlas Stamp is ink on paper, and the paper is part of the artefact. Before
-WP5 each surface supplied its own: the collection ceremony drew a bordered paper
-ground, the Passport's enlarged overlay drew the impression straight onto the
-dialog, and List rows and book pages drew it onto whatever happened to be
-behind. Three approximations of one idea, so the enlarged Passport impression
-and the collected impression a shop page shows did not read as the same object.
-
-The stock is now declared once and consumed by one shared plate.
+Use the shared impression plate and its stock across collection and Passport
+surfaces. A book page supplies its own paper. Keep these tokens centralized.
 
 | Semantic token | Value | Usage |
 | --- | --- | --- |
