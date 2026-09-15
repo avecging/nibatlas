@@ -42,11 +42,7 @@ The following are historical, not required reading or current instructions:
   Do not regenerate historical captures as routine verification.
 
 `docs/future/` contains deferred ideas, not implementation requirements.
-`docs/runbooks/jpeg-intake-handoff.md` and the JPEG handoff paragraphs in the plan
-and launch backlog are awaiting the founder's decision on audit item 6; verify
-live PR/CI state before following session instructions there.
-
-Pending audit decisions: item 9 (book opening geometry), item 10 (catalogue
-caching), and item 14 (implemented versus planned database model). Do not silently
-resolve these conflicts during unrelated work. Item 8's account-memory boundary
-is approved and recorded in the Passport specification.
+JPEG runtime verification continues from `docs/runbooks/jpeg-intake-handoff.md`;
+the code is already merged and deployed to staging. Passport animation polish and
+the opening-geometry decision are deferred until after launch in [issue #68](https://github.com/avecging/nibatlas/issues/68).
+Keep the current animation until that work is scheduled.

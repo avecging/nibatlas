@@ -99,7 +99,11 @@ Lock-in: low for data, moderate for Auth/RLS integration. Database contents are 
 - Query only committed viewport bounds.
 - Handle antimeridian explicitly.
 - Cap individual shop results.
-- Cache public projections by rounded viewport, zoom, and filter hash.
+- Public catalogue HTTP responses and Supabase fetches use `no-store` so new
+  requests see current publication/closure state. Per-request memoization remains.
+  Cross-request caching is deferred until reliable invalidation is designed and
+  measured; see `docs/adr/0012-shop-administration.md`. Already-open results
+  refresh through the existing reload/search flow, not automatic live updates.
 - Merge authenticated saved/visited state separately.
 - Move low-zoom aggregation to server clusters/PostGIS vector tiles only when density requires it.
 

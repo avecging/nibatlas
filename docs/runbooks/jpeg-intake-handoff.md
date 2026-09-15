@@ -1,9 +1,14 @@
-# M6 WP3 JPEG intake — draft review handoff
+# M6 WP3 JPEG intake — staging verification handoff
 
-Base inspected: `65e249f21815a94fa926b1cb936354e56404b35b`. No open PRs at the
-start. Main CI 34838929027 and staging 34838944866 were successful. Issues #32,
-#19 and #28 were read together; the current illustration guide takes precedence
-over old compact-proof/texture wording. WP4 remains catalogue imports.
+## Current status — 15 September 2026
+
+PR #66 is merged as `4d4949ab211734a109ec011a4f4988f5d3c52b13`.
+Main CI [34923140046](https://github.com/avecging/nibatlas/actions/runs/34923140046)
+and staging deployment [34950217860](https://github.com/avecging/nibatlas/actions/runs/34950217860)
+succeeded. Review/merge/deployment are complete; they do not prove that a JPEG
+has passed through the remote Images → private R2 → finalization path. That
+runtime check remains outstanding. Photo attachment/delivery/UI are later work;
+photo display has not been accepted. WP4 remains catalogue imports.
 
 ## Implemented
 
@@ -21,7 +26,7 @@ over old compact-proof/texture wording. WP4 remains catalogue imports.
 - Updated developer chooser and acceptance notes. Founder-reported PNG and phone
   success are carried forward; broad shop-admin and photo display are separate.
 
-## Local evidence
+## Historical local evidence — pre-merge
 
 - Full Vitest suite: 87 files / 1,129 tests passed before final focused additions.
 - Final HTTP tests: 38 passed, including metadata-bearing processor-output
@@ -47,20 +52,17 @@ remote decoder behavior remains an explicit staging verification item.
 
 ## Next session
 
-1. Inspect this draft PR's latest head, CI, review comments and main; continue it.
-   Review the new SQL migration/test and existing PNG regression/reset gates.
-2. Fix actionable findings without restarting resolved admin investigations or
-   adding competing workflows. Re-run only affected/failed checks.
-3. Check all established gates, including Worker authentication, pass on the
-   final head; mark ready and squash-merge only when review/merge gates pass.
-4. Confirm Images account enablement, then use the existing staging deployment
-   (additive migration first). Keep R2 private. No new secret is required.
-5. Verify remote JPEG → private processed PNG → independent finalization, using
+1. Inspect current main and staging deployment state; do not repeat PR #66's
+   completed review/merge steps. Check for newer runtime evidence before testing.
+2. Confirm Images account enablement and the deployed additive migration/binding.
+   Keep R2 private. The existing setup requires no new secret.
+3. Verify remote JPEG → private processed PNG → independent finalization, using
    synthetic metadata/orientation fixtures and a rights-cleared founder photo.
    Verify exact output bytes contain only IHDR/IDAT/IEND, correct orientation and
-   bounded size. Treat any failure as a blocker for calling JPEG runtime accepted.
-6. Record what actually passed. Do not repeat the accepted PNG or phone checklist
-   without new evidence. Photo display waits for attachment/delivery/UI.
+   bounded size. Treat failure as a blocker for JPEG runtime acceptance.
+4. Record the tested deployment and actual results. Fix concrete failures through
+   normal review/CI gates. Do not repeat accepted PNG/phone tests without a reason.
+   Photo display still waits for attachment/delivery/UI and separate acceptance.
 
 Keep #17 before real-catalogue launch and #27 with geographic seal delivery.
 Preserve every impression and duplicate protection. Source/SVG/commissioned

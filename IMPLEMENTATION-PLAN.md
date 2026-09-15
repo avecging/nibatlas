@@ -22,12 +22,14 @@ is the shared working contract. This assignment covers every milestone; frontend
 | M1.5 | WP1–WP7 implemented; preserve the historical record unchanged. WP-D desktop review still needs founder feedback. |
 | M5 | Verification and account collection integration implemented. Geographic seal persistence/versioned coverage sets and broader indoor field validation remain outstanding. |
 | M6 WP1/WP2 | Authorization/audit and shop operations implemented. Founder confirmed draft creation; broader admin acceptance is separate. |
-| M6 WP3 | Active media/artwork package. Use the media API and runbook for capabilities. JPEG handoff/status wording is awaiting the founder's decision on audit item 6; inspect current PR/CI before continuing it. |
+| M6 WP3 | Active media/artwork package. JPEG intake merged in #66 and deployed to staging; remote Images/R2/finalization acceptance remains. Continue from `docs/runbooks/jpeg-intake-handoff.md`; attachment, delivery and photo UI follow. |
 | M6 WP4 | Catalogue imports, validation, dry runs and deduplication follow media/artwork. |
 | M7/M8 | Catalogue quality, production setup, account export/deletion, monitoring, backup/restore, rollback and launch acceptance remain. October 2026 launch is the priority. |
 
-Read `docs/runbooks/launch-backlog.md` for existing issue dispositions, with its
-JPEG session instructions subject to the pending clarification above. Acceptance
+Passport animation remains in place for launch despite known roughness;
+[issue #68](https://github.com/avecging/nibatlas/issues/68) tracks post-launch investigation and the opening-geometry decision.
+
+Read `docs/runbooks/launch-backlog.md` for existing issue dispositions. Acceptance
 records live with the feature: shop-admin in its runbook, phone checks in
 `staging-phone-test.md`, PNG/JPEG transport in `media-uploads.md`. Do not infer
 untested behavior from a neighboring feature's success.
@@ -531,14 +533,9 @@ still requires the publication audit; private agreements, personal information,
 artwork rights and catalogue licensing boundaries in `CONTRIBUTING.md` and
 `NOTICE.md` remain in force.
 
-## JPEG handoff wording awaiting clarification
+## JPEG continuation
 
-The following existing handoff is retained pending the founder's audit-item-6
-response. It is not a current-state assertion; verify PR/CI/deployment state.
-
-The next WP3 draft implements JPEG shop-photo processing with Cloudflare Images,
-bounded orientation/resize/metadata-free output, separate immutable input/output
-identity and independently validated finalization. It uses the existing CI gates;
-review/merge and remote staging runtime verification follow in the next session.
-Attachment/public delivery and the simple founder photo interface follow later.
-No commissioned artwork is processed or replaced. WP4 remains imports.
+PR #66 is merged and deployed to staging. Continue remote runtime verification
+from `docs/runbooks/jpeg-intake-handoff.md`; do not reopen the completed merge
+steps. Attachment/public delivery and the founder photo interface remain later
+WP3 work. No commissioned artwork is processed or replaced. WP4 remains imports.

@@ -77,7 +77,13 @@ The cover treatment should include the Nib Atlas mark and title with restrained 
 
 ### Opening
 
-- The spine stays fixed in world space.
+**Launch exception (15 September 2026):** keep the existing animation. The founder
+reports that it works but remains jerky. Smoothness and the conflict between the
+original fixed-position requirement below and whole-Passport centring are deferred
+to [post-launch issue #68](https://github.com/avecging/nibatlas/issues/68). The original rule below is not a pre-launch
+rewrite instruction, and retaining the animation is not full visual acceptance.
+
+- Original target, deferred for resolution: the spine stays fixed in world space.
 - The front cover rotates around its bound left edge.
 - The cover's right edge travels in an arc; the cover does not scale through zero, mirror, dissolve, or rotate around its centre.
 - Reveal the page block progressively as the cover opens.
