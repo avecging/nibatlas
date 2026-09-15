@@ -1,8 +1,10 @@
 # Real-phone staging collection test
 
-Status: initial founder phone feedback received; remaining checklist items are
-**pending**. Photos are a later M6 acceptance test. This is a real supermarket used as a staging test
-venue, not a pen shop, partner, endorsement, or real catalogue coverage.
+Status: founder-reported physical-phone checklist success (14 September 2026).
+No device/browser version, timings or individual checklist observations were
+supplied with this update. Do not require repetition solely because earlier
+notes said pending. Photos are a later M6 **display** acceptance test. This is a
+real supermarket staging venue, not a pen shop or real catalogue coverage.
 
 ## Public venue evidence (checked 12 September 2026)
 
@@ -105,11 +107,11 @@ sourced venue point and existing verification policy, corrects marker positionin
 and gives an outside-area refusal only **Try again** and **Cancel**.
 
 The founder separately confirmed a successful indoor collection. This confirms
-one interior success, not a complete entrance-versus-interior comparison. Permission
-recovery, interruption/backgrounding, duplicate/reload persistence and sign-out
-isolation still need explicit field results. The existing impression is immutable;
-use the account/order instructions above for any further GPS checks. Recheck the
-map after deployment at the opening zoom, then zoom in and out. Groups of shops
+one interior success. The founder subsequently reported that the physical-phone
+checklist worked. Record that overall result without inventing individual
+permission, interruption, duplicate/reload or sign-out observations. Existing
+impressions remain immutable; use the account/order instructions only if new
+evidence requires further GPS checks. Groups of shops
 may legitimately appear as numbered clusters until they separate.
 
 ## Photo acceptance — deferred until M6 R2 delivery

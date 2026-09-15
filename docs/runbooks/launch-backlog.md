@@ -51,19 +51,24 @@ umbrella #34 is also closed; production authentication remains separate launch w
 | #13 — sharing | After launch; requires placement/privacy decisions, especially for Passport and artwork. |
 | #14 — trips | After launch; a substantial separate feature. |
 
-The broader launch gates still include real-phone checks, production setup,
-privacy/account lifecycle, monitoring and catalogue quality. One successful
-indoor staging collection does not complete the remaining phone checklist.
+The broader launch gates still include production setup, privacy/account
+lifecycle, monitoring and catalogue quality. The founder reports the physical-phone
+checklist worked; do not reopen it solely because earlier notes said pending.
 
 M6 WP2 implements shop operations in `docs/runbooks/shop-administration.md`.
 Issue #30 semantics are documented in ADR 0012; phone/postal/record-review fields
-remain intentionally omitted publicly. The remaining phone checklist is unchanged.
+remain intentionally omitted publicly. The physical-phone checklist is founder-reported successful.
 Next implementation is M6 WP3 artwork/media, then WP4 imports. New shops remain
 private until their existing active-approved-stamp publication prerequisite is met.
 
-WP3 first bounded slice is now drafted: private R2/PNG upload transport and audited
-server finalization, documented in `media-uploads.md`. SVG/source validation,
-artwork approval/attachment/public delivery and shop-photo processing/UI remain
-WP3 work. No issue #32/#19/#28 completion is claimed. Latest successful staging
-is PR #60 merge `25198d3c500bfeb4c4e609caf67dd093a4d27aff`, deployment run
-34767040059; founder admin and physical-phone acceptance remain pending.
+WP3 private R2/PNG transport is merged (#62/#63). The founder reports separate
+bucket setup/deployment worked and the original PNG now completes as `validated`.
+The current verified baseline is `65e249f21815a94fa926b1cb936354e56404b35b`,
+CI run 34838929027 and staging run 34838944866, both successful.
+The draft-create fix (#65) is confirmed separately from broader admin acceptance.
+
+The next bounded WP3 slice adds safe JPEG shop-photo intake, separate input/output
+identity and private finalization. CI/review/merge and remote Images/R2 acceptance
+remain pending for that draft. Photo attachment, public delivery and founder UI,
+SVG/source validation and commissioned approval remain later WP3 work. #32/#19/#28
+are not complete. Photo display acceptance has not happened. WP4 remains imports.

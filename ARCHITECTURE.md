@@ -429,3 +429,11 @@ and validates stored bytes before its service-only database RPC records a
 transport receipt with current-role enforcement and atomic audit. This is separate
 from approval/public delivery and changes no existing artwork or collection.
 See `docs/api/admin-media-v1.md` and `docs/runbooks/media-uploads.md`.
+
+WP3 JPEG shop-photo intake uses the Cloudflare `PHOTO_IMAGES` binding for decoding
+and bounded resizing before R2 storage, plus explicit server-side pixel orientation
+and metadata-free PNG encoding/validation. Native Node image libraries are not
+part of the Worker. The existing manifest gains separate processed-output identity
+reserved transactionally before conditional storage. PNG/artwork paths remain
+byte-preserving. Local Images emulation is verified separately from the required
+remote staging runtime check; see the media runbook.

@@ -442,3 +442,15 @@ access is revoked; the isolated Worker RPC enforces the live editor/admin role
 and uploader identity. Initiation/finalization append existing audit fingerprints;
 validated rows are immutable. Existing artwork, images and collections are not
 rewritten or attached by this foundation. See `docs/api/admin-media-v1.md`.
+
+### WP3 JPEG photo identity
+
+For JPEG shop photos, original `sha256`, `byte_size` and `content_type` remain
+input identity. Nullable `output_sha256`, `output_byte_size`, `output_width`,
+`output_height`, `output_content_type` describe a processed PNG. `storage_key`
+is initially null and reserved exactly once against the output hash before R2
+write, through the live-role, uploader/environment-isolated `prepare` operation.
+Input identity and reserved output are immutable; completed receipts retain the
+existing immutability trigger. PNG rows/keys remain unchanged. No source JPEG is
+stored. Preparation adds an audit fingerprint; retrying identical preparation
+or completed finalization adds no duplicate event. See the media API contract.

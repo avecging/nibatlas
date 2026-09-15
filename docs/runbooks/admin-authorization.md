@@ -169,3 +169,10 @@ account-attributed audit event. It also covers editor, ordinary/anonymous users,
 role revocation, and direct authenticated RPC creation. SQL tests now force
 constraints while still authenticated. No service-role application client or
 mocked browser routes are involved.
+
+## Founder acceptance update — 14 September 2026
+
+The draft-create fix is founder-confirmed. Broader shop-admin acceptance remains
+separate in `shop-administration.md`. PNG finalization and the physical-phone
+checklist are also founder-reported successful; neither implies photo display
+acceptance. Do not restart PR #64/#65 investigations without new evidence.
