@@ -282,10 +282,9 @@ Run on every PR:
 
 - `main`: production/deployable source of truth.
 - `staging`: optional integration/promotion branch; keep short-lived and regularly synchronized.
-- `agent/claude-*`: Claude Code frontend work.
-- `agent/codex-*`: Codex backend/platform work.
+- Short-lived task branches: GPT implements end to end; Claude reviews, per `AGENTS.md`.
 
-Prefer short-lived branches and PRs over permanent `claude/frontend` and `codex/platform-foundation` branches, which drift and create integration debt. Only one agent edits migrations, root package configuration, generated types, deployment configuration, or CI in a given milestone.
+Prefer short-lived branches and PRs over permanent `claude/frontend` and `codex/platform-foundation` branches, which drift and create integration debt. Coordinate concurrent edits to migrations, root package configuration, generated types, deployment configuration and CI; no conductor/orchestrator is currently onboarded.
 
 ## Security and privacy baseline
 

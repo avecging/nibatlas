@@ -1,8 +1,8 @@
 # Nib Atlas MVP Implementation Plan
 
-**Status:** Ready for GitHub-based execution
-**Version:** 1.3
-**Last updated:** 7 September 2026
+**Status:** Active implementation; see current-work table
+**Version:** 1.4
+**Last updated:** 15 September 2026
 
 ## Working model
 
@@ -10,13 +10,27 @@ All implementation happens in one GitHub repository. Repository documentation—
 
 ### Responsibility split
 
-| Area | Primary owner | Review/coordination |
-| --- | --- | --- |
-| Product direction, specifications, UX/design foundation, scope decisions | ChatGPT Work | Founder approval for genuine product changes |
-| Responsive frontend, components, design-system implementation, map UI, Passport UI, stamp ceremony | Claude Code | Codex checks contracts/integration |
-| Database, PostGIS, APIs, auth/infrastructure, CI, backend/integration tests, engineering review | OpenAI Codex | Claude reviews frontend contract impact |
+GPT owns end-to-end implementation; Claude reviews. The founder approves product
+and scope decisions. A conductor/orchestrator has not been onboarded. `AGENTS.md`
+is the shared working contract. This assignment covers every milestone; frontend work is not reserved for Claude.
 
-Neither coding agent may silently change `PRODUCT.md`, product invariants, database/API contracts, migrations, or responsibility boundaries. Proposed changes belong in a PR note or ADR.
+## Current work — documentation review, 15 September 2026
+
+| Area | State / next action |
+| --- | --- |
+| M0–M4 foundations | Implemented: app, catalogue reads, frontend integration, auth and saves. Production setup is separate. |
+| M1.5 | WP1–WP7 implemented; preserve the historical record unchanged. WP-D desktop review still needs founder feedback. |
+| M5 | Verification and account collection integration implemented. Geographic seal persistence/versioned coverage sets and broader indoor field validation remain outstanding. |
+| M6 WP1/WP2 | Authorization/audit and shop operations implemented. Founder confirmed draft creation; broader admin acceptance is separate. |
+| M6 WP3 | Active media/artwork package. Use the media API and runbook for capabilities. JPEG handoff/status wording is awaiting the founder's decision on audit item 6; inspect current PR/CI before continuing it. |
+| M6 WP4 | Catalogue imports, validation, dry runs and deduplication follow media/artwork. |
+| M7/M8 | Catalogue quality, production setup, account export/deletion, monitoring, backup/restore, rollback and launch acceptance remain. October 2026 launch is the priority. |
+
+Read `docs/runbooks/launch-backlog.md` for existing issue dispositions, with its
+JPEG session instructions subject to the pending clarification above. Acceptance
+records live with the feature: shop-admin in its runbook, phone checks in
+`staging-phone-test.md`, PNG/JPEG transport in `media-uploads.md`. Do not infer
+untested behavior from a neighboring feature's success.
 
 ## Definition of done for every milestone
 
@@ -32,9 +46,13 @@ Neither coding agent may silently change `PRODUCT.md`, product invariants, datab
 
 ## Milestone sequence
 
+M0–M5 sections below preserve the original scope and acceptance criteria as a
+reference. Their "do not build yet" lists applied at those milestones, not to
+current work. Use the current-work table above to choose the next task.
+
 ### Milestone 0 — Repository and engineering foundation
 
-**Owner:** Codex
+**Owner:** GPT implementation; Claude review; founder product acceptance.
 
 **Objective**
 
@@ -66,7 +84,7 @@ Create a reproducible, deployable skeleton with shared contracts and safe collab
 - Supabase local reset succeeds from empty migrations.
 - Cloudflare preview build succeeds.
 - No secrets are committed.
-- Both agents can identify ownership and source-of-truth documents.
+- Implementer and reviewer can identify ownership and source-of-truth documents.
 
 **Tests/checks**
 
@@ -85,8 +103,7 @@ Create a reproducible, deployable skeleton with shared contracts and safe collab
 
 ### Milestone 1 — Frontend interaction prototype
 
-**Owner:** Claude Code  
-**Codex supplies:** product/interaction specifications and integration review.
+**Owner:** GPT implementation; Claude review; founder product acceptance.
 
 **Objective**
 
@@ -134,7 +151,7 @@ Prove that map-first shop discovery and a tactile, believable Passport work resp
 - `pnpm build:cloudflare`.
 - Playwright coverage for map, sheet, collection, Passport, Me, Saved mode, keyboard, and reduced motion.
 - Manual real-device PWA review on iOS Safari and Android Chrome.
-- No frontend change to database migrations, API contracts, Cloudflare configuration, CI, or secrets.
+- No unrelated changes to migrations, API contracts, Cloudflare configuration, CI or secrets.
 
 **Explicitly deferred**
 
@@ -147,7 +164,7 @@ Prove that map-first shop discovery and a tactile, believable Passport work resp
 
 ### Milestone 2 — PostGIS data foundation and read APIs
 
-**Owner:** Codex
+**Owner:** GPT implementation; Claude review; founder product acceptance.
 
 **Objective**
 
@@ -195,7 +212,7 @@ Replace fixture-only domain assumptions with a production-shaped, secured data s
 
 ### Milestone 3 — Frontend/read-data integration
 
-**Owners:** Claude Code frontend; Codex API/integration
+**Owner:** GPT implementation; Claude review; founder product acceptance.
 
 **Objective**
 
@@ -236,7 +253,7 @@ Connect the approved map experience to real viewport contracts without regressin
 
 ### Milestone 4 — Authentication and saved shops
 
-**Owner:** Codex auth/backend; Claude Code auth interruption and Saved UI
+**Owner:** GPT implementation; Claude review; founder product acceptance.
 
 **Objective**
 
@@ -281,7 +298,7 @@ Add persistent personal planning without obstructing anonymous discovery.
 
 ### Milestone 5 — Atlas Stamp verification and Passport data
 
-**Owner:** Codex backend/security; Claude Code collection and Passport presentation
+**Owner:** GPT implementation; Claude review; founder product acceptance.
 
 **Objective**
 
@@ -332,7 +349,7 @@ Complete the real-world core loop with privacy-safe, idempotent collection.
 
 ### Milestone 6 — Founder admin and data import
 
-**Owner:** Codex platform/data; Claude Code admin presentation only as needed
+**Owner:** GPT implementation; Claude review; founder product acceptance.
 
 **Objective**
 
@@ -378,12 +395,12 @@ Make the catalogue maintainable without code deployments.
 **Do not build yet**
 
 - Merchant dashboard/claim workflow.
-- Public contribution forms.
+- A new contribution moderation platform; existing public forms/Sheets intake remain supported.
 - General-purpose CMS.
 
 ### Milestone 7 — Verified catalogue data and field test
 
-**Owners:** ChatGPT Work/founder for research criteria; Codex pipeline; Claude Code presentation fixes
+**Owner:** GPT implementation; Claude review; founder product acceptance.
 
 **Objective**
 
@@ -420,13 +437,13 @@ Populate a credible sourced catalogue and test the core loop in real conditions.
 
 **Do not build yet**
 
-- Additional countries.
-- Contributions/moderation.
+- Unsourced geographic expansion or public coverage promises; sourced records may be added in any country.
+- A new contribution moderation platform beyond the existing forms/Sheets intake.
 - Merchant or campaign features.
 
 ### Milestone 8 — Staging hardening and public MVP launch
 
-**Owner:** Codex release/infrastructure; Claude Code frontend quality; ChatGPT Work product acceptance
+**Owner:** GPT implementation; Claude review; founder product acceptance.
 
 **Objective**
 
@@ -471,7 +488,7 @@ Ship a secure, observable, accessible MVP with rollback and operating procedures
 
 ### Milestone 9 — Evidence-led post-launch review
 
-**Owner:** ChatGPT Work/founder with agent analysis support
+**Owner:** GPT implementation; Claude review; founder product acceptance.
 
 **Objective**
 
@@ -493,192 +510,31 @@ Likely routing:
 - collection retention → richer Passport/coverage statistics;
 - merchant demand → claim/official-stamp discovery work, not automatic build.
 
-## Recommended repository structure
+## Setup and verification references
 
-```text
-nibatlas/
-├── PRODUCT.md
-├── BRAND.md
-├── UX.md
-├── DATA-MODEL.md
-├── ARCHITECTURE.md
-├── IMPLEMENTATION-PLAN.md
-├── AGENTS.md
-├── CLAUDE.md
-├── README.md
-├── .env.example
-├── .github/
-│   ├── workflows/
-│   │   ├── ci.yml
-│   │   ├── deploy-staging.yml
-│   │   └── deploy-production.yml
-│   ├── pull_request_template.md
-│   └── CODEOWNERS
-├── app/
-│   ├── (public)/
-│   ├── (account)/
-│   ├── admin/
-│   └── api/v1/
-├── src/
-│   ├── components/
-│   │   ├── ui/
-│   │   ├── map/
-│   │   ├── shops/
-│   │   ├── passport/
-│   │   └── stamps/
-│   ├── features/
-│   ├── domain/
-│   ├── server/
-│   │   ├── adapters/
-│   │   ├── auth/
-│   │   └── services/
-│   ├── styles/
-│   └── test/
-├── public/
-│   ├── brand/
-│   └── fixtures/
-├── supabase/
-│   ├── migrations/
-│   ├── seed.sql
-│   └── tests/
-├── infra/
-│   └── cloudflare/
-├── scripts/
-│   ├── data-import/
-│   └── verify-env/
-├── docs/
-│   ├── adr/
-│   ├── api/
-│   ├── data-sourcing/
-│   └── runbooks/
-└── tests/
-    ├── e2e/
-    └── visual/
-```
+The application already exists. Use `docs/runbooks/local-development.md` for
+setup and the six established CI job names; use `docs/runbooks/staging-deployment.md`
+for staging configuration. Do not create another scaffold or duplicate workflow.
 
-## Founder setup checklist before coding
+Production setup remains M8: separate Supabase/Worker/R2 credentials, final
+hostnames and auth callbacks, SMTP/OAuth, spend/error alerts, backup/restore and
+rollback. Before closed beta follow `docs/runbooks/closed-beta-access.md`.
+Brand launch validation remains in `BRAND.md`; licensing in `NOTICE.md`.
 
-### GitHub
+Preserve PR-before-merge, required checks and conversation resolution; retain
+review approval when configured and squash merging. Do not weaken branch
+protection, allow force pushes/deletions, or skip secret/dependency scanning to
+complete a task. Production promotion requires its configured approval gate.
+Use least-privilege environment-scoped deployment tokens and origin-restricted
+MapTiler keys. Enable provider spend limits/alerts before launch. Public release
+still requires the publication audit; private agreements, personal information,
+artwork rights and catalogue licensing boundaries in `CONTRIBUTING.md` and
+`NOTICE.md` remain in force.
 
-1. Publish `avecging/nibatlas` under `AGPL-3.0-only` after the public-release audit passes. Keep branding, curated catalogue data, commissioned artwork, private agreements, personal information, and outreach records outside the software licence as recorded in `NOTICE.md`.
-2. Confirm both ChatGPT/Codex and the machine running Claude Code have repository access. Do not share personal access tokens in chat.
-3. After the foundation PR/initial commit exists, set the default branch to `main`.
-4. Create a branch ruleset for `main`:
-   - require pull request before merge;
-   - require at least one approval when a human reviewer is available;
-   - require conversation resolution;
-   - require status checks: `lint`, `typecheck`, `unit`, `db-test`, `e2e-smoke`, `cloudflare-build` once workflows exist;
-   - block force pushes and deletions;
-   - prefer squash merge.
-5. Enable secret scanning and Dependabot alerts/updates where available.
-6. Create labels: `area:frontend`, `area:backend`, `area:data`, `area:infra`, `area:brand`, `agent:claude`, `agent:codex`, `needs:decision`, `blocked`, `milestone:0` through `milestone:9`.
-7. If the GitHub plan supports private-repository Environments, create `staging` and `production`; restrict production deployments to `main` and require approval. GitHub documents private environments as requiring Pro/Team/Enterprise.
-8. Do not add application secrets until workflows name the exact variables.
+## JPEG handoff wording awaiting clarification
 
-### Cloudflare
-
-1. Add/confirm the intended domain in Cloudflare DNS; coding can begin before the final domain is chosen.
-2. Enable Workers and choose the Workers Paid plan before persistent staging/production deployment; local foundation work can start on Free.
-3. Create two Workers environments/services: `nibatlas-staging` and `nibatlas-production`.
-4. Create separate R2 buckets: `nibatlas-staging-images` and `nibatlas-production-images`.
-5. Enable Images transformations and decide a small fixed variant set during the image milestone.
-6. Create least-privilege API tokens for GitHub Actions:
-   - Workers Scripts edit;
-   - Workers R2 Storage edit only when deployment/import requires it;
-   - Zone/DNS read, not broad account admin;
-   - scoped to the Nib Atlas account/zone.
-7. Record `CLOUDFLARE_ACCOUNT_ID` and place deployment tokens only in GitHub environment secrets/Cloudflare secrets when requested by the workflow.
-8. Reserve `staging.<domain>` and production root/app hostname.
-9. Enable Web Analytics for production; use a separate dataset/marker for staging.
-10. Add spend/usage notifications for Workers, R2, Images, and MapTiler before public launch.
-11. Before closed beta, protect the beta Worker with Cloudflare Access using one-time PIN authentication and an exact tester-email allowlist. Preserve automated smoke tests with an Access service token; do not rely on a shared password or leave an unprotected workers.dev bypass. Follow `docs/runbooks/closed-beta-access.md`.
-
-### Supabase and MapTiler preparation
-
-Although the question emphasizes GitHub/Cloudflare, coding will also require:
-
-1. Create separate Supabase staging and production projects in the nearest practical region; local development uses Supabase CLI.
-2. Do not send database passwords, service-role keys, or recovery codes in chat.
-3. Enable PostGIS through migrations, not one-off dashboard state.
-4. Configure staging/production auth callback URLs only after hostnames exist.
-5. Create MapTiler development/staging and production keys with origin restrictions and spending limits.
-
-## Decisions required before implementation
-
-No unresolved product or architecture decision blocks Milestone 0 or Milestone 1.
-
-The following are later setup decisions, not reasons to pause coding:
-
-- final production domain/hostname before staging auth callbacks;
-- final custom-drawn SVG logo before public brand launch;
-- Google OAuth consent details before public beta;
-- whether staging Supabase stays on a pausable free project or adds roughly $10/month for always-on compute.
-
-Default recommendations are documented above. Escalate only if a proposed change alters a product invariant, privacy rule, MVP boundary, or cross-agent contract.
-
-## Milestone 5 work-package status (12 September 2026)
-
-- WP1 complete in PR #50: stamps, approved versioned artwork, immutable
-  owner-readable collection foundation, deterministic fixtures and DB gates.
-- WP2 complete in PR #51: backend nonce → verify → explicit confirmation → atomic issuance;
-  durable throttles, geofence, privacy-safe diagnostics/purge, API contracts,
-  snapshots and negative/concurrency tests.
-- WP3 complete in PR #53: connects the foreground/no-cache geolocation adapter, one immediate
-  poor-accuracy retry, confirmation/recovery UI, existing ceremony, owner-scoped
-  paginated collection reads, shared visited state and Passport reconciliation.
-  See [the collection contract](docs/api/collections-v1.md). Codex implements
-  this authorized contract integration with the existing presentation; Claude
-  retains ownership of subsequent visual refinements. No Passport redesign.
-- Staging phone fixture and field-test procedure: `docs/runbooks/staging-phone-test.md`.
-  Initial founder field feedback confirms refusal away from the venue and a
-  successful collection, plus successful admin checks. The runbook records the
-  initial observations; the founder later reported the physical-phone checklist
-  worked. Photos await M6 R2 delivery/display acceptance.
-- Deferred: broader live-phone/mall field validation;
-  geographic seal persistence/coverage sets; founder policy/anomaly UI and general
-  audit history (M6); production auth domain, observability alerts and account
-  lifecycle (M8). No hardware location attestation or IP/device tracking added.
-
-## Next focused packages
-
-M6 WP1: existing user/editor/admin authorization, protected server operations,
-restricted audit history, negative tests and secure founder-role assignment.
-Later packages: shop edit/preview/publish/closure; commissioned approval/credits/R2;
-CSV/JSON validation, deduplication and dry runs. Geographic seals/coverage sets,
-commissioned delivery, broader indoor acceptance and account export/deletion remain
-deferred. No redesign, events/calendar or private notes in these packages.
-
-## Milestone 6 focused package status
-
-WP1 implements current-role authorization, admin-only bounded audit reads,
-profile-role change history, owner-only founder bootstrap, and negative tests.
-See `docs/runbooks/admin-authorization.md`. Shop editing/publishing/closure,
-commissioned artwork and R2 delivery, imports/dry runs/deduplication are separate
-later packages. No admin UI redesign or broader M6 functionality is included.
-
-### M6 WP2 — shop operations
-
-Adds the founder/editor shop list, draft creation, private revision editing and
-preview, explicit publish, closure and archive operations. Current-role checks,
-transactional catalogue audit and immutable impressions build on WP1. See
-`docs/runbooks/shop-administration.md` and `docs/adr/0012-shop-administration.md`.
-New-shop publication retains the existing approved-active-stamp prerequisite;
-artwork preparation is WP3, not synthesized by WP2. Physical-phone checklist success is founder-reported separately. Subsequent packages: WP3 artwork/media #32 coordinated
-with #19/#28; WP4 catalogue imports/dry runs/deduplication.
-
-### M6 WP3 — private intake slices
-
-Private PNG transport foundation: environment-separated R2 bindings, authorized
-initiation, bounded byte/content validation, immutable keys and server-validated
-finalization with transactional audit. See `docs/api/admin-media-v1.md` and
-`docs/runbooks/media-uploads.md`. `media_uploads` is a transport receipt linked to
-existing targets, not an approval model. It does not modify artwork versions,
-photo records or collected impressions. SVG/editable-source validation, approval,
-attachment, public delivery and the photo UI remain subsequent WP3 slices. WP4
-catalogue imports follows artwork/media. PNG finalization and the physical-phone checklist are founder-reported successful.
-The draft-create fix is confirmed separately from broader shop-admin acceptance.
-Do not invent device details/timings or reopen confirmed checks solely because
-older notes said pending. Photo display acceptance has not happened.
+The following existing handoff is retained pending the founder's audit-item-6
+response. It is not a current-state assertion; verify PR/CI/deployment state.
 
 The next WP3 draft implements JPEG shop-photo processing with Cloudflare Images,
 bounded orientation/resize/metadata-free output, separate immutable input/output

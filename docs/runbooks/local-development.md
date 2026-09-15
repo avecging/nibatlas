@@ -4,17 +4,35 @@
 
 - Node.js 24
 - pnpm 11.19.0 through Corepack
-- Docker Desktop only when running the local Supabase stack
+- Docker (Docker Desktop where appropriate) for the local Supabase stack
+- Supabase CLI 2.117.0 for database/auth integration work, matching CI; install it separately and make `supabase` available on PATH. It is not a package dependency.
 
 ## Start the web application
 
-1. Copy `.env.example` to `.env.local` and leave values blank for the Milestone 0 shell.
+1. Copy `.env.example` to `.env.local` and leave provider values blank for offline fixture work; configure local providers only for the feature you are testing.
 2. Run `corepack enable`.
 3. Run `pnpm install`.
 4. Run `pnpm dev`.
-5. Open `http://localhost:3000`.
+5. Open `http://127.0.0.1:3000`. Use that same origin for local auth; do not mix it with `localhost`.
 
 ## Verify
+
+Start with checks relevant to the change. Required GitHub checks remain unchanged:
+
+| CI job name | Purpose |
+| --- | --- |
+| Quality | Lint, TypeScript, unit/component tests and Next.js build |
+| E2E smoke | Fixture-mode browser journeys, accessibility and responsive regression |
+| API-mode integration | HTTP-backed integration journeys with a local RPC double |
+| Cloudflare build | OpenNext build compatibility |
+| Database reset | Clean reset, seed repeatability, SQL tests, concurrency and 50k performance |
+| Worker authentication | Real local Auth/PostgREST through the compiled Worker |
+
+`.github/workflows/ci.yml` is the executable source of truth. These are CI job
+names, not six commands to run after every edit. Database tests are documented in
+`supabase/tests/README.md`; Worker tests require the setup in the CI job.
+
+Available application checks:
 
 - `pnpm lint`
 - `pnpm typecheck`
@@ -67,11 +85,11 @@ rendered demonstration records would look like a working catalogue with most of
 its shops missing. An unrecognised value is a misconfiguration for the same
 reason. In reviewer mode the map overlay names the live supplier.
 
-In `api` mode the simulated stamp collection is withheld — a simulated
-impression beside real records would read as a verified visit — and the global
-Saved scope lists nothing, because listing every saved shop needs the account
-that Milestone 4 introduces. Production catalogue import remains Milestone 6/7
-work.
+API mode uses authenticated saves and real account collections. Simulated
+impressions remain isolated in fixture/reviewer state and are never imported as
+verified visits. Account history stays in memory; sign-out clears private state.
+Use `docs/runbooks/auth-local-staging.md`, `docs/api/saved-shops-v1.md`, and
+`docs/api/collections-v1.md` for feature contracts. Production import remains M6/7.
 
 Hosted staging uses `api-demo` only. Production must use `api`: accepting
 `demo_fixture` there would let invented staging records present as catalogue
@@ -79,11 +97,11 @@ listings. The production catalogue import itself remains Milestone 6/7 work.
 
 ## Local Supabase
 
-The hosted staging project is not required for Milestone 0. After Docker Desktop is running:
+Use a disposable local database, never a hosted project for reset/testing. After Docker is running:
 
-- `pnpm exec supabase start`
-- `pnpm exec supabase db reset`
-- `pnpm exec supabase stop`
+- `supabase start`
+- `supabase db reset`
+- `supabase stop`
 
 Never commit `.env.local`, `.dev.vars`, database passwords, service-role keys, or API tokens.
 

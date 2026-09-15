@@ -261,11 +261,13 @@ than a setup step:
 1. Add the production hostname to the Turnstile widget's hostname list. A widget
    renders on listed hosts only, so this has to happen before the first
    production build, not after it.
-2. Decide whether production shares this spreadsheet and Apps Script deployment
-   or gets its own. Sharing is simpler and keeps one review queue; separating
-   keeps test submissions out of the real one. Either way the shared secret
-   should differ between environments, so a leak from one does not write to the
-   other.
+2. Use a separate Apps Script **project** and deployment for production, with its
+   own `CONTRIBUTE_SHARED_SECRET`, and a separate production intake spreadsheet.
+   The current script reads one project-level secret; two deployments of the same
+   project do not provide separate secrets. Leave the existing staging project,
+   URL, secret and spreadsheet untouched. Copy the reviewed repository script
+   into the new production project when production setup is authorized. Confirm
+   each Worker writes only to its intended sheet and rejects the other's secret.
 3. Set the same three secrets with `--env production`, plus
    `NEXT_PUBLIC_TURNSTILE_SITE_KEY` wherever the production build runs — it is
    read at build time, so a runtime secret alone leaves the widget absent and

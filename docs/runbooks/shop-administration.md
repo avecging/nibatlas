@@ -6,10 +6,9 @@ the existing founder account. Roles are separate in staging and production; use
 The [HTTP contract](../api/admin-shops-v1.md) documents the bounded API.
 No new secret, storage service or account-role setup is required for an existing
 admin. Editor can maintain catalogue; admin alone can read the audit endpoint.
-`admin` automatically includes all catalogue permissions. “Founder” describes
-the person using that admin account; there is no separate founder role or
-catalogue membership to maintain. Ordinary accounts remain denied. All roles
-still obey the publication, evidence, revision and archival rules below.
+Role meanings, bootstrap and revocation are defined once in
+`admin-authorization.md`. Publication, evidence, revision and archival rules
+apply to every permitted operator.
 
 1. Choose **Create a draft shop**. Enter name and a unique lowercase URL name.
 2. Open the draft and enter only sourced facts. Choose the existing locality and
@@ -87,10 +86,8 @@ information or credentials. The page's `nibatlas-release` metadata and response'
 - Existing impressions remain unchanged after editing/closure/archive. Sign out;
   private admin fields disappear and direct APIs reject access.
 
-Automated tests use explicit demo fixtures. The founder reports the physical-phone
-checklist worked; see [the recorded result](staging-phone-test.md). No device,
-timing or individual observations are invented. Do not repeat those checks solely
-because old notes said pending. Preserve impressions, stamp IDs and throttles.
+Automated tests use explicit demo fixtures. Phone collection acceptance is
+recorded in `staging-phone-test.md`; it is separate from admin acceptance.
 
 ## Deployment and rollback
 

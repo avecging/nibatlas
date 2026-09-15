@@ -1,6 +1,7 @@
 # Stamp verification deployment and operations
 
-WP2 is backend-only. The existing fixture ceremony is not evidence of live issuance.
+The backend and account presentation are connected. A fixture ceremony is still
+not evidence of live issuance; use the account contract and phone-test runbook.
 
 ## Staging activation
 
@@ -15,8 +16,9 @@ WP2 is backend-only. The existing fixture ceremony is not evidence of live issua
    put the key in GitHub source/chat. The variable already exists in `.env.example`.
 4. In Supabase SQL Editor run the read-only checks below. Confirm the cron row
    is active. Cron uses the existing database; no separate scheduler subscription.
-5. Connect WP3 collection presentation to the v1 contract. Then field-test fresh,
-   poor-accuracy, denied, duplicate and outside-radius paths on a phone.
+5. For a new runtime regression, follow `staging-phone-test.md`. Preserve its
+   founder-reported acceptance; do not repeat checks solely because old notes
+   said presentation was pending.
 
 Do not put a production key on staging. Missing secrets/services fail closed with
 `service_unavailable`. Normal auth and saved-shop paths continue using publishable
@@ -53,8 +55,12 @@ provider errors, ciphertext, nonce secrets, or raw GPS. Database RPC arguments
 carry only authenticated encrypted position envelopes. Synthetic integration
 fixtures may contain coordinates because they represent no actual user location.
 
-To disable collection, remove the Worker verification secret or roll back the
-application deployment; keep the forward migration and immutable collections.
+`SUPABASE_SERVICE_ROLE_KEY` is now shared by collection verification and media
+uploads. Removing it disables both; it is not a collection-only switch. Use
+removal only when stopping both features is intended. There is no documented
+collection-only feature switch. For application rollback choose a known compatible
+Worker and consult `media-uploads.md` for pending JPEG/session compatibility;
+keep forward migrations, audit, private objects and immutable collections.
 Keep the retention cron active. Do not drop tables, restore over collections, or
 re-enable authenticated/service-role direct insertion as a rollback shortcut.
 

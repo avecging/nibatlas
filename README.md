@@ -2,20 +2,15 @@
 
 Nib Atlas is a map-first, mobile-first application for discovering physical fountain pen shops and collecting location-verified Atlas Stamps. The current prototype contains a small sourced catalogue in Singapore, Japan, and Taiwan; that is a description of present data, not a geographic launch promise or claim of completeness.
 
-This repository is the source of truth. Start with:
+Start with [AGENTS.md](AGENTS.md), the current work in
+[IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md), and the
+[task-specific documentation map](docs/README.md).
+For setup and checks, use [local development](docs/runbooks/local-development.md).
 
-1. [`PRODUCT.md`](PRODUCT.md)
-2. [`BRAND.md`](BRAND.md)
-3. [`UX.md`](UX.md)
-4. [`DATA-MODEL.md`](DATA-MODEL.md)
-5. [`ARCHITECTURE.md`](ARCHITECTURE.md)
-6. [`IMPLEMENTATION-PLAN.md`](IMPLEMENTATION-PLAN.md)
-7. [`AGENTS.md`](AGENTS.md)
-
-The project is intentionally separate from any fountain pen catalogue, database, or marketplace product.
-
-Application scaffolding begins in Milestone 0 of `IMPLEMENTATION-PLAN.md`.
-
+The project is intentionally separate from any fountain pen catalogue, database,
+or marketplace product. The application has implemented catalogue, authentication,
+saving, collection and shop-admin foundations; the plan distinguishes remaining
+media, import and launch work.
 
 ## Open-source licence
 
