@@ -286,7 +286,7 @@ Run on every PR:
 
 - `main`: production/deployable source of truth.
 - `staging`: optional integration/promotion branch; keep short-lived and regularly synchronized.
-- Short-lived task branches: GPT implements end to end; Claude reviews, per `AGENTS.md`.
+- Short-lived task branches: GPT implements end to end and initiates review per `AGENTS.md`.
 
 Prefer short-lived branches and PRs over permanent `claude/frontend` and `codex/platform-foundation` branches, which drift and create integration debt. Coordinate concurrent edits to migrations, root package configuration, generated types, deployment configuration and CI; no conductor/orchestrator is currently onboarded.
 

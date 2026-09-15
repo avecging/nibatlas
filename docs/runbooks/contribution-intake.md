@@ -276,5 +276,6 @@ property while expecting its other deployment to keep the old value.
 When production is configured, add its hostname to Turnstile and set
 `NEXT_PUBLIC_TURNSTILE_SITE_KEY` for the production build. Configure the same
 three server-only Worker secrets from step 4 for the production environment.
-Verify the intended destination sheet and privacy copy. If two environments operate, verify they cannot write to each other's
-intake. No live configuration changes are part of this documentation update.
+Verify the intended destination sheet and privacy copy. If two environments
+operate, verify they cannot write to each other's intake. No live configuration
+changes are part of this documentation update.

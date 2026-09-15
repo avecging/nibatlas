@@ -12,7 +12,8 @@ Rules:
   fixture notice.
 - Fixtures may be replaced behind an adapter in Milestone 3; UI components must
   not depend on provider response shapes.
-- Contract changes require Codex coordination and a documented PR note.
+- Contract changes require coordination with affected work and a documented PR note;
+  implementation/review ownership follows `AGENTS.md`.
 
 ## Milestone 1 additions
 
@@ -77,7 +78,7 @@ Two frontend-owned additions carry the honesty:
   is. No Milestone 1 coordinate is surveyed.
 
 Both live on `ShopDetail` only. `ShopMapSummary` remains the shared
-Codex-owned projection; its approved additions are `specialtyLine` and
+projection; its approved additions are `specialtyLine` and
 `localNameLang`. Coordinate precision and provenance still belong only to
 `ShopDetail`; exposing either on markers or cards would require another
 explicit contract change.
@@ -93,18 +94,20 @@ collections newest first.
 
 ### `demo-shops.ts` is no longer the base of the catalogue
 
-`src/fixtures/demo-shops.ts` remains the shared Codex-owned fixture and is
+`src/fixtures/demo-shops.ts` remains the shared fixture and is
 untouched, with its own test. Milestone 1's catalogue no longer extends it,
 because its three records are invented and the acceptance brief requires a subset
-of real shops. If Codex wants the shared example to be the same records the
-frontend renders, that is a coordination point, not a silent change.
+of real shops. Replacing the shared example with the records the frontend
+renders requires coordinated contract/test updates, not a silent change.
 
 ## Milestone 1.5 WP4 — the shop value layer
 
 `ShopDetail` gains the optional pen-specific fields root cause D in
-`docs/milestone-1-5-product-refinement.md` asks for. WP4 did not otherwise change `ShopMapSummary`, so this is a frontend projection change under accepted decision 4
-("Claude Code may define the optional schema and the sourcing rules"), not a
-change to the Codex-owned marker/card contract.
+`docs/milestone-1-5-product-refinement.md` asks for. WP4 did not otherwise change
+`ShopMapSummary`, so this is a frontend projection change under historical
+accepted decision 4,
+not a change to the shared marker/card contract. Current ownership follows
+`AGENTS.md`.
 
 New optional fields, all on `ShopDetail` only:
 

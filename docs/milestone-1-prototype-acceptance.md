@@ -4,7 +4,6 @@
 > instructions. Use `docs/README.md`, current foundations and feature contracts.
 > Statements about unbuilt features apply to the original prototype only.
 
-
 **Status:** Founder-approved implementation brief  
 **Applies to:** Milestone 1 frontend prototype refinement  
 **Primary mobile viewport:** 360 × 800 px  

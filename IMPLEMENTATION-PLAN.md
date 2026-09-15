@@ -10,7 +10,8 @@ All implementation happens in one GitHub repository. Repository documentation—
 
 ### Responsibility split
 
-GPT owns end-to-end implementation; Claude reviews. The founder approves product
+GPT owns end-to-end implementation and initiates independent review under
+`AGENTS.md`; Claude is an optional reviewer. The founder approves product
 and scope decisions. A conductor/orchestrator has not been onboarded. `AGENTS.md`
 is the shared working contract. This assignment covers every milestone; frontend work is not reserved for Claude.
 
@@ -54,7 +55,7 @@ current work. Use the current-work table above to choose the next task.
 
 ### Milestone 0 — Repository and engineering foundation
 
-**Owner:** GPT implementation; Claude review; founder product acceptance.
+**Owner:** GPT implementation; review per `AGENTS.md`; founder product acceptance.
 
 **Objective**
 
@@ -105,7 +106,7 @@ Create a reproducible, deployable skeleton with shared contracts and safe collab
 
 ### Milestone 1 — Frontend interaction prototype
 
-**Owner:** GPT implementation; Claude review; founder product acceptance.
+**Owner:** GPT implementation; review per `AGENTS.md`; founder product acceptance.
 
 **Objective**
 
@@ -166,7 +167,7 @@ Prove that map-first shop discovery and a tactile, believable Passport work resp
 
 ### Milestone 2 — PostGIS data foundation and read APIs
 
-**Owner:** GPT implementation; Claude review; founder product acceptance.
+**Owner:** GPT implementation; review per `AGENTS.md`; founder product acceptance.
 
 **Objective**
 
@@ -214,7 +215,7 @@ Replace fixture-only domain assumptions with a production-shaped, secured data s
 
 ### Milestone 3 — Frontend/read-data integration
 
-**Owner:** GPT implementation; Claude review; founder product acceptance.
+**Owner:** GPT implementation; review per `AGENTS.md`; founder product acceptance.
 
 **Objective**
 
@@ -255,7 +256,7 @@ Connect the approved map experience to real viewport contracts without regressin
 
 ### Milestone 4 — Authentication and saved shops
 
-**Owner:** GPT implementation; Claude review; founder product acceptance.
+**Owner:** GPT implementation; review per `AGENTS.md`; founder product acceptance.
 
 **Objective**
 
@@ -300,7 +301,7 @@ Add persistent personal planning without obstructing anonymous discovery.
 
 ### Milestone 5 — Atlas Stamp verification and Passport data
 
-**Owner:** GPT implementation; Claude review; founder product acceptance.
+**Owner:** GPT implementation; review per `AGENTS.md`; founder product acceptance.
 
 **Objective**
 
@@ -351,7 +352,7 @@ Complete the real-world core loop with privacy-safe, idempotent collection.
 
 ### Milestone 6 — Founder admin and data import
 
-**Owner:** GPT implementation; Claude review; founder product acceptance.
+**Owner:** GPT implementation; review per `AGENTS.md`; founder product acceptance.
 
 **Objective**
 
@@ -402,7 +403,7 @@ Make the catalogue maintainable without code deployments.
 
 ### Milestone 7 — Verified catalogue data and field test
 
-**Owner:** GPT implementation; Claude review; founder product acceptance.
+**Owner:** GPT implementation; review per `AGENTS.md`; founder product acceptance.
 
 **Objective**
 
@@ -445,7 +446,7 @@ Populate a credible sourced catalogue and test the core loop in real conditions.
 
 ### Milestone 8 — Staging hardening and public MVP launch
 
-**Owner:** GPT implementation; Claude review; founder product acceptance.
+**Owner:** GPT implementation; review per `AGENTS.md`; founder product acceptance.
 
 **Objective**
 
@@ -490,7 +491,7 @@ Ship a secure, observable, accessible MVP with rollback and operating procedures
 
 ### Milestone 9 — Evidence-led post-launch review
 
-**Owner:** GPT implementation; Claude review; founder product acceptance.
+**Owner:** GPT implementation; review per `AGENTS.md`; founder product acceptance.
 
 **Objective**
 

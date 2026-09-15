@@ -4,7 +4,6 @@
 > instructions. Use `docs/README.md`, current foundations and feature contracts.
 > Statements about unbuilt features apply to the original prototype only.
 
-
 Owner: Claude Code. Scope is exactly the Milestone 1 section of
 `IMPLEMENTATION-PLAN.md`, refined by
 `docs/milestone-1-prototype-acceptance.md` and

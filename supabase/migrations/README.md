@@ -5,23 +5,19 @@ through the existing deployment workflow. Test reset only against a disposable
 local database; never reset hosted staging/production to deploy or roll back.
 Do not edit applied migrations, delete audit/history, or overwrite impressions.
 
-## Current inventory
+## Finding the relevant migration
 
-- `20260902000100_m2_catalogue_foundation.sql`
-- `20260902000200_m2_read_rpcs.sql`
-- `20260902000300_m2_api_provenance.sql`
-- `20260903000100_m3_wp2_contract_completeness.sql`
-- `20260904000100_m4_account_data_foundation.sql`
-- `20260904000200_m4_saved_shop_service.sql`
-- `20260912000100_m5_stamp_collection_foundation.sql`
-- `20260912000200_m5_verification_service.sql`
-- `20260912000300_m5_collection_reads.sql`
-- `20260912000400_staging_test_venue_type.sql`
-- `20260912000500_m6_admin_authorization.sql`
-- `20260913000100_m6_shop_operations.sql`
-- `20260913000200_m6_media_upload_foundation.sql`
-- `20260914000100_m6_deferred_catalogue_constraint.sql`
-- `20260914000200_m6_jpeg_photo_intake.sql`
+Use the timestamped SQL files for exact order, fields and constraints; filenames
+and their opening comments identify each change. There is no separate inventory
+to keep synchronized.
+
+| Package | Purpose |
+| --- | --- |
+| M2/M3 catalogue | Geographic catalogue, bounded read RPCs and public provenance/contracts |
+| M4 accounts | Private profiles, owner-scoped saves and saved-shop service |
+| M5 collection | Versioned artwork, immutable collections, verification and owner reads |
+| M6 administration | Current-role authorization, append-only audit and private shop working copies |
+| M6 media | Private upload manifests, deferred catalogue constraint repair and separate JPEG input/output identity |
 
 `seed.sql` is deterministic demo data, not a production import. The separately
 guarded staging phone fixture is not part of migrations/default seed.

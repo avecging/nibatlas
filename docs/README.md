@@ -29,7 +29,9 @@ Rules are shared by Astra, Sol and Claude; no model-specific copies are needed.
 
 Current product rules belong in the foundations; wire/security behavior belongs
 in feature API contracts; operational steps belong in runbooks. ADRs explain
-specific engineering decisions. The implementation plan sequences work and does
+specific engineering decisions; their dated agent/owner assignments are historical
+and do not override current `AGENTS.md` responsibilities. Their technical decisions
+remain applicable unless superseded. The implementation plan sequences work and does
 not replace any feature contract. Follow `AGENTS.md` when these disagree.
 
 The following are historical, not required reading or current instructions:

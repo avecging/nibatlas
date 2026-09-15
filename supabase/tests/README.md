@@ -15,22 +15,13 @@ The `.inc` copy is needed because pg_prove mounts only the tests directory; it i
 untracked and not a standalone SQL test. CI additionally verifies that the source
 fixture fails without its staging opt-in and repeats the deterministic seed.
 
-## Discovered SQL suites
+## SQL suite discovery
 
-- `001_catalogue_foundation.sql`
-- `002_read_rpcs.sql`
-- `003_api_provenance.sql`
-- `004_account_data.sql`
-- `005_saved_shop_service.sql`
-- `006_stamp_collection_foundation.sql`
-- `007_stamp_verification.sql`
-- `008_collection_reads.sql`
-- `009_staging_phone_location.sql`
-- `010_admin_authorization.sql`
-- `011_shop_operations.sql`
-- `012_media_upload_foundation.sql`
-- `013_admin_catalogue_access.sql`
-- `014_jpeg_photo_intake.sql`
+`supabase test db` discovers the numbered SQL suites in this directory. Select
+relevant suites by feature filename and their assertions; there is no manual
+suite inventory to update. Coverage includes catalogue/provenance, accounts/saves,
+collection/verification, guarded phone fixtures, authorization/shop operations
+and PNG/JPEG media integrity.
 
 The existing CI `Database reset` job discovers all SQL suites, then runs
 `python3 scripts/verification/concurrency.py` and
