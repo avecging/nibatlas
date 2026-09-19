@@ -98,6 +98,15 @@ describe("one material", () => {
   });
 });
 
+describe("approved custom artwork", () => {
+  it("renders the exact versioned PNG route instead of generated substitute art", () => {
+    render(<StampArt stamp={design("shop", {id:"00000000-0000-4000-8000-000000000601",designVersion:2,uploaded:{origin:"founder_created",creatorName:"Gin",transparentPngSha256:"a".repeat(64)}})} title="Custom Shop" />);
+    const image=screen.getByRole("img",{name:"Shop stamp, Custom Shop"});
+    expect(image).toHaveAttribute("src","/api/v1/stamps/00000000-0000-4000-8000-000000000601/artwork/2");
+    expect(document.querySelector("svg")).toBeNull();
+  });
+});
+
 describe("three anatomies", () => {
   it("gives a shop stamp a rounded frame and its own motif", () => {
     const svg = svgFor("shop");
