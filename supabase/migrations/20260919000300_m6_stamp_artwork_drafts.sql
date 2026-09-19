@@ -299,8 +299,8 @@ begin
     perform public.check_edit_object(p_payload,'{"versionId":"uuid"}',array['versionId']);
     select av.* into a from public.stamp_artwork_versions av join public.stamps x on x.id=av.stamp_id
       where av.id=(p_payload->>'versionId')::uuid and x.shop_id=p_shop and av.upload_id is not null
-        and exists(select 1 from public.media_uploads u where u.id=av.upload_id
-          and u.environment=p_environment and u.status='validated');
+        and exists(select 1 from public.media_uploads receipt where receipt.id=av.upload_id
+          and receipt.environment=p_environment and receipt.status='validated');
     if not found then raise exception 'Stamp artwork not found' using errcode='P0002'; end if;
     return jsonb_build_object('storageKey',a.transparent_png_key);
   elsif p_payload<>'{}'::jsonb then

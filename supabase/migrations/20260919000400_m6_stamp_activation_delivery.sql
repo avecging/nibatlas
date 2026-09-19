@@ -339,8 +339,8 @@ begin
       raise exception 'Invalid stamp target' using errcode='22023'; end if;
     if md5(to_jsonb(a)::text)<>p_payload->>'revision' then
       raise exception 'Stamp artwork changed; reload' using errcode='40001'; end if;
-    if not exists(select 1 from public.media_uploads u where u.id=a.upload_id
-      and u.environment=p_environment and u.status='validated' and u.artwork_version_id=a.id) then
+    if not exists(select 1 from public.media_uploads receipt where receipt.id=a.upload_id
+      and receipt.environment=p_environment and receipt.status='validated' and receipt.artwork_version_id=a.id) then
       raise exception 'Invalid stamp target' using errcode='22023'; end if;
     select * into st from public.stamps where id=a.stamp_id for update;
     old_actor:=current_setting('nibatlas.media_actor',true);
@@ -354,8 +354,8 @@ begin
     perform public.check_edit_object(p_payload,'{"versionId":"uuid"}',array['versionId']);
     select av.* into a from public.stamp_artwork_versions av join public.stamps x on x.id=av.stamp_id
       where av.id=(p_payload->>'versionId')::uuid and x.shop_id=p_shop and av.upload_id is not null
-        and exists(select 1 from public.media_uploads u where u.id=av.upload_id
-          and u.environment=p_environment and u.status='validated');
+        and exists(select 1 from public.media_uploads receipt where receipt.id=av.upload_id
+          and receipt.environment=p_environment and receipt.status='validated');
     if not found then raise exception 'Stamp artwork not found' using errcode='P0002'; end if;
     return jsonb_build_object('storageKey',a.transparent_png_key);
   elsif p_payload<>'{}'::jsonb then
