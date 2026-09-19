@@ -74,7 +74,7 @@ export function inspectJpeg(bytes: Uint8Array) {
     }
     if(marker===0xe2 && payload.subarray(0,4).toString()==='MPF\0') return invalid();
     if(marker===0xee && payload.subarray(0,5).toString()==='Adobe') {
-      if(adobe || payload.length!==12 || (payload[11]!==0 && payload[11]!==1)) return invalid();
+      if(adobe || scans>0 || payload.length!==12 || (payload[11]!==0 && payload[11]!==1)) return invalid();
       adobe=true;
       // Transform 0 means RGB for the required three-component frame; transform
       // 1 means YCbCr. Stripping this would misdecode numeric-ID RGB components.

@@ -107,8 +107,9 @@ EXIF IFD0 orientation is bounded and read in memory; GPS/thumbnail/other IFDs ar
 not followed. All APP/COM metadata is removed before decoding except bounded
 ICC segments used for colour conversion and a canonical Adobe APP14 colour hint.
 Adobe transform 0 (RGB) and 1 (YCbCr) are supported for three-component frames;
-original version/flags are discarded. Duplicate, malformed or unsupported Adobe
-declarations are rejected. The hint never enters the stored PNG.
+original version/flags are discarded. Duplicate, malformed, unsupported or
+post-scan Adobe declarations are rejected. The decoder needs this hint before
+the first scan; it never enters the stored PNG.
 Multiple-picture/MPO, CMYK/YCCK,
 grayscale, lossless/arithmetic/12-bit exports, malformed orientation/ICC sequences
 and non-JPEG formats are unsupported. Ordinary baseline/progressive RGB JPEG

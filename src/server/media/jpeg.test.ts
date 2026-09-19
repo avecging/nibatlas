@@ -52,6 +52,14 @@ describe('JPEG preflight and pixel orientation',()=>{
       expect(()=>inspectJpeg(Buffer.concat([adobeRgbJpeg.subarray(0,2),extra,adobeRgbJpeg.subarray(2)]))).toThrow();
     }
   });
+  it('rejects Adobe interpretation declared after image scans start',()=>{
+    const start=adobeRgbJpeg.indexOf(Buffer.from([255,238]));
+    const end=start+2+adobeRgbJpeg.readUInt16BE(start+2);
+    const marker=adobeRgbJpeg.subarray(start,end);
+    const without=Buffer.concat([adobeRgbJpeg.subarray(0,start),adobeRgbJpeg.subarray(end)]);
+    const late=Buffer.concat([without.subarray(0,-2),marker,without.subarray(-2)]);
+    expect(()=>inspectJpeg(late)).toThrow();
+  });
   it('accepts baseline and progressive and drops private segments before decoding',()=>{
     for(const b of [jpeg,progressiveJpeg]) {
       const inspected=inspectJpeg(withExif(b,6));expect(inspected).toMatchObject({width:24,height:16,orientation:6});
