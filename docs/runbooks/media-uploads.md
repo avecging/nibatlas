@@ -111,6 +111,8 @@ individual observations were supplied. Keep failed manifests and audit intact.
 Choose an ordinary `.jpg`/`.jpeg` photo in the same harness, up to **5 MiB**,
 **8192 px per axis** and **24 million pixels**. Supported: 8-bit, three-component
 baseline and progressive JPEG, EXIF orientations 1–8, and bounded ICC profiles.
+Adobe-tagged RGB and YCbCr exports are supported; their colour interpretation is
+retained only for decoding, not in the stored PNG.
 EXIF/GPS, XMP, IPTC, comments and other APP metadata do not reach R2.
 Unsupported: HEIC/HEIF, JPEG XL, CMYK/YCCK, grayscale JPEG, lossless/arithmetic/
 12-bit JPEG, multiple-picture/MPO files, malformed EXIF orientation/ICC chunk
@@ -199,8 +201,9 @@ The draft-create fix is confirmed separately from broader shop-admin acceptance.
 
 JPEG is a new slice. Local Images emulation is not remote production fidelity;
 staging still needs actual Images processing, R2 write/read, RPC finalization and
-private-output inspection. No JPEG deployment or photo **display** acceptance is
-claimed. The UI/attachment/public delivery remain later WP3 work.
+private-output inspection. PR #66 was deployed to staging; see the JPEG handoff
+for the recorded deployment. Deployment does not establish runtime or photo
+**display** acceptance. The UI/attachment/public delivery remain later WP3 work.
 
 Keep #17 About accuracy before real catalogue launch and #27 with geographic seal
 delivery. Preserve existing impressions and duplicate protection. No social,

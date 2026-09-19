@@ -32,13 +32,14 @@ function exifOrientation(b: Buffer): number {
 
 /** Structural/resource preflight, not a substitute for the Images decoder.
  * Remove APP/COM metadata before sending pixels to the decoder, retaining
- * orientation only in memory and bounded ICC chunks for colour conversion. Accept 8-bit baseline/progressive, three components.
+ * orientation only in memory, bounded ICC chunks and canonical Adobe colour
+ * interpretation for decoding. Accept 8-bit baseline/progressive, three components.
  */
 export function inspectJpeg(bytes: Uint8Array) {
   const b=Buffer.from(bytes);
   if(b.length<4 || b.length>MAX_MEDIA_BYTES || b.readUInt16BE(0)!==0xffd8) return invalid();
   const parts=[b.subarray(0,2)];
-  let p=2,width=0,height=0,orientation=1,exif=false,scans=0,markers=0,iccCount=0;
+  let p=2,width=0,height=0,orientation=1,exif=false,adobe=false,scans=0,markers=0,iccCount=0;
   const iccSeen=new Set<number>();
   while(p<b.length) {
     if(++markers>4096 || b[p]!==255) return invalid();
@@ -72,7 +73,14 @@ export function inspectJpeg(bytes: Uint8Array) {
       iccCount=count;iccSeen.add(seq);
     }
     if(marker===0xe2 && payload.subarray(0,4).toString()==='MPF\0') return invalid();
-    if(marker===0xee && payload.subarray(0,5).toString()==='Adobe' && (payload.length!==12 || payload[11]!==1)) return invalid();
+    if(marker===0xee && payload.subarray(0,5).toString()==='Adobe') {
+      if(adobe || payload.length!==12 || (payload[11]!==0 && payload[11]!==1)) return invalid();
+      adobe=true;
+      // Transform 0 means RGB for the required three-component frame; transform
+      // 1 means YCbCr. Stripping this would misdecode numeric-ID RGB components.
+      // Keep only a canonical decoder hint; discard original version/flags.
+      parts.push(Buffer.from([255,238,0,14,65,100,111,98,101,0,100,0,0,0,0,payload[11]]));
+    }
     if(!metadata || icc) parts.push(b.subarray(start,end));
     p=end;
     if(marker===0xda) {
