@@ -1,4 +1,5 @@
 "use client";
+import { readAdminResponse } from './read-response';
 import Link from "next/link";
 import { ShopMediaAdmin } from "./ShopMediaAdmin";
 import { ShopStampAdmin } from "./ShopStampAdmin";
@@ -60,7 +61,7 @@ async function api(path: string, signal: AbortSignal, body?: unknown) {
         }
       : {}),
   });
-  const value = await response.json();
+  const value = await readAdminResponse(response, Boolean(body));
   if (!response.ok) {
     // A support reference only. Never log the request body, account, cookies,
     // tokens, provider messages, or the response document.

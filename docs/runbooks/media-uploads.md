@@ -138,7 +138,7 @@ enter this photo transformation path.
    the additive migration before deploying. Keep R2 buckets private as above.
 3. Run the harness once with a supported JPEG you own. Expect `validated`, no
    public URL. Check orientation/metadata with synthetic runtime verification
-   before release; actual photo display awaits the attachment/delivery/UI slice.
+   before release; photo/logo attachment and display are implemented by #74 but require separate remote acceptance.
 
 No new secret is needed. Missing Images configuration fails JPEG closed; PNG
 intake does not depend on the Images binding. Do not paste credentials in chat.
@@ -201,8 +201,8 @@ JPEG is a new slice. Local Images emulation is not remote production fidelity;
 staging still needs actual Images processing, R2 write/read, RPC finalization and
 private-output inspection. PR #66 was deployed to staging; see the JPEG handoff
 for the recorded deployment. Deployment does not establish runtime or photo
-**display** acceptance. Photo/logo and stamp UI/delivery are implemented on the
-draft PR but remain unaccepted remotely until the post-merge staging checks below.
+**display** acceptance. Photo/logo and stamp UI/delivery were merged in #74 and deployed, but remain
+unaccepted remotely until the staging checks below.
 
 Keep #17 About accuracy before real catalogue launch and #27 with geographic seal
 delivery. Preserve existing impressions and duplicate protection. No social,
@@ -259,21 +259,28 @@ test one founder-created or AI-assisted PNG through create → attach → previe
 activate → new collection → historical view. Keep R2 private. If activation is
 ambiguous, reload versions before retrying; never edit an approved row.
 
-### Verification status and exact next slice
+### Verification status and exact next slice — 20 September 2026
 
-Main baseline #69 (`ee4f6b7c8cf7180039fe13ae198c4b01f1130d57`) has successful
-[CI 35436010075](https://github.com/avecging/nibatlas/actions/runs/35436010075)
-and [staging 35436174212](https://github.com/avecging/nibatlas/actions/runs/35436174212).
-Founder-reported original PNG, physical-phone and draft-creation results remain
-confirmed separately. Remote JPEG processing/finalization/private output and
-public photo/logo display remain unverified; no local test proves those.
+PR #74 is merged at `3732018a0ca023a2dc7e8ae0eef7a26061e8470a`.
+[Main CI 35446023895](https://github.com/avecging/nibatlas/actions/runs/35446023895)
+and [staging 35446031047](https://github.com/avecging/nibatlas/actions/runs/35446031047)
+passed. Do not recreate its photo/logo or stamp implementation. Q4 2026 is the
+public launch commitment; use the implementation plan's A–F sequence.
 
-Continue the draft photo/logo PR first: inspect final-head CI and independent
-review; resolve actionable failures. Obtain mobile/desktop evidence and test the
-real staging JPEG → private R2 → finalization → attachment → preview → publish/hide
-path after an authorized merge/deploy. Then implement remaining #73 stamp origin,
-creator name/optional safe URL, draft PNG attachment, list/Passport/detail preview,
-activation and intact public delivery with additive schema/contract/tests. Do not
-recreate this photo/logo implementation. Keep generated defaults, old credits,
-versions/impressions and duplicate protection. #70/#71/#72 stay deferred; WP4 is
-imports, #17 precedes real-catalogue launch, #27 accompanies geographic seals.
+| Check | Evidence / next action |
+| --- | --- |
+| Original PNG, physical-phone flow, private draft creation | Founder-confirmed previously; preserve these results and all history. |
+| JPEG remote processing → R2 → independent finalization | Still unverified. Use existing legitimate test shop, supported authorized asset and authenticated editor; inspect metadata-free output/orientation/size as in JPEG handoff. Local decoding and CI are separate evidence. |
+| Photo/logo attachment, private preview, public delivery and hide | Implemented/deployed, remote acceptance pending. Verify authorized test content only; do not republish real shop content for a test. |
+| Uploaded stamp → previews → activation → eligible new collection → historical view | Implemented/deployed, remote acceptance pending. Need authorized test art, test account and legitimate eligible device/location. Never reset history, fabricate coordinates, duplicate businesses or bypass duplicate protection. |
+| Package A session access | Existing staging browser reached the signed-out admin screen on reload; no authenticated editor session, supplied test media or eligible device test was available. No uploads, activations, publication or collections were performed. |
+
+After an authorized staging deployment of Package A, test infrastructure-response
+recovery separately from the above feature checks. A JSON-parser fix is not a
+1102 resource fix. See `staging-deployment.md` for missing telemetry and read-only
+reproduction steps. Reload saved versions/media/stamps after ambiguous mutations
+before retrying; keep resumable upload IDs and exact selected bytes intact.
+
+#70/#71/#72 remain deferred. WP4 imports are mandatory after shared contracts and
+before final rich-editor polish; #17 precedes real catalogue launch and #27 stays
+with geographic seal delivery. Keep R2 private and preserve versions/credits.

@@ -7,8 +7,9 @@ Main CI [34923140046](https://github.com/avecging/nibatlas/actions/runs/34923140
 and staging deployment [34950217860](https://github.com/avecging/nibatlas/actions/runs/34950217860)
 succeeded. Review/merge/deployment are complete; they do not prove that a JPEG
 has passed through the remote Images → private R2 → finalization path. That
-runtime check remains outstanding. Photo attachment/delivery/UI are later work;
-photo display has not been accepted. WP4 remains catalogue imports.
+runtime check remains outstanding. Photo/logo attachment/delivery/UI and stamp activation were subsequently merged
+and deployed in #74; remote photo display has not been accepted. See the current
+acceptance matrix in `media-uploads.md`. WP4 remains catalogue imports.
 
 ## Implemented
 
@@ -62,9 +63,9 @@ remote decoder behavior remains an explicit staging verification item.
    bounded size. Treat failure as a blocker for JPEG runtime acceptance.
 4. Record the tested deployment and actual results. Fix concrete failures through
    normal review/CI gates. Do not repeat accepted PNG/phone tests without a reason.
-   Photo display still waits for attachment/delivery/UI and separate acceptance.
+   Photo display is now implemented by #74 and still needs separate remote acceptance.
 
 Keep #17 before real-catalogue launch and #27 with geographic seal delivery.
 Preserve every impression and duplicate protection. Source/SVG/commissioned
 approval, imports, public delivery and complete photo interface remain outside
-this PR. October 2026 launch remains the priority.
+this PR. The public launch commitment is Q4 2026; October remains the working target.

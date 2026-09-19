@@ -94,3 +94,84 @@ Milestone 6/7 work and is not performed by this deployment.
 Staging success does not merge or promote the branch. The final PR remains open
 until its normal CI and controlled staging checks pass. Production deployment is
 out of scope for this workflow.
+
+## Package A stability checkpoint — 20 September 2026 (Singapore)
+
+The unchanged baseline is main `3732018a0ca023a2dc7e8ae0eef7a26061e8470a`
+(#74 merged), with CI 35446023895 and staging deployment 35446031047 successful.
+The Package A branch changes client recovery, not Worker limits, account plan,
+auth/session behaviour, database contracts or media processing. Until merged and
+explicitly deployed, these recovery changes are not staging acceptance.
+
+### Outstanding 1102 diagnosis
+
+Historical incident: `/admin/shops/c8dfb3bf-2231-4e82-8c7b-b54a6985788b`
+(THINK), 2026-09-19T16:01:54Z, Ray `a3d9cfc85b0b0b21`. Prior inspection
+reported HTML in place of JSON and then Cloudflare 1102 on document reload.
+The original error page was still open during Package A; one reload reached the
+app's signed-out admin screen. This is a different session state and does not
+prove authenticated recovery or identify the original failing API request.
+
+Cloudflare dashboard inspection was blocked at security verification; subsequent
+browser recovery timed out. No authorized Worker telemetry connector/credential
+was available in the task runtime. Two separate anonymous terminal GET probes
+(`/api/health` and the THINK admin API) returned plain-text HTTP 403 at
+16:56:38Z / 16:56:47Z, Rays `a3da1ff75a230b21-LAX` and
+`a3da203339a90b21-LAX`, without application release/request headers. Those
+responses do not establish an application authorization defect or repeat 1102.
+No further load or authenticated media operations were attempted.
+
+Source investigation: the shop page mounts the client editor. It reads shop and
+vocabulary in parallel, then separate media/stamp lists and image previews.
+Shop RPC authorization shares one cookie-bound client with identity/role checks.
+Media previews check permission before and after private R2 reads; they stream
+stored PNG and do not execute the JPEG decoder on GET. All saved gallery/version
+previews currently render together (up to the existing 50/50 limits); aggregate
+load needs measurement before bulk onboarding. These are call-path observations,
+not evidence of CPU exhaustion, memory exhaustion or a decoder cause. Do not
+weaken role checks, add caching across users, or upgrade plans speculatively.
+
+Next authorized operator steps:
+
+1. Open **nibatlas-staging** Worker logs/metrics in the existing Cloudflare
+   account. Correlate the incident time and Ray with available retention; if
+   expired, capture one fresh bounded reproduction using the existing admin
+   account and THINK record. Do not create/reset test businesses or publish it.
+2. Separate document, auth/session, shop/options, media/stamp list and preview
+   requests. Record route (no query/body/cookies), UTC time, response status,
+   release, safe Ray/request ID, Worker outcome and CPU/wall duration. Inspect
+   resource/exception evidence and actual configured budget/plan. A 1102 code
+   alone does not distinguish CPU from memory exhaustion; see
+   [Cloudflare errors and exceptions](https://developers.cloudflare.com/workers/observability/errors/).
+3. Compare one existing draft editor with THINK and public list/detail. Only
+   repeat enough to distinguish the route/session/preview boundary. Correlate
+   existing `shop_admin_failure` stages when present; infrastructure termination
+   may happen before application diagnostics exist. Never log request bodies,
+   tokens, raw user locations, private source notes or media bytes.
+4. Fix only a supported cause through a reviewed PR. Verify the actual deployed
+   release afterwards. Record missing evidence explicitly if correlation fails;
+   do not close the root-cause gate on CI or a single successful anonymous load.
+
+### Client recovery checks
+
+Admin shop, photo/logo and stamp JSON requests now reject HTML/empty/malformed
+responses with HTTP status and a validated support reference when supplied.
+A mutation warning says it may already have completed: reload saved state before
+retrying. Existing structured error codes, draft state and upload-session recovery
+remain intact. Diagnostic logs contain only allowlisted status/reference/release;
+never infrastructure bodies or parser excerpts. No automatic mutation retry is
+introduced. A full-document infrastructure error still belongs to Cloudflare.
+
+MapLibre 6.4 can return a partial map after WebGL2 initialization fails before
+creating gesture handlers. The former `disableRotation` access outside the
+constructor guard then crashed the page. The guard now includes runtime,
+constructor and control initialization, best-effort partial teardown and the
+existing list fallback. This is separate from server 1102; it does not imply a
+universal phone map outage or repair arbitrary later tile/context failures.
+
+After deployment, check the admin failure/reload flow and map fallback on mobile
+and desktop separately from ordinary map interaction. Local component tests use
+partial/throwing MapLibre doubles; the E2E regression disables WebGL contexts to
+exercise the actual locked constructor and preserve the list/navigation. Feature
+remote acceptance remains in `media-uploads.md`; preserve previously accepted
+PNG/phone/draft results and all historical impressions.
