@@ -74,6 +74,8 @@ function auditRows(value: unknown) {
         "shop_services",
         "shop_specialties",
         "shop_brands",
+        "brands",
+        "specialties",
         "media_uploads",
         "shop_images",
         "stamps",

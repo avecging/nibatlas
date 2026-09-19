@@ -16,7 +16,8 @@ apply to every permitted operator.
    accuracy. Internal notes and reference links are optional and private. Legacy
    sources remain editable but no claim tokens or dated evidence forms are needed.
    New vocabulary/locality preparation remains B3 work.
-3. Choose **Save changes privately**, then **Preview saved version**. The public
+3. Choose **Save and review** to save privately and move into the saved preview.
+   **Save changes privately** remains available when continuing edits. The public
    listing remains unchanged. Another account without editor/admin access cannot
    read the preview even with its URL or UUID.
 4. Resolve the listed publication requirements. In particular, a new shop needs
@@ -161,3 +162,26 @@ the public version. Try a stale second tab and verify a conflict. Existing real
 sources, stamp identity and impressions must remain intact. These checks are
 covered by local/CI regression tests as recorded in the PR; hosted/founder visual
 acceptance remains separate, as do Package A's outstanding checks.
+
+## Founder mobile acceptance correction after PR #77
+
+PR #77 merged at `28742a3454abab9c40a9cc48402e0242b97be509`; main CI
+35471228640 and staging deployment 35471233475 passed. Founder phone feedback
+identified empty Brand/Specialty choices, poor save progression, tedious image
+saving and errors without useful destinations. This is failed usability
+acceptance, despite green technical CI.
+
+The correction adds a persistent Save and review action, exact validation focus
+and inline errors, publication Fix destinations, add/reuse for Brand/Specialty
+names, and hidden optional legacy source/date fields. Unavailable choice lists
+state why they are empty and cannot add an unfillable row. Photo/logo/stamp file
+selection starts PRIVATE upload/attachment; explicit publish/activation remains
+separate. Pending selected files participate in the same leave-page warning as
+unsaved catalogue edits.
+
+Retest on a phone: save/review and return to editing; invalid country/locality
+and nested fields retain work and focus the correction; create/reuse a brand
+and specialty then save/reopen; select a supported image, verify automatic
+private save, interrupt/retry and verify no duplicate attachment; deliberately
+publish/activate after checking the preview. Hosted and founder acceptance of
+this correction remain pending until it is explicitly deployed and tested.

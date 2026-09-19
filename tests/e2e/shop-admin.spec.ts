@@ -402,7 +402,6 @@ test('photos and logos save privately, preview and publish explicitly', async ({
   await expect(section.getByLabel('Choose photo')).toBeEnabled();
   await section.getByLabel('Choose photo').setInputFiles({name:'demo-photo.png',mimeType:'image/png',buffer:png});
   await expect(section.getByAltText('Selected photo for M6 Demo shop')).toBeVisible();
-  await section.getByRole('button',{name:'Save photo privately'}).click();
   await expect(section.getByRole('alert')).toContainText('Save again');
   await section.getByRole('button',{name:'Save photo privately'}).click();
   await expect(section.getByRole('status')).toContainText('Saved privately');
@@ -416,6 +415,7 @@ test('photos and logos save privately, preview and publish explicitly', async ({
   await section.getByRole('button',{name:'Hide photo 1'}).click();
   await section.getByRole('button',{name:'Confirm hide'}).click();
   await expect(section.getByText('Photo 1 · Private',{exact:true})).toBeVisible();
+  await page.route('**/api/v1/admin/media/uploads', route => route.fulfill({status:503,json:{error:{code:'service_unavailable'}}}));
   await section.getByLabel('Choose logo').setInputFiles({name:'demo-logo.png',mimeType:'image/png',buffer:png});
   await expect(section.getByAltText('Selected logo for M6 Demo shop')).toBeVisible();
   expect(await page.evaluate(()=>globalThis.document.documentElement.scrollWidth<=globalThis.document.documentElement.clientWidth)).toBe(true);
@@ -476,7 +476,6 @@ test('stamp draft upload previews and explicit activation preserve earlier versi
   await section.getByRole('button',{name:'Create private draft'}).click();
   await expect(section.getByRole('status')).toContainText('Draft stamp version created');
   await section.getByLabel('Stamp PNG').setInputFiles({name:'demo-stamp.png',mimeType:'image/png',buffer:png});
-  await section.getByRole('button',{name:'Save PNG privately'}).click();
   await expect(section.getByRole('alert')).toContainText('Save again');
   await section.getByRole('button',{name:'Save PNG privately'}).click();
   await expect(section.getByRole('status')).toContainText('Stamp PNG attached privately');
@@ -607,4 +606,60 @@ test('B2 private notes, shared editorial preview and deliberate position review 
   await page.screenshot({ path: info.outputPath(`admin-b2-review-${info.project.name}.png`), fullPage: true });
   await page.getByRole('button', { name: 'Confirm publish', exact: true }).click();
   expect(state.actions).toEqual(['save', 'confirm_position', 'publish']);
+});
+
+
+test('save and review moves to the saved preview and retains the editor on a failed save @short', async ({page},info) => {
+  const state = await setup(page);
+  await page.goto(`/admin/shops/${id}`);
+  await page.getByLabel('Shop name').fill('Mobile review test shop');
+  await page.getByRole('button',{name:'Save and review',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Mobile review test shop',exact:true})).toBeVisible();
+  await expect(page.getByLabel('Shop name',{exact:true})).toHaveCount(0);
+  expect(state.actions).toEqual(['save']);
+  await page.screenshot({path:info.outputPath('admin-save-review.png'),fullPage:true});
+  await page.getByRole('button',{name:'Back to editing',exact:true}).click();
+  await page.getByLabel('Shop name').fill('Keep failed save');
+  state.conflict();
+  await page.getByRole('button',{name:'Save and review',exact:true}).click();
+  await expect(page.getByLabel('Shop name')).toHaveValue('Keep failed save');
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('changed in another session');
+});
+
+test('empty brand and specialty choices offer add/reuse and become selectable @short', async ({page},info) => {
+  await setup(page);
+  const options = {localities:[{id:locality,label:'Singapore',countryCode:'SG'}],types:[{id:type,label:'Fountain Pen Specialist'}],services:[],brands:[] as {id:string;label:string}[],specialties:[] as {id:string;label:string}[]};
+  await page.route('**/api/v1/admin/shops/options',async route => {
+    if(route.request().method()==='POST') {
+      const {kind,label}=route.request().postDataJSON() as {kind:'brands'|'specialties';label:string};
+      const choice={id:kind==='brands'?'82000000-0000-4000-8000-000000000001':'82000000-0000-4000-8000-000000000002',label};
+      options[kind]=[choice];
+      await route.fulfill({json:{id:choice.id,options}});
+    } else await route.fulfill({json:options});
+  });
+  await page.goto(`/admin/shops/${id}`);
+  for (const [group,name,label] of [['Brands','brand','Synthetic test brand'],['Specialties','specialty','Synthetic specialty']]) {
+    await page.getByText(`${group} (0)`,{exact:true}).click();
+    await expect(page.getByRole('button',{name:`Add ${group!.toLowerCase()}`,exact:true})).toBeDisabled();
+    await page.getByLabel(`New ${name} name`).fill(label!);
+    await page.getByRole('button',{name:`Add or reuse ${name}`,exact:true}).click();
+    const row=page.getByRole('group',{name:`${group} 1`,exact:true});
+    await expect(row.getByLabel('Item',{exact:false})).toHaveValue(group==='Brands'?'82000000-0000-4000-8000-000000000001':'82000000-0000-4000-8000-000000000002');
+    await expect(row.getByText('Legacy source and review date (optional)')).toBeVisible();
+    await expect(row.getByLabel('Claim review date')).not.toBeVisible();
+  }
+  await page.screenshot({path:info.outputPath('admin-choice-recovery.png'),fullPage:true});
+  await page.getByRole('button',{name:'Save and review',exact:true}).click();
+  await expect(page.getByText('Private catalogue preview',{exact:true})).toBeVisible();
+});
+
+test('country mismatch identifies and focuses locality without discarding edits @short',async({page})=>{
+  const state=await setup(page);
+  await page.goto(`/admin/shops/${id}`);
+  await page.getByLabel('Country code').fill('JP');
+  await page.getByRole('button',{name:'Save and review',exact:true}).click();
+  await expect(page.getByLabel('Locality',{exact:true})).toBeFocused();
+  await expect(page.getByLabel('Locality',{exact:true})).toHaveAttribute('aria-invalid','true');
+  await expect(page.getByRole('list',{name:'Fields to correct'})).toContainText('Choose a locality in the selected country');
+  expect(state.actions).toEqual([]);
 });

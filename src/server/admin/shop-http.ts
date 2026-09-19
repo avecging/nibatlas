@@ -17,7 +17,7 @@ export interface ShopAdminGateway extends AdminGateway {
   call(name: string, args?: Record<string, unknown>): Promise<unknown>;
 }
 export class ShopOperationError extends Error {
-  constructor(readonly code: string) {
+  constructor(readonly code: string, readonly fieldErrors: import("@/src/features/admin/shop-normalization").FieldIssue[] = []) {
     super(code);
   }
 }
@@ -101,7 +101,7 @@ export async function handleShopAdmin(
           : decodeShop(await gateway.call("admin_shop_read", { p_id: id })),
       );
     }
-    if (request.method !== "POST" || path === "options" || [...params].length)
+    if (request.method !== "POST" || [...params].length)
       return adminFailure("invalid_request");
     stage("origin");
     if (request.headers.get("origin") !== new URL(request.url).origin)
@@ -110,6 +110,13 @@ export async function handleShopAdmin(
     let data: Record<string, unknown>;
     try {
       data = await body(request);
+      if (path === 'options') {
+        if (Object.keys(data).some(k => !['kind','label'].includes(k)) || !['brands','specialties'].includes(String(data.kind))
+          || typeof data.label !== 'string' || !data.label.trim() || data.label.length > 300) return adminFailure('invalid_request');
+        const created = object(await gateway.call('admin_catalogue_choice', {p_kind:data.kind,p_label:data.label}));
+        if (typeof created.id !== 'string' || !UUID.test(created.id)) return adminFailure('service_unavailable');
+        return json({id:created.id,options:decodeOptions(await gateway.call('admin_shop_options'))});
+      }
       if (
         Object.keys(data).some(
           (k) => !["action", "revision", "document", "id"].includes(k),
@@ -144,11 +151,17 @@ export async function handleShopAdmin(
           !/^([a-f0-9]{32}|[a-f0-9-]{36})$/i.test(data.revision)
         )
           throw Error("Invalid action");
-        if (data.action === "save") data.document = normalizeShopDocument(data.document);
+        if (data.action === "save") {
+          const normalized = normalizeShopDocument(data.document);
+          if (normalized.shop.locality_id || [normalized.types,normalized.services,normalized.brands,normalized.specialties].some(rows => rows.length))
+            normalizeShopDocument(normalized, decodeOptions(await gateway.call('admin_shop_options')));
+          data.document = normalized;
+        }
         else if (data.document !== undefined)
           throw Error("Unexpected document");
       }
     } catch (error) {
+      if (error instanceof ShopOperationError || error instanceof AdminForbiddenError) throw error;
       if (error instanceof ShopValidationError) return json({ ok: false, error: { code: "invalid_fields" }, fieldErrors: error.issues }, 422);
       return adminFailure("invalid_request");
     }
@@ -179,6 +192,7 @@ export async function handleShopAdmin(
   } catch (error) {
     if (error instanceof AdminForbiddenError) return adminFailure("forbidden");
     if (error instanceof ShopOperationError) {
+      if (error.fieldErrors.length) return json({ok:false,error:{code:'invalid_fields'},fieldErrors:error.fieldErrors},422);
       const codes: Record<string, [number, string]> = {
         "40001": [409, "revision_conflict"],
         "23505": [409, "duplicate_record"],

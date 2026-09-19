@@ -1,4 +1,4 @@
-import { document, GROUPS, HOURS_FIELDS, SHOP_FIELDS, UUID, type Document, type Field, type Row } from './shop-contract';
+import { document, GROUPS, HOURS_FIELDS, SHOP_FIELDS, UUID, type Document, type Field, type Row, type Options } from './shop-contract';
 
 export interface FieldIssue { path: string; message: string }
 export class ShopValidationError extends Error {
@@ -12,7 +12,7 @@ export class ShopValidationError extends Error {
  * the reviewed private revision, preserving omitted/blank fields and identities.
  * Does not confer review, position confirmation or publication readiness.
  */
-export function normalizeShopDocument(input: unknown): Document {
+export function normalizeShopDocument(input: unknown, options?: Options): Document {
   const issues: FieldIssue[] = [];
   const issue = (path: string, message: string) => {
     if (issues.length < 100) issues.push({ path, message });
@@ -141,6 +141,18 @@ export function normalizeShopDocument(input: unknown): Document {
   for (const group of ['types', 'services', 'specialties', 'brands'] as const) result[group].forEach((r, i) => {
     if (r.source_id != null && !sources.has(r.source_id)) issue(`${group}.${i}.source_id`, 'Choose a source belonging to this shop.');
   });
+  if (options) {
+    const locality = options.localities?.find(o => o.id === shop.locality_id);
+    if (shop.locality_id != null && (!locality || locality.countryCode !== shop.country_code))
+      issue('shop.locality_id', 'Choose a locality in the selected country.');
+    for (const g of GROUPS) for (const f of g.fields) {
+      if (!f.vocabulary || f.vocabulary === 'sources') continue;
+      result[g.key].forEach((r, i) => {
+        if (r[f.key] != null && !options[f.vocabulary!]?.some(o => o.id === r[f.key]))
+          issue(`${g.key}.${i}.${f.key}`, 'This item is no longer available. Choose another item or remove this row.');
+      });
+    }
+  }
   if (typeof shop.reference_links === 'string' && shop.reference_links.split(/\r?\n/).some(link => link.trim() && !validWebUrl(link.trim()))) issue('shop.reference_links', 'Use one complete http:// or https:// reference link per line.');
   if (issues.length) throw new ShopValidationError(issues);
   return document(result);

@@ -127,7 +127,7 @@ describe("admin direct request authorization", () => {
   });
 });
 
-it.each(["shops", "stamps", "stamp_artwork_versions"])("projects %s audit summaries without private values", async (entityType) => {
+it.each(["shops", "stamps", "stamp_artwork_versions", "brands", "specialties"])("projects %s audit summaries without private values", async (entityType) => {
   const g = gateway();
   vi.mocked(g.listAudit).mockResolvedValue([
     {

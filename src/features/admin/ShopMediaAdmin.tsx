@@ -3,6 +3,7 @@
 import { readAdminResponse } from './read-response';
 import { useEffect, useRef, useState } from 'react';
 import { decodeShopMedia, mediaPath, type ShopMedia } from './media-contract';
+import { usePendingUpload } from './use-pending-upload';
 import { UUID } from './shop-contract';
 import styles from './ShopMediaAdmin.module.css';
 const messages: Record<string,string> = {
@@ -30,6 +31,8 @@ export function ShopMediaAdmin({shopId,shopName,archived}: {shopId:string;shopNa
   const [loaded,setLoaded] = useState(false), [notice,setNotice] = useState('');
   const [confirmation,setConfirmation] = useState<{entry:ShopMedia;action:'publish'|'hide'} | null>(null);
   const controller = useRef<AbortController | null>(null), lock = useRef(false);
+  const feedback = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (error || notice) { feedback.current?.focus(); feedback.current?.scrollIntoView({block:'center'}); } }, [error, notice]);
   const path = mediaPath(shopId);
   useEffect(() => {
     const c = new AbortController(); controller.current = c;
@@ -46,9 +49,9 @@ export function ShopMediaAdmin({shopId,shopName,archived}: {shopId:string;shopNa
   }
   return <section className={styles.section} aria-label="Shop photos and logo">
     <h2>Photos and logo</h2>
-    <p>Upload for <strong>{shopName}</strong>. Save privately first, then publish when the preview looks right. Published media appears only while the shop is public.</p>
-    {error && <p role="alert">{error}</p>}
-    <p role="status" aria-live="polite">{notice || (busy ? 'Saving…' : '')}</p>
+    <p>Upload for <strong>{shopName}</strong>. Choosing a file uploads and saves it privately. Publish when the saved preview looks right. Published media appears only while the shop is public.</p>
+    <div ref={feedback} tabIndex={-1}>{error && <p role="alert">{error}</p>}
+    <p role="status" aria-live="polite">{notice || (busy ? 'Uploading and saving privately…' : '')}</p></div>
     <button type="button" disabled={busy} onClick={() => void run(async signal => {
       setEntries(decodeShopMedia((await call(path,signal)).entries,true)); setLoaded(true); setConfirmation(null); setNotice('Media reloaded.');
     })}>Reload media</button>
@@ -84,22 +87,8 @@ function UploadPicker({kind,shopId,shopName,disabled,run,saved}: {
   const [file,setFile] = useState<File | null>(null), [preview,setPreview] = useState(''), [error,setError] = useState('');
   const session = useRef<string | null>(null), input = useRef<HTMLInputElement | null>(null);
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); },[preview]);
-  return <div>
-    <label>Choose {kind}<input ref={input} type="file" accept={kind === 'logo' ? 'image/png' : 'image/png,image/jpeg'} disabled={disabled} onChange={e => {
-      setPreview('');setError('');session.current = null;
-      const f = e.target.files?.[0] ?? null;
-      if (f && (f.size < 1 || f.size > 5*1024*1024 || !(f.type === 'image/png' || (kind === 'photo' && f.type === 'image/jpeg')))) {
-        setFile(null); setError('Choose a supported file up to 5 MiB. Logos use PNG; photos use PNG or JPEG.'); return;
-      }
-      setFile(f);
-      if (f) setPreview(URL.createObjectURL(f));
-    }}/></label>
-    <p className={styles.help}>{kind === 'logo' ? 'PNG, up to 5 MiB and 2048 px per side. Transparent backgrounds are preserved.' : 'JPEG or PNG, up to 5 MiB. JPEG: up to 24 MP / 8192 px per side. PNG: up to 2048 px per side.'}</p>
-    {error && <p role="alert">{error}</p>}
-    {file && preview && <>
-      <img className={kind === 'logo' ? styles.logo : styles.photo} src={preview} alt={`Selected ${kind} for ${shopName}`}/>
-      <p>{file.name} · Not saved yet</p>
-      <button type="button" disabled={disabled} onClick={() => void run(async signal => {
+  usePendingUpload(!!file);
+  const save = (file: File) => void run(async signal => {
         try {
         const bytes = await file.arrayBuffer();
         const base = '/api/v1/admin/media/uploads';
@@ -124,7 +113,24 @@ function UploadPicker({kind,shopId,shopName,disabled,run,saved}: {
           if (e instanceof MediaFailure && ['upload_expired','upload_conflict'].includes(e.code)) session.current = null;
           throw e;
         }
-      })}>Save {kind} privately</button>
+
+  });
+  return <div>
+    <label>Choose {kind}<input ref={input} type="file" accept={kind === 'logo' ? 'image/png' : 'image/png,image/jpeg'} disabled={disabled} onChange={e => {
+      setPreview('');setError('');session.current = null;
+      const f = e.target.files?.[0] ?? null;
+      if (f && (f.size < 1 || f.size > 5*1024*1024 || !(f.type === 'image/png' || (kind === 'photo' && f.type === 'image/jpeg')))) {
+        setFile(null); setError('Choose a supported file up to 5 MiB. Logos use PNG; photos use PNG or JPEG.'); return;
+      }
+      setFile(f);
+      if (f) { setPreview(URL.createObjectURL(f)); save(f); }
+    }}/></label>
+    <p className={styles.help}>{kind === 'logo' ? 'PNG, up to 5 MiB and 2048 px per side. Transparent backgrounds are preserved.' : 'JPEG or PNG, up to 5 MiB. JPEG: up to 24 MP / 8192 px per side. PNG: up to 2048 px per side.'}</p>
+    {error && <p role="alert">{error}</p>}
+    {file && preview && <>
+      <img className={kind === 'logo' ? styles.logo : styles.photo} src={preview} alt={`Selected ${kind} for ${shopName}`}/>
+      <p>{file.name} · Not saved yet</p>
+      <button type="button" disabled={disabled} onClick={() => save(file)}>Save {kind} privately</button>
     </>}
   </div>;
 }
