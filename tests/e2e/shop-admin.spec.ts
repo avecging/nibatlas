@@ -475,6 +475,9 @@ test('stamp draft upload previews and explicit activation preserve earlier versi
   await section.getByLabel('Creator link (optional)').fill('https://example.test/gin');
   await section.getByRole('button',{name:'Create private draft'}).click();
   await expect(section.getByRole('status')).toContainText('Draft stamp version created');
+  await section.getByLabel('Stamp PNG').setInputFiles({name:'wrong-type.jpg',mimeType:'image/jpeg',buffer:Buffer.from('invalid')});
+  await expect(section.getByRole('alert')).toContainText('transparent PNG up to 5 MiB');
+  expect(initiations).toBe(0);
   await section.getByLabel('Stamp PNG').setInputFiles({name:'demo-stamp.png',mimeType:'image/png',buffer:png});
   await expect(section.getByRole('alert')).toContainText('Save again');
   await section.getByRole('button',{name:'Save PNG privately'}).click();

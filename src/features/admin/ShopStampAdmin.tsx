@@ -15,7 +15,7 @@ const messages:Record<string,string>={
   stamp_limit:'This shop has reached the limit of 50 retained stamp versions.',
   upload_expired:'This upload expired. Save again to start a fresh upload.',
   upload_conflict:'This upload cannot be resumed. Save again to start a fresh upload.',
-  invalid_upload:'Use a 1200 × 800 transparent PNG with supported RGB/RGBA export settings.',
+  invalid_upload:'Use a 1200 × 800 transparent PNG up to 5 MiB with supported RGB/RGBA export settings.',
   invalid_request:'Check the stamp fields and try again.',
   invalid_stamp_target:'This stamp draft changed or no longer accepts that file. Reload stamps.',
   revision_conflict:'This stamp changed in another session. Reload before activating.',
@@ -125,6 +125,7 @@ function ArtworkPicker({shopId,version,disabled,run,attached}:{shopId:string;ver
   usePendingUpload(!!file);
   const save = (file: File) => void run(async signal => {
       try{
+        if(file.type!=='image/png'||file.size<1||file.size>5*1024*1024) throw new Failure('invalid_upload');
         const bytes=await file.arrayBuffer(),base='/api/v1/admin/media/uploads';
         if(!uploadId.current){
           const sha256=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
