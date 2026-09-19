@@ -120,7 +120,7 @@ sequences, truncated files and appended bytes. Export those as ordinary RGB JPEG
 no manual PNG conversion is needed for supported photos.
 
 The server decodes through `PHOTO_IMAGES`, resizes to **at most 1024 px on the
-longest edge**, preserves aspect ratio (nearest whole pixel, minimum 1 px), does
+longest edge**, preserves aspect ratio (decoder rounding to a whole pixel, minimum 1 px), does
 not enlarge/crop, applies orientation to decoded pixels and encodes a clean RGBA
 PNG. This bounded private working photo fits the existing 5 MiB storage and
 validator budget even at square dimensions. It is not a high-resolution original

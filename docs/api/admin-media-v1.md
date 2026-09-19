@@ -114,8 +114,11 @@ grayscale, lossless/arithmetic/12-bit exports, malformed orientation/ICC sequenc
 and non-JPEG formats are unsupported. Ordinary baseline/progressive RGB JPEG
 exports are supported. See the runbook for plain-language export guidance.
 
-The binding decodes/resizes to a maximum 1024 px longest edge, with aspect ratio
-rounded to whole pixels and no upscaling/cropping. The Worker independently
+The binding decodes/resizes using only the longest-axis constraint, to a maximum
+1024 px longest edge, with no upscaling/cropping. The Worker checks that long edge
+exactly and accepts floor/ceiling whole-pixel rounding of the proportional short
+edge, then uses the validated decoded dimensions for pixel buffers and orientation.
+The Worker independently
 validates/decompresses the returned PNG, applies all eight EXIF orientations to
 pixels, and emits an RGBA PNG with **only IHDR, IDAT, IEND**. It validates this
 output before any persistence. Sensitive/arbitrary metadata is therefore neither

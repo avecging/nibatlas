@@ -101,7 +101,7 @@ export function inspectJpeg(bytes: Uint8Array) {
 
 export interface PhotoImages {
   input(stream: ReadableStream<Uint8Array>): {
-    transform(options:{width:number;height:number}): {
+    transform(options:{width:number;height?:never} | {height:number;width?:never}): {
       output(options:{format:'image/png'}): Promise<{response():Response}>;
     };
   };
@@ -133,14 +133,22 @@ export function orientPhoto(pixels:Uint8Array,width:number,height:number,orienta
 }
 export async function processJpeg(bytes:Uint8Array,images:PhotoImages) {
   const input=inspectJpeg(bytes);
-  const scale=Math.min(1,PHOTO_AXIS/Math.max(input.width,input.height));
-  const width=Math.max(1,Math.round(input.width*scale)),height=Math.max(1,Math.round(input.height*scale));
+  const landscape=input.width>=input.height;
+  const sourceLong=landscape?input.width:input.height, sourceShort=landscape?input.height:input.width;
+  const targetLong=Math.min(PHOTO_AXIS,sourceLong), targetShort=sourceShort*targetLong/sourceLong;
+  // Only the long axis constrains the decoder. Two rounded bounds can make the
+  // short axis limiting and unexpectedly shrink the requested long axis again.
   const response=(await images.input(new ReadableStream({start(c){c.enqueue(input.bytes);c.close();}}))
-    .transform({width,height}).output({format:'image/png'})).response();
+    .transform(landscape?{width:targetLong}:{height:targetLong}).output({format:'image/png'})).response();
   if(!response.ok || response.headers.get('content-type')!=='image/png') return invalid();
   const decoded=await readBounded(response.body,MAX_MEDIA_BYTES);
   const checked=validatePng(decoded,false);
-  if(checked.width!==width || checked.height!==height) return invalid();
+  const {width,height}=checked, actualLong=landscape?width:height, actualShort=landscape?height:width;
+  // Allow the decoder's whole-pixel rounding, while independently enforcing the
+  // intended scale/aspect ratio and the 1024-axis/no-upscale allocation budget.
+  if(actualLong!==targetLong || actualShort<Math.max(1,Math.floor(targetShort)) ||
+      actualShort>Math.ceil(targetShort) || width>input.width || height>input.height ||
+      width>PHOTO_AXIS || height>PHOTO_AXIS) return invalid();
   const pixels=new Uint8Array(width*height*4);
   validatePng(decoded,false,pixels);
   const output=orientPhoto(pixels,width,height,input.orientation);

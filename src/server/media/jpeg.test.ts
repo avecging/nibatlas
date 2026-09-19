@@ -5,8 +5,9 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { inspectJpeg, processJpeg, orientPhoto, type PhotoImages, digest } from './jpeg';
-import { jpeg, progressiveJpeg, largeJpeg, profiledJpeg, adobeRgbJpeg } from './jpeg.fixture';
+import { jpeg, progressiveJpeg, largeJpeg, profiledJpeg, adobeRgbJpeg, awkwardRatioJpeg, awkwardPortraitJpeg } from './jpeg.fixture';
 import { validatePng, MAX_MEDIA_BYTES } from './png';
+import { png } from './png.fixture';
 
 export function app(marker:number,payload:Buffer) {
   const h=Buffer.alloc(4);h[0]=255;h[1]=marker;h.writeUInt16BE(payload.length+2,2);return Buffer.concat([h,payload]);
@@ -23,6 +24,17 @@ function pixels(bytes:Uint8Array) {
   const m=validatePng(bytes,false), p=new Uint8Array(m.width*m.height*4);validatePng(bytes,false,p);return {p,...m};
 }
 describe('JPEG preflight and pixel orientation',()=>{
+  it.each([[1024,340],[1024,341]])('uses validated decoder dimensions %s x %s',async(width,height)=>{
+    let options:unknown;
+    const images:PhotoImages={input:()=>({transform:value=>{options=value;return {output:async()=>({response:()=>new Response(png(width,height),{headers:{'content-type':'image/png'}})})};}})};
+    const result=await processJpeg(withExif(awkwardRatioJpeg,6),images);
+    expect(options).toEqual({width:1024});
+    expect(result.checked).toMatchObject({width:height,height:width});
+  });
+  it.each([[1025,341],[1023,340],[1024,339],[1024,342],[1024,1024]])('rejects wrong decoder scale/aspect %s x %s',async(width,height)=>{
+    const images:PhotoImages={input:()=>({transform:()=>({output:async()=>({response:()=>new Response(png(width,height),{headers:{'content-type':'image/png'}})})})})};
+    await expect(processJpeg(awkwardRatioJpeg,images)).rejects.toThrow();
+  });
   it('retains only canonical Adobe colour interpretation for the decoder',()=>{
     const b=Buffer.from(adobeRgbJpeg), at=b.indexOf(Buffer.from('Adobe'));
     b.fill(0xab,at+5,at+11); // Version/flags are not needed for decoding.
@@ -110,6 +122,10 @@ describe('actual local Cloudflare Images binding',()=>{
     expect(result.checked).toMatchObject({width:512,height:1024});
     expect(validatePng(result.bytes,false)).toEqual(result.checked);
     expect(result.bytes.length).toBeLessThanOrEqual(MAX_MEDIA_BYTES);
+  });
+  it.each([[awkwardRatioJpeg,1024,340],[awkwardPortraitJpeg,340,1024]] as const)('accepts resized photos whose short edge rounds down',async(input,width,height)=>{
+    const result=await processJpeg(input,images);
+    expect(result.checked).toMatchObject({width,height});
   });
   it('rejects a scan referencing an invalid Huffman table',async()=>{
     const corrupt=Buffer.from(jpeg);const sos=corrupt.indexOf(Buffer.from([255,218]));
