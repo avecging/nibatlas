@@ -1,8 +1,10 @@
 # Private media uploads v1 — M6 WP3
 
-This is the upload transport foundation within WP3, not a new package number or
-an artwork approval workflow. Issue #73 supersedes older MVP paperwork gates; photo/logo attachment and delivery are specified below. Related issues: #32, #19 and #28. The current illustration
-guide supersedes #28's old compact-proof/texture wording.
+This is the media and stamp-artwork boundary within WP3, not a new package number.
+Issue #73 supersedes older MVP paperwork gates. Photo/logo attachment plus the
+simplified founder/admin stamp draft → PNG → preview → activation workflow are
+specified below. Related issues: #32, #19 and #28. The current illustration guide
+supersedes #28's old compact-proof/texture wording.
 
 ## HTTP contract
 
@@ -34,13 +36,12 @@ metadata. If supplied, `sourceRef` (1–2000), `rightsBasis` (1–2000), `credit
 permission, ownership, licence, credit or description is inserted. Existing
 metadata is preserved. A source reference is private text and never fetched.
 
-The legacy artwork transport still requires a commissioned draft `artworkVersionId`,
-sourceRef/altText and existing canonical rights/credit. **This is an implementation
-limitation of the preceding slice, not the approved MVP rule.** The next #73 slice
-must add truthful origin/creator fields and relax artwork gates additively before
-exposing stamp uploads. No artwork creation/activation is implemented here.
-Approved artwork versions cannot be upload targets. Production rejects demo
-shops; archived shops cannot receive/finalize new uploads.
+Artwork additionally requires an uploaded draft `artworkVersionId`. Its manifest
+contains only the byte identity/target fields above: `sourceRef`, `rightsBasis`,
+`creditText` and `altText` are rejected for `artwork_png` rather than fabricated.
+Origin and creator attribution live on the immutable artwork version. Approved
+artwork versions cannot be upload targets. Production rejects demo shops; archived
+shops cannot receive/finalize new uploads.
 
 ## File validation and identity
 
@@ -73,10 +74,11 @@ a guarantee against sensitive content encoded in pixels. Artwork requires RGBA,
 1200 × 800 and transparent pixels. PNG uploads are never rewritten or converted.
 
 This intentionally narrow subset can reject otherwise valid illustrator PNGs.
-Ask for a suitable export, never silently modify approved artwork. Full one-ink,
-maker-mark, visual and cross-export approval checks are later WP3 work; a transport
-validation is not evidence of illustrator approval or production readiness.
-WebP/AVIF, SVG and editable sources are not accepted. JPEG shop-photo intake is described below.
+Ask for a suitable export, never silently modify approved artwork. Transport validation is not evidence of external illustrator approval. Under #73,
+MVP activation deliberately does not require maker-mark confirmation, source/SVG
+bundles, rights evidence or external sign-off; those commissioning requirements
+are deferred to #71. WebP/AVIF, SVG and editable sources are not accepted by this
+upload path. JPEG shop-photo intake is described below.
 
 A generated upload UUID identifies one immutable file version, separate from the
 existing artwork/design identity. Keys are server generated:
@@ -222,13 +224,26 @@ environment; 409 stale revision; 422 wrong/unvalidated target; 429 50-image limi
 attempts finalization, then resends only if incomplete. Expired/conflicting upload
 IDs are cleared so the next Save creates a new session for the selected file.
 
-## Remaining WP3 slices
+## Stamp artwork workflow — issue #73
 
-Next: truthful founder/admin stamp origins, creator name/optional safe link,
-draft-version creation, PNG attachment, list/Passport/detail proofing, controlled
-activation and intact public artwork/credit delivery. Render `created by: name`,
-with linked name only when a valid link exists. Keep generated defaults, all
-approved versions/credits/impressions and duplicate protection. New-design
-recollection #70, commissioning/source/SVG/sign-off #71, photo metadata #72 are
-deferred. Imports remain WP4. Remote JPEG and photo/logo display acceptance are
-separate gates from local tests and successful deployment.
+`/api/v1/admin/shops/[shop]/stamp` lists versions and creates uploaded drafts
+with explicit `founder_created`, `ai_assisted` or `commissioned` origin,
+creator name, optional HTTP(S) creator link and ink. The normal file picker sends
+a 1200 × 800 transparent PNG through the private upload transport, then attaches
+the validated receipt. The admin surface previews the exact PNG at list,
+Passport and detail sizes before activation.
+
+Activation is admin-only, revision-checked and explicit. It approves the attached
+version and advances `stamps.current_design_version` on the same stamp identity.
+Old approved versions and collection snapshots are never overwritten. Current
+approved custom art is publication-checked for public byte delivery; an owner can
+still resolve the exact historical version in an existing private collection.
+New uploaded/legacy custom impressions render their exact PNG and public credit as
+`created by: name`, with the name linked only when a safe link exists.
+
+Generated defaults remain valid. Unique `(user_id, stamp_id)` duplicate
+protection is unchanged, so collecting a later design again is still deferred to
+#70. Commissioning/source/SVG/sign-off requirements are #71 and photo metadata is
+#72. Imports remain WP4. Remote JPEG, photo/logo display, and the new stamp flow
+still need post-merge staging acceptance; passing local/CI checks does not claim
+that device/runtime acceptance.
