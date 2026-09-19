@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element -- Stamp artwork uses an authenticated same-origin byte route, not an image proxy. */
 import type { ShopStampDesign, StampMotif } from "@/src/domain/shop-detail";
 import { fitStampTitle } from "@/src/components/stamps/stamp-title";
 import { languageDirection } from "@/src/domain/language";
@@ -177,12 +178,18 @@ export function StampArt({
   subtitle,
   detail = "full",
 }: StampArtProps) {
-  if (stamp.commissioned) {
-    // Never replace approved artwork with a generated imitation. M6 supplies
-    // checksum-bound delivery for the approved exports; history/credit remain.
-    return <figure className={styles.stamp} aria-label={`Shop stamp, ${title}`}>
-      <p>Artwork temporarily unavailable</p>
-    </figure>;
+  if (stamp.commissioned || stamp.uploaded) {
+    // Approved uploaded/legacy commissioned artwork is delivered intact. The
+    // route authorizes current public art or the owner's exact historical version.
+    return (
+      <figure className={styles.stamp}>
+        <img
+          className={styles.canvas}
+          src={`/api/v1/stamps/${stamp.id}/artwork/${stamp.designVersion}`}
+          alt={`Shop stamp, ${title}`}
+        />
+      </figure>
+    );
   }
   const ink = `var(--ink-${stamp.ink})`;
   const filterId = `stamp-edge-${stamp.id}`;
