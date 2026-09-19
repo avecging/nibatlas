@@ -48,3 +48,27 @@ try:
     print('PASS: eight concurrent independent proofs issue exactly one immutable collection.')
 finally:
     sql(f"delete from auth.users where id='{USER}';")
+
+# Package B1: different operators race to prepare the same older draft. Different
+# actor rows ensure the shop lock, not only the per-actor lock, protects identity.
+default_shop = str(uuid.uuid4())
+default_actors = [str(uuid.uuid4()) for _ in range(8)]
+try:
+    for actor in default_actors:
+        sql(f"insert into auth.users(id) values('{actor}'); select public.assign_profile_role('{actor}','editor');")
+    sql(f"insert into public.shops(id,name,slug) values('{default_shop}','Synthetic concurrent default','concurrent-default-{default_shop}');")
+
+    def prepare_default(actor):
+        return json.loads(sql(f"select public.stamp_artwork_draft_operation('{actor}','staging','{default_shop}','ensure_default');"))
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        defaults = list(executor.map(prepare_default, default_actors))
+    assert all(len(rows) == 1 and rows[0]['active'] and rows[0]['kind'] == 'generated_template' for rows in defaults), defaults
+    assert len({rows[0]['stampId'] for rows in defaults}) == 1
+    assert len({rows[0]['id'] for rows in defaults}) == 1
+    assert sql(f"select count(*) from public.stamps where shop_id='{default_shop}';") == '1'
+    assert sql(f"select count(*) from public.admin_audit_log where entity_id in (select id from public.stamps where shop_id='{default_shop}' union all select av.id from public.stamp_artwork_versions av join public.stamps st on st.id=av.stamp_id where st.shop_id='{default_shop}');") == '3'
+    print('PASS: eight concurrent operators prepare exactly one default and one audited lifecycle.')
+finally:
+    for actor in default_actors:
+        sql(f"delete from auth.users where id='{actor}';")

@@ -470,8 +470,8 @@ function Workspace({ id }: { id: string | null }) {
                   />
                 </label>
                 <p>
-                  A draft is private. Add researched facts and an approved Atlas
-                  Stamp before publication.
+                  A draft is private and includes a generated Atlas Stamp. Add
+                  researched shop details before publication.
                 </p>
                 <button>Create draft</button>
               </fieldset>
@@ -684,7 +684,16 @@ function Workspace({ id }: { id: string | null }) {
             </form>
           )}
           <ShopMediaAdmin key={`media-${record.id}`} shopId={record.id} shopName={String(record.document.shop.name)} archived={record.publicationStatus === "archived"} />
-          <ShopStampAdmin key={`stamp-${record.id}`} shopId={record.id} shopName={String(record.document.shop.name)} archived={record.publicationStatus === "archived"} />
+          <ShopStampAdmin key={`stamp-${record.id}`} shopId={record.id} shopName={String(record.document.shop.name)}
+            localityName={options.localities?.find(o=>o.id===record.document.shop.locality_id)?.label.replace(/ \([A-Z]{2}\)$/, '') ?? ''}
+            countryCode={String(record.document.shop.country_code ?? '')} archived={record.publicationStatus === "archived"}
+            onPrepared={async()=>{
+              const current=decodeShop(await api(`/${id}`,signal()));
+              // Preparing art changes no catalogue document. Refresh blockers only
+              // for this saved revision, never replace unsaved or concurrent edits.
+              setRecord(previous=>previous?.revision===current.revision
+                ? {...previous,publicationErrors:current.publicationErrors}:previous);
+            }} />
           <section className={styles.operations}>
             <h2>Publication and status</h2>
             {record.publicationErrors.length > 0 && (

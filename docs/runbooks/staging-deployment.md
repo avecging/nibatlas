@@ -99,7 +99,15 @@ out of scope for this workflow.
 
 The unchanged baseline is main `3732018a0ca023a2dc7e8ae0eef7a26061e8470a`
 (#74 merged), with CI 35446023895 and staging deployment 35446031047 successful.
-The Package A branch changes client recovery, not Worker limits, account plan,
+PR #75 is merged at `7074656bdc3e7aa945ad208a0fbdd036410fac82`. Main CI
+35458434251 passed all six jobs; staging deployment 35458739061 succeeded at
+that exact commit (Worker `fcf8fb29-ad9c-4501-9a96-5abe2a8f4b0b`). Both public
+map/catalogue smoke checks passed; the remote database was already up to date.
+The retained screenshots could not be downloaded/visually inspected (HTTP 403),
+and the interactive browser still timed out after recovery. This is an access
+limitation, not evidence of application outage or authenticated acceptance.
+
+Package A changes client recovery, not Worker limits, account plan,
 auth/session behaviour, database contracts or media processing. Until merged and
 explicitly deployed, these recovery changes are not staging acceptance.
 
@@ -169,7 +177,7 @@ constructor and control initialization, best-effort partial teardown and the
 existing list fallback. This is separate from server 1102; it does not imply a
 universal phone map outage or repair arbitrary later tile/context failures.
 
-After deployment, check the admin failure/reload flow and map fallback on mobile
+On this deployed revision, check the still-pending admin failure/reload flow and map fallback on mobile
 and desktop separately from ordinary map interaction. Local component tests use
 partial/throwing MapLibre doubles; the E2E regression disables WebGL contexts to
 exercise the actual locked constructor and preserve the list/navigation. Feature

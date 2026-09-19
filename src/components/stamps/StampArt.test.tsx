@@ -262,3 +262,16 @@ describe("the plate", () => {
     expect(container.querySelector("svg")).toBeInTheDocument();
   });
 });
+
+describe('unfinished admin geography',()=>{
+  it('omits an unknown place line rather than printing an empty separator',()=>{
+    const svg=svgFor('shop',{stamp:design('shop',{localityLabel:'',countryLabel:''})});
+    expect(textContents(svg).some(text=>text.includes('·'))).toBe(false);
+    expect(svg.getAttribute('aria-label')).not.toContain('Japan');
+  });
+  it('shows only the actual known geography',()=>{
+    const svg=svgFor('shop',{stamp:design('shop',{localityLabel:'',countryLabel:'Singapore'})});
+    expect(textContents(svg)).toContain('SINGAPORE');
+    expect(textContents(svg)).not.toContain(' · SINGAPORE');
+  });
+});

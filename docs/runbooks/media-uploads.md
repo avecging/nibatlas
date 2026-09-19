@@ -275,7 +275,7 @@ public launch commitment; use the implementation plan's A–F sequence.
 | Uploaded stamp → previews → activation → eligible new collection → historical view | Implemented/deployed, remote acceptance pending. Need authorized test art, test account and legitimate eligible device/location. Never reset history, fabricate coordinates, duplicate businesses or bypass duplicate protection. |
 | Package A session access | Existing staging browser reached the signed-out admin screen on reload; no authenticated editor session, supplied test media or eligible device test was available. No uploads, activations, publication or collections were performed. |
 
-After an authorized staging deployment of Package A, test infrastructure-response
+Package A deployed successfully in run 35458739061 at `7074656bdc3e7aa945ad208a0fbdd036410fac82`. Its public smoke passed; authenticated/media acceptance above remains pending. Test infrastructure-response
 recovery separately from the above feature checks. A JSON-parser fix is not a
 1102 resource fix. See `staging-deployment.md` for missing telemetry and read-only
 reproduction steps. Reload saved versions/media/stamps after ambiguous mutations

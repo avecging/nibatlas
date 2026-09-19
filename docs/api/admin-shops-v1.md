@@ -15,7 +15,7 @@ RPC still checks the live role independently; publication rules are unchanged.
 | `/api/v1/admin/shops` | GET | Optional `q` (≤120 chars), UUID `after` | ≤50 summaries and nullable nextCursor |
 | `/api/v1/admin/shops/options` | GET | None | Existing localities/types/services/specialties/brands |
 | `/api/v1/admin/shops/[id]` | GET | None | Private saved document, revision, publicationStatus, hasChanges, publicationErrors |
-| `/api/v1/admin/shops` | POST | action=create, new UUID id, document={name,slug} | Created draft, 201 |
+| `/api/v1/admin/shops` | POST | action=create, new UUID id, document={name,slug} | Created private draft plus generated default in one transaction, 201 |
 | `/api/v1/admin/shops/[id]` | POST | action=save, revision, full document | Saved private working copy |
 | `/api/v1/admin/shops/[id]` | POST | action=publish/discard/archive/open/unknown/temporarily_closed/permanently_closed, revision | Updated record |
 
@@ -58,3 +58,20 @@ request ID and authenticated actor attribution.
 `X-Nib-Atlas-Release` and the page's `nibatlas-release` HTML metadata identify the
 build commit. GitHub builds embed `GITHUB_SHA`; local builds say `development`.
 This lets an investigation distinguish a stale page from the deployed route.
+
+## Package B1 default initialization
+
+Successful creation also calls the private `ensure_shop_generated_default` SQL
+helper under the same current-role/shop locks and transaction. One approved
+system-template version on one active stamp identity is prepared without media
+manifests. This does not publish the shop or assert location/review/source facts.
+Failure rolls back the entire create; reusing the create UUID still returns 409.
+After a lost response, inspect the existing draft before retrying. Existing
+working copies, publication gates and public projections are unchanged in B1;
+trusted-admin publication is the next B2 contract slice, not already delivered.
+
+Future import creation must reuse this initializer, with batch/row operation
+idempotency outside it. It never replaces an existing stamp identity (including
+retired or unfinished custom work), and consumes no upload quota. The helper
+is not granted to any API role. See the media contract for explicit preparation
+of older drafts and the plan for the mandatory 200-row import workflow.

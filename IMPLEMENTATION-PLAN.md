@@ -46,12 +46,48 @@ to shared migrations/contracts. No package here authorizes production release.
 
 | Package | Required result | Current acceptance / dependencies |
 | --- | --- | --- |
-| A — Stability | Investigate 1102 against route/release and authorized resource telemetry; useful non-JSON recovery; independent WebGL fallback; separate media acceptance. | Recovery implementation under review. Original 1102 root cause unresolved: authenticated reproduction and Worker telemetry unavailable. See staging and media runbooks; CI is not remote acceptance. |
-| B — Shared contract and essentials | One normalized manual/import draft and publication contract; additive compatibility/public decoding; trusted-admin review without mandatory claim tokens; protected private working copies; idempotent audited generated defaults for new shops; canonical locality/brand mapping/creation; essential seven-section editor. | Next implementation package after A checkpoint. Ship a real end-to-end slice. Retain IDs/slugs, legacy provenance, relationships, custom art and impressions. Optional creator name/link, with name required for a supplied link; no invented verification facts. |
+| A — Stability | Investigate 1102 against route/release and authorized resource telemetry; useful non-JSON recovery; independent WebGL fallback; separate media acceptance. | PR #75 merged at `7074656bdc3e7aa945ad208a0fbdd036410fac82`; main CI 35458434251 passed all six jobs and staging deployment 35458739061 succeeded at that commit. Authenticated recovery/screenshots and real JPEG/photo/logo/stamp/device acceptance remain pending; original 1102 root cause lacks reproduction/telemetry. See staging/media runbooks; CI/public smoke is not that acceptance. |
+| B — Shared contract and essentials | One normalized manual/import draft and publication contract; additive compatibility/public decoding; trusted-admin review without mandatory claim tokens; protected private working copies; idempotent audited generated defaults for new shops; canonical locality/brand mapping/creation; essential seven-section editor. | B1 implements atomic generated defaults on manual create, idempotent preparation for older drafts with no stamp, and stored-template admin preview. Review/CI evidence belongs to its draft PR; not deployed or founder accepted. B2/B3 remain below; B as a whole is incomplete. Retain IDs/slugs, legacy provenance, relationships, custom art and impressions. Optional creator name/link, with name required for a supplied link; no invented verification facts. |
 | C — Bulk onboarding | Versioned downloadable CSV/JSON template, column and grouped vocabulary mapping, dry run/dedupe, selected private import, correction reports, stable row identity/operation revisions, resumable safe updates and batch review/publication. | Mandatory before catalogue preparation; at least 200 synthetic mixed-quality rows in isolated tests. Omitted/blank fields preserve data; explicit clearing and before/after preview; draft/public revision conflicts require re-review. Bounded chunks/concurrency, private batch audit/retention and formula-safe reports. Dry run does not mutate catalogue/media/stamps. C1 ingestion alone does not complete C2 publication. |
 | D — Complete approved editor | Shop & story; experiences; location; visit details; photos/logo; stamp; review. Full editorial/paragraph fields, repeatable experiences, optional practical fields, split/overnight hours and dated exceptions, gallery cover/order/captions, private pending media/stamp selection, accurate mobile/desktop public preview and field-level Fix actions. | Carry B/C data without re-entry. Review/publication binds the reviewed revisions and reports recoverable partial outcomes; draft saves never silently publish media/activate artwork. Optional postcodes/references/hours/photos are not arbitrary blockers. |
 | E — Catalogue and core acceptance | Locate actual founder dataset; map once, dry-run/correct/import, review genuine coordinates/timezones/unknowns; truthful public About; geographic seal/versioned coverage and anomaly-list dispositions; changed admin/public flows, field checks and five-user usability. | No fabricated catalogue or verification dates. Keep WP-D founder desktop feedback, broader device/indoor checks and #17 About accuracy explicit. Imports never create visits or derive award denominators from batch size. |
 | F — Production and release | Production/auth/domain/SMTP/OAuth, server account export/deletion consistent with immutable history/privacy, monitoring/spend alerts, terms/privacy, backups/restore and rollback drills, accessibility/performance/security, launch publication audit and founder acceptance. | Infrastructure discovery and independent account lifecycle work can start before D/E finish. Actual promotion follows authorized gates. Read closed-beta runbook before gating; preserve automation/alternate-route protection; no tester invitations here. |
+
+### Package B checkpoints and field mapping
+
+B1 removes the missing-default obstacle without concealing the still-existing
+claim-token publication gates. It creates no catalogue source, verification date,
+position attestation or private content field. It uses the established template
+renderer and the same FNV palette/motif rules pinned to shop UUID rather than name.
+A name-only draft still needs a stable unique slug; automatic slug assistance is
+part of B2. Stamp readiness alone never makes an incomplete shop public.
+
+| Checkpoint | Included / remaining |
+| --- | --- |
+| **B1 — Generated defaults** | Shared private SQL initializer, atomic manual creation, explicit safe older-draft preparation, current-role/audit/concurrency protection, no upload quota, stored-template preview and later uploaded versions on the same identity. Existing art/retired identities untouched; no automatic backfill. |
+| **B2 — Shared editorial/publication contract** | Shared manual/import normalization and structured field errors; trusted-editor publication without mandatory claim tokens, truthful public review attribution plus retained legacy sources, automatic actual reviewer/time, optional private notes/reference links, explicit position confirmation/invalidation, optional creator name/link validation across DB/API/collection decoders. Additive migrations/public decoding must ship with real editing and publication. |
+| **B3 — Canonical vocabulary and essential editor** | Bounded locality/brand creation/reuse and country/locality consistency; reusable mappings once per distinct import value, seven directly reachable sections, essential field editing, precise blockers. Finish before C; may combine with B2 if reviewable. |
+
+This maps the full approved prototype to existing storage and the next additions;
+the demo values/photos are never catalogue input. Preserve all current IDs,
+source relationships, ordinary rename URLs, stamps and impressions.
+
+| Approved section | Existing spine | Additions / completion |
+| --- | --- | --- |
+| Shop & story | `shops.name`, `short_description`, `website_url`, operational status; local name in aliases | B2: separate intro/headline/field-note heading/body with paragraphs; optional admin-only notes/references and truthful public review. B3: friendly essentials; D: final rich editing/preview. |
+| Experiences | Canonical types/services/specialties/brands and relationship notes | B2 shared shapes for repeatable category/title/description and edition text; B3 mappings/essential controls; D full repeats and public layout. No mandatory evidence tokens. |
+| Location | Country/locality IDs, city/admin area/neighbourhood, address lines, postal code, finite position pair/precision | B2 confirmation/invalidation and local-address/unit/station/exit/walk/entrance fields; B3 friendly mapping/creation. Canonical locality is not a display string; zero coordinates valid. |
+| Visit details | Timezone/phone, appointment/accessibility, weekly hours JSON | B2 public mapping with unknown preserved; D dated exceptions/holiday notes, split/overnight hours, copying days, payments/languages. Existing data survives. |
+| Photos | Private validated receipts, attachments and separate explicit publication | D private pending cover/order/removal/captions/logo choices and reviewed revision binding; existing transport limits retained. |
+| Stamp | Versioned templates/custom artwork and immutable impressions | B1 generated defaults; B2 optional creator credit; D pending selection/activation integrated with Review. No recollection or commissioning paperwork. |
+| Review | Private working copy/revision, atomic catalogue publish; current basic saved preview | B2 truthful trusted review and field errors; B3 section Fix links; D actual public desktop/mobile preview plus recoverable partial media outcomes. Catalogue save never activates uploads. |
+
+C must reuse the B contracts and initializer; do not feed partial rows into the
+full replacement document RPC. Stable batch/row/operation identities, preserved
+omitted/blank values, explicit clears, private-edit conflicts, grouped mapping,
+bounded chunks and selected partial publication remain mandatory. B1's focused
+200-default SQL check is **not** the 200-shop mixed-quality import acceptance or
+Worker resource measurement. No CSV/JSON import interface ships in B1.
 
 Bulk catalogue import is distinct from mass media upload: retain 100 upload
 manifests/account/rolling 24 hours and 50 attachments/50 stamp versions per shop.

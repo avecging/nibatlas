@@ -435,7 +435,7 @@ export function StampArt({
                 ))
               : null}
 
-            {isShop && !compact ? (
+            {isShop && !compact && (stamp.localityLabel || stamp.countryLabel) ? (
               <text
                 x="42"
                 y={Math.min(localBottom + 56, 300)}
@@ -444,7 +444,7 @@ export function StampArt({
                 stroke="none"
                 opacity="0.85"
               >
-                {`${stamp.localityLabel} · ${stamp.countryLabel}`.toUpperCase()}
+                {[stamp.localityLabel, stamp.countryLabel].filter(Boolean).join(" · ").toUpperCase()}
               </text>
             ) : null}
 

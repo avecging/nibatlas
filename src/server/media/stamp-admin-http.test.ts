@@ -52,3 +52,23 @@ describe('stamp workflow authorization',()=>{
     expect(r.status).toBe(status);expect(await r.text()).not.toContain(code);
   });
 });
+
+describe('generated default preparation',()=>{
+  it('allows editors to request only the fixed idempotent operation',async()=>{
+    gateway.getAccess=async()=>({role:'editor'});
+    const r=await handleStampAdmin(req('POST',{action:'ensure_default'}),shop,null,gateway);
+    expect(r.status).toBe(200);
+    expect(r.headers.get('cache-control')).toBe('private, no-store');
+    expect(gateway.operation).toHaveBeenCalledWith('ensure_default',shop,{});
+    expect(gateway.store.putOnce).not.toHaveBeenCalled();
+  });
+  it.each([{action:'ensure_default',actor:id},{action:'ensure_default',ink:'teal'},{action:'ensure_default',replace:true}])('rejects caller control over defaults %j',async body=>{
+    expect((await handleStampAdmin(req('POST',body),shop,null,gateway)).status).toBe(400);
+    expect(gateway.operation).not.toHaveBeenCalled();
+  });
+  it('checks origin and revocation without allowing a replay to bypass either',async()=>{
+    expect((await handleStampAdmin(req('POST',{action:'ensure_default'},'https://evil.test'),shop,null,gateway)).status).toBe(403);
+    gateway.operation=vi.fn(async()=>{throw new AdminForbiddenError();});
+    expect((await handleStampAdmin(req('POST',{action:'ensure_default'}),shop,null,gateway)).status).toBe(403);
+  });
+});

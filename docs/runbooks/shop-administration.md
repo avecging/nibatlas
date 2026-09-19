@@ -23,8 +23,11 @@ apply to every permitted operator.
    listing remains unchanged. Another account without editor/admin access cannot
    read the preview even with its URL or UUID.
 4. Resolve the listed publication requirements. In particular, a new shop needs
-   its active approved Atlas Stamp, prepared by the following artwork package.
-   Do not manufacture a verified date or invent artwork to clear this gate.
+   an active approved Atlas Stamp. New drafts receive a generated default
+   automatically. For an older draft with no stamp, use **Prepare generated
+   default** in the stamp section. This preserves existing artwork/retired
+   identities and private edits; no upload or creator credit is needed. Never
+   manufacture a verified date to clear a catalogue gate.
 5. Choose **Publish saved version**, then confirm. Check the public page afresh.
 6. To close a published shop, first finish or discard its saved edits. Choose
    the appropriate **Mark …** operation and confirm after checking the evidence.
@@ -101,8 +104,10 @@ cached catalogue URLs. New responses are no-store.
 Shop detail and correction pages explicitly render on each request; they do not
 retain statically generated HTML after publication or archival.
 
-Next packages stay separate: artwork/media #32 with #19/#28, then catalogue
-imports. About accuracy #17 remains before real catalogue launch; geographic seal
+Package B1 completes the default-stamp prerequisite, not the entire admin
+rework. B2 removes the legacy claim-token gates through DB/API/public contracts;
+B3 completes canonical vocabulary and essential seven-section editing, then C
+ships usable 200-shop import/review/publication before D rich-editor polish. About accuracy #17 remains before real catalogue launch; geographic seal
 labels #27 stay with seal delivery.
 
 Catalogue tables reject `TRUNCATE`, including operator SQL, because it bypasses
@@ -115,3 +120,21 @@ row audit. Use audited row operations. Publication matches case/whitespace only:
 source; services require a source UUID. Unavailable/stale sources do not clear
 publication gates. Adding a token records the founder's evidence assessment;
 never add one just to dismiss an error.
+
+## B1 acceptance and preservation
+
+On the B1 revision, create a clearly named synthetic private draft; confirm a
+generated default appears without upload or geography. Save/reopen known location
+details and verify the preview uses them. Existing older drafts may explicitly
+prepare a missing default; reloading/retrying preserves identity and causes no
+new versions. New custom drafts belong to that same stamp and do not activate
+until the separate admin confirmation. Do not test by resetting real collections
+or by replacing founder content. These are pending deployed acceptance steps,
+not a claim that they were executed on staging. Local/CI evidence lives in the PR.
+
+Until B2, the legacy claim-token UI and server publication gates below remain
+implemented. They are known work to replace, not an additional founder obligation
+or a reason to fabricate evidence. A generated default satisfies only the stamp
+prerequisite. The complete approved field/section map and remaining checkpoints
+are in `IMPLEMENTATION-PLAN.md`. Package A remote telemetry/recovery, JPEG/photo/
+logo/artwork/device checks and existing deferrals remain unchanged.

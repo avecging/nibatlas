@@ -1,3 +1,5 @@
+import { STAMP_MOTIFS } from '@/src/domain/stamp-design';
+import type { StampMotif } from '@/src/domain/shop-detail';
 import { object, UUID } from './shop-contract';
 
 export const STAMP_ORIGINS=['founder_created','ai_assisted','commissioned'] as const;
@@ -10,6 +12,7 @@ export interface AdminStampVersion {
   origin:'generated_template'|StampOrigin;
   status:'draft'|'approved'; ink:StampInk;
   creatorName:string|null; creatorUrl:string|null;
+  templateData?: {tier:'shop';motif:StampMotif} | null;
   hasArtwork:boolean; active:boolean; revision:string;
 }
 export function decodeAdminStamps(value:unknown):AdminStampVersion[] {
@@ -25,6 +28,13 @@ export function decodeAdminStamps(value:unknown):AdminStampVersion[] {
       ||!(r.creatorUrl===null||(typeof r.creatorUrl==='string'&&/^https?:\/\//i.test(r.creatorUrl)))
       ||typeof r.hasArtwork!=='boolean'||typeof r.active!=='boolean'
       ||typeof r.revision!=='string'||!/^[a-f0-9]{32}$/.test(r.revision)) throw Error('Invalid stamp version');
+    // Older deployed Workers may omit templateData. Do not invent a preview;
+    // once supplied it must be an actual supported stored template.
+    if(r.templateData !== undefined && r.templateData !== null) {
+      const template=object(r.templateData);
+      if(r.kind!=='generated_template'||template.tier!=='shop'
+        ||!STAMP_MOTIFS.includes(template.motif as StampMotif)) throw Error('Invalid stamp template');
+    }
     return r as unknown as AdminStampVersion;
   });
 }
