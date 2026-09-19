@@ -1,6 +1,7 @@
 'use client';
 /* eslint-disable @next/next/no-img-element -- private stamp previews use authenticated byte routes. */
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { FormEvent } from 'react';
 import { decodeAdminStamps, stampAdminPath, STAMP_INKS, type AdminStampVersion } from './stamp-contract';
 import { UUID } from './shop-contract';
 import styles from './ShopStampAdmin.module.css';
