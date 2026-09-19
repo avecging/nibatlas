@@ -12,6 +12,27 @@ set artwork_origin=case when artwork_kind='generated_template' then 'generated_t
     creator_url=case when artwork_kind='commissioned' then illustrator_credit_url else null end;
 alter table public.stamp_artwork_versions alter column artwork_origin set not null;
 
+-- Keep old generated/commissioned insertion contracts working after the additive
+-- column. New neutral uploads must always state their origin explicitly.
+create function public.fill_stamp_artwork_origin()
+returns trigger language plpgsql set search_path='' as $
+begin
+  if new.artwork_origin is null then
+    if new.artwork_kind='generated_template' then new.artwork_origin:='generated_template';
+    elsif new.artwork_kind='commissioned' then new.artwork_origin:='commissioned';
+    else raise exception 'Uploaded artwork requires an explicit origin' using errcode='23514';
+    end if;
+  end if;
+  if new.artwork_kind='commissioned' then
+    new.creator_name:=coalesce(new.creator_name,new.illustrator_credit);
+    new.creator_url:=coalesce(new.creator_url,new.illustrator_credit_url);
+  end if;
+  return new;
+end; $;
+revoke all on function public.fill_stamp_artwork_origin() from public,anon,authenticated,service_role;
+create trigger stamp_artwork_fill_origin before insert on public.stamp_artwork_versions
+  for each row execute function public.fill_stamp_artwork_origin();
+
 alter table public.stamp_artwork_versions drop constraint stamp_artwork_template_shape;
 alter table public.stamp_artwork_versions add constraint stamp_artwork_template_shape check (
   (artwork_kind='generated_template' and template_data is not null and jsonb_typeof(template_data)='object'
