@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect, type Page } from "@playwright/test";
 import { stubSession } from "../support/auth";
+import { png as makePng } from "../../src/server/media/png.fixture";
 import {
   document,
   type ShopRecord,
@@ -423,8 +424,17 @@ test('stamp draft upload previews and explicit activation preserve earlier versi
   const versionId='76000000-0000-4000-8000-000000000001';
   const stampId='76000000-0000-4000-8000-000000000002';
   const uploadId='76000000-0000-4000-8000-000000000003';
-  // Mocked transport; byte validation and real database issuance have separate suites.
-  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==','base64');
+  // Explicit synthetic 3:2 artwork, with transparency and one teal ink.
+  // Transport is mocked; byte validation and real issuance have separate suites.
+  const raw=Buffer.alloc((1200*4+1)*800);
+  for(let y=80;y<720;y++) for(let x=80;x<1120;x++) {
+    const border=x<96||x>=1104||y<96||y>=704;
+    const nib=Math.abs(x-600)/220+Math.abs(y-380)/220;
+    if(border||(nib>=0.93&&nib<=1)||(Math.abs(x-600)<8&&y>=380&&y<=600)) {
+      const p=y*(1200*4+1)+1+x*4;raw[p]=35;raw[p+1]=105;raw[p+2]=106;raw[p+3]=255;
+    }
+  }
+  const png=makePng(1200,800,{raw});
   const generated={id:'76000000-0000-4000-8000-000000000004',stampId,designVersion:1,kind:'generated_template',origin:'generated_template',status:'approved',ink:'teal',creatorName:null,creatorUrl:null,hasArtwork:false,active:true,revision:'a'.repeat(32)};
   const uploaded={id:versionId,stampId,designVersion:2,kind:'uploaded',origin:'ai_assisted',status:'draft',ink:'teal',creatorName:'Gin + AI',creatorUrl:'https://example.test/gin',hasArtwork:false,active:false,revision:'b'.repeat(32)};
   let created=false,transferred=false,expired=true,initiations=0;

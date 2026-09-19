@@ -9,6 +9,8 @@ alter table public.stamp_artwork_versions
 -- This migration adds derived fields to already-approved rows. Hold an exclusive
 -- lock and suspend only the approved-row update guard for this exact backfill;
 -- all pre-existing artwork, credit, approval and collection fields stay intact.
+do $backfill$
+begin
 lock table public.stamp_artwork_versions in access exclusive mode;
 alter table public.stamp_artwork_versions disable trigger stamp_artwork_versions_protect_approved;
 update public.stamp_artwork_versions
@@ -16,6 +18,8 @@ set artwork_origin=case when artwork_kind='generated_template' then 'generated_t
     creator_name=case when artwork_kind='commissioned' then illustrator_credit else null end,
     creator_url=case when artwork_kind='commissioned' then illustrator_credit_url else null end;
 alter table public.stamp_artwork_versions enable trigger stamp_artwork_versions_protect_approved;
+end;
+$backfill$;
 alter table public.stamp_artwork_versions alter column artwork_origin set not null;
 
 -- Keep old generated/commissioned insertion contracts working after the additive

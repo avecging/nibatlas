@@ -238,8 +238,17 @@ version and advances `stamps.current_design_version` on the same stamp identity.
 Old approved versions and collection snapshots are never overwritten. Current
 approved custom art is publication-checked for public byte delivery; an owner can
 still resolve the exact historical version in an existing private collection.
-New uploaded/legacy custom impressions render their exact PNG and public credit as
-`created by: name`, with the name linked only when a safe link exists.
+New uploaded impressions render their exact PNG and public credit as
+`created by: name`, with the name linked only when a safe link exists. Legacy
+commissioned snapshots and credits remain intact; their provider keys have not
+been migrated to this delivery path, so they show an artwork-unavailable message
+rather than substituted artwork. Pre-collection shop discovery still uses its
+existing identity motif; the exact collected artwork appears in ceremony and
+Passport list/book/detail.
+
+This MVP keeps at most 50 versions per shop, including retained defaults and
+history. Further draft creation returns `429 stamp_limit` before committing;
+existing versions remain readable and activatable. There is no deletion UI.
 
 Generated defaults remain valid. Unique `(user_id, stamp_id)` duplicate
 protection is unchanged, so collecting a later design again is still deferred to
