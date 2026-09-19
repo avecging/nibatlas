@@ -62,7 +62,7 @@ insert into public.shop_shop_types(shop_id,shop_type_id,is_primary)
  select '79000000-0000-4000-8000-000000000030',shop_type_id,true from public.shop_shop_types
  where shop_id='00000000-0000-4000-8000-000000000301' and is_primary;
 -- Operator fixture setup only; catalogue publication lifecycle has its own suite.
-update public.shops set publication_status='published' where id='79000000-0000-4000-8000-000000000030';
+update public.shops set publication_status='published',published_at=statement_timestamp() where id='79000000-0000-4000-8000-000000000030';
 create temp table stored as select jsonb_build_object('id',st.id,'designVersion',av.design_version,'ink',av.ink,
  'paletteVersion',av.palette_version,'templateData',av.template_data) value
  from public.stamps st join public.stamp_artwork_versions av on av.stamp_id=st.id and av.design_version=st.current_design_version
