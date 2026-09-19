@@ -224,11 +224,19 @@ export interface ShopStampDesign {
   /** Preserved approved export metadata. Asset delivery is owned by M6. */
   readonly commissioned?: {
     readonly illustratorCredit: string;
+    readonly illustratorCreditUrl?: string;
     readonly cleanSvgKey: string;
     readonly cleanSvgSha256: string;
     readonly outlinedSvgKey: string;
     readonly outlinedSvgSha256: string;
     readonly transparentPngKey: string;
+    readonly transparentPngSha256: string;
+  };
+  /** Issue #73 neutral admin/founder upload; never mislabeled as commissioned. */
+  readonly uploaded?: {
+    readonly origin: "founder_created" | "ai_assisted" | "commissioned";
+    readonly creatorName: string;
+    readonly creatorUrl?: string;
     readonly transparentPngSha256: string;
   };
   readonly id: string;
