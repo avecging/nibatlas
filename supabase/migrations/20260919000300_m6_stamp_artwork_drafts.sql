@@ -15,7 +15,7 @@ alter table public.stamp_artwork_versions alter column artwork_origin set not nu
 -- Keep old generated/commissioned insertion contracts working after the additive
 -- column. New neutral uploads must always state their origin explicitly.
 create function public.fill_stamp_artwork_origin()
-returns trigger language plpgsql set search_path='' as $
+returns trigger language plpgsql set search_path='' as $origin$
 begin
   if new.artwork_origin is null then
     if new.artwork_kind='generated_template' then new.artwork_origin:='generated_template';
@@ -28,7 +28,7 @@ begin
     new.creator_url:=coalesce(new.creator_url,new.illustrator_credit_url);
   end if;
   return new;
-end; $;
+end; $origin$;
 revoke all on function public.fill_stamp_artwork_origin() from public,anon,authenticated,service_role;
 create trigger stamp_artwork_fill_origin before insert on public.stamp_artwork_versions
   for each row execute function public.fill_stamp_artwork_origin();
