@@ -178,9 +178,9 @@ export function StampArt({
   subtitle,
   detail = "full",
 }: StampArtProps) {
-  if (stamp.commissioned || stamp.uploaded) {
-    // Approved uploaded/legacy commissioned artwork is delivered intact. The
-    // route authorizes current public art or the owner's exact historical version.
+  if (stamp.uploaded) {
+    // Approved #73 uploads are delivered intact. The route authorizes current
+    // public art or the owner's exact historical version.
     return (
       <figure className={styles.stamp}>
         <img
@@ -190,6 +190,13 @@ export function StampArt({
         />
       </figure>
     );
+  }
+  if (stamp.commissioned) {
+    // Preserve the legacy commissioned snapshot without pretending its old
+    // provider key has been migrated into the new environment-bound R2 path.
+    return <figure className={styles.stamp} aria-label={`Shop stamp, ${title}`}>
+      <p>Artwork temporarily unavailable</p>
+    </figure>;
   }
   const ink = `var(--ink-${stamp.ink})`;
   const filterId = `stamp-edge-${stamp.id}`;
