@@ -466,7 +466,7 @@ test('stamp draft upload previews and explicit activation preserve earlier versi
   const section=page.getByRole('region',{name:'Atlas Stamp artwork'});
   await section.getByText('Create uploaded stamp version',{exact:true}).click();
   await expect(section.getByLabel('Creator name',{exact:true})).toBeEnabled();
-  await section.getByLabel('Origin',{exact:true}).selectOption('ai_assisted');
+  await section.getByRole('combobox',{name:/^Origin/}).selectOption('ai_assisted');
   await section.getByLabel('Creator name',{exact:true}).fill('Gin + AI');
   await section.getByLabel('Creator link (optional)').fill('https://example.test/gin');
   await section.getByRole('button',{name:'Create private draft'}).click();
