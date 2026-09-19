@@ -23,7 +23,7 @@ is the shared working contract. This assignment covers every milestone; frontend
 | M1.5 | WP1–WP7 implemented; preserve the historical record unchanged. WP-D desktop review still needs founder feedback. |
 | M5 | Verification and account collection integration implemented. Geographic seal persistence/versioned coverage sets and broader indoor field validation remain outstanding. |
 | M6 WP1/WP2 | Authorization/audit and shop operations implemented. Founder confirmed draft creation; broader admin acceptance is separate. |
-| M6 WP3 | Issue #73 governs simplified MVP uploads. Photo/logo picker, private attachment and publication-checked delivery are implemented in the current slice, pending CI/staging acceptance. Stamp draft/upload/preview/activation and creator credit follow; #70/#71/#72 remain deferred. Remote JPEG and photo-display acceptance remain unverified; see `docs/runbooks/media-uploads.md`. |
+| M6 WP3 | Issue #73 governs simplified MVP uploads. Photo/logo picker, private attachment/publication delivery, and truthful stamp draft → PNG → list/Passport/detail preview → admin activation → versioned delivery/creator credit are implemented on draft PR #74, pending final CI/review and staging acceptance. Generated defaults/history/duplicate protection remain intact; #70/#71/#72 stay deferred. Remote JPEG, photo/logo display and stamp end-to-end acceptance remain unverified; see `docs/runbooks/media-uploads.md`. |
 | M6 WP4 | Catalogue imports, validation, dry runs and deduplication follow media/artwork. |
 | M7/M8 | Catalogue quality, production setup, account export/deletion, monitoring, backup/restore, rollback and launch acceptance remain. October 2026 launch is the priority. |
 
@@ -536,4 +536,5 @@ artwork rights and catalogue licensing boundaries in `CONTRIBUTING.md` and
 PR #66 is merged and deployed to staging. Continue remote runtime verification
 from `docs/runbooks/jpeg-intake-handoff.md`; do not reopen the completed merge
 steps. Attachment/public delivery and the founder photo interface remain later
-WP3 work. No commissioned artwork is processed or replaced. WP4 remains imports.
+WP3 work. Existing generated/commissioned artwork is never replaced in place;
+new #73 uploads are additive versions on the same stamp identity. WP4 remains imports.
