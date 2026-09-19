@@ -15,7 +15,7 @@ not imply a complete UI, public endpoint or hosted runtime acceptance.
 | --- | --- |
 | `profiles`, `saved_shops` | Implemented account tables with owner-scoped access |
 | `localities`, `shops`, `shop_aliases`, `shop_links`, `shop_images`, attributes/join tables, `shop_sources`, `shop_source_claims` | Implemented catalogue tables; public access uses bounded safe projections. `shop_images` existence does not mean photo attachment/delivery is complete |
-| `stamps`, `stamp_artwork_versions`, `stamp_collections` | Implemented versioned artwork and immutable collection foundations; commissioned upload/approval delivery remains incomplete |
+| `stamps`, `stamp_artwork_versions`, `stamp_collections` | Implemented versioned artwork, simplified #73 uploaded-art activation/delivery and immutable collection foundations; #70/#71 remain deferred |
 | `verification_attempts`, `stamp_private` policy/nonces/rate buckets | Implemented internal verification records, not direct public APIs |
 | `admin_audit_log`, `shop_working_copies`, `media_uploads` | Implemented restricted internal records, accessed through controlled operations |
 | `import_batches` | Planned for M6 WP4; no migration/table yet |
@@ -232,15 +232,18 @@ mutable stamp record.
 | --- | --- |
 | `id` | `uuid PK` |
 | `stamp_id`, `design_version` | Composite unique version identity; both are referenced by collections |
-| `artwork_kind` | `generated_template` or `commissioned` |
+| `artwork_kind` | `generated_template`, legacy `commissioned`, or neutral `uploaded` |
 | `approval_status` | `draft` or `approved`; approved rows cannot be updated or deleted |
-| `template_data` | Required object for generated artwork; absent for commissioned artwork |
+| `artwork_origin` | Generated rows use `generated_template`; neutral uploads state `founder_created`, `ai_assisted` or `commissioned` truthfully |
+| `template_data` | Required object for generated artwork; absent for commissioned/uploaded artwork |
 | editable source / clean SVG / outlined SVG / transparent PNG keys | Provider-neutral object keys, required before commissioned approval |
 | matching SHA-256 columns | Lowercase checksums bound to the approved exports |
 | `canvas_width`, `canvas_height` | Fixed `1200 × 800` master canvas |
 | `ink`, `palette_version` | One of the shared eight inks and the palette version |
-| illustrator credit / optional URL / maker-mark confirmation | Required before commissioned approval |
-| rights basis / approval timestamp / evidence reference | Required before commissioned approval; the evidence reference remains admin-only |
+| `creator_name`, optional `creator_url` | Public creator attribution for neutral uploaded artwork; creator name is required, link is optional HTTP(S) |
+| `upload_id` / transparent PNG key + SHA-256 | Neutral uploaded artwork binds one validated immutable PNG receipt before activation |
+| illustrator credit / optional URL / maker-mark confirmation | Preserved legacy commissioned metadata; old commissioned approval rules remain intact |
+| rights basis / approval timestamp / evidence reference | Preserved legacy commissioned evidence; #73 does not require it for neutral uploaded MVP activation |
 | `created_at` | Audit timestamp |
 
 Before human-commissioned artwork is approved, each immutable design version
@@ -257,6 +260,15 @@ therefore preserves:
 Generated-template fixtures use the same version identity and approval boundary,
 but store their complete renderer descriptor in `template_data` instead of
 pretending that commissioned files, rights or illustrator approval exist.
+
+Issue #73 adds neutral `uploaded` versions rather than reusing `commissioned` as
+a catch-all. A founder/admin draft records truthful origin, creator name/optional
+link and ink, then binds one validated 1200 × 800 transparent PNG receipt.
+Admin activation approves that immutable version and advances the existing
+stamp's `current_design_version`. It does **not** require source/SVG bundles,
+rights evidence, maker-mark confirmation or external illustrator sign-off; those
+commissioning requirements are deferred to #71. Approved old versions remain
+immutable and are not deleted when a new version becomes current.
 
 ### `stamp_collections`
 
@@ -278,12 +290,13 @@ Immutable source of truth for visited state and Passport.
 | `anomaly_flags` | `text[]` |
 | `shop_name_snapshot` | text |
 | `place_snapshot` | `jsonb` containing country/locality display values |
-| `stamp_snapshot` | `jsonb` containing design identity/version and the credited illustrator display data for that version |
+| `stamp_snapshot` | `jsonb` containing exact design identity/version plus generated descriptor, legacy commissioned credit/export identity, or uploaded origin/creator/PNG checksum for that version |
 
 Unique `(user_id, stamp_id)`. The stamp/shop pair and stamp/design-version pair
 are protected by composite foreign keys. `stamp_snapshot` must match the active,
-approved artwork kind, ink, palette version and generated template descriptor or
-commissioned illustrator credit. Authenticated clients have owner-scoped read
+approved artwork kind, ink, palette version and the kind-specific immutable
+descriptor: generated template data, legacy commissioned illustrator credit, or
+uploaded origin/creator/PNG checksum. Authenticated clients have owner-scoped read
 access only; they cannot insert, update or delete. The server-only WP2
 transaction/function verifies and issues atomically. Raw latitude/longitude is
 never written.
@@ -463,11 +476,12 @@ field semantics and the intentionally separate artwork/import integration points
 ## M6 WP3 first-slice media transport
 
 `media_uploads` records a private upload UUID, environment, existing shop and
-optional commissioned draft artwork-version FK, purpose, immutable object key,
-SHA-256, expected size/MIME, optional photo/logo source/rights/credit/alt metadata, expiry
-and server-validated dimensions. Its pending/validated states describe transport,
-not approval. Artwork rights/credit are copied from the existing version and
-rechecked at finalization. No approval evidence is copied. Direct API-role table
+optional uploaded draft artwork-version FK, purpose, immutable object key,
+SHA-256, expected size/MIME, optional photo/logo source/rights/credit/alt metadata,
+expiry and server-validated dimensions. Its pending/validated states describe
+transport, not approval. For `artwork_png`, source/rights/credit/alt fields are
+rejected: origin and creator attribution live on the artwork version and no
+commissioning paperwork is fabricated. Direct API-role table
 access is revoked; the isolated Worker RPC enforces the live editor/admin role
 and uploader identity. Initiation/finalization append existing audit fingerprints;
 validated rows are immutable. Existing artwork, images and collections are not
@@ -495,6 +509,18 @@ and never enter stamp validation or JPEG conversion. The service-only
 validated uploader ownership on attach, and audits attachment/publication/hiding.
 Only admin may publish/hide. Public list/file lookup requires a published shop
 and approved attachment in the current environment; raw bucket access stays private.
-Existing non-receipt image rows are preserved but not exposed by this new delivery
-route. Stamp schema/origin/credit/approval changes remain the next #73 slice; do
-not fabricate old commissioned fields to make uploads pass.
+Existing non-receipt image rows are preserved but not exposed by this delivery
+route.
+
+### WP3 stamp artwork activation and history (#73)
+
+Migrations `20260919000200`–`00400` add the neutral uploaded kind, truthful
+origin/creator fields, immutable upload receipt binding, audit coverage, explicit
+admin activation, uploaded collection snapshot validation and guarded artwork
+delivery. Existing generated/legacy commissioned rows are backfilled compatibly;
+legacy inserts still derive their truthful origin from their existing kind.
+Current approved custom bytes are available only for a published active stamp;
+the owner of a historical collection can still resolve that exact approved
+version after a redesign. Unique `(user_id, stamp_id)` remains unchanged, so a
+collector cannot obtain a later design again until #70. #71 and #72 remain
+separate deferrals.
