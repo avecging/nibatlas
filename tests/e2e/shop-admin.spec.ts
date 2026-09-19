@@ -443,6 +443,7 @@ test('stamp draft upload previews and explicit activation preserve earlier versi
   const uploaded={id:versionId,stampId,designVersion:2,kind:'uploaded',origin:'ai_assisted',status:'draft',ink:'teal',creatorName:'Gin + AI',creatorUrl:'https://example.test/gin',hasArtwork:false,active:false,revision:'b'.repeat(32)};
   let created=false,transferred=false,expired=true,initiations=0;
   const actions:string[]=[];
+  await page.route(`**/api/v1/admin/shops/${id}`, route => route.fulfill({json:{...fixture(),publicationErrors:uploaded.active ? [] : ['Prepare an active Atlas Stamp with approved artwork (artwork package).']}}));
   await page.route('**/api/v1/admin/media/uploads**',async route=>{
     const r=route.request();
     if(r.url().endsWith('/uploads')) {
@@ -489,6 +490,7 @@ test('stamp draft upload previews and explicit activation preserve earlier versi
   expect(actions).toEqual(['create','attach']);
   await section.getByRole('button',{name:'Confirm activation'}).click();
   await expect(section.getByRole('status')).toContainText('Historical versions and impressions were preserved');
+  await expect(page.getByRole('button',{name:'Publish saved version',exact:true})).toBeEnabled();
   await expect(section.getByText('Design v1',{exact:true})).toBeVisible();
   await expect(section.getByText('Design v2',{exact:true})).toBeVisible();
   expect(await page.evaluate(()=>globalThis.document.documentElement.scrollWidth<=globalThis.document.documentElement.clientWidth)).toBe(true);

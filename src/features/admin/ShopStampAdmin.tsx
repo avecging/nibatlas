@@ -94,6 +94,7 @@ export function ShopStampAdmin({shopId,shopName,archived,localityName='',country
       <button autoFocus disabled={busy} onClick={()=>void run(async signal=>{
         const value=await call(path,signal,post({action:'activate',versionId:confirm.id,revision:confirm.revision}));
         setEntries(decodeAdminStamps(value.entries));setConfirm(null);setNotice('Stamp design activated. Historical versions and impressions were preserved.');
+        await onPrepared?.();
       })}>Confirm activation</button>
       <button disabled={busy} onClick={()=>setConfirm(null)}>Cancel</button>
     </div>:null}
