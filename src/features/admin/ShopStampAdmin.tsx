@@ -37,13 +37,13 @@ export function ShopStampAdmin({shopId,shopName,archived}:{shopId:string;shopNam
   },[path]);
   async function run(work:(signal:AbortSignal)=>Promise<void>) {
     if(lock.current)return;lock.current=true;setBusy(true);setError('');setNotice('');
-    const signal=controller.current!.signal;
+    const signal=(controller.current ??= new AbortController()).signal;
     try{await work(signal);}catch(e){if(!signal.aborted)setError(e instanceof Error?e.message:'Stamp operation failed.');}
     finally{lock.current=false;if(!signal.aborted)setBusy(false);}
   }
   return <section className={styles.section} aria-label="Atlas Stamp artwork">
     <h2>Atlas Stamp artwork</h2>
-    <p>Generated defaults remain available. Uploaded versions are saved privately, previewed intact, and become collectable only after an admin activates them.</p>
+    <p>Artwork for <strong>{shopName}</strong>. Generated defaults remain available. Uploaded versions are saved privately, previewed intact, and become collectable only after an admin activates them.</p>
     {error&&<p role="alert">{error}</p>}
     <p role="status" aria-live="polite">{notice||(busy?'Saving…':'')}</p>
     <button type="button" disabled={busy} onClick={()=>void run(async signal=>{
@@ -76,10 +76,10 @@ export function ShopStampAdmin({shopId,shopName,archived}:{shopId:string;shopNam
 function CreateStamp({disabled,run,path,saved}:{disabled:boolean;run:(w:(s:AbortSignal)=>Promise<void>)=>void;path:string;saved:(r:AdminStampVersion[])=>void}) {
   return <details className={styles.create}><summary>Create uploaded stamp version</summary>
     <form onSubmit={(e:FormEvent<HTMLFormElement>)=>{
-      e.preventDefault();const form=new FormData(e.currentTarget);
+      e.preventDefault();const formElement=e.currentTarget;const form=new FormData(formElement);
       void run(async signal=>{
         const value=await call(path,signal,post({action:'create',origin:form.get('origin'),creatorName:form.get('creatorName'),creatorUrl:String(form.get('creatorUrl')||'')||undefined,ink:form.get('ink')}));
-        saved(decodeAdminStamps(value.entries));e.currentTarget.reset();
+        saved(decodeAdminStamps(value.entries));formElement.reset();
       });
     }}><fieldset disabled={disabled}><legend>Truthful artwork attributes</legend>
       <label>Origin<select name="origin" defaultValue="founder_created"><option value="founder_created">Founder-created</option><option value="ai_assisted">AI-assisted</option><option value="commissioned">Commissioned</option></select></label>
