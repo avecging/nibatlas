@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { ShopMediaAdmin } from "./ShopMediaAdmin";
+import { ShopStampAdmin } from "./ShopStampAdmin";
 import { useEffect, useId, useRef, useState } from "react";
 import { useAccountSession } from "@/src/features/account/AccountSessionProvider";
 import {
@@ -681,7 +682,8 @@ function Workspace({ id }: { id: string | null }) {
               </fieldset>
             </form>
           )}
-          <ShopMediaAdmin key={record.id} shopId={record.id} shopName={String(record.document.shop.name)} archived={record.publicationStatus === "archived"} />
+          <ShopMediaAdmin key={`media-${record.id}`} shopId={record.id} shopName={String(record.document.shop.name)} archived={record.publicationStatus === "archived"} />
+          <ShopStampAdmin key={`stamp-${record.id}`} shopId={record.id} shopName={String(record.document.shop.name)} archived={record.publicationStatus === "archived"} />
           <section className={styles.operations}>
             <h2>Publication and status</h2>
             {record.publicationErrors.length > 0 && (
