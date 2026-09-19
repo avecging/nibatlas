@@ -225,7 +225,7 @@ $cross_shop_source$,
   'insert or update on table "shop_services" violates foreign key constraint "shop_services_source_shop_fk"',
   'an attribute cannot cite another shop''s source');
 
-select throws_ok($image_without_source$
+select lives_ok($image_without_source$
   insert into public.shop_images (
     shop_id, storage_key, alt_text, credit_text, rights_basis,
     width, height, content_type, moderation_status
@@ -235,9 +235,7 @@ select throws_ok($image_without_source$
     100, 100, 'image/jpeg', 'approved'
   )
 $image_without_source$,
-  '23514',
-  'new row for relation "shop_images" violates check constraint "approved_image_metadata"',
-  'approved imagery requires a source URL');
+  'issue 73: approved imagery no longer requires source paperwork; legacy rows remain outside receipt-based delivery');
 
 select throws_ok($two_primary_types$
   insert into public.shop_shop_types (shop_id, shop_type_id, is_primary) values (

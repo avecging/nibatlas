@@ -82,10 +82,10 @@ export function ShopIdentityHero({
         </p>
       </div>
 
-      <p className={styles.heroPhotos}>
+      {process.env.NEXT_PUBLIC_CATALOGUE_MODE !== "api" && process.env.NEXT_PUBLIC_CATALOGUE_MODE !== "api-demo" && <p className={styles.heroPhotos}>
         <Icon name="camera" size={16} />
         <span>Photos coming soon</span>
-      </p>
+      </p>}
     </div>
   );
 }

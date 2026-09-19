@@ -217,3 +217,16 @@ describe('JPEG photo transport identity',()=>{
     expect(upload.storageKey).toBe(preparedKey);
   });
 });
+
+it.each(['shop_photo','shop_logo'])('accepts %s without inventing paperwork and preserves supplied metadata',async purpose=>{
+  const simple={shopId:id,purpose,sha256:checked.sha256,byteSize:bytes.length,contentType:'image/png'};
+  expect((await handleMedia(req('POST',JSON.stringify(simple),{'content-type':'application/json'}),null,gateway)).status).toBe(201);
+  expect(gateway.operation).toHaveBeenLastCalledWith('initiate',expect.any(String),simple);
+  expect((await handleMedia(req('POST',JSON.stringify({...simple,altText:'',creditText:null}),{'content-type':'application/json'}),null,gateway)).status).toBe(400);
+});
+it('keeps logos out of photo JPEG processing and stamp artwork semantics',async()=>{
+  expect((await handleMedia(req('POST',JSON.stringify({...photo,purpose:'shop_logo',contentType:'image/jpeg'}),{'content-type':'application/json'}),null,gateway)).status).toBe(400);
+  upload.purpose='shop_logo';
+  expect((await handleMedia(req('PUT',bytes,{'content-type':'image/png'}),id,gateway)).status).toBe(200);
+  expect(gateway.store.putOnce).toHaveBeenCalledWith(upload.storageKey,new Uint8Array(bytes));
+});

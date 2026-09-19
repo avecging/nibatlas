@@ -1,7 +1,7 @@
 # Private media uploads v1 — M6 WP3
 
 This is the upload transport foundation within WP3, not a new package number or
-an approval workflow. Related issues: #32, #19 and #28. The current illustration
+an artwork approval workflow. Issue #73 supersedes older MVP paperwork gates; photo/logo attachment and delivery are specified below. Related issues: #32, #19 and #28. The current illustration
 guide supersedes #28's old compact-proof/texture wording.
 
 ## HTTP contract
@@ -26,20 +26,21 @@ URLs, approval claims or actor IDs. No public GET, signed URL, anonymous upload,
 CORS grant or cache entry. Every response is private/no-store. Raw provider
 errors are redacted. UUID knowledge grants no access.
 
-Initiation JSON (max 8 KiB): `shopId`, `purpose` (`shop_photo` or `artwork_png`),
+Initiation JSON (max 8 KiB): `shopId`, `purpose` (`shop_photo`, `shop_logo` or `artwork_png`),
 `sha256` (64 lowercase hex), `byteSize` (integer, 1–5 MiB), `contentType`
-(`image/png`, or `image/jpeg` for shop photos), `sourceRef` (1–2000 chars), `altText` (1–1000 chars).
-Photo manifests additionally require `rightsBasis` (1–2000) and `creditText`
-(1–300). A source reference can identify the founder's original file/permission
-record; it is private text and is never fetched as a URL.
+(`image/png`, or `image/jpeg` for shop photos only). Photos/logos may omit all
+metadata. If supplied, `sourceRef` (1–2000), `rightsBasis` (1–2000), `creditText`
+(1–300), `altText` (1–1000) must be nonblank text. Omission stays null; no fake
+permission, ownership, licence, credit or description is inserted. Existing
+metadata is preserved. A source reference is private text and never fetched.
 
-Artwork additionally requires `artworkVersionId`: an existing commissioned draft
-belonging to this shop. Rights and credit are copied from that version's existing
-`rights_basis` and `illustrator_credit`; the caller must omit those two fields.
-Both must already be populated. This does not copy approval evidence. Finalization
-checks that the draft and its credit/rights have not changed. Already approved
-versions and generated fixtures cannot be upload targets. Production rejects demo
-shops. Archived shops cannot receive new uploads or finalize pending ones.
+The legacy artwork transport still requires a commissioned draft `artworkVersionId`,
+sourceRef/altText and existing canonical rights/credit. **This is an implementation
+limitation of the preceding slice, not the approved MVP rule.** The next #73 slice
+must add truthful origin/creator fields and relax artwork gates additively before
+exposing stamp uploads. No artwork creation/activation is implemented here.
+Approved artwork versions cannot be upload targets. Production rejects demo
+shops; archived shops cannot receive/finalize new uploads.
 
 ## File validation and identity
 
@@ -174,13 +175,60 @@ actual staging verification remains a release gate. See
   audit in the same transaction. No filenames, rights text, evidence or bytes in
   audit summaries. Direct table writes and truncate are denied to API roles.
 
+## Photo/logo attachment and deliberate delivery (#73)
+
+| Route | Method | Input / output |
+| --- | --- | --- |
+| `/api/v1/admin/shops/[shopId]/media` | GET | At most 50 attached images, safe metadata/status/revision |
+| Same | POST | `{action:"attach",id:<validated upload UUID>}` saves privately and is idempotent |
+| Same | POST | `{action:"publish" or "hide",id:<image UUID>,revision:<32 hex>}`; admin only |
+| Same plus `/[imageId]` | GET | Private attached PNG preview; editor/admin |
+| `/api/v1/shops/[shopId]/media` | GET | Approved image metadata for a published shop |
+| Same plus `/[imageId]` | GET | Approved PNG bytes for a published shop |
+
+`shopId` is a UUID, including on the public media subroute (the surrounding
+shop detail route uses a slug). The Worker alone invokes `shop_media_operation`;
+no browser/anonymous role may invoke it or read/write `shop_images` directly.
+Mutations require same-origin JSON, at most 2 KiB, strict fields/UUIDs and no
+queries. Publish/hide require both HTTP and locked live database admin role.
+Attachment checks initiating uploader, exact shop/environment, validated receipt
+and current non-archived target. It copies only actual stored dimensions/key and
+existing optional alt/credit/rights fields. Private sourceRef stays on the receipt;
+it is not silently reclassified as a source URL. No expiry applies after validation.
+
+Each shop holds at most 50 receipt attachments in this bounded MVP slice,
+including retained private/replaced items. There is no deletion or reordering UI.
+Publishing a logo hides the previous approved logo **in the same environment**;
+its attachment, bytes and metadata remain intact. Photo publication is independent.
+Saving never publishes. Media status is separate from catalogue working-copy
+publication: approved media becomes publicly reachable when the shop is published.
+Changes append verified-actor/fingerprint audit records. Receipt/attachment
+identities are immutable and no existing artwork or collection is changed.
+
+Public projection returns only id/kind/dimensions/altText/optional creditText.
+Missing alt text becomes `Photo of <shop name>` or `<shop name> logo`; it does not
+invent pictured details or authorship. Existing metadata is preserved. Old image
+rows without validated receipt links stay stored but are not delivered here.
+Every byte request resolves current shop publication/image approval/environment,
+reads private R2, then rechecks access before response. PNG responses use nosniff,
+CSP and private/no-store headers; no raw bucket URL, provider key, redirect, public
+image proxy or persistent cache is exposed. Already downloaded pixels cannot be
+retracted by hiding; new requests are denied. Private preview is attached media
+only and permits current editors/admins, not just the original uploader.
+
+Errors: 400 malformed; 401 identity; 403 role/origin; 404 absent/nonpublic/wrong
+environment; 409 stale revision; 422 wrong/unvalidated target; 429 50-image limit;
+503 unavailable. Reload after a lost publication response. Upload retry first
+attempts finalization, then resends only if incomplete. Expired/conflicting upload
+IDs are cleared so the next Save creates a new session for the selected file.
+
 ## Remaining WP3 slices
 
-Validated manifests are private transport receipts. This slice does **not** attach
-them to `shop_images` or artwork key columns, approve or activate a stamp, fetch
-private evidence, publish files, render commissioned art or provide a photo UI.
-Later slices must consume validated receipts and recheck current target/version,
-rights, required formats/checksums and admin-only approval evidence. Keep the
-existing immutable artwork and collection models. Build source/SVG validation,
-full approval, public delivery, credits, attachment and
-founder-friendly interfaces separately. WP4 imports follows artwork/media.
+Next: truthful founder/admin stamp origins, creator name/optional safe link,
+draft-version creation, PNG attachment, list/Passport/detail proofing, controlled
+activation and intact public artwork/credit delivery. Render `created by: name`,
+with linked name only when a valid link exists. Keep generated defaults, all
+approved versions/credits/impressions and duplicate protection. New-design
+recollection #70, commissioning/source/SVG/sign-off #71, photo metadata #72 are
+deferred. Imports remain WP4. Remote JPEG and photo/logo display acceptance are
+separate gates from local tests and successful deployment.

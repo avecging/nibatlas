@@ -8,7 +8,7 @@ export interface Upload {
   id: string; storageKey: string | null; sha256: string; byteSize: number;
   contentType?: 'image/png' | 'image/jpeg';
   output?: {sha256:string;byteSize:number;width:number;height:number} | null;
-  purpose: 'artwork_png' | 'shop_photo'; status: 'pending' | 'validated';
+  purpose: 'artwork_png' | 'shop_photo' | 'shop_logo'; status: 'pending' | 'validated';
   expiresAt: string; width: number | null; height: number | null;
 }
 export function decodeUpload(value: unknown, id: string): Upload {
@@ -16,7 +16,7 @@ export function decodeUpload(value: unknown, id: string): Upload {
   if (row.id!==id || (typeof row.storageKey!=='string' && !(row.storageKey===null && row.contentType==='image/jpeg' && row.status==='pending')) ||
       typeof row.sha256!=='string' || !/^[a-f0-9]{64}$/.test(row.sha256) ||
       typeof row.byteSize!=='number' || !Number.isInteger(row.byteSize) || row.byteSize<1 || row.byteSize>MAX_MEDIA_BYTES ||
-      !['artwork_png','shop_photo'].includes(String(row.purpose)) || !['pending','validated'].includes(String(row.status)) ||
+      !['artwork_png','shop_photo','shop_logo'].includes(String(row.purpose)) || !['pending','validated'].includes(String(row.status)) ||
       typeof row.expiresAt!=='string' || !Number.isFinite(Date.parse(row.expiresAt))) throw Error('Invalid upload response');
   for (const key of ['width','height']) {
     const n=row[key];
@@ -67,11 +67,12 @@ export async function handleMedia(request: Request, id: string | null, gateway: 
         if (Object.keys(data).some(k=>!['shopId','artworkVersionId','purpose','sha256','byteSize','contentType','sourceRef','rightsBasis','creditText','altText'].includes(k)) ||
             typeof data.shopId!=='string' || !UUID.test(data.shopId) ||
             (data.artworkVersionId!==undefined && (typeof data.artworkVersionId!=='string' || !UUID.test(data.artworkVersionId))) ||
-            !['artwork_png','shop_photo'].includes(String(data.purpose)) ||
+            !['artwork_png','shop_photo','shop_logo'].includes(String(data.purpose)) ||
             (data.purpose==='artwork_png') !== (data.artworkVersionId!==undefined) ||
             !(data.contentType==='image/png' || (data.contentType==='image/jpeg' && data.purpose==='shop_photo')) || typeof data.sha256!=='string' || !/^[a-f0-9]{64}$/.test(data.sha256) ||
             typeof data.byteSize!=='number' || !Number.isInteger(data.byteSize) || data.byteSize<1 || data.byteSize>MAX_MEDIA_BYTES) throw Error();
-        for (const [key, max] of [['sourceRef',2000],['altText',1000], ...(data.purpose==='shop_photo' ? [['rightsBasis',2000],['creditText',300]] : [])] as [string,number][]) {
+        for (const [key, max] of [['sourceRef',2000],['altText',1000], ...(data.purpose!=='artwork_png' ? [['rightsBasis',2000],['creditText',300]] : [])] as [string,number][]) {
+          if (data.purpose!=='artwork_png' && data[key]===undefined) continue;
           if (typeof data[key]!=='string' || !data[key].trim() || data[key].length>max) throw Error();
         }
         if (data.purpose==='artwork_png' && ('rightsBasis' in data || 'creditText' in data)) throw Error();

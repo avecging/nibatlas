@@ -63,7 +63,8 @@ async function setup(page: Page) {
     const url = new URL(route.request().url());
     let body: unknown,
       status = 200;
-    if (url.pathname.endsWith("/options"))
+    if (url.pathname.endsWith("/media")) body = {entries: []};
+    else if (url.pathname.endsWith("/options"))
       body = {
         localities: [
           { id: locality, label: "Singapore (SG)", countryCode: "SG" },
@@ -349,4 +350,70 @@ test("dirty edits survive global links and browser Back @short", async ({ page }
   await expect(page.getByRole("main").getByRole("alert")).toContainText("Changes saved privately");
   await page.goBack();
   await expect(page).toHaveURL(/\/admin\/shops$/);
+});
+
+test('photos and logos save privately, preview and publish explicitly', async ({page}, testInfo) => {
+  await setup(page);
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==','base64');
+  const uploadId = '73000000-0000-4000-8000-000000000010';
+  const imageId = '73000000-0000-4000-8000-000000000020';
+  let uploaded = false, terminalFailure = true, initiations = 0;
+  let entries: {id:string;kind:string;width:number;height:number;altText:string;creditText:null;status:string;revision:string}[] = [];
+  const operations: string[] = [];
+  await page.route('**/api/v1/admin/media/uploads**',async route => {
+    const request=route.request();
+    if (request.url().endsWith('/uploads')) {
+      initiations++;
+      const manifest=request.postDataJSON();
+      expect(Object.keys(manifest).sort()).toEqual(['shopId','purpose','sha256','byteSize','contentType'].sort());
+      expect(manifest.shopId).toBe(id);
+      expect(manifest.purpose).toBe('shop_photo');
+      await route.fulfill({json:{id:uploadId,status:'pending'}});
+    } else if (terminalFailure) {
+      terminalFailure=false;
+      await route.fulfill({status:410,json:{error:{code:'upload_expired'}}});
+    } else if (request.method()==='PUT') {
+      uploaded=true; await route.fulfill({json:{id:uploadId,status:'uploaded'}});
+    } else {
+      await route.fulfill(uploaded ? {json:{id:uploadId,status:'validated'}} : {status:409,json:{error:{code:'upload_incomplete'}}});
+    }
+  });
+  await page.route(`**/api/v1/admin/shops/${id}/media**`,async route => {
+    const request=route.request();
+    if (request.url().endsWith(`/${imageId}`)) {
+      await route.fulfill({contentType:'image/png',body:png});return;
+    }
+    if (request.method()==='POST') {
+      const body=request.postDataJSON();operations.push(body.action);
+      if (body.action==='attach') {
+        expect(body.id).toBe(uploadId);
+        entries=[{id:imageId,kind:'photo',width:1,height:1,altText:'Photo of M6 Demo shop',creditText:null,status:'draft',revision:'a'.repeat(32)}];
+      } else entries=entries.map(e=>({...e,status:body.action==='publish'?'approved':'draft',revision:'b'.repeat(32)}));
+    }
+    await route.fulfill({json:{entries}});
+  });
+  await page.goto(`/admin/shops/${id}`);
+  const section=page.getByRole('region',{name:'Shop photos and logo'});
+  await expect(section.getByLabel('Choose photo')).toBeEnabled();
+  await section.getByLabel('Choose photo').setInputFiles({name:'demo-photo.png',mimeType:'image/png',buffer:png});
+  await expect(section.getByAltText('Selected photo for M6 Demo shop')).toBeVisible();
+  await section.getByRole('button',{name:'Save photo privately'}).click();
+  await expect(section.getByRole('alert')).toContainText('Save again');
+  await section.getByRole('button',{name:'Save photo privately'}).click();
+  await expect(section.getByRole('status')).toContainText('Saved privately');
+  expect(initiations).toBe(2);
+  expect(operations).toEqual(['attach']);
+  await expect(section.getByAltText('Photo of M6 Demo shop')).toBeVisible();
+  await section.getByRole('button',{name:'Publish photo 1'}).click();
+  expect(operations).toEqual(['attach']);
+  await section.getByRole('button',{name:'Confirm publish'}).click();
+  await expect(section.getByText('Photo 1 · Published when shop is public')).toBeVisible();
+  await section.getByRole('button',{name:'Hide photo 1'}).click();
+  await section.getByRole('button',{name:'Confirm hide'}).click();
+  await expect(section.getByText('Photo 1 · Private',{exact:true})).toBeVisible();
+  await section.getByLabel('Choose logo').setInputFiles({name:'demo-logo.png',mimeType:'image/png',buffer:png});
+  await expect(section.getByAltText('Selected logo for M6 Demo shop')).toBeVisible();
+  expect(await page.evaluate(()=>globalThis.document.documentElement.scrollWidth<=globalThis.document.documentElement.clientWidth)).toBe(true);
+  expect((await new AxeBuilder({page}).include('[aria-label="Shop photos and logo"]').analyze()).violations).toEqual([]);
+  await section.screenshot({path:testInfo.outputPath('admin-media-preview.png')});
 });

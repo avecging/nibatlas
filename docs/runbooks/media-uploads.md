@@ -1,7 +1,7 @@
 # R2 upload foundation — M6 WP3
 
 Read [the API and limitations](../api/admin-media-v1.md). This is private PNG/JPEG
-transport within WP3. JPEG shop photos are processed before storage. It cannot publish artwork/photos or make a new shop's
+transport and photo/logo delivery within WP3. JPEG shop photos are processed before storage. It cannot publish stamp artwork or make a new shop's
 stamp publication prerequisite disappear.
 
 ## Cloudflare setup (once, before deploying this PR)
@@ -32,10 +32,9 @@ document the platform APIs used by the adapter/validator.
 
 After deployment, sign in as the existing staging editor/admin. On that same
 staging origin, use browser DevTools to run the snippet below after reviewing it.
-It opens a file chooser and prompts for an existing shop UUID and the required
-source/rights/credit/alt metadata. Use your own supported PNG or ordinary JPEG photo and a
+It opens a file chooser and prompts for an existing shop UUID without a metadata questionnaire. Use your own supported PNG or ordinary JPEG photo and a
 labelled test shop. It does not read authentication cookies or print secrets.
-This is temporary developer verification, not the later founder photo interface.
+This is temporary developer verification, not the later founder photo interface (use the normal controls below).
 Do not upload identifiable people without permission.
 
 Normal 8-bit RGB/RGBA, non-interlaced PNG exports may include `sRGB`, `gAMA`
@@ -57,9 +56,6 @@ picker.onchange = async () => {
   const manifest = {
     shopId: prompt('Existing staging shop UUID'), purpose: 'shop_photo',
     sha256, byteSize: file.size, contentType: file.type,
-    sourceRef: prompt('Source/original file reference'),
-    rightsBasis: prompt('Ownership or explicit reuse permission'),
-    creditText: prompt('Photographer credit'), altText: prompt('Describe the image')
   };
   const base = '/api/v1/admin/media/uploads';
   const call = async (url, options) => {
@@ -208,3 +204,43 @@ for the recorded deployment. Deployment does not establish runtime or photo
 Keep #17 About accuracy before real catalogue launch and #27 with geographic seal
 delivery. Preserve existing impressions and duplicate protection. No social,
 notification, QR/NFC or merchant work is included.
+
+## Founder photo/logo workflow — issue #73 checkpoint
+
+1. Admin → Shops → choose the intended shop → **Photos and logo**.
+2. Choose a photo (PNG/JPEG) or logo (PNG). Check the local preview and named shop.
+   No source/rights/credit/description form is required. PNG keeps transparency;
+   unsupported exports receive an error rather than being silently rewritten.
+3. **Save photo/logo privately** validates, finalizes and attaches it to this shop.
+   Check the saved preview. It is not public yet. Retry Save after an interrupted
+   request; terminal expiry/conflict starts a fresh session on the next Save.
+4. **Publish** → **Confirm publish** is an admin action. Only published shops
+   expose approved media. A new public logo replaces the old public logo; all
+   uploaded versions stay saved. **Hide** → confirm stops new public delivery.
+5. Check the shop page signed out, including orientation, full image, transparent
+   logo, fallback alt text and any preserved credit. After hide/archive, fresh
+   image requests must fail. Use **Reload media** after ambiguous publication.
+
+Limits: 50 retained attachments per shop; hidden/replaced images count. No media
+removal/reordering UI yet. Catalogue saved changes and media publication are
+separate. Private previews require a current editor/admin session. Admin is needed
+for publish/hide. Keep buckets private; no new environment variables are needed.
+
+### Verification status and exact next slice
+
+Main baseline #69 (`ee4f6b7c8cf7180039fe13ae198c4b01f1130d57`) has successful
+[CI 35436010075](https://github.com/avecging/nibatlas/actions/runs/35436010075)
+and [staging 35436174212](https://github.com/avecging/nibatlas/actions/runs/35436174212).
+Founder-reported original PNG, physical-phone and draft-creation results remain
+confirmed separately. Remote JPEG processing/finalization/private output and
+public photo/logo display remain unverified; no local test proves those.
+
+Continue the draft photo/logo PR first: inspect final-head CI and independent
+review; resolve actionable failures. Obtain mobile/desktop evidence and test the
+real staging JPEG → private R2 → finalization → attachment → preview → publish/hide
+path after an authorized merge/deploy. Then implement remaining #73 stamp origin,
+creator name/optional safe URL, draft PNG attachment, list/Passport/detail preview,
+activation and intact public delivery with additive schema/contract/tests. Do not
+recreate this photo/logo implementation. Keep generated defaults, old credits,
+versions/impressions and duplicate protection. #70/#71/#72 stay deferred; WP4 is
+imports, #17 precedes real-catalogue launch, #27 accompanies geographic seals.

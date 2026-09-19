@@ -76,3 +76,10 @@ WP4 remains imports.
 Passport animation stays in place for launch despite founder-reported roughness.
 [Issue #68](https://github.com/avecging/nibatlas/issues/68) tracks post-launch
 investigation, polish and resolution of the opening-geometry specification.
+
+Founder issue #73 (19 September) supersedes old MVP paperwork requirements in
+#19/#28/#32. Photos/logos need no metadata questionnaire; stamps need truthful
+origin and creator name/optional link, not source/SVG/rights/sign-off bundles.
+Photo/logo workflow is the current implementation checkpoint, with stamp
+management/activation next. #70 recollection, #71 commissioning and #72 photo
+metadata stay deferred. See the media runbook for exact acceptance gaps.

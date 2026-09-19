@@ -140,10 +140,11 @@ Types include website, Instagram, Facebook, X, Line, directions, contact. URLs a
 | Column | Notes |
 | --- | --- |
 | `id`, `shop_id`, `storage_key` | Store provider-neutral object key, not permanent CDN URL |
-| `alt_text` | Required before publication |
-| `credit_text`, `source_url`, `rights_basis` | Rights/provenance required |
+| `alt_text` | Optional; delivery derives truthful shop-name fallback |
+| `credit_text`, `source_url`, `rights_basis` | Optional existing metadata preserved; not MVP publication gates (#73) |
 | `width`, `height`, `content_type` | Validation metadata |
 | `sort_order`, `moderation_status` | Publication control |
+| `upload_id`, `kind` | Unique validated receipt attachment; photo or logo. Attachment identity immutable; publication status may change |
 | timestamps | |
 
 ### Shop attributes
@@ -463,7 +464,7 @@ field semantics and the intentionally separate artwork/import integration points
 
 `media_uploads` records a private upload UUID, environment, existing shop and
 optional commissioned draft artwork-version FK, purpose, immutable object key,
-SHA-256, expected size/MIME, source reference, rights/credit/alt metadata, expiry
+SHA-256, expected size/MIME, optional photo/logo source/rights/credit/alt metadata, expiry
 and server-validated dimensions. Its pending/validated states describe transport,
 not approval. Artwork rights/credit are copied from the existing version and
 rechecked at finalization. No approval evidence is copied. Direct API-role table
@@ -483,3 +484,17 @@ Input identity and reserved output are immutable; completed receipts retain the
 existing immutability trigger. PNG rows/keys remain unchanged. No source JPEG is
 stored. Preparation adds an audit fingerprint; retrying identical preparation
 or completed finalization adds no duplicate event. See the media API contract.
+
+### WP3 photo/logo attachment and delivery (#73)
+
+The additive 20260919000100 migration makes photo/logo receipt metadata nullable,
+drops the obsolete approved-image paperwork check, and adds immutable receipt
+attachments to `shop_images`. Existing values are not rewritten. Logos use PNG
+and never enter stamp validation or JPEG conversion. The service-only
+`shop_media_operation` locks live roles and shop state, checks environment and
+validated uploader ownership on attach, and audits attachment/publication/hiding.
+Only admin may publish/hide. Public list/file lookup requires a published shop
+and approved attachment in the current environment; raw bucket access stays private.
+Existing non-receipt image rows are preserved but not exposed by this new delivery
+route. Stamp schema/origin/credit/approval changes remain the next #73 slice; do
+not fabricate old commissioned fields to make uploads pass.

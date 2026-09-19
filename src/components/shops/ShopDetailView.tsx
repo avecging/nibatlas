@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ShopMediaGallery } from "./ShopMediaGallery";
 
 import { ShopCorrection } from "@/src/components/shops/ShopCorrection";
 import {
@@ -175,6 +176,7 @@ export function ShopDetailView({
 
       <div className={styles.grid}>
         {/* 3 — what you can do there, or the one caution when nothing is sourced. */}
+        {(process.env.NEXT_PUBLIC_CATALOGUE_MODE === "api" || process.env.NEXT_PUBLIC_CATALOGUE_MODE === "api-demo") && <ShopMediaGallery key={shop.id} shopId={shop.id} />}
         <ShopWhatYouCanDo shop={shop} />
         <ShopValueGap shop={shop} />
 
