@@ -250,7 +250,32 @@ This MVP keeps at most 50 versions per shop, including retained defaults and
 history. Further draft creation returns `429 stamp_limit` before committing;
 existing versions remain readable and activatable. There is no deletion UI.
 
-Generated defaults remain valid. Unique `(user_id, stamp_id)` duplicate
+Generated defaults remain valid. B1 adds `POST` to the existing stamp route with
+exactly `{action:"ensure_default"}`. Editors/admins may prepare a default for an
+older shop with no stamp. Same-origin/body/role/environment checks apply, and the
+SQL operation locks the live role then shop before checking existing identities.
+Any existing stamp makes this a no-op, including retired/custom/draft identities;
+it cannot replace or reactivate art. No-op retries create no audit rows. Reads
+remain read-only. Missing/archived/wrong-environment targets are rejected.
+
+New catalogue creation initializes the default in its own transaction without
+calling R2 or this HTTP route. The private helper records the actual account on
+all stamp/artwork audit writes. Stored `templateData` (shop tier + supported motif)
+is included only for generated rows in the private list; storage keys/evidence
+are not exposed. The UI reuses `StampArt`, reading the stored motif and ink, with
+only saved known locality/country labels. Unknown geography stays blank; actual
+collection geography is snapshotted on issuance. Ordinary renames do not generate
+artwork versions. Existing older API responses without template data remain
+readable and do not receive an invented preview.
+
+The generated design uses the established FNV-1a motif/palette selectors over
+`stamp-<shop UUID>` (and `motif:` namespace), pinned as template/palette v1. The
+approval reference `system-generated-default:v1` describes system initialization,
+not an external artist sign-off or catalogue field verification. Existing approval
+immutability remains enforced. Later uploaded drafts reuse that stamp identity;
+only explicit admin activation changes its current version. This checkpoint does
+not change pre-collection discovery's existing identity motif or complete the
+rich public preview/Review integration (D). Unique `(user_id, stamp_id)` duplicate
 protection is unchanged, so collecting a later design again is still deferred to
 #70. Commissioning/source/SVG/sign-off requirements are #71 and photo metadata is
 #72. Imports remain WP4. Remote JPEG, photo/logo display, and the new stamp flow

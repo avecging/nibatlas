@@ -54,9 +54,10 @@ inside SQL as well as the HTTP boundary. No verification date is synthesized.
   type, a dated source with URL or founder visit, and an active Atlas Stamp with
   approved artwork. Unknown operational status and absent optional facts remain
   valid. Existing public stamp constraints remain enforced.
-- Published + saved changes → published atomically applies all edits. New shop
-  publication waits for the next artwork package to prepare its required stamp;
-  no placeholder art is automatically invented or approved here.
+- Published + saved changes → published atomically applies all edits. Package B1 now prepares the established generated template atomically on
+  new shop creation; older drafts with no stamp have an explicit idempotent
+  preparation action. This is a system default, not uploaded/custom approval.
+  Catalogue prerequisites remain until the separate B2 trusted-review migration.
 - Published shops can be marked open, temporarily closed, permanently closed or
   unknown. Each distinct transition is explicit. Both closure statuses keep the
   public detail available; the existing discovery/issuance rules apply.

@@ -74,6 +74,8 @@ for (const role of ["admin", "editor"] as const) {
     expect(refreshed.expires_at > Date.now() / 1000).toBe(true);
     expect(refreshed.refresh_token !== previousRefreshToken).toBe(true);
     const id = uuid(new URL(page.url()).pathname.split("/").at(-1)!);
+    expect(sql(`select count(*)=1 and bool_and(st.status='active' and av.approval_status='approved' and av.artwork_kind='generated_template') from public.stamps st join public.stamp_artwork_versions av on av.stamp_id=st.id where st.shop_id='${id}';`)).toBe("t");
+    expect(sql(`select count(*)=3 and bool_and(actor_user_id='${actor}' and actor_kind='account') from public.admin_audit_log where entity_id in (select id from public.stamps where shop_id='${id}' union all select av.id from public.stamp_artwork_versions av join public.stamps st on st.id=av.stamp_id where st.shop_id='${id}');`)).toBe("t");
     await expect(page.getByLabel(/^Shop name(?: \*)?$/)).toHaveValue("Explicit Worker test draft");
     await page.getByLabel(/^Shop name(?: \*)?$/).fill("Edited Worker test draft");
     const saving = page.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith(`/api/v1/admin/shops/${id}`));

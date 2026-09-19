@@ -89,11 +89,9 @@ select is((select to_jsonb(c) from public.stamp_collections c where id='61000000
 select ok(exists(select 1 from public.admin_audit_log where entity_type='shops' and entity_id='00000000-0000-4000-8000-000000000301' and before_summary->>'publicationStatus'='published' and after_summary->>'publicationStatus'='archived' and actor_user_id='61000000-0000-4000-8000-000000000002'),'archive records current account, before and after atomically');
 select ok(not exists(select 1 from public.admin_audit_log where entity_type<>'profile' and (before_summary::text||after_summary::text) like '%Private revised%'),'audit summaries contain no freeform facts');
 select ok(exists(select 1 from public.admin_audit_log where entity_type='shop_working_copies'),'private saved changes audited');
--- A new draft can publish once the separate artwork prerequisite is prepared.
-insert into public.stamps(id,shop_id,name) values('61000000-0000-4000-8000-000000000091','61000000-0000-4000-8000-000000000090','Explicit generated test stamp');
-insert into public.stamp_artwork_versions(stamp_id,design_version,artwork_kind,approval_status,template_data,ink,palette_version,approved_at,approval_evidence_ref)
-values('61000000-0000-4000-8000-000000000091',1,'generated_template','approved','{"tier":"shop","motif":"storefront"}','teal',1,'2026-09-01','test-only-owner-setup');
-update public.stamps set status='active',current_design_version=1 where id='61000000-0000-4000-8000-000000000091';
+-- Creation now supplies the approved system default without operator artwork setup.
+select is((select count(*)::int from public.stamps where shop_id='61000000-0000-4000-8000-000000000090' and status='active'),1,
+  'new draft has exactly one active generated default before publication');
 set local role authenticated;
 select lives_ok($new$select pg_temp.change('save','61000000-0000-4000-8000-000000000090',
 jsonb_set(jsonb_set(jsonb_set((select value from checks where key='new_doc'),'{shop}',

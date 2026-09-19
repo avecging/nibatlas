@@ -522,3 +522,35 @@ test('infrastructure HTML keeps unsaved edits and media reload recovery usable',
   expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.document.documentElement.clientWidth)).toBe(true);
   await page.screenshot({path: info.outputPath('admin-infrastructure-recovery.png'), fullPage: true});
 });
+
+test('generated default preview and retry preserve unsaved shop edits @short',async({page},info)=>{
+  await setup(page);
+  let entries:unknown[]=[];
+  const actions:string[]=[];
+  await page.route(`**/api/v1/admin/shops/${id}/stamp`,async route=>{
+    if(route.request().method()==='POST') {
+      const body=route.request().postDataJSON();actions.push(body.action);
+      expect(body).toEqual({action:'ensure_default'});
+      entries=[{id:'78000000-0000-4000-8000-000000000010',stampId:'78000000-0000-4000-8000-000000000011',
+        designVersion:1,kind:'generated_template',origin:'generated_template',status:'approved',ink:'teal',creatorName:null,creatorUrl:null,
+        templateData:{tier:'shop',motif:'nib'},hasArtwork:false,active:true,revision:'c'.repeat(32)}];
+    }
+    await route.fulfill({json:{entries}});
+  });
+  await page.goto(`/admin/shops/${id}`);
+  await expect(page.getByRole('button',{name:'Prepare generated default'})).toBeEnabled();
+  await page.getByLabel('Shop name').fill('Unsaved name kept');
+  await page.getByRole('button',{name:'Prepare generated default'}).click();
+  const stamps=page.getByRole('region',{name:'Atlas Stamp artwork'});
+  await expect(stamps.getByRole('img',{name:/Shop stamp, M6 Demo shop/})).toBeVisible();
+  await expect(page.getByLabel('Shop name')).toHaveValue('Unsaved name kept');
+  await expect(page.getByRole('button',{name:'Save changes privately'})).toBeEnabled();
+  await expect(stamps.getByText(/no upload or creator credit needed/)).toBeVisible();
+  await page.getByRole('button',{name:'Reload stamps'}).click();
+  await expect(stamps.getByRole('img',{name:/Shop stamp, M6 Demo shop/})).toHaveCount(1);
+  expect(actions).toEqual(['ensure_default']);
+  await expect(page.getByRole('button',{name:'Prepare generated default'})).toHaveCount(0);
+  expect(await page.evaluate(()=>window.document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  expect((await new AxeBuilder({page}).include('main').withTags(['wcag2a','wcag2aa','wcag21aa']).analyze()).violations).toEqual([]);
+  await stamps.screenshot({path:info.outputPath('admin-generated-default.png')});
+});

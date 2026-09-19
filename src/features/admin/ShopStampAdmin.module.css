@@ -3,3 +3,5 @@
 .section,.version,.create fieldset,.create label,.picker,.picker label{min-width:0}
 .section input,.section select{width:100%;min-width:0;max-width:100%}
 .version p,.picker p{overflow-wrap:anywhere}
+
+.generatedPreview{max-width:320px;margin:16px auto}.generatedPreview>figure{width:100%}

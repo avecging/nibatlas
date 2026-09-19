@@ -1,5 +1,7 @@
 'use client';
 /* eslint-disable @next/next/no-img-element -- private stamp previews use authenticated byte routes. */
+import { StampArt } from '@/src/components/stamps/StampArt';
+import { countryLabel, isCountryCode } from '@/src/domain/geo';
 import { readAdminResponse } from './read-response';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
@@ -29,7 +31,9 @@ async function call(path:string,signal:AbortSignal,options:RequestInit={}) {
 }
 const post=(value:unknown):RequestInit=>({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(value)});
 
-export function ShopStampAdmin({shopId,shopName,archived}:{shopId:string;shopName:string;archived:boolean}) {
+export function ShopStampAdmin({shopId,shopName,archived,localityName='',countryCode='',onPrepared}:{
+  shopId:string;shopName:string;archived:boolean;localityName?:string;countryCode?:string;onPrepared?:()=>Promise<void>;
+}) {
   const [entries,setEntries]=useState<AdminStampVersion[]>([]),[busy,setBusy]=useState(false),[loaded,setLoaded]=useState(false);
   const [error,setError]=useState(''),[notice,setNotice]=useState(''),[confirm,setConfirm]=useState<AdminStampVersion|null>(null);
   const controller=useRef<AbortController|null>(null),lock=useRef(false);
@@ -47,18 +51,33 @@ export function ShopStampAdmin({shopId,shopName,archived}:{shopId:string;shopNam
   }
   return <section className={styles.section} aria-label="Atlas Stamp artwork">
     <h2>Atlas Stamp artwork</h2>
-    <p>Artwork for <strong>{shopName}</strong>. Generated defaults remain available. Uploaded versions are saved privately, previewed intact, and become collectable only after an admin activates them.</p>
+    <p>Artwork for <strong>{shopName}</strong>. New shops receive a generated default without an image upload. The stamp stays private while the shop is a draft. Uploaded versions are saved privately, previewed intact, and become collectable only after an admin activates them.</p>
     {error&&<p role="alert">{error}</p>}
     <p role="status" aria-live="polite">{notice||(busy?'Saving…':'')}</p>
     <button type="button" disabled={busy} onClick={()=>void run(async signal=>{
       setEntries(decodeAdminStamps((await call(path,signal)).entries));setLoaded(true);setConfirm(null);setNotice('Stamp versions reloaded.');
     })}>Reload stamps</button>
+    {loaded && entries.length===0 && !archived ? <div>
+      <p>No artwork versions are listed. Prepare a generated default for a shop that has no stamp yet. Existing stamp identities are preserved.</p>
+      <button type="button" disabled={busy} onClick={()=>void run(async signal=>{
+        const rows=decodeAdminStamps((await call(path,signal,post({action:'ensure_default'}))).entries);
+        setEntries(rows);
+        setNotice(rows.length ? 'Stamp versions refreshed. Existing artwork was preserved.' : 'An existing stamp identity needs review; no artwork was replaced.');
+        await onPrepared?.();
+      })}>Prepare generated default</button>
+    </div>:null}
     <CreateStamp disabled={busy||archived||!loaded} run={run} path={path} saved={rows=>{setEntries(rows);setNotice('Draft stamp version created. Add its PNG below.');}} />
     <div className={styles.versions}>
       {entries.map(entry=><article className={styles.version} key={entry.id}>
         <header><strong>Design v{entry.designVersion}</strong><span>{entry.active?'active':entry.status}</span></header>
         <p>{entry.kind==='generated_template'?'Generated default':entry.origin.replaceAll('_',' ')}</p>
         {entry.creatorName?<p>created by: {entry.creatorUrl?<a href={entry.creatorUrl} target="_blank" rel="noreferrer">{entry.creatorName}</a>:entry.creatorName}</p>:null}
+        {entry.kind==='generated_template'&&entry.templateData?<div className={styles.generatedPreview}>
+          <StampArt title={shopName} stamp={{id:entry.stampId,tier:'shop',motif:entry.templateData.motif,
+            ink:entry.ink,designVersion:entry.designVersion,paletteVersion:1,
+            localityLabel:localityName,countryLabel:isCountryCode(countryCode)?countryLabel(countryCode):''}} />
+          <p className={styles.help}>Generated default · no upload or creator credit needed. Name and place labels use the saved shop details; collected impressions retain their original labels.</p>
+        </div>:null}
         {entry.kind==='uploaded'&&entry.hasArtwork?<StampPreview shopId={shopId} entry={entry}/>:null}
         {entry.kind==='uploaded'&&entry.status==='draft'&&!entry.hasArtwork?
           <ArtworkPicker shopId={shopId} version={entry} disabled={busy||archived} run={run} attached={rows=>{setEntries(rows);setNotice('Stamp PNG attached privately. Review all three sizes before activation.');}}/>:null}

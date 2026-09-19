@@ -5,7 +5,7 @@ import { decodeAdminStamps, STAMP_INKS, STAMP_ORIGINS } from '@/src/features/adm
 import { readBounded } from './png';
 import { MediaOperationError, type PrivateMediaStore } from './http';
 
-export type StampAdminAction='list'|'create'|'attach'|'activate'|'preview';
+export type StampAdminAction='list'|'create'|'attach'|'activate'|'preview'|'ensure_default';
 export interface StampAdminGateway extends AdminGateway {
   operation(action:StampAdminAction,shopId:string,payload?:Record<string,unknown>):Promise<unknown>;
   store:PrivateMediaStore;
@@ -39,6 +39,8 @@ export async function handleStampAdmin(request:Request,shopId:string,versionId:s
           ||!STAMP_ORIGINS.includes(body.origin as never)||!STAMP_INKS.includes(body.ink as never)
           ||typeof body.creatorName!=='string'||!body.creatorName.trim()||body.creatorName.length>300
           ||!(body.creatorUrl===undefined||(typeof body.creatorUrl==='string'&&/^https?:\/\//i.test(body.creatorUrl)&&body.creatorUrl.length<=2000))) throw Error();
+      } else if(body.action==='ensure_default') {
+        if(Object.keys(body).some(k=>k!=='action')) throw Error();
       } else if(body.action==='attach') {
         if(Object.keys(body).some(k=>!['action','versionId','uploadId'].includes(k))
           ||typeof body.versionId!=='string'||!UUID.test(body.versionId)
@@ -50,7 +52,7 @@ export async function handleStampAdmin(request:Request,shopId:string,versionId:s
           ||typeof body.revision!=='string'||!/^[a-f0-9]{32}$/.test(body.revision)) throw Error();
       } else throw Error();
     } catch { return adminFailure('invalid_request'); }
-    const action=body.action as 'create'|'attach'|'activate';
+    const action=body.action as 'create'|'attach'|'activate'|'ensure_default';
     const payload={...body}; delete payload.action;
     return Response.json({entries:decodeAdminStamps(await gateway.operation(action,shopId,payload))},{headers:ADMIN_HEADERS});
   } catch(error) {
