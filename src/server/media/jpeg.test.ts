@@ -5,8 +5,9 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { inspectJpeg, processJpeg, orientPhoto, type PhotoImages, digest } from './jpeg';
-import { jpeg, progressiveJpeg, largeJpeg, profiledJpeg } from './jpeg.fixture';
+import { jpeg, progressiveJpeg, largeJpeg, profiledJpeg, adobeRgbJpeg, awkwardRatioJpeg, awkwardPortraitJpeg } from './jpeg.fixture';
 import { validatePng, MAX_MEDIA_BYTES } from './png';
+import { png } from './png.fixture';
 
 export function app(marker:number,payload:Buffer) {
   const h=Buffer.alloc(4);h[0]=255;h[1]=marker;h.writeUInt16BE(payload.length+2,2);return Buffer.concat([h,payload]);
@@ -23,6 +24,42 @@ function pixels(bytes:Uint8Array) {
   const m=validatePng(bytes,false), p=new Uint8Array(m.width*m.height*4);validatePng(bytes,false,p);return {p,...m};
 }
 describe('JPEG preflight and pixel orientation',()=>{
+  it.each([[1024,340],[1024,341]])('uses validated decoder dimensions %s x %s',async(width,height)=>{
+    let options:unknown;
+    const images:PhotoImages={input:()=>({transform:value=>{options=value;return {output:async()=>({response:()=>new Response(png(width,height),{headers:{'content-type':'image/png'}})})};}})};
+    const result=await processJpeg(withExif(awkwardRatioJpeg,6),images);
+    expect(options).toEqual({width:1024});
+    expect(result.checked).toMatchObject({width:height,height:width});
+  });
+  it.each([[1025,341],[1023,340],[1024,339],[1024,342],[1024,1024]])('rejects wrong decoder scale/aspect %s x %s',async(width,height)=>{
+    const images:PhotoImages={input:()=>({transform:()=>({output:async()=>({response:()=>new Response(png(width,height),{headers:{'content-type':'image/png'}})})})})};
+    await expect(processJpeg(awkwardRatioJpeg,images)).rejects.toThrow();
+  });
+  it('retains only canonical Adobe colour interpretation for the decoder',()=>{
+    const b=Buffer.from(adobeRgbJpeg), at=b.indexOf(Buffer.from('Adobe'));
+    b.fill(0xab,at+5,at+11); // Version/flags are not needed for decoding.
+    const clean=inspectJpeg(b).bytes, marker=clean.indexOf(Buffer.from('Adobe'));
+    expect(marker).toBeGreaterThan(0);
+    expect(clean.subarray(marker,marker+12)).toEqual(Buffer.from([65,100,111,98,101,0,100,0,0,0,0,0]));
+  });
+  it('rejects unsupported, malformed and duplicate Adobe declarations',()=>{
+    const payload=Buffer.from([65,100,111,98,101,0,100,0,0,0,0,0]);
+    for(const transform of [2,3,255]) {
+      const b=Buffer.from(adobeRgbJpeg);b[b.indexOf(Buffer.from('Adobe'))+11]=transform;
+      expect(()=>inspectJpeg(b)).toThrow();
+    }
+    for(const extra of [app(0xee,payload),app(0xee,payload.subarray(0,11)),app(0xee,Buffer.concat([payload,Buffer.from([0])]))]) {
+      expect(()=>inspectJpeg(Buffer.concat([adobeRgbJpeg.subarray(0,2),extra,adobeRgbJpeg.subarray(2)]))).toThrow();
+    }
+  });
+  it('rejects Adobe interpretation declared after image scans start',()=>{
+    const start=adobeRgbJpeg.indexOf(Buffer.from([255,238]));
+    const end=start+2+adobeRgbJpeg.readUInt16BE(start+2);
+    const marker=adobeRgbJpeg.subarray(start,end);
+    const without=Buffer.concat([adobeRgbJpeg.subarray(0,start),adobeRgbJpeg.subarray(end)]);
+    const late=Buffer.concat([without.subarray(0,-2),marker,without.subarray(-2)]);
+    expect(()=>inspectJpeg(late)).toThrow();
+  });
   it('accepts baseline and progressive and drops private segments before decoding',()=>{
     for(const b of [jpeg,progressiveJpeg]) {
       const inspected=inspectJpeg(withExif(b,6));expect(inspected).toMatchObject({width:24,height:16,orientation:6});
@@ -66,7 +103,7 @@ describe('actual local Cloudflare Images binding',()=>{
     const proxy=await wrangler.getPlatformProxy({configPath:path,persist:false});images=proxy.env.PHOTO_IMAGES;dispose=proxy.dispose;
   },30000);
   afterAll(async()=>{await dispose?.();if(dir) await rm(dir,{recursive:true,force:true});});
-  it.each([jpeg,progressiveJpeg,profiledJpeg])('decodes and produces independently valid metadata-free bytes',async b=>{
+  it.each([jpeg,progressiveJpeg,profiledJpeg,adobeRgbJpeg])('decodes and produces independently valid metadata-free bytes',async b=>{
     const original=withExif(b,6), result=await processJpeg(original,images);
     expect(result.checked).toMatchObject({width:16,height:24});
     expect(result.checked.sha256).not.toBe(digest(original));
@@ -75,11 +112,28 @@ describe('actual local Cloudflare Images binding',()=>{
     // Top-left after clockwise rotation was the original blue bottom-left.
     const p=pixels(result.bytes).p;expect(p[2]).toBeGreaterThan(240);expect(p[0]).toBeLessThan(15);
   });
+  it.each([0,1])('preserves Adobe transform %s colours and strips the marker from output',async transform=>{
+    const marker=app(0xee,Buffer.from([65,100,111,98,101,0,100,0,0,0,0,transform]));
+    const input=transform===0?adobeRgbJpeg:Buffer.concat([jpeg.subarray(0,2),marker,jpeg.subarray(2)]);
+    const result=await processJpeg(input,images), decoded=pixels(result.bytes);
+    for(const [x,y,expected] of [[2,2,[255,0,0]],[21,2,[0,255,0]],[2,13,[0,0,255]],[21,13,[255,255,0]]] as const) {
+      const offset=(y*decoded.width+x)*4;
+      expected.forEach((value,channel)=>expect(Math.abs(decoded.p[offset+channel]!-value)).toBeLessThan(20));
+    }
+    expect(result.bytes.includes(Buffer.from('Adobe'))).toBe(false);
+    const chunks:string[]=[];
+    for(let p=8;p<result.bytes.length;p+=result.bytes.readUInt32BE(p)+12) chunks.push(result.bytes.toString('ascii',p+4,p+8));
+    expect(chunks).toEqual(['IHDR','IDAT','IEND']);
+  });
   it('resizes without cropping or enlargement and then applies orientation',async()=>{
     const result=await processJpeg(withExif(largeJpeg,6),images);
     expect(result.checked).toMatchObject({width:512,height:1024});
     expect(validatePng(result.bytes,false)).toEqual(result.checked);
     expect(result.bytes.length).toBeLessThanOrEqual(MAX_MEDIA_BYTES);
+  });
+  it.each([[awkwardRatioJpeg,1024,340],[awkwardPortraitJpeg,340,1024]] as const)('accepts resized photos whose short edge rounds down',async(input,width,height)=>{
+    const result=await processJpeg(input,images);
+    expect(result.checked).toMatchObject({width,height});
   });
   it('rejects a scan referencing an invalid Huffman table',async()=>{
     const corrupt=Buffer.from(jpeg);const sos=corrupt.indexOf(Buffer.from([255,218]));

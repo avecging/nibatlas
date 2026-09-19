@@ -32,13 +32,14 @@ function exifOrientation(b: Buffer): number {
 
 /** Structural/resource preflight, not a substitute for the Images decoder.
  * Remove APP/COM metadata before sending pixels to the decoder, retaining
- * orientation only in memory and bounded ICC chunks for colour conversion. Accept 8-bit baseline/progressive, three components.
+ * orientation only in memory, bounded ICC chunks and canonical Adobe colour
+ * interpretation for decoding. Accept 8-bit baseline/progressive, three components.
  */
 export function inspectJpeg(bytes: Uint8Array) {
   const b=Buffer.from(bytes);
   if(b.length<4 || b.length>MAX_MEDIA_BYTES || b.readUInt16BE(0)!==0xffd8) return invalid();
   const parts=[b.subarray(0,2)];
-  let p=2,width=0,height=0,orientation=1,exif=false,scans=0,markers=0,iccCount=0;
+  let p=2,width=0,height=0,orientation=1,exif=false,adobe=false,scans=0,markers=0,iccCount=0;
   const iccSeen=new Set<number>();
   while(p<b.length) {
     if(++markers>4096 || b[p]!==255) return invalid();
@@ -72,7 +73,14 @@ export function inspectJpeg(bytes: Uint8Array) {
       iccCount=count;iccSeen.add(seq);
     }
     if(marker===0xe2 && payload.subarray(0,4).toString()==='MPF\0') return invalid();
-    if(marker===0xee && payload.subarray(0,5).toString()==='Adobe' && (payload.length!==12 || payload[11]!==1)) return invalid();
+    if(marker===0xee && payload.subarray(0,5).toString()==='Adobe') {
+      if(adobe || scans>0 || payload.length!==12 || (payload[11]!==0 && payload[11]!==1)) return invalid();
+      adobe=true;
+      // Transform 0 means RGB for the required three-component frame; transform
+      // 1 means YCbCr. Stripping this would misdecode numeric-ID RGB components.
+      // Keep only a canonical decoder hint; discard original version/flags.
+      parts.push(Buffer.from([255,238,0,14,65,100,111,98,101,0,100,0,0,0,0,payload[11]]));
+    }
     if(!metadata || icc) parts.push(b.subarray(start,end));
     p=end;
     if(marker===0xda) {
@@ -93,7 +101,7 @@ export function inspectJpeg(bytes: Uint8Array) {
 
 export interface PhotoImages {
   input(stream: ReadableStream<Uint8Array>): {
-    transform(options:{width:number;height:number}): {
+    transform(options:{width:number;height?:never} | {height:number;width?:never}): {
       output(options:{format:'image/png'}): Promise<{response():Response}>;
     };
   };
@@ -125,14 +133,22 @@ export function orientPhoto(pixels:Uint8Array,width:number,height:number,orienta
 }
 export async function processJpeg(bytes:Uint8Array,images:PhotoImages) {
   const input=inspectJpeg(bytes);
-  const scale=Math.min(1,PHOTO_AXIS/Math.max(input.width,input.height));
-  const width=Math.max(1,Math.round(input.width*scale)),height=Math.max(1,Math.round(input.height*scale));
+  const landscape=input.width>=input.height;
+  const sourceLong=landscape?input.width:input.height, sourceShort=landscape?input.height:input.width;
+  const targetLong=Math.min(PHOTO_AXIS,sourceLong), targetShort=sourceShort*targetLong/sourceLong;
+  // Only the long axis constrains the decoder. Two rounded bounds can make the
+  // short axis limiting and unexpectedly shrink the requested long axis again.
   const response=(await images.input(new ReadableStream({start(c){c.enqueue(input.bytes);c.close();}}))
-    .transform({width,height}).output({format:'image/png'})).response();
+    .transform(landscape?{width:targetLong}:{height:targetLong}).output({format:'image/png'})).response();
   if(!response.ok || response.headers.get('content-type')!=='image/png') return invalid();
   const decoded=await readBounded(response.body,MAX_MEDIA_BYTES);
   const checked=validatePng(decoded,false);
-  if(checked.width!==width || checked.height!==height) return invalid();
+  const {width,height}=checked, actualLong=landscape?width:height, actualShort=landscape?height:width;
+  // Allow the decoder's whole-pixel rounding, while independently enforcing the
+  // intended scale/aspect ratio and the 1024-axis/no-upscale allocation budget.
+  if(actualLong!==targetLong || actualShort<Math.max(1,Math.floor(targetShort)) ||
+      actualShort>Math.ceil(targetShort) || width>input.width || height>input.height ||
+      width>PHOTO_AXIS || height>PHOTO_AXIS) return invalid();
   const pixels=new Uint8Array(width*height*4);
   validatePng(decoded,false,pixels);
   const output=orientPhoto(pixels,width,height,input.orientation);
