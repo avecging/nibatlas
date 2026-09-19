@@ -235,7 +235,7 @@ export interface ShopStampDesign {
   /** Issue #73 neutral admin/founder upload; never mislabeled as commissioned. */
   readonly uploaded?: {
     readonly origin: "founder_created" | "ai_assisted" | "commissioned";
-    readonly creatorName: string;
+    readonly creatorName?: string;
     readonly creatorUrl?: string;
     readonly transparentPngSha256: string;
   };

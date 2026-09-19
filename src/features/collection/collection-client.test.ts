@@ -48,3 +48,15 @@ describe('historical collection adapter',()=>{
     expect(await stampRequest('collect',{},new AbortController().signal)).toEqual({ok:false,error:{code:'service_unavailable'}});
   });
 });
+
+it.each([null,undefined])('renders an uploaded snapshot without inventing optional creator credit %s',creatorName=>{
+  const c=decodeCollection({...ISSUED_STAMP,stamp:{...ISSUED_STAMP.stamp,artworkKind:'uploaded',artworkOrigin:'founder_created',creatorName,creatorUrl:null,transparentPngSha256:'e'.repeat(64)}});
+  expect(c.stamp.uploaded?.creatorName).toBeUndefined();
+  expect(c.stamp.uploaded?.transparentPngSha256).toBe('e'.repeat(64));
+  expect(()=>decodeCollection({...ISSUED_STAMP,stamp:{...ISSUED_STAMP.stamp,artworkKind:'uploaded',artworkOrigin:'founder_created',creatorName,creatorUrl:'https://example.test',transparentPngSha256:'e'.repeat(64)}})).toThrow();
+});
+
+it.each(['https://','https://example.test/a b'])('preserves historical credit previously accepted by writers: %s',creatorUrl=>{
+  const c=decodeCollection({...ISSUED_STAMP,stamp:{...ISSUED_STAMP.stamp,artworkKind:'uploaded',artworkOrigin:'founder_created',creatorName:'Original creator',creatorUrl,transparentPngSha256:'e'.repeat(64)}});
+  expect(c.stamp.uploaded).toMatchObject({creatorName:'Original creator',creatorUrl});
+});

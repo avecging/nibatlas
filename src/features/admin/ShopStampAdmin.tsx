@@ -1,4 +1,5 @@
 'use client';
+import { validCreatorCredit } from '@/src/domain/creator-credit';
 /* eslint-disable @next/next/no-img-element -- private stamp previews use authenticated byte routes. */
 import { StampArt } from '@/src/components/stamps/StampArt';
 import { countryLabel, isCountryCode } from '@/src/domain/geo';
@@ -71,7 +72,7 @@ export function ShopStampAdmin({shopId,shopName,archived,localityName='',country
       {entries.map(entry=><article className={styles.version} key={entry.id}>
         <header><strong>Design v{entry.designVersion}</strong><span>{entry.active?'active':entry.status}</span></header>
         <p>{entry.kind==='generated_template'?'Generated default':entry.origin.replaceAll('_',' ')}</p>
-        {entry.creatorName?<p>created by: {entry.creatorUrl?<a href={entry.creatorUrl} target="_blank" rel="noreferrer">{entry.creatorName}</a>:entry.creatorName}</p>:null}
+        {entry.creatorName?<p>created by: {entry.creatorUrl&&validCreatorCredit(entry.creatorName,entry.creatorUrl)?<a href={entry.creatorUrl} target="_blank" rel="noreferrer">{entry.creatorName}</a>:entry.creatorName}</p>:null}
         {entry.kind==='generated_template'&&entry.templateData?<div className={styles.generatedPreview}>
           <StampArt title={shopName} stamp={{id:entry.stampId,tier:'shop',motif:entry.templateData.motif,
             ink:entry.ink,designVersion:entry.designVersion,paletteVersion:1,
@@ -106,10 +107,10 @@ function CreateStamp({disabled,run,path,saved}:{disabled:boolean;run:(w:(s:Abort
       });
     }}><fieldset disabled={disabled}><legend>Truthful artwork attributes</legend>
       <label>Origin<select name="origin" defaultValue="founder_created"><option value="founder_created">Founder-created</option><option value="ai_assisted">AI-assisted</option><option value="commissioned">Commissioned</option></select></label>
-      <label>Creator name<input name="creatorName" required maxLength={300}/></label>
+      <label>Creator name (optional)<input name="creatorName" maxLength={300}/></label>
       <label>Creator link (optional)<input name="creatorUrl" type="url" maxLength={2000} placeholder="https://…"/></label>
       <label>Ink<select name="ink" defaultValue="teal">{STAMP_INKS.map(ink=><option key={ink} value={ink}>{ink}</option>)}</select></label>
-      <p className={styles.help}>Choose the origin and credit that accurately describe this artwork.</p>
+      <p className={styles.help}>Choose the origin and optional credit that accurately describe this artwork. A creator link requires a name.</p>
       <button>Create private draft</button>
     </fieldset></form>
   </details>;

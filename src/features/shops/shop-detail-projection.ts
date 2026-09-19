@@ -183,6 +183,11 @@ export function projectShopDetail(
     ...(links.length === 0 ? {} : { links }),
     positionPrecision: wire.positionPrecision,
     sources: wire.sources,
-    stamp: projectStampDesign(wire),
+    stamp: wire.generatedStamp ? {
+      id: wire.generatedStamp.id, tier: 'shop', motif: wire.generatedStamp.templateData.motif,
+      ink: wire.generatedStamp.ink, designVersion: wire.generatedStamp.designVersion,
+      paletteVersion: wire.generatedStamp.paletteVersion,
+      localityLabel: wire.localityName, countryLabel: countryLabel(wire.countryCode),
+    } : projectStampDesign(wire),
   };
 }

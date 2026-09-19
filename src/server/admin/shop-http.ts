@@ -1,3 +1,4 @@
+import { normalizeShopCreate, normalizeShopDocument, ShopValidationError } from '@/src/features/admin/shop-normalization';
 import {
   authorizeAdmin,
   AdminForbiddenError,
@@ -8,7 +9,6 @@ import {
   decodeList,
   decodeOptions,
   decodeShop,
-  document,
   object,
   UUID,
 } from "@/src/features/admin/shop-contract";
@@ -124,17 +124,7 @@ export async function handleShopAdmin(
           data.revision !== undefined
         )
           throw Error("Invalid create");
-        const d = object(data.document);
-        if (
-          Object.keys(d).some((k) => !["name", "slug"].includes(k)) ||
-          typeof d.name !== "string" ||
-          !d.name.trim() ||
-          d.name.length > 300 ||
-          typeof d.slug !== "string" ||
-          d.slug.length > 120 ||
-          !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(d.slug)
-        )
-          throw Error("Invalid create");
+        data.document = normalizeShopCreate(data.document, data.id);
       } else {
         if (
           data.id !== undefined ||
@@ -153,11 +143,12 @@ export async function handleShopAdmin(
           !/^([a-f0-9]{32}|[a-f0-9-]{36})$/i.test(data.revision)
         )
           throw Error("Invalid action");
-        if (data.action === "save") data.document = document(data.document);
+        if (data.action === "save") data.document = normalizeShopDocument(data.document);
         else if (data.document !== undefined)
           throw Error("Unexpected document");
       }
-    } catch {
+    } catch (error) {
+      if (error instanceof ShopValidationError) return json({ ok: false, error: { code: "invalid_fields" }, fieldErrors: error.issues }, 422);
       return adminFailure("invalid_request");
     }
     stage("catalogue_rpc");

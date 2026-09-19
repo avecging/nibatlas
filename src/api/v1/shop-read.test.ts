@@ -159,3 +159,10 @@ it("renders a demo test venue without inventing a pen-shop type", () => {
   expect(decodeShopDetailV1(venue)?.primaryType).toBe("test_venue");
   expect(() => decodeShopDetailV1({ ...venue, sourceQuality: "sourced" })).toThrow(/must remain demo/);
 });
+
+it('decodes only the public stored generated design and rejects malformed art',()=>{
+  const art={id:'00000000-0000-4000-8000-000000000601',designVersion:3,ink:'plum',paletteVersion:1,templateData:{tier:'shop',motif:'counter'}};
+  expect(decodeShopDetailV1({...detail(),generatedStamp:{...art,privateKey:'must-not-survive'}})?.generatedStamp).toEqual(art);
+  for(const invalid of [null,{...art,ink:'red'},{...art,paletteVersion:2},{...art,designVersion:0},{...art,templateData:{tier:'shop',motif:'fake'}}])
+    expect(()=>decodeShopDetailV1({...detail(),generatedStamp:invalid})).toThrow();
+});

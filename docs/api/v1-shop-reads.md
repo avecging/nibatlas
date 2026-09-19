@@ -114,3 +114,20 @@ violations stay loud and observable instead of silently removing markers. SQL
 projections exclude known unrepresentable states, such as published shops with no
 assigned type. This prevents a later database/provider change from silently
 becoming a browser API change.
+
+## B2a active generated artwork
+
+`shop_detail` additively returns `generatedStamp` only when the published shop's
+active Atlas Stamp has an approved current generated-template version. The exact
+allowlist is `id`, `designVersion`, `ink`, `paletteVersion` and
+`templateData:{tier,motif}`. It exposes no storage keys, approval evidence or
+private draft data. The public decoder validates the known palette/template and
+the detail adapter renders those stored values instead of hashing the slug.
+This resolves PR #76's preview/public/collected-default mismatch without rewriting
+B1 defaults, older art, identities or historical impressions. Place/name labels
+use today's public catalogue; an issued impression keeps its original labels.
+
+Older responses without this additive field retain the previous identity motif.
+Current uploaded/legacy commissioned pre-collection discovery still uses that
+existing presentation; exact uploaded public preview remains D. This checkpoint
+does not claim to finish that lifecycle integration or change legacy provenance.

@@ -1,3 +1,6 @@
+import { STAMP_MOTIFS } from '@/src/domain/stamp-design';
+import { STAMP_INK_LABELS } from '@/src/domain/stamp-palette';
+import type { ShopStampDesign } from '@/src/domain/shop-detail';
 import { isCountryCode, type CountryCode, type GeoPoint, type ViewportBounds } from "@/src/domain/geo";
 import { isLanguageTag, type LanguageTag } from "@/src/domain/language";
 import {
@@ -81,7 +84,16 @@ export interface PublicShopLinkV1 {
  * deterministic stamp design and other frontend-only presentation fields.
  * Evidence references are stable source UUIDs, never display labels.
  */
+export interface PublicGeneratedStampV1 {
+  readonly id: string;
+  readonly designVersion: number;
+  readonly ink: ShopStampDesign['ink'];
+  readonly paletteVersion: number;
+  readonly templateData: { readonly tier: 'shop'; readonly motif: ShopStampDesign['motif'] };
+}
 export interface ShopDetailReadV1 extends ShopMapSummary {
+  /** Absent for older APIs and non-generated artwork. Never invent stored art. */
+  readonly generatedStamp?: PublicGeneratedStampV1;
   readonly shortDescription?: string;
   readonly addressLines?: readonly string[];
   readonly postalCode?: string;
@@ -459,6 +471,7 @@ export function decodeShopDetailV1(value: unknown): ShopDetailReadV1 | null {
 
   return {
     ...base,
+    ...(item.generatedStamp === undefined ? {} : { generatedStamp: decodeGeneratedStamp(item.generatedStamp) }),
     timezone: string(item["timezone"], "detail.timezone"),
     positionPrecision: enumValue(item["positionPrecision"], POSITION_PRECISIONS, "detail.positionPrecision"),
     shopTypes: arrayOf("shopTypes", (entry, index) => enumValue(entry, SHOP_RECORD_TYPES, `detail.shopTypes[${index}]`)),
@@ -486,4 +499,16 @@ export function decodeShopDetailV1(value: unknown): ShopDetailReadV1 | null {
     ...(openingHoursNote === undefined ? {} : { openingHoursNote }),
     ...(lastVerifiedAt === undefined ? {} : { lastVerifiedAt }),
   };
+}
+
+function decodeGeneratedStamp(value: unknown): PublicGeneratedStampV1 {
+  const r = record(value, 'detail.generatedStamp'), template = record(r.templateData, 'detail.generatedStamp.templateData');
+  const id = uuid(r.id, 'detail.generatedStamp.id');
+  if (!Number.isSafeInteger(r.designVersion) || Number(r.designVersion) < 1 || r.paletteVersion !== 1
+    || typeof r.ink !== 'string' || !Object.hasOwn(STAMP_INK_LABELS, r.ink)
+    || template.tier !== 'shop' || !STAMP_MOTIFS.includes(template.motif as ShopStampDesign['motif'])) {
+    throw new ShopReadContractError('Invalid active generated stamp');
+  }
+  return { id, designVersion: Number(r.designVersion), paletteVersion: 1, ink: r.ink as ShopStampDesign['ink'],
+    templateData: { tier: 'shop', motif: template.motif as ShopStampDesign['motif'] } };
 }

@@ -164,3 +164,6 @@
 .admin h4 {
   font-weight: 600;
 }
+
+.fieldErrors { padding-left: 24px; overflow-wrap: anywhere; }
+.fieldErrors button { text-align: left; white-space: normal; }

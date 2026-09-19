@@ -16,3 +16,7 @@ describe('private generated stamp projection',()=>{
     expect(()=>decodeAdminStamps([{...generated,kind:'uploaded',origin:'ai_assisted'}])).toThrow();
   });
 });
+
+it.each(['https://','https://example.test/a b'])('reads retained historical creator link %s without stranding the list',creatorUrl=>{
+  expect(decodeAdminStamps([{...generated,templateData:null,kind:'uploaded',origin:'founder_created',creatorName:'Original creator',creatorUrl}])[0]?.creatorUrl).toBe(creatorUrl);
+});

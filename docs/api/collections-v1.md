@@ -89,3 +89,10 @@ Account export/deletion is still M8. API mode does not present local-data contro
 as deleting/exporting server records. Real-device indoor/mall acceptance requires
 founder field checks after staging deployment. Automated geolocation fixtures do
 not establish real GPS reliability.
+
+B2a makes uploaded creator credit optional: absent/null name and URL are valid,
+but a supplied URL requires a nonblank name. Exact approved-art snapshot
+validation and immutability are unchanged. Decoders preserve previously accepted
+HTTP(S)-prefix historical links; the credit renderer can omit an unusable link
+without rewriting the original name, artwork or stored snapshot. No credit is
+invented when the uploader supplies none.

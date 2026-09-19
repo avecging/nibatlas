@@ -173,3 +173,11 @@ describe("shop detail projection", () => {
     ).toThrow(ShopDetailProjectionError);
   });
 });
+
+it('uses stored default art and identity across ordinary name and slug changes',()=>{
+  const generatedStamp={id:'00000000-0000-4000-8000-000000000601',designVersion:3,ink:'plum' as const,paletteVersion:1,templateData:{tier:'shop' as const,motif:'counter' as const}};
+  const original=projectShopDetail(wire({generatedStamp}),{demoRecords:false});
+  const renamed=projectShopDetail(wire({generatedStamp,name:'Changed',slug:'changed'}),{demoRecords:false});
+  expect(original.stamp).toEqual(renamed.stamp);
+  expect(original.stamp).toMatchObject({id:generatedStamp.id,designVersion:3,ink:'plum',motif:'counter'});
+});

@@ -15,7 +15,7 @@ RPC still checks the live role independently; publication rules are unchanged.
 | `/api/v1/admin/shops` | GET | Optional `q` (≤120 chars), UUID `after` | ≤50 summaries and nullable nextCursor |
 | `/api/v1/admin/shops/options` | GET | None | Existing localities/types/services/specialties/brands |
 | `/api/v1/admin/shops/[id]` | GET | None | Private saved document, revision, publicationStatus, hasChanges, publicationErrors |
-| `/api/v1/admin/shops` | POST | action=create, new UUID id, document={name,slug} | Created private draft plus generated default in one transaction, 201 |
+| `/api/v1/admin/shops` | POST | action=create, new UUID id, document={name,slug?} | Created private draft plus generated default in one transaction, 201 |
 | `/api/v1/admin/shops/[id]` | POST | action=save, revision, full document | Saved private working copy |
 | `/api/v1/admin/shops/[id]` | POST | action=publish/discard/archive/open/unknown/temporarily_closed/permanently_closed, revision | Updated record |
 
@@ -26,7 +26,7 @@ verb exists. Contract fields and controlled form metadata are in
 
 401 means missing identity. 403 covers denied role/origin or a database permission
 error; use the safe diagnostic stage to distinguish them. 400 means malformed request, 404 missing shop,
-409 stale revision or duplicate identity, 422 invalid data/reference/transition
+409 stale revision or duplicate identity, 422 field validation (`invalid_fields`), invalid data/reference/transition
 or publication requirements, and 503 unavailable service. Raw provider errors
 are never forwarded. A publication-incomplete response includes a bounded list
 of actionable requirements. All responses are private/no-store; preview has no
@@ -75,3 +75,43 @@ idempotency outside it. It never replaces an existing stamp identity (including
 retired or unfinished custom work), and consumes no upload quota. The helper
 is not granted to any API role. See the media contract for explicit preparation
 of older drafts and the plan for the mandatory 200-row import workflow.
+
+## B2a shared input normalization (trusted publication still pending)
+
+`normalizeShopDocument` is the shared pure boundary for manual save and future
+mapped imports. It accepts a complete document with all relationship arrays.
+Manual UI and HTTP call the same function. It trims surrounding whitespace,
+preserves internal paragraph breaks and text postal/phone values, normalizes
+country codes/UUID casing, accepts finite decimal strings and explicit
+`true`/`false` cells, and keeps blank optional values unknown. It does not infer
+geography, sources, dates, confirmations or review. Split/overnight hours remain
+valid. Claim-line whitespace is normalized without manufacturing claims.
+
+Malformed supplied fields produce HTTP 422 `{error:{code:"invalid_fields"},
+fieldErrors:[{path,message}]}` with at most 100 issues. Paths address the complete
+document (for example `shop.latitude`, `shop.opening_hours.entries.0.closes`,
+`brands.1.source_id`). Messages never echo supplied values or provider errors.
+The editor retains unsaved work, exposes invalid controls accessibly, and opens
+collapsed sections before focusing a correction. Database-dependent vocabulary,
+identity and concurrent-edit checks remain authoritative; their existing safe
+RPC error codes are retained. This checkpoint does not claim every SQL error has
+a field-level replacement.
+
+Create now permits an omitted/blank slug. The server derives a bounded ASCII stem
+(or `shop` for non-Latin-only names) plus the supplied new shop UUID. Retrying the
+same logical create keeps that identity; the existing duplicate-create conflict
+and reload recovery still apply. Explicit slugs are validated and retained.
+Renaming an existing record never regenerates its URL.
+
+Imports must resolve grouped mappings, merge omitted/blank fields against the
+reviewed private document, apply deliberate clears and present before/after
+changes **before** calling this full-document normalizer/save. Never feed a
+partial CSV row directly to the replacement RPC. Batch/row/operation identities,
+dry run/deduplication, correction/resume, bounded processing and selected batch
+publication remain Package C work. The normalizer is not a shipped importer.
+
+B2b must deliver trusted-admin publication, actual reviewer/time attribution,
+private notes/references and explicit position confirmation/invalidation as one
+compatible storage/API/public-read/editor change. Legacy source/claim gates are
+still implemented here, pending that replacement. Optional creator credit and
+public generated-art compatibility are covered in the media/public-read contracts.

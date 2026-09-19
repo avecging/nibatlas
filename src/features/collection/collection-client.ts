@@ -1,3 +1,4 @@
+import { validStoredCreatorCredit } from '@/src/domain/creator-credit';
 import { isShopId } from '@/src/api/v1/saved-shops';
 import { STAMP_FAILURE_STATUS, type StampFailureCode, type StampResponseV1 } from '@/src/api/v1/stamp-verification';
 import type { StampCollection } from '@/src/domain/passport';
@@ -54,13 +55,13 @@ export function decodeCollection(input: unknown, currentShopSlug = ''): StampCol
     const origin=string(art['artworkOrigin']);
     if (!['founder_created','ai_assisted','commissioned'].includes(origin)) throw new Error('Invalid response');
     const creatorUrl=art['creatorUrl'];
-    if (creatorUrl !== null && creatorUrl !== undefined &&
-      (typeof creatorUrl !== 'string' || !/^https?:\/\//i.test(creatorUrl))) throw new Error('Invalid response');
+    const creatorName=art['creatorName'];
+    if (!validStoredCreatorCredit(creatorName,creatorUrl)) throw new Error('Invalid response');
     const transparentPngSha256=string(art['transparentPngSha256']);
     if (!/^[a-f0-9]{64}$/.test(transparentPngSha256)) throw new Error('Invalid response');
     uploaded={
       origin:origin as NonNullable<ShopStampDesign['uploaded']>['origin'],
-      creatorName:string(art['creatorName']),
+      ...(typeof creatorName === 'string' ? {creatorName} : {}),
       ...(typeof creatorUrl === 'string' ? {creatorUrl} : {}),
       transparentPngSha256,
     };

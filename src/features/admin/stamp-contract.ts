@@ -1,3 +1,4 @@
+import { validStoredCreatorCredit } from '@/src/domain/creator-credit';
 import { STAMP_MOTIFS } from '@/src/domain/stamp-design';
 import type { StampMotif } from '@/src/domain/shop-detail';
 import { object, UUID } from './shop-contract';
@@ -28,6 +29,7 @@ export function decodeAdminStamps(value:unknown):AdminStampVersion[] {
       ||!(r.creatorUrl===null||(typeof r.creatorUrl==='string'&&/^https?:\/\//i.test(r.creatorUrl)))
       ||typeof r.hasArtwork!=='boolean'||typeof r.active!=='boolean'
       ||typeof r.revision!=='string'||!/^[a-f0-9]{32}$/.test(r.revision)) throw Error('Invalid stamp version');
+    if(r.kind==='uploaded'&&!validStoredCreatorCredit(r.creatorName,r.creatorUrl)) throw Error('Invalid creator credit');
     // Older deployed Workers may omit templateData. Do not invent a preview;
     // once supplied it must be an actual supported stored template.
     if(r.templateData !== undefined && r.templateData !== null) {

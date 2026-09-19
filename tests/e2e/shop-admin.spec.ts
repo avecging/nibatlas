@@ -465,9 +465,9 @@ test('stamp draft upload previews and explicit activation preserve earlier versi
   await page.goto(`/admin/shops/${id}`);
   const section=page.getByRole('region',{name:'Atlas Stamp artwork'});
   await section.getByText('Create uploaded stamp version',{exact:true}).click();
-  await expect(section.getByLabel('Creator name',{exact:true})).toBeEnabled();
+  await expect(section.getByLabel('Creator name (optional)',{exact:true})).toBeEnabled();
   await section.getByRole('combobox',{name:/^Origin/}).selectOption('ai_assisted');
-  await section.getByLabel('Creator name',{exact:true}).fill('Gin + AI');
+  await section.getByLabel('Creator name (optional)',{exact:true}).fill('Gin + AI');
   await section.getByLabel('Creator link (optional)').fill('https://example.test/gin');
   await section.getByRole('button',{name:'Create private draft'}).click();
   await expect(section.getByRole('status')).toContainText('Draft stamp version created');
@@ -553,4 +553,28 @@ test('generated default preview and retry preserve unsaved shop edits @short',as
   expect(await page.evaluate(()=>window.document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   expect((await new AxeBuilder({page}).include('main').withTags(['wcag2a','wcag2aa','wcag21aa']).analyze()).violations).toEqual([]);
   await stamps.screenshot({path:info.outputPath('admin-generated-default.png')});
+});
+
+test('field errors retain work and focus the exact control @short',async({page},info)=>{
+  const state=await setup(page);
+  await page.goto(`/admin/shops/${id}`);
+  await page.getByLabel('Shop name').fill('Unsaved synthetic name');
+  await page.getByLabel('Shop latitude').fill('91');
+  await page.getByLabel('Official website').fill('https://');
+  await page.getByRole('button',{name:'Save changes privately'}).click();
+  const errors=page.getByRole('list',{name:'Fields to correct'});
+  await expect(errors).toBeVisible();
+  await expect(page.getByLabel('Shop name')).toHaveValue('Unsaved synthetic name');
+  expect(state.actions).toEqual([]);
+  await errors.getByRole('button',{name:/Shop latitude/}).click();
+  await expect(page.getByLabel('Shop latitude')).toBeFocused();
+  await expect(page.getByLabel('Shop latitude')).toHaveAttribute('aria-invalid','true');
+  await page.screenshot({path:info.outputPath('admin-field-errors.png'),fullPage:true});
+  expect((await new AxeBuilder({page}).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(()=>window.document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.getByLabel('Shop latitude').fill('0');
+  await page.getByLabel('Official website').fill('https://example.test');
+  await page.getByRole('button',{name:'Save changes privately'}).click();
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('Changes saved privately');
+  expect(state.actions).toEqual(['save']);
 });

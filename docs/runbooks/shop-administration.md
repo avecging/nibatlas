@@ -138,3 +138,24 @@ or a reason to fabricate evidence. A generated default satisfies only the stamp
 prerequisite. The complete approved field/section map and remaining checkpoints
 are in `IMPLEMENTATION-PLAN.md`. Package A remote telemetry/recovery, JPEG/photo/
 logo/artwork/device checks and existing deferrals remain unchanged.
+
+## B2a checkpoint
+
+New drafts need only a name: leaving URL name blank creates a stable assisted
+URL name once. Renaming the shop later keeps it. Manual saves now identify
+malformed fields in a correction list; select a message to focus its control.
+Failed validation retains unsaved work. Optional blank fields remain unknown;
+zero coordinates, text postal codes, paragraphs and valid split/overnight hours
+are retained. Database conflicts still require reloading/reviewing the saved
+version, not blindly overwriting it.
+
+Uploaded stamps may omit credit; a link requires a name. Generated public detail
+uses the active stored art, matching the admin template preview and future
+collection snapshot. Existing historical impressions remain unchanged.
+
+This is only B2a. Trusted publication without claim/evidence paperwork, truthful
+reviewer/time attribution, admin-only notes/references, deliberate position
+confirmation/invalidation and remaining B2 fields are pending B2b. B3 essential
+sections/vocabularies and the mandatory 200-shop CSV/JSON Package C workflow are
+also pending. Existing founder acceptance and Package A media/device/recovery
+checks remain as recorded above; no new hosted/founder acceptance is inferred.

@@ -1,5 +1,6 @@
 "use client";
 import { readAdminResponse } from './read-response';
+import { normalizeShopDocument, ShopValidationError, type FieldIssue } from './shop-normalization';
 import Link from "next/link";
 import { ShopMediaAdmin } from "./ShopMediaAdmin";
 import { ShopStampAdmin } from "./ShopStampAdmin";
@@ -35,13 +36,14 @@ const messages: Record<string, string> = {
     "That URL name or item already exists. Check it before trying again.",
   invalid_data_or_transition:
     "Check the values and dates. For closure or archive, publish or discard saved changes first.",
+  invalid_fields: "Correct the fields listed below. Your edits have not been saved.",
   invalid_request: "Check all fields and required values before saving.",
   invalid_reference: "A supporting source or catalogue item is missing.",
   shop_not_found: "This shop could not be found.",
   service_unavailable: "Shop administration is unavailable. Try again.",
 };
 class RequestFailure extends Error {
-  constructor(readonly code: string) {
+  constructor(readonly code: string, readonly issues: FieldIssue[] = []) {
     super(
       messages[code] ??
         "The operation could not be completed. Reload before retrying a publication or status change.",
@@ -73,7 +75,11 @@ async function api(path: string, signal: AbortSignal, body?: unknown) {
       const databaseReason = ["role_denied", "function_privilege", "table_privilege", "schema_privilege", "row_security", "other_permission"].includes(reason ?? "") ? reason : undefined;
       console.warn(JSON.stringify({ event: "shop_admin_failure", requestId, stage, status: response.status, databaseReason }));
     }
-    throw new RequestFailure(value.error?.code ?? "service_unavailable");
+    const issues = Array.isArray(value.fieldErrors) && value.fieldErrors.length <= 100
+      ? value.fieldErrors.filter((v: unknown): v is FieldIssue => !!v && typeof v === 'object' && 'path' in v && 'message' in v
+        && typeof v.path === 'string' && /^[a-z_]+(?:\.(?:[a-z_]+|[0-9]{1,2}))*$/.test(v.path)
+        && typeof v.message === 'string' && v.message.length <= 300) : [];
+    throw new RequestFailure(value.error?.code ?? "service_unavailable", issues);
   }
   return value;
 }
@@ -83,22 +89,29 @@ function Input({
   options,
   change,
   prefix,
+  path,
+  errors,
 }: {
   field: Field;
   value: Value | undefined;
   options: Options;
   change: (value: Value) => void;
   prefix: string;
+  path: string;
+  errors: FieldIssue[];
 }) {
   const id = useId();
   const label = `${prefix}${field.label}`;
   const choice = field.vocabulary
     ? (options[field.vocabulary] ?? [])
     : field.choices?.map((v) => ({ id: v, label: v.replaceAll("_", " ") }));
+  const error = errors.find(e => e.path === path)?.message;
   const common = {
     id,
     required: field.required,
-    "aria-describedby": field.hint ? `${id}-hint` : undefined,
+    "data-field-path": path,
+    "aria-invalid": error ? true : undefined,
+    "aria-describedby": [field.hint ? `${id}-hint` : "", error ? `${id}-error` : ""].filter(Boolean).join(" ") || undefined,
   };
   return (
     <div className={styles.field}>
@@ -174,6 +187,7 @@ function Input({
           }
         />
       )}
+      {error && <small id={`${id}-error`}>{error}</small>}
       {field.hint && <small id={`${id}-hint`}>{field.hint}</small>}
     </div>
   );
@@ -221,6 +235,7 @@ function Workspace({ id }: { id: string | null }) {
     [committedQuery, setCommittedQuery] = useState("");
   const [busy, setBusy] = useState(true),
     [message, setMessage] = useState(""),
+    [fieldErrors, setFieldErrors] = useState<FieldIssue[]>([]),
     [denied, setDenied] = useState(false),
     [preview, setPreview] = useState(false),
     [confirmation, setConfirmation] = useState<string | null>(null);
@@ -305,6 +320,7 @@ function Workspace({ id }: { id: string | null }) {
   async function run(action: () => Promise<void>) {
     if (busy) return;
     setBusy(true);
+    setFieldErrors([]);
     setConfirmation(null);
     try {
       await action();
@@ -319,6 +335,7 @@ function Workspace({ id }: { id: string | null }) {
         setDraft(null);
         setList([]);
       }
+      if (e instanceof ShopValidationError || e instanceof RequestFailure) setFieldErrors(e.issues);
       announce(
         e instanceof Error ? e.message : "Could not complete operation.",
       );
@@ -333,7 +350,7 @@ function Workspace({ id }: { id: string | null }) {
         await api(`/${id}`, signal(), {
           action,
           revision: record!.revision,
-          ...(action === "save" ? { document: clean(draft!) } : {}),
+          ...(action === "save" ? { document: normalizeShopDocument(draft!) } : {}),
         }),
       );
       setRecord(value);
@@ -375,6 +392,17 @@ function Workspace({ id }: { id: string | null }) {
             ? "Loading shops…"
             : "Maintain sourced records; leave unknown information blank.")}
       </p>
+      {!denied && fieldErrors.length > 0 && <ul className={styles.fieldErrors} aria-label="Fields to correct">
+        {fieldErrors.map((error, index) => <li key={index}>
+          <button type="button" onClick={() => {
+            const target = [...window.document.querySelectorAll<HTMLElement>('[data-field-path]')]
+              .find(el => el.dataset.fieldPath === error.path || el.dataset.fieldPath?.startsWith(`${error.path}.`));
+            let section = target?.closest('details');
+            while (section) { section.open = true; section = section.parentElement?.closest('details') ?? null; }
+            target?.focus(); target?.scrollIntoView({ block: 'center' });
+          }}>{fieldLabel(error.path)}: {error.message}</button>
+        </li>)}
+      </ul>}
       {denied ? null : !id ? (
         <>
           <form
@@ -458,13 +486,13 @@ function Workspace({ id }: { id: string | null }) {
                 <legend>New shop</legend>
                 <label>
                   Shop name
-                  <input name="name" required maxLength={300} />
+                  <input name="name" data-field-path="name" required maxLength={300} />
                 </label>
                 <label>
-                  URL name
+                  URL name (optional)
                   <input
                     name="slug"
-                    required
+                    data-field-path="slug"
                     maxLength={120}
                     pattern="[a-z0-9]+(-[a-z0-9]+)*"
                   />
@@ -531,6 +559,7 @@ function Workspace({ id }: { id: string | null }) {
                     <Input
                       key={field.key}
                       field={field}
+                      path={`shop.${field.key}`} errors={fieldErrors}
                       value={draft.shop[field.key]}
                       options={viewOptions}
                       prefix=""
@@ -546,7 +575,7 @@ function Workspace({ id }: { id: string | null }) {
                   </p>
                   <label>
                     Hours summary
-                    <input
+                    <input data-field-path="shop.opening_hours.note"
                       value={String(
                         (draft.shop.opening_hours as Row | null)?.note ?? "",
                       )}
@@ -569,6 +598,7 @@ function Workspace({ id }: { id: string | null }) {
                           <Input
                             key={field.key}
                             field={field}
+                            path={`shop.opening_hours.entries.${i}.${field.key}`} errors={fieldErrors}
                             value={r[field.key]}
                             options={viewOptions}
                             prefix=""
@@ -631,6 +661,7 @@ function Workspace({ id }: { id: string | null }) {
                             <Input
                               key={field.key}
                               field={field}
+                              path={`${g.key}.${i}.${field.key}`} errors={fieldErrors}
                               value={r[field.key]}
                               options={viewOptions}
                               prefix=""
@@ -808,14 +839,6 @@ function Workspace({ id }: { id: string | null }) {
     </>
   );
 }
-function clean(d: Document): Document {
-  const result = structuredClone(d);
-  for (const s of result.sources)
-    s.claims = ((s.claims as string[]) ?? [])
-      .map((v) => v.trim())
-      .filter(Boolean);
-  return result;
-}
 function Preview({
   document: d,
   options,
@@ -929,4 +952,12 @@ function Preview({
       </p>
     </article>
   );
+}
+
+function fieldLabel(path: string): string {
+  const parts = path.split('.');
+  if (parts[0] === 'shop' && parts[1] !== 'opening_hours') return SHOP_FIELDS.find(f => f.key === parts[1])?.label ?? 'Shop';
+  if (parts[1] === 'opening_hours') return parts[2] === 'entries' ? `Hours ${Number(parts[3]) + 1} · ${HOURS_FIELDS.find(f => f.key === parts[4])?.label ?? 'entry'}` : 'Hours summary';
+  const g = GROUPS.find(g => g.key === parts[0]);
+  return g ? `${g.label}${parts[1] ? ` ${Number(parts[1]) + 1}` : ''}${parts[2] ? ` · ${g.fields.find(f => f.key === parts[2])?.label ?? 'item'}` : ''}` : parts[0] === 'name' ? 'Shop name' : parts[0] === 'slug' ? 'URL name' : 'Record';
 }
