@@ -33,17 +33,36 @@ export function decodeCollection(input: unknown, currentShopSlug = ''): StampCol
   if (art['id'] !== stampId || !Number.isInteger(art['designVersion']) || Number(art['designVersion']) < 1
     || art['paletteVersion'] !== 1 || !Object.hasOwn(STAMP_INK_LABELS, string(art['ink']))) throw new Error('Invalid response');
   let commissioned: ShopStampDesign['commissioned'];
+  let uploaded: ShopStampDesign['uploaded'];
   let motif: StampMotif = 'storefront';
   if (art['artworkKind'] === 'generated_template') {
     const template = record(art['templateData']);
     if (template['tier'] !== 'shop' || !MOTIFS.includes(string(template['motif']))) throw new Error('Invalid response');
     motif = template['motif'] as StampMotif;
   } else if (art['artworkKind'] === 'commissioned') {
+    const creditUrl = art['illustratorCreditUrl'];
+    if (creditUrl !== null && creditUrl !== undefined &&
+      (typeof creditUrl !== 'string' || !/^https?:\/\//i.test(creditUrl))) throw new Error('Invalid response');
     commissioned = {
       illustratorCredit: string(art['illustratorCredit']),
+      ...(typeof creditUrl === 'string' ? { illustratorCreditUrl: creditUrl } : {}),
       cleanSvgKey: string(art['cleanSvgKey']), cleanSvgSha256: string(art['cleanSvgSha256']),
       outlinedSvgKey: string(art['outlinedSvgKey']), outlinedSvgSha256: string(art['outlinedSvgSha256']),
       transparentPngKey: string(art['transparentPngKey']), transparentPngSha256: string(art['transparentPngSha256']),
+    };
+  } else if (art['artworkKind'] === 'uploaded') {
+    const origin=string(art['artworkOrigin']);
+    if (!['founder_created','ai_assisted','commissioned'].includes(origin)) throw new Error('Invalid response');
+    const creatorUrl=art['creatorUrl'];
+    if (creatorUrl !== null && creatorUrl !== undefined &&
+      (typeof creatorUrl !== 'string' || !/^https?:\/\//i.test(creatorUrl))) throw new Error('Invalid response');
+    const transparentPngSha256=string(art['transparentPngSha256']);
+    if (!/^[a-f0-9]{64}$/.test(transparentPngSha256)) throw new Error('Invalid response');
+    uploaded={
+      origin:origin as NonNullable<ShopStampDesign['uploaded']>['origin'],
+      creatorName:string(art['creatorName']),
+      ...(typeof creatorUrl === 'string' ? {creatorUrl} : {}),
+      transparentPngSha256,
     };
   } else throw new Error('Invalid response');
   const slug = c['shopSlug'] === null ? '' : c['shopSlug'] === undefined ? currentShopSlug : string(c['shopSlug']);
@@ -55,7 +74,7 @@ export function decodeCollection(input: unknown, currentShopSlug = ''): StampCol
     countryCode: countryCode as StampCollection['countryCode'], countryLabel, localityName, localitySlug, simulated: false,
     stamp: { id: stampId, tier: 'shop', motif, ink: art['ink'] as ShopStampDesign['ink'],
       localityLabel: localityName, countryLabel, designVersion: Number(art['designVersion']), paletteVersion: 1,
-      ...(commissioned ? { commissioned } : {}) },
+      ...(commissioned ? { commissioned } : {}), ...(uploaded ? { uploaded } : {}) },
   };
 }
 
