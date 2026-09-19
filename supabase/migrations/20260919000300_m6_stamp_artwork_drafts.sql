@@ -53,7 +53,7 @@ alter table public.stamp_artwork_versions drop constraint stamp_artwork_approval
 alter table public.stamp_artwork_versions add constraint stamp_artwork_approval_complete check (
   (approval_status='draft' and approved_at is null)
   or (approval_status='approved' and approved_at is not null
-    and (artwork_kind<>'commissioned'
+    and (artwork_kind='uploaded'
       or (approval_evidence_ref is not null and length(btrim(approval_evidence_ref))>0)))
 );
 alter table public.stamp_artwork_versions add constraint uploaded_stamp_artwork_complete check (
@@ -268,7 +268,8 @@ begin
     if not found then raise exception 'Invalid stamp target' using errcode='22023'; end if;
     select * into u from public.media_uploads where id=(p_payload->>'uploadId')::uuid
       and created_by=p_actor and environment=p_environment and shop_id=p_shop
-      and artwork_version_id=a.id and purpose='artwork_png' and status='validated' for share;
+      and artwork_version_id=a.id and purpose='artwork_png' and status='validated'
+      and content_type='image/png' and width=1200 and height=800 for share;
     if not found then raise exception 'Invalid stamp target' using errcode='22023'; end if;
     if a.upload_id is not null and a.upload_id<>u.id then
       raise exception 'Artwork already attached' using errcode='23505'; end if;
