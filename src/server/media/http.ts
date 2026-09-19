@@ -71,11 +71,13 @@ export async function handleMedia(request: Request, id: string | null, gateway: 
             (data.purpose==='artwork_png') !== (data.artworkVersionId!==undefined) ||
             !(data.contentType==='image/png' || (data.contentType==='image/jpeg' && data.purpose==='shop_photo')) || typeof data.sha256!=='string' || !/^[a-f0-9]{64}$/.test(data.sha256) ||
             typeof data.byteSize!=='number' || !Number.isInteger(data.byteSize) || data.byteSize<1 || data.byteSize>MAX_MEDIA_BYTES) throw Error();
-        for (const [key, max] of [['sourceRef',2000],['altText',1000], ...(data.purpose!=='artwork_png' ? [['rightsBasis',2000],['creditText',300]] : [])] as [string,number][]) {
-          if (data.purpose!=='artwork_png' && data[key]===undefined) continue;
+        for (const [key, max] of [['sourceRef',2000],['altText',1000],['rightsBasis',2000],['creditText',300]] as [string,number][]) {
+          if (data[key]===undefined) continue;
           if (typeof data[key]!=='string' || !data[key].trim() || data[key].length>max) throw Error();
         }
-        if (data.purpose==='artwork_png' && ('rightsBasis' in data || 'creditText' in data)) throw Error();
+        // Issue #73: uploaded stamp metadata lives on its version. The file
+        // manifest carries only immutable byte identity and the version target.
+        if (data.purpose==='artwork_png' && ['sourceRef','rightsBasis','creditText','altText'].some(key => key in data)) throw Error();
       } catch { return adminFailure('invalid_request'); }
       const upload=await gateway.operation('initiate',crypto.randomUUID(),data);
       return json(projection(upload),201);
