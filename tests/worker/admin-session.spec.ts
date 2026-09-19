@@ -59,7 +59,7 @@ for (const role of ["admin", "editor"] as const) {
     await expect(page.getByRole("button", { name: "Search", exact: true })).toBeEnabled();
     await page.getByText("Create a draft shop", { exact: true }).click();
     await page.getByLabel(/^Shop name(?: \*)?$/).fill("Explicit Worker test draft");
-    await page.getByLabel("URL name", { exact: true }).fill(`worker-test-${randomUUID()}`);
+    await page.getByLabel("URL name (optional)", { exact: true }).fill(`worker-test-${randomUUID()}`);
     const previousRefreshToken = await expireCookie(context);
     const creating = page.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith("/api/v1/admin/shops"));
     await page.getByRole("button", { name: "Create draft", exact: true }).click();
