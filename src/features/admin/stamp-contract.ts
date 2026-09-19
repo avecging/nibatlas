@@ -22,7 +22,7 @@ export function decodeAdminStamps(value:unknown):AdminStampVersion[] {
       ||!['generated_template',...STAMP_ORIGINS].includes(String(r.origin))
       ||!['draft','approved'].includes(String(r.status))||!STAMP_INKS.includes(r.ink as StampInk)
       ||!(r.creatorName===null||typeof r.creatorName==='string')
-      ||!(r.creatorUrl===null||typeof r.creatorUrl==='string')
+      ||!(r.creatorUrl===null||(typeof r.creatorUrl==='string'&&/^https?:\/\//i.test(r.creatorUrl)))
       ||typeof r.hasArtwork!=='boolean'||typeof r.active!=='boolean'
       ||typeof r.revision!=='string'||!/^[a-f0-9]{32}$/.test(r.revision)) throw Error('Invalid stamp version');
     return r as unknown as AdminStampVersion;
