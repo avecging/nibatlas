@@ -7,6 +7,9 @@ import { UUID } from './shop-contract';
 import styles from './ShopStampAdmin.module.css';
 
 const messages:Record<string,string>={
+  stamp_limit:'This shop has reached the limit of 50 retained stamp versions.',
+  upload_expired:'This upload expired. Save again to start a fresh upload.',
+  upload_conflict:'This upload cannot be resumed. Save again to start a fresh upload.',
   invalid_upload:'Use a 1200 × 800 transparent PNG with supported RGB/RGBA export settings.',
   invalid_request:'Check the stamp fields and try again.',
   invalid_stamp_target:'This stamp draft changed or no longer accepts that file. Reload stamps.',
@@ -63,7 +66,7 @@ export function ShopStampAdmin({shopId,shopName,archived}:{shopId:string;shopNam
       </article>)}
     </div>
     {confirm?<div className={styles.confirmation} role="alertdialog" aria-label="Confirm stamp activation">
-      <p>Activate design v{confirm.designVersion}? New collectors will receive this version. Existing collected impressions stay on their original version. Re-collecting a newer design is deferred to issue #70.</p>
+      <p>Activate design v{confirm.designVersion}? New collectors will receive this version. Existing collected impressions stay on their original version.</p>
       <button autoFocus disabled={busy} onClick={()=>void run(async signal=>{
         const value=await call(path,signal,post({action:'activate',versionId:confirm.id,revision:confirm.revision}));
         setEntries(decodeAdminStamps(value.entries));setConfirm(null);setNotice('Stamp design activated. Historical versions and impressions were preserved.');
@@ -86,7 +89,7 @@ function CreateStamp({disabled,run,path,saved}:{disabled:boolean;run:(w:(s:Abort
       <label>Creator name<input name="creatorName" required maxLength={300}/></label>
       <label>Creator link (optional)<input name="creatorUrl" type="url" maxLength={2000} placeholder="https://…"/></label>
       <label>Ink<select name="ink" defaultValue="teal">{STAMP_INKS.map(ink=><option key={ink} value={ink}>{ink}</option>)}</select></label>
-      <p className={styles.help}>MVP activation does not require source files, SVG bundles, rights paperwork, maker-mark confirmation or external sign-off.</p>
+      <p className={styles.help}>Choose the origin and credit that accurately describe this artwork.</p>
       <button>Create private draft</button>
     </fieldset></form>
   </details>;

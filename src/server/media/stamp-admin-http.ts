@@ -58,6 +58,7 @@ export async function handleStampAdmin(request:Request,shopId:string,versionId:s
     if(error instanceof MediaOperationError) {
       if(error.code==='P0002') return fail('stamp_artwork_not_found',404);
       if(error.code==='40001') return fail('revision_conflict',409);
+      if(error.code==='54000') return fail('stamp_limit',429);
       if(error.code==='23505') return fail('stamp_conflict',409);
       if(['22023','23514','23503','22P02'].includes(error.code)) return fail('invalid_stamp_target',422);
     }

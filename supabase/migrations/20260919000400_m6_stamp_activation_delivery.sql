@@ -265,8 +265,8 @@ declare s public.shops; st public.stamps; a public.stamp_artwork_versions;
 begin
   select role into actor_role from public.profiles where id=p_actor and role in ('editor','admin') for update;
   if not found then raise exception 'Admin access denied' using errcode='42501'; end if;
-  if p_environment not in ('staging','production') or p_shop is null
-    or p_action not in ('list','create','attach','activate','preview') then
+  if p_environment is null or p_environment not in ('staging','production') or p_shop is null
+    or p_action is null or p_action not in ('list','create','attach','activate','preview') then
     raise exception 'Invalid stamp request' using errcode='22023'; end if;
   select * into s from public.shops where id=p_shop for update;
   if not found or s.publication_status='archived'
@@ -274,6 +274,9 @@ begin
     raise exception 'Invalid stamp target' using errcode='22023'; end if;
 
   if p_action='create' then
+    if (select count(*) from public.stamp_artwork_versions av join public.stamps x on x.id=av.stamp_id
+      where x.shop_id=p_shop and x.stamp_type='atlas')>=50 then
+      raise exception 'Stamp version limit reached' using errcode='54000'; end if;
     perform public.check_edit_object(p_payload,
       '{"origin":"text","creatorName":"text","creatorUrl":"text","ink":"text"}',
       array['origin','creatorName','ink']);
@@ -289,7 +292,7 @@ begin
       order by (status='active') desc,created_at,id limit 1 for update;
     old_actor:=current_setting('nibatlas.media_actor',true);
     perform set_config('nibatlas.media_actor',p_actor::text,true);
-    if not found then
+    if st.id is null then
       insert into public.stamps(shop_id,name) values(p_shop,left(s.name||' Atlas Stamp',120))
         returning * into st;
     end if;
@@ -310,7 +313,8 @@ begin
     if not found then raise exception 'Invalid stamp target' using errcode='22023'; end if;
     select * into u from public.media_uploads where id=(p_payload->>'uploadId')::uuid
       and created_by=p_actor and environment=p_environment and shop_id=p_shop
-      and artwork_version_id=a.id and purpose='artwork_png' and status='validated' for share;
+      and artwork_version_id=a.id and purpose='artwork_png' and status='validated'
+      and content_type='image/png' and width=1200 and height=800 for share;
     if not found then raise exception 'Invalid stamp target' using errcode='22023'; end if;
     if a.upload_id is not null and a.upload_id<>u.id then
       raise exception 'Artwork already attached' using errcode='23505'; end if;
@@ -325,28 +329,7 @@ begin
     if actor_role<>'admin' then raise exception 'Admin access denied' using errcode='42501'; end if;
     perform public.check_edit_object(p_payload,'{"versionId":"uuid","revision":"text"}',
       array['versionId','revision']);
-    if p_payload->>'revision' !~ '^[a-f0-9]{32}
-    perform public.check_edit_object(p_payload,'{"versionId":"uuid"}',array['versionId']);
-    select av.* into a from public.stamp_artwork_versions av join public.stamps x on x.id=av.stamp_id
-      where av.id=(p_payload->>'versionId')::uuid and x.shop_id=p_shop and av.upload_id is not null;
-    if not found then raise exception 'Stamp artwork not found' using errcode='P0002'; end if;
-    return jsonb_build_object('storageKey',a.transparent_png_key);
-  elsif p_payload<>'{}'::jsonb then
-    raise exception 'Invalid stamp request' using errcode='22023';
-  end if;
-
-  select coalesce(jsonb_agg(jsonb_build_object(
-      'id',av.id,'stampId',st2.id,'designVersion',av.design_version,
-      'kind',av.artwork_kind,'origin',av.artwork_origin,'status',av.approval_status,
-      'ink',av.ink,'creatorName',av.creator_name,'creatorUrl',av.creator_url,
-      'hasArtwork',av.upload_id is not null,
-      'active',st2.status='active' and st2.current_design_version=av.design_version,
-      'revision',md5(to_jsonb(av)::text))
-    order by av.design_version desc),'[]'::jsonb) into result
-  from public.stamps st2 join public.stamp_artwork_versions av on av.stamp_id=st2.id
-  where st2.shop_id=p_shop and st2.stamp_type='atlas';
-  return result;
-end; $$; then
+    if p_payload->>'revision' !~ '^[a-f0-9]{32}$' then
       raise exception 'Invalid stamp request' using errcode='22023'; end if;
     select av.* into a from public.stamp_artwork_versions av join public.stamps x on x.id=av.stamp_id
       where av.id=(p_payload->>'versionId')::uuid and x.shop_id=p_shop
@@ -356,6 +339,9 @@ end; $$; then
       raise exception 'Invalid stamp target' using errcode='22023'; end if;
     if md5(to_jsonb(a)::text)<>p_payload->>'revision' then
       raise exception 'Stamp artwork changed; reload' using errcode='40001'; end if;
+    if not exists(select 1 from public.media_uploads u where u.id=a.upload_id
+      and u.environment=p_environment and u.status='validated' and u.artwork_version_id=a.id) then
+      raise exception 'Invalid stamp target' using errcode='22023'; end if;
     select * into st from public.stamps where id=a.stamp_id for update;
     old_actor:=current_setting('nibatlas.media_actor',true);
     perform set_config('nibatlas.media_actor',p_actor::text,true);
@@ -367,7 +353,9 @@ end; $$; then
   elsif p_action='preview' then
     perform public.check_edit_object(p_payload,'{"versionId":"uuid"}',array['versionId']);
     select av.* into a from public.stamp_artwork_versions av join public.stamps x on x.id=av.stamp_id
-      where av.id=(p_payload->>'versionId')::uuid and x.shop_id=p_shop and av.upload_id is not null;
+      where av.id=(p_payload->>'versionId')::uuid and x.shop_id=p_shop and av.upload_id is not null
+        and exists(select 1 from public.media_uploads u where u.id=av.upload_id
+          and u.environment=p_environment and u.status='validated');
     if not found then raise exception 'Stamp artwork not found' using errcode='P0002'; end if;
     return jsonb_build_object('storageKey',a.transparent_png_key);
   elsif p_payload<>'{}'::jsonb then

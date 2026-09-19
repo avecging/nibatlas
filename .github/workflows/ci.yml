@@ -123,6 +123,8 @@ jobs:
           # unauthenticated "latest release" lookup.
           version: 2.117.0
       - run: supabase start -x realtime,imgproxy,edge-runtime,logflare,vector,supavisor
+      - name: Upgrade existing approved artwork without rewriting history
+        run: bash scripts/test-media-upgrade.sh
       - run: supabase db reset
       - name: Repeat deterministic demo seed
         run: docker exec -i supabase_db_nibatlas psql -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/seed.sql

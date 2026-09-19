@@ -6,10 +6,16 @@ alter table public.stamp_artwork_versions
   add column creator_url text,
   add column upload_id uuid unique references public.media_uploads(id) on delete restrict;
 
+-- This migration adds derived fields to already-approved rows. Hold an exclusive
+-- lock and suspend only the approved-row update guard for this exact backfill;
+-- all pre-existing artwork, credit, approval and collection fields stay intact.
+lock table public.stamp_artwork_versions in access exclusive mode;
+alter table public.stamp_artwork_versions disable trigger stamp_artwork_versions_protect_approved;
 update public.stamp_artwork_versions
 set artwork_origin=case when artwork_kind='generated_template' then 'generated_template' else 'commissioned' end,
     creator_name=case when artwork_kind='commissioned' then illustrator_credit else null end,
     creator_url=case when artwork_kind='commissioned' then illustrator_credit_url else null end;
+alter table public.stamp_artwork_versions enable trigger stamp_artwork_versions_protect_approved;
 alter table public.stamp_artwork_versions alter column artwork_origin set not null;
 
 -- Keep old generated/commissioned insertion contracts working after the additive
@@ -42,9 +48,11 @@ alter table public.stamp_artwork_versions add constraint stamp_artwork_template_
     and artwork_origin in ('founder_created','ai_assisted','commissioned'))
 );
 alter table public.stamp_artwork_versions add constraint stamp_artwork_creator_shape check (
-  (creator_name is null or (creator_name=btrim(creator_name) and char_length(creator_name) between 1 and 300))
-  and (creator_url is null or (char_length(creator_url) between 1 and 2000 and creator_url ~* '^https?://'))
-  and (artwork_kind<>'uploaded' or (creator_name is not null and char_length(btrim(creator_name))>0))
+  artwork_kind<>'uploaded' or (
+    creator_name is not null and creator_name=btrim(creator_name)
+    and char_length(creator_name) between 1 and 300
+    and (creator_url is null or (char_length(creator_url) between 1 and 2000 and creator_url ~* '^https?://'))
+  )
 );
 
 -- MVP uploaded artwork does not inherit the old commissioning evidence gate.
@@ -223,8 +231,8 @@ declare s public.shops; st public.stamps; a public.stamp_artwork_versions;
 begin
   perform 1 from public.profiles where id=p_actor and role in ('editor','admin') for update;
   if not found then raise exception 'Admin access denied' using errcode='42501'; end if;
-  if p_environment not in ('staging','production') or p_shop is null
-    or p_action not in ('list','create','attach','preview') then
+  if p_environment is null or p_environment not in ('staging','production') or p_shop is null
+    or p_action is null or p_action not in ('list','create','attach','preview') then
     raise exception 'Invalid stamp request' using errcode='22023'; end if;
   select * into s from public.shops where id=p_shop for update;
   if not found or s.publication_status='archived'
@@ -232,6 +240,9 @@ begin
     raise exception 'Invalid stamp target' using errcode='22023'; end if;
 
   if p_action='create' then
+    if (select count(*) from public.stamp_artwork_versions av join public.stamps x on x.id=av.stamp_id
+      where x.shop_id=p_shop and x.stamp_type='atlas')>=50 then
+      raise exception 'Stamp version limit reached' using errcode='54000'; end if;
     perform public.check_edit_object(p_payload,
       '{"origin":"text","creatorName":"text","creatorUrl":"text","ink":"text"}',
       array['origin','creatorName','ink']);
@@ -247,7 +258,7 @@ begin
       order by (status='active') desc,created_at,id limit 1 for update;
     old_actor:=current_setting('nibatlas.media_actor',true);
     perform set_config('nibatlas.media_actor',p_actor::text,true);
-    if not found then
+    if st.id is null then
       insert into public.stamps(shop_id,name) values(p_shop,left(s.name||' Atlas Stamp',120))
         returning * into st;
     end if;
@@ -283,7 +294,9 @@ begin
   elsif p_action='preview' then
     perform public.check_edit_object(p_payload,'{"versionId":"uuid"}',array['versionId']);
     select av.* into a from public.stamp_artwork_versions av join public.stamps x on x.id=av.stamp_id
-      where av.id=(p_payload->>'versionId')::uuid and x.shop_id=p_shop and av.upload_id is not null;
+      where av.id=(p_payload->>'versionId')::uuid and x.shop_id=p_shop and av.upload_id is not null
+        and exists(select 1 from public.media_uploads u where u.id=av.upload_id
+          and u.environment=p_environment and u.status='validated');
     if not found then raise exception 'Stamp artwork not found' using errcode='P0002'; end if;
     return jsonb_build_object('storageKey',a.transparent_png_key);
   elsif p_payload<>'{}'::jsonb then

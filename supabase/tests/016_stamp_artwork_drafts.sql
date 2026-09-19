@@ -105,5 +105,27 @@ select throws_ok('truncate public.stamp_artwork_versions cascade','42501',
   'Catalogue truncation is forbidden; use audited row operations',
   'stamp versions cannot be bulk-erased');
 
+-- New shops need a stamp identity before their first artwork draft.
+insert into public.shops(id,slug,name,country_code,timezone,location)
+values('74000000-0000-4000-8000-000000000090','stamp-first-draft-demo','Stamp first draft demo',
+ 'SG','Asia/Singapore',extensions.st_setsrid(extensions.st_makepoint(103.8,1.3),4326));
+select lives_ok($$select public.stamp_artwork_draft_operation(
+ '74000000-0000-4000-8000-000000000001','staging','74000000-0000-4000-8000-000000000090',
+ 'create','{"origin":"founder_created","creatorName":"Gin","ink":"teal"}')$$,
+ 'first uploaded draft creates the missing stamp identity');
+
+-- Retained history counts toward the bounded MVP version limit.
+do $$ begin
+ while (select count(*) from public.stamp_artwork_versions where stamp_id='00000000-0000-4000-8000-000000000601')<50 loop
+  perform pg_temp.stamp('74000000-0000-4000-8000-000000000001','create',
+   '{"origin":"founder_created","creatorName":"Gin","ink":"teal"}');
+ end loop;
+end $$;
+select is(jsonb_array_length(pg_temp.stamp('74000000-0000-4000-8000-000000000001','list')),50,
+ 'all retained versions remain readable at the boundary');
+select throws_ok($$select pg_temp.stamp('74000000-0000-4000-8000-000000000001','create',
+ '{"origin":"founder_created","creatorName":"Gin","ink":"teal"}')$$,
+ '54000','Stamp version limit reached','creation cannot commit an unreadable version 51');
+
 select * from finish();
 rollback;

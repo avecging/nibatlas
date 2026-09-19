@@ -49,6 +49,15 @@ select throws_ok($$select pg_temp.op('75000000-0000-4000-8000-000000000001','act
  jsonb_build_object('versionId',(select id from v2),'revision',repeat('a',32)))$$,
  '40001','Stamp artwork changed; reload','stale activation revision conflicts');
 
+-- A production operation must not activate an artwork receipt from staging.
+update public.shops set source_quality='community_unverified' where id='00000000-0000-4000-8000-000000000301';
+select throws_ok($$select public.stamp_artwork_draft_operation(
+ '75000000-0000-4000-8000-000000000001','production','00000000-0000-4000-8000-000000000301','activate',
+ jsonb_build_object('versionId',(select id from v2),'revision',
+  (select md5(to_jsonb(a)::text) from public.stamp_artwork_versions a where id=(select id from v2))))$$,
+ '22023','Invalid stamp target','activation rejects receipts from another environment');
+update public.shops set source_quality='demo' where id='00000000-0000-4000-8000-000000000301';
+
 select lives_ok($$select pg_temp.op('75000000-0000-4000-8000-000000000001','activate',
  jsonb_build_object('versionId',(select id from v2),'revision',
   (select md5(to_jsonb(a)::text) from public.stamp_artwork_versions a where id=(select id from v2))))$$,
@@ -107,6 +116,36 @@ values('75000000-0000-4000-8000-000000000082','75000000-0000-4000-8000-000000000
 select ok(exists(select 1 from public.stamp_collections where id='75000000-0000-4000-8000-000000000081'
  and stamp_design_version=2 and stamp_snapshot->>'creatorName'='Gin + AI'),
  'historical impression and creator credit remain unchanged after v3 activation');
+
+-- Exercise real server issuance for uploaded art, using a synthetic fixture fix.
+insert into auth.users(id) values('75000000-0000-4000-8000-000000000005');
+create function pg_temp.issue_action(action text,payload jsonb default '{}') returns jsonb language sql as $$
+ select public.stamp_verification_action(action,'75000000-0000-4000-8000-000000000005',
+  '00000000-0000-4000-8000-000000000301','75000000-0000-4000-8000-000000000099',repeat('a',64),payload)
+$$;
+select is(pg_temp.issue_action('nonce')->>'code','nonce_issued','uploaded stamp can start verification');
+create function pg_temp.synthetic_fix() returns jsonb language plpgsql as $$
+declare key bytea; iv bytea:=extensions.gen_random_bytes(16); ct bytea; point extensions.geometry;
+begin
+ select encryption_key into key from stamp_private.verification_nonces where request_id='75000000-0000-4000-8000-000000000099';
+ select location into point from public.shops where id='00000000-0000-4000-8000-000000000301';
+ ct:=extensions.encrypt_iv(convert_to(jsonb_build_object('latitude',extensions.st_y(point),'longitude',extensions.st_x(point),'accuracy',10)::text,'UTF8'),substring(key from 1 for 32),iv,'aes-cbc/pad:pkcs');
+ return jsonb_build_object('iv',encode(iv,'hex'),'ciphertext',encode(ct,'hex'),
+  'mac',encode(extensions.hmac(iv||ct,substring(key from 33 for 32),'sha256'),'hex'));
+end $$;
+select is(pg_temp.issue_action('verify',pg_temp.synthetic_fix())->>'code','confirmation_required',
+ 'uploaded stamp verifies synthetic position');
+select is(pg_temp.issue_action('collect','{"confirmedAtShop":true,"countryLabel":"Singapore"}')->>'code','success',
+ 'server issues the active uploaded stamp');
+select ok((select stamp_snapshot->>'artworkOrigin'='founder_created'
+ and stamp_snapshot->>'creatorName'='Gin' and stamp_snapshot->>'creatorUrl'='https://example.test/gin'
+ and stamp_snapshot->>'transparentPngSha256'=repeat('3',64)
+ and not stamp_snapshot ? 'transparentPngKey'
+ from public.stamp_collections where user_id='75000000-0000-4000-8000-000000000005'),
+ 'server snapshot pins exact origin credit and bytes without private storage keys');
+select throws_ok($$select public.stamp_artwork_file_operation('75000000-0000-4000-8000-000000000005','staging',
+ '00000000-0000-4000-8000-000000000601',2)$$,'P0002','Stamp artwork not found',
+ 'new collector cannot read another collector historical artwork');
 
 select * from finish();
 rollback;

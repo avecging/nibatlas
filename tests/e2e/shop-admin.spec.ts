@@ -63,7 +63,7 @@ async function setup(page: Page) {
     const url = new URL(route.request().url());
     let body: unknown,
       status = 200;
-    if (url.pathname.endsWith("/media")) body = {entries: []};
+    if (url.pathname.endsWith("/media") || url.pathname.endsWith("/stamp")) body = {entries: []};
     else if (url.pathname.endsWith("/options"))
       body = {
         localities: [
@@ -416,4 +416,66 @@ test('photos and logos save privately, preview and publish explicitly', async ({
   expect(await page.evaluate(()=>globalThis.document.documentElement.scrollWidth<=globalThis.document.documentElement.clientWidth)).toBe(true);
   expect((await new AxeBuilder({page}).include('[aria-label="Shop photos and logo"]').analyze()).violations).toEqual([]);
   await section.screenshot({path:testInfo.outputPath('admin-media-preview.png')});
+});
+
+test('stamp draft upload previews and explicit activation preserve earlier versions', async ({page}, testInfo) => {
+  await setup(page);
+  const versionId='76000000-0000-4000-8000-000000000001';
+  const stampId='76000000-0000-4000-8000-000000000002';
+  const uploadId='76000000-0000-4000-8000-000000000003';
+  // Mocked transport; byte validation and real database issuance have separate suites.
+  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==','base64');
+  const generated={id:'76000000-0000-4000-8000-000000000004',stampId,designVersion:1,kind:'generated_template',origin:'generated_template',status:'approved',ink:'teal',creatorName:null,creatorUrl:null,hasArtwork:false,active:true,revision:'a'.repeat(32)};
+  const uploaded={id:versionId,stampId,designVersion:2,kind:'uploaded',origin:'ai_assisted',status:'draft',ink:'teal',creatorName:'Gin + AI',creatorUrl:'https://example.test/gin',hasArtwork:false,active:false,revision:'b'.repeat(32)};
+  let created=false,transferred=false,expired=true,initiations=0;
+  const actions:string[]=[];
+  await page.route('**/api/v1/admin/media/uploads**',async route=>{
+    const r=route.request();
+    if(r.url().endsWith('/uploads')) {
+      initiations++;
+      expect(r.postDataJSON()).toMatchObject({shopId:id,artworkVersionId:versionId,purpose:'artwork_png',contentType:'image/png'});
+      expect(Object.keys(r.postDataJSON()).sort()).toEqual(['shopId','artworkVersionId','purpose','sha256','byteSize','contentType'].sort());
+      await route.fulfill({json:{id:uploadId}});
+    } else if(expired) {expired=false;await route.fulfill({status:410,json:{error:{code:'upload_expired'}}});}
+    else if(r.method()==='PUT') {transferred=true;await route.fulfill({json:{id:uploadId}});}
+    else await route.fulfill(transferred?{json:{id:uploadId,status:'validated'}}:{status:409,json:{error:{code:'upload_incomplete'}}});
+  });
+  await page.route(`**/api/v1/admin/shops/${id}/stamp**`,async route=>{
+    const r=route.request();
+    if(r.url().endsWith(`/${versionId}`)) {await route.fulfill({contentType:'image/png',body:png});return;}
+    if(r.method()==='POST') {
+      const body=r.postDataJSON(); actions.push(body.action);
+      if(body.action==='create') {
+        expect(body).toEqual({action:'create',origin:'ai_assisted',creatorName:'Gin + AI',creatorUrl:'https://example.test/gin',ink:'teal'});created=true;
+      } else if(body.action==='attach') {expect(body).toEqual({action:'attach',versionId,uploadId});uploaded.hasArtwork=true;}
+      else if(body.action==='activate') {expect(body.revision).toBe(uploaded.revision);uploaded.status='approved';uploaded.active=true;generated.active=false;}
+    }
+    await route.fulfill({json:{entries:created?[uploaded,generated]:[generated]}});
+  });
+  await page.goto(`/admin/shops/${id}`);
+  const section=page.getByRole('region',{name:'Atlas Stamp artwork'});
+  await section.getByText('Create uploaded stamp version',{exact:true}).click();
+  await expect(section.getByLabel('Creator name',{exact:true})).toBeEnabled();
+  await section.getByLabel('Origin',{exact:true}).selectOption('ai_assisted');
+  await section.getByLabel('Creator name',{exact:true}).fill('Gin + AI');
+  await section.getByLabel('Creator link (optional)').fill('https://example.test/gin');
+  await section.getByRole('button',{name:'Create private draft'}).click();
+  await expect(section.getByRole('status')).toContainText('Draft stamp version created');
+  await section.getByLabel('Stamp PNG').setInputFiles({name:'demo-stamp.png',mimeType:'image/png',buffer:png});
+  await section.getByRole('button',{name:'Save PNG privately'}).click();
+  await expect(section.getByRole('alert')).toContainText('Save again');
+  await section.getByRole('button',{name:'Save PNG privately'}).click();
+  await expect(section.getByRole('status')).toContainText('Stamp PNG attached privately');
+  expect(initiations).toBe(2);
+  for(const label of ['List','Passport','Detail']) await expect(section.getByAltText(`${label}-size stamp preview`)).toBeVisible();
+  await expect(section.getByRole('link',{name:'Gin + AI'})).toHaveAttribute('href','https://example.test/gin');
+  await section.getByRole('button',{name:'Activate this design (admin)'}).click();
+  expect(actions).toEqual(['create','attach']);
+  await section.getByRole('button',{name:'Confirm activation'}).click();
+  await expect(section.getByRole('status')).toContainText('Historical versions and impressions were preserved');
+  await expect(section.getByText('Design v1',{exact:true})).toBeVisible();
+  await expect(section.getByText('Design v2',{exact:true})).toBeVisible();
+  expect(await page.evaluate(()=>globalThis.document.documentElement.scrollWidth<=globalThis.document.documentElement.clientWidth)).toBe(true);
+  expect((await new AxeBuilder({page}).include('[aria-label="Atlas Stamp artwork"]').analyze()).violations).toEqual([]);
+  await section.screenshot({path:testInfo.outputPath('admin-stamp-preview.png')});
 });

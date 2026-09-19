@@ -127,7 +127,7 @@ describe("admin direct request authorization", () => {
   });
 });
 
-it("projects catalogue audit summaries without copying field values or evidence", async () => {
+it.each(["shops", "stamps", "stamp_artwork_versions"])("projects %s audit summaries without private values", async (entityType) => {
   const g = gateway();
   vi.mocked(g.listAudit).mockResolvedValue([
     {
@@ -136,7 +136,7 @@ it("projects catalogue audit summaries without copying field values or evidence"
       actorKind: "account",
       entityId: id,
       action: "catalogue_update",
-      entityType: "shops",
+      entityType,
       requestId: id,
       before: {
         fingerprint: "a".repeat(32),
