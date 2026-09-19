@@ -10,8 +10,8 @@ select ok(has_function_privilege('service_role','public.media_upload_operation(u
 insert into auth.users(id) values('62000000-0000-4000-8000-000000000001'),('62000000-0000-4000-8000-000000000002'),('62000000-0000-4000-8000-000000000003');
 select public.assign_profile_role('62000000-0000-4000-8000-000000000002','editor');
 select public.assign_profile_role('62000000-0000-4000-8000-000000000003','admin');
-insert into public.stamp_artwork_versions(id,stamp_id,design_version,artwork_kind,ink,palette_version,rights_basis,illustrator_credit)
-values('62000000-0000-4000-8000-000000000070','00000000-0000-4000-8000-000000000601',2,'commissioned','teal',1,'Test commission permission','Test illustrator');
+insert into public.stamp_artwork_versions(id,stamp_id,design_version,artwork_kind,artwork_origin,creator_name,ink,palette_version)
+values('62000000-0000-4000-8000-000000000070','00000000-0000-4000-8000-000000000601',2,'uploaded','founder_created','Test creator','teal',1);
 insert into public.stamp_collections(id,user_id,stamp_id,shop_id,stamp_design_version,shop_timezone,verification_method,verification_version,shop_name_snapshot,place_snapshot,stamp_snapshot)
 values('62000000-0000-4000-8000-000000000081','62000000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000000601','00000000-0000-4000-8000-000000000301',1,'Asia/Singapore','geofence',1,'Historical shop',
 '{"countryCode":"SG","countryLabel":"Singapore","localityName":"Historical locality","localitySlug":"singapore"}',
@@ -39,8 +39,8 @@ select throws_ok($$select pg_temp.media('finalize','62000000-0000-4000-8000-0000
 select is(pg_temp.media('read','62000000-0000-4000-8000-000000000090')->>'status','pending','failed finalization leaves pending state');
 select is(pg_temp.media('finalize','62000000-0000-4000-8000-000000000090',jsonb_build_object('sha256',repeat('a',64),'byteSize',100,'width',2,'height',2))->>'status','validated','server attestation finalizes transport only');
 select is(pg_temp.media('finalize','62000000-0000-4000-8000-000000000090')->>'status','validated','finalization retry is idempotent');
-select is(pg_temp.media('initiate','62000000-0000-4000-8000-000000000092',(pg_temp.photo()-array['rightsBasis','creditText'])||'{"purpose":"artwork_png","artworkVersionId":"62000000-0000-4000-8000-000000000070"}')->>'status','pending','commissioned draft reuses existing rights and credit');
-select throws_ok($$select pg_temp.media('initiate','62000000-0000-4000-8000-000000000093',(pg_temp.photo()-array['rightsBasis','creditText'])||'{"purpose":"artwork_png","artworkVersionId":"00000000-0000-4000-8000-000000000701"}')$$,'22023','Invalid media target','approved version cannot be an upload target');
+select is(pg_temp.media('initiate','62000000-0000-4000-8000-000000000092',(pg_temp.photo()-array['sourceRef','rightsBasis','creditText','altText'])||'{"purpose":"artwork_png","artworkVersionId":"62000000-0000-4000-8000-000000000070"}')->>'status','pending','uploaded stamp draft needs only byte identity and version target');
+select throws_ok($$select pg_temp.media('initiate','62000000-0000-4000-8000-000000000093',(pg_temp.photo()-array['sourceRef','rightsBasis','creditText','altText'])||'{"purpose":"artwork_png","artworkVersionId":"00000000-0000-4000-8000-000000000701"}')$$,'22023','Invalid media target','approved version cannot be an upload target');
 select is(pg_temp.media('finalize','62000000-0000-4000-8000-000000000092',jsonb_build_object('sha256',repeat('a',64),'byteSize',100,'width',1200,'height',800))->>'status','validated','artwork transport completes without approval or attachment');
 reset role;
 select is((select count(*)::int from public.admin_audit_log where entity_type='media_uploads'),4,'only successful initiation/finalization audited; retries and failures add no events');
