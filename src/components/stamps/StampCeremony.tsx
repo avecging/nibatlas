@@ -6,6 +6,7 @@ import { useDialogFocus } from "@/src/components/hooks/useDialogFocus";
 import { ImpressionPlate } from "@/src/components/stamps/ImpressionPlate";
 import { ImpressionSheet } from "@/src/components/stamps/ImpressionSheet";
 import { StampArt } from "@/src/components/stamps/StampArt";
+import { StampCredit } from "@/src/components/stamps/StampCredit";
 import { Button, ButtonLink } from "@/src/components/ui/Button";
 import type { StampCollection } from "@/src/domain/passport";
 import { useReviewerMode } from "@/src/features/reviewer/ReviewerModeProvider";
@@ -103,7 +104,7 @@ export function StampCeremony({
           : "A preview impression. Your location was not checked, so this is not a verified visit yet."}
       </p>
 
-      {collection.stamp.commissioned ? <p>Illustrated by {collection.stamp.commissioned.illustratorCredit}</p> : null}
+      <StampCredit stamp={collection.stamp} />
 
       <div
         className={styles.press}
