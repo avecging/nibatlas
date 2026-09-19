@@ -38,6 +38,14 @@ describe('private media HTTP boundary',()=>{
       expect((await handleMedia(req('POST',JSON.stringify(invalid),{'content-type':'application/json'}),null,gateway)).status).toBe(400);
     }
   });
+  it('accepts a stamp PNG manifest with only byte identity and its draft version target',async()=>{
+    const artwork={shopId:id,artworkVersionId:actor,purpose:'artwork_png',sha256:checked.sha256,byteSize:bytes.length,contentType:'image/png'};
+    expect((await handleMedia(req('POST',JSON.stringify(artwork),{'content-type':'application/json'}),null,gateway)).status).toBe(201);
+    expect(gateway.operation).toHaveBeenCalledWith('initiate',expect.any(String),artwork);
+    for (const extra of [{sourceRef:'private note'},{rightsBasis:'permission'},{creditText:'Artist'},{altText:'stamp'}]) {
+      expect((await handleMedia(req('POST',JSON.stringify({...artwork,...extra}),{'content-type':'application/json'}),null,gateway)).status).toBe(400);
+    }
+  });
   it('enforces same-origin, verbs, queries and IDs',async()=>{
     expect((await handleMedia(req('PUT',bytes,{origin:'https://evil.test'}),id,gateway)).status).toBe(403);
     expect((await handleMedia(req('DELETE'),id,gateway)).status).toBe(400);
