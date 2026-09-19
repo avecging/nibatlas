@@ -172,11 +172,10 @@ export function MapCanvas({
       return;
     }
 
-    let map: MapLibreMap;
-
-    configureMapLibreRuntime();
+    let map: MapLibreMap | undefined;
 
     try {
+      configureMapLibreRuntime();
       map = new MapLibreMap({
         container,
         style: styleProvider.getStyle(),
@@ -194,16 +193,21 @@ export function MapCanvas({
         pitchWithRotate: false,
         maxZoom: 18,
       });
+      // MapLibre may return a partially initialized instance after WebGL fails,
+      // rather than throwing from its constructor. Setup belongs in this guard.
+      map.touchZoomRotate.disableRotation();
+      map.addControl(new NavigationControl({ showCompass: false }), "top-right");
     } catch {
-      // MapLibre could not acquire a WebGL context. The list stays authoritative.
+      try { map?.remove(); } catch { /* Partial instances may not support remove. */ }
+      container.replaceChildren();
+      // MapLibre could not initialize. The list stays authoritative.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setFailed(true);
       return;
     }
 
-    mapRef.current = map;
-    map.touchZoomRotate.disableRotation();
-    map.addControl(new NavigationControl({ showCompass: false }), "top-right");
+    const readyMap = map;
+    mapRef.current = readyMap;
 
     map.on("error", () => {
       // A missing basemap must never break the surrounding experience.
@@ -226,14 +230,14 @@ export function MapCanvas({
       const source = cameraIntent.current;
       cameraIntent.current = "user";
 
-      onCameraSettledRef.current(readViewport(map), source);
+      onCameraSettledRef.current(readViewport(readyMap), source);
       syncRef.current();
     });
 
     // A container resize re-frames the same place; it is never user movement.
     map.on("resize", () => {
       cameraIntent.current = "resize";
-      onCameraSettledRef.current(readViewport(map), "resize");
+      onCameraSettledRef.current(readViewport(readyMap), "resize");
     });
 
     // The renderer resolves the requested bounds against its own aspect ratio,
@@ -242,7 +246,7 @@ export function MapCanvas({
     // loading must not strand the rest of the experience.
     requestAnimationFrame(() => {
       if (mapRef.current === map) {
-        onCameraSettledRef.current(readViewport(map), "programmatic");
+        onCameraSettledRef.current(readViewport(readyMap), "programmatic");
         syncRef.current();
       }
     });
@@ -258,7 +262,7 @@ export function MapCanvas({
         marker.remove();
       }
       markers.clear();
-      map.remove();
+      readyMap.remove();
       mapRef.current = null;
     };
     // The map is created once; data and camera updates run in dedicated effects.

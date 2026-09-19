@@ -1,5 +1,6 @@
 'use client';
 /* eslint-disable @next/next/no-img-element -- private stamp previews use authenticated byte routes. */
+import { readAdminResponse } from './read-response';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { decodeAdminStamps, stampAdminPath, STAMP_INKS, type AdminStampVersion } from './stamp-contract';
@@ -22,7 +23,7 @@ const messages:Record<string,string>={
 class Failure extends Error { constructor(readonly code:string){super(messages[code]??'The stamp operation failed. Reload before retrying.');} }
 async function call(path:string,signal:AbortSignal,options:RequestInit={}) {
   const r=await fetch(path,{...options,signal,cache:'no-store',credentials:'same-origin'});
-  const value=await r.json();
+  const value=await readAdminResponse(r, !!options.method && options.method !== 'GET');
   if(!r.ok) throw new Failure(value.error?.code??'service_unavailable');
   return value;
 }

@@ -489,3 +489,36 @@ test('stamp draft upload previews and explicit activation preserve earlier versi
   expect((await new AxeBuilder({page}).include('[aria-label="Atlas Stamp artwork"]').analyze()).violations).toEqual([]);
   await section.screenshot({path:testInfo.outputPath('admin-stamp-preview.png')});
 });
+
+test('infrastructure HTML keeps unsaved edits and media reload recovery usable', async ({page}, info) => {
+  await setup(page);
+  let failMedia = true;
+  await page.route(`**/api/v1/admin/shops/${id}/media`, async route => {
+    await route.fulfill(failMedia ? {status: 500, contentType: 'text/html', body: '<html>private provider text</html>'}
+      : {json: {entries: []}});
+  });
+  await page.route(`**/api/v1/admin/shops/${id}/stamp`, async route => {
+    await route.fulfill({status: 502, contentType: 'text/html', body: '<html>private provider text</html>'});
+  });
+  await page.route(`**/api/v1/admin/shops/${id}`, async route => {
+    if (route.request().method() === 'GET') { await route.fallback(); return; }
+    await route.fulfill({status: 500, contentType: 'text/html', body: '<html>private provider text</html>', headers: {'CF-Ray': 'a3d9cfc85b0b0b21-SIN'}});
+  });
+  await page.goto(`/admin/shops/${id}`);
+  const media = page.getByRole('region', {name: 'Shop photos and logo'});
+  const stamp = page.getByRole('region', {name: 'Atlas Stamp artwork'});
+  await expect(media.getByRole('alert')).toContainText('HTTP 500');
+  await expect(stamp.getByRole('alert')).toContainText('HTTP 502');
+  await expect(media.getByLabel('Choose photo')).toBeDisabled();
+  await page.getByLabel('Shop name').fill('Keep my unsaved work');
+  await page.getByRole('button', {name: 'Save changes privately'}).click();
+  await expect(page.getByText(/Your last action may have completed/)).toBeVisible();
+  await expect(page.getByLabel('Shop name')).toHaveValue('Keep my unsaved work');
+  await expect(page.getByRole('main')).not.toContainText('private provider text');
+  await expect(page.getByRole('main')).not.toContainText('Unexpected token');
+  failMedia = false;
+  await media.getByRole('button', {name: 'Reload media'}).click();
+  await expect(media.getByLabel('Choose photo')).toBeEnabled();
+  expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.document.documentElement.clientWidth)).toBe(true);
+  await page.screenshot({path: info.outputPath('admin-infrastructure-recovery.png'), fullPage: true});
+});

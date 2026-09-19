@@ -1,8 +1,8 @@
 # Nib Atlas MVP Implementation Plan
 
 **Status:** Active implementation; see current-work table
-**Version:** 1.4
-**Last updated:** 19 September 2026
+**Version:** 1.5
+**Last updated:** 20 September 2026 (Singapore)
 
 ## Working model
 
@@ -15,7 +15,7 @@ GPT owns end-to-end implementation and initiates independent review under
 and scope decisions. A conductor/orchestrator has not been onboarded. `AGENTS.md`
 is the shared working contract. This assignment covers every milestone; frontend work is not reserved for Claude.
 
-## Current work — documentation review, 15 September 2026
+## Current work — Q4 stability and admin/import sequence, 20 September 2026
 
 | Area | State / next action |
 | --- | --- |
@@ -23,9 +23,10 @@ is the shared working contract. This assignment covers every milestone; frontend
 | M1.5 | WP1–WP7 implemented; preserve the historical record unchanged. WP-D desktop review still needs founder feedback. |
 | M5 | Verification and account collection integration implemented. Geographic seal persistence/versioned coverage sets and broader indoor field validation remain outstanding. |
 | M6 WP1/WP2 | Authorization/audit and shop operations implemented. Founder confirmed draft creation; broader admin acceptance is separate. |
-| M6 WP3 | Issue #73 governs simplified MVP uploads. Photo/logo picker, private attachment/publication delivery, and truthful stamp draft → PNG → list/Passport/detail preview → admin activation → versioned delivery/creator credit are implemented on draft PR #74, pending final CI/review and staging acceptance. Generated defaults/history/duplicate protection remain intact; #70/#71/#72 stay deferred. Remote JPEG, photo/logo display and stamp end-to-end acceptance remain unverified; see `docs/runbooks/media-uploads.md`. |
-| M6 WP4 | Catalogue imports, validation, dry runs and deduplication follow media/artwork. |
-| M7/M8 | Catalogue quality, production setup, account export/deletion, monitoring, backup/restore, rollback and launch acceptance remain. October 2026 launch is the priority. |
+| M6 WP3 | Issue #73 governs simplified MVP uploads. Photo/logo picker, private attachment/publication delivery, and truthful stamp draft → PNG → list/Passport/detail preview → admin activation → versioned delivery/creator credit are merged in PR #74 at `3732018a0ca023a2dc7e8ae0eef7a26061e8470a`; main CI 35446023895 and staging deployment 35446031047 passed. Remote acceptance is separate. Generated defaults/history/duplicate protection remain intact; #70/#71/#72 stay deferred. Remote JPEG, photo/logo display and stamp end-to-end acceptance remain unverified; see `docs/runbooks/media-uploads.md`. |
+| M6 WP4 | Mandatory usable CSV/JSON onboarding for approximately 200 shops: shared contracts first, then dry run/mapping/dedupe/private import, safe correction/resume/updates and selected batch review/publication. Bring forward before final rich-editor polish; no 200-form manual-entry substitute. |
+| M6 anomaly list | Inventory implementation and give an explicit disposition in Package E; not established complete by this inspection. |
+| M7/M8 | Catalogue quality, production setup, account export/deletion, monitoring, backup/restore, rollback and launch acceptance remain. Public commitment is Q4 2026. October is the working target; November/December are contingency, not expanded scope. |
 
 Passport animation remains in place for launch despite known roughness;
 [issue #68](https://github.com/avecging/nibatlas/issues/68) tracks post-launch investigation and the opening-geometry decision.
@@ -34,6 +35,37 @@ Read `docs/runbooks/launch-backlog.md` for existing issue dispositions. Acceptan
 records live with the feature: shop-admin in its runbook, phone checks in
 `staging-phone-test.md`, PNG/JPEG transport in `media-uploads.md`. Do not infer
 untested behavior from a neighboring feature's success.
+
+## Approved delivery sequence and acceptance matrix
+
+This table is the authoritative sequencing/status record. The approved admin
+rework and supplemental Q4 handoffs (20 September) govern scope; the prototype
+is a layout/behaviour reference, not verified catalogue content. Packages may
+span sessions; finish coherent reviewed draft PRs rather than concurrent edits
+to shared migrations/contracts. No package here authorizes production release.
+
+| Package | Required result | Current acceptance / dependencies |
+| --- | --- | --- |
+| A — Stability | Investigate 1102 against route/release and authorized resource telemetry; useful non-JSON recovery; independent WebGL fallback; separate media acceptance. | Recovery implementation under review. Original 1102 root cause unresolved: authenticated reproduction and Worker telemetry unavailable. See staging and media runbooks; CI is not remote acceptance. |
+| B — Shared contract and essentials | One normalized manual/import draft and publication contract; additive compatibility/public decoding; trusted-admin review without mandatory claim tokens; protected private working copies; idempotent audited generated defaults for new shops; canonical locality/brand mapping/creation; essential seven-section editor. | Next implementation package after A checkpoint. Ship a real end-to-end slice. Retain IDs/slugs, legacy provenance, relationships, custom art and impressions. Optional creator name/link, with name required for a supplied link; no invented verification facts. |
+| C — Bulk onboarding | Versioned downloadable CSV/JSON template, column and grouped vocabulary mapping, dry run/dedupe, selected private import, correction reports, stable row identity/operation revisions, resumable safe updates and batch review/publication. | Mandatory before catalogue preparation; at least 200 synthetic mixed-quality rows in isolated tests. Omitted/blank fields preserve data; explicit clearing and before/after preview; draft/public revision conflicts require re-review. Bounded chunks/concurrency, private batch audit/retention and formula-safe reports. Dry run does not mutate catalogue/media/stamps. C1 ingestion alone does not complete C2 publication. |
+| D — Complete approved editor | Shop & story; experiences; location; visit details; photos/logo; stamp; review. Full editorial/paragraph fields, repeatable experiences, optional practical fields, split/overnight hours and dated exceptions, gallery cover/order/captions, private pending media/stamp selection, accurate mobile/desktop public preview and field-level Fix actions. | Carry B/C data without re-entry. Review/publication binds the reviewed revisions and reports recoverable partial outcomes; draft saves never silently publish media/activate artwork. Optional postcodes/references/hours/photos are not arbitrary blockers. |
+| E — Catalogue and core acceptance | Locate actual founder dataset; map once, dry-run/correct/import, review genuine coordinates/timezones/unknowns; truthful public About; geographic seal/versioned coverage and anomaly-list dispositions; changed admin/public flows, field checks and five-user usability. | No fabricated catalogue or verification dates. Keep WP-D founder desktop feedback, broader device/indoor checks and #17 About accuracy explicit. Imports never create visits or derive award denominators from batch size. |
+| F — Production and release | Production/auth/domain/SMTP/OAuth, server account export/deletion consistent with immutable history/privacy, monitoring/spend alerts, terms/privacy, backups/restore and rollback drills, accessibility/performance/security, launch publication audit and founder acceptance. | Infrastructure discovery and independent account lifecycle work can start before D/E finish. Actual promotion follows authorized gates. Read closed-beta runbook before gating; preserve automation/alternate-route protection; no tester invitations here. |
+
+Bulk catalogue import is distinct from mass media upload: retain 100 upload
+manifests/account/rolling 24 hours and 50 attachments/50 stamp versions per shop.
+Generated defaults support onboarding without 200 uploads. Never scrape or fetch
+arbitrary image URLs in catalogue import. Measure aggregate preview/page/request
+work; select bounded processing budgets from observations, not an assumed plan
+upgrade or an unmeasured queue requirement. Coordinate confirmation and admin
+review require deliberate attestations, not successful import or decimal precision.
+
+Preserve anonymous discovery, Saved state, current-role checks, private notes,
+existing accepted PNG/phone/draft results, immutable history and duplicate
+protection. Keep #68 animation, #70 recollection, #71 commissioning, #72 photo
+paperwork, personal notes, social/sharing and itineraries deferred. No M5–M8
+obligation disappears because it is outside the editor.
 
 ## Definition of done for every milestone
 

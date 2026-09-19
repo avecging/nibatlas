@@ -1,5 +1,6 @@
 'use client';
 /* eslint-disable @next/next/no-img-element -- Private authenticated previews cannot use an image proxy. */
+import { readAdminResponse } from './read-response';
 import { useEffect, useRef, useState } from 'react';
 import { decodeShopMedia, mediaPath, type ShopMedia } from './media-contract';
 import { UUID } from './shop-contract';
@@ -19,7 +20,7 @@ class MediaFailure extends Error {
 }
 async function call(path: string, signal: AbortSignal, options: RequestInit = {}) {
   const response = await fetch(path,{...options,signal,cache:'no-store',credentials:'same-origin'});
-  const value = await response.json();
+  const value = await readAdminResponse(response, !!options.method && options.method !== 'GET');
   if (!response.ok) throw new MediaFailure(value.error?.code ?? 'service_unavailable');
   return value;
 }
