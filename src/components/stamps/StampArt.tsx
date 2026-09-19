@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element -- Stamp artwork uses an authenticated same-origin byte route, not an image proxy. */
 import type { ShopStampDesign, StampMotif } from "@/src/domain/shop-detail";
 import { fitStampTitle } from "@/src/components/stamps/stamp-title";
 import { languageDirection } from "@/src/domain/language";
@@ -177,9 +178,22 @@ export function StampArt({
   subtitle,
   detail = "full",
 }: StampArtProps) {
+  if (stamp.uploaded) {
+    // Approved #73 uploads are delivered intact. The route authorizes current
+    // public art or the owner's exact historical version.
+    return (
+      <figure className={styles.stamp}>
+        <img
+          className={styles.canvas}
+          src={`/api/v1/stamps/${stamp.id}/artwork/${stamp.designVersion}`}
+          alt={`Shop stamp, ${title}`}
+        />
+      </figure>
+    );
+  }
   if (stamp.commissioned) {
-    // Never replace approved artwork with a generated imitation. M6 supplies
-    // checksum-bound delivery for the approved exports; history/credit remain.
+    // Preserve the legacy commissioned snapshot without pretending its old
+    // provider key has been migrated into the new environment-bound R2 path.
     return <figure className={styles.stamp} aria-label={`Shop stamp, ${title}`}>
       <p>Artwork temporarily unavailable</p>
     </figure>;

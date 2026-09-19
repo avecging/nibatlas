@@ -1,5 +1,8 @@
 # Nib Atlas Stamp Illustration Guide
 
+
+> MVP upload exception — founder issue #73 (19 September 2026): founder/admin uploads, including founder-created and AI-assisted artwork, are eligible with truthful attributes. Creator credit is `created by: name`, optionally linked. Source/SVG bundles, rights evidence, maker-mark confirmation and external illustrator sign-off below describe commissioning guidance, not MVP upload/activation gates; discussion is deferred to #71. Keep compatible visual rules and intact artwork. The remaining stamp implementation must reconcile existing database gates additively; never fabricate commissioned metadata.
+
 **Status:** Approved illustration and production direction  
 **Version:** 1.0  
 **Recorded:** 4 September 2026

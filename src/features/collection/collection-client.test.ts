@@ -22,6 +22,14 @@ describe('historical collection adapter',()=>{
       transparentPngKey:'approved/art.png',transparentPngSha256:'c'.repeat(64)}});
     expect(c.stamp.commissioned?.illustratorCredit).toBe('Fixture Artist');
   });
+  it('retains truthful uploaded creator/origin metadata without private paperwork',()=>{
+    const c=decodeCollection({...ISSUED_STAMP,stamp:{...ISSUED_STAMP.stamp,artworkKind:'uploaded',artworkOrigin:'ai_assisted',creatorName:'Gin + AI',creatorUrl:'https://example.test/creator',transparentPngSha256:'d'.repeat(64)}});
+    expect(c.stamp.uploaded).toEqual({origin:'ai_assisted',creatorName:'Gin + AI',creatorUrl:'https://example.test/creator',transparentPngSha256:'d'.repeat(64)});
+  });
+  it.each([
+    {...ISSUED_STAMP,stamp:{...ISSUED_STAMP.stamp,artworkKind:'uploaded',artworkOrigin:'generated_template',creatorName:'Fake',transparentPngSha256:'d'.repeat(64)}},
+    {...ISSUED_STAMP,stamp:{...ISSUED_STAMP.stamp,artworkKind:'uploaded',artworkOrigin:'founder_created',creatorName:'Gin',creatorUrl:'javascript:bad',transparentPngSha256:'d'.repeat(64)}},
+  ])('rejects dishonest or unsafe uploaded stamp snapshots',value=>expect(()=>decodeCollection(value)).toThrow());
   it('rejects a read from a different verified account',async()=>{
     vi.stubGlobal('fetch',vi.fn(async()=>Response.json({ownerId:'other',collections:[ISSUED_STAMP],nextCursor:null})));
     await expect(fetchCollections(new AbortController().signal,STAMP_OWNER)).rejects.toThrow('Session changed');

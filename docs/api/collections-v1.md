@@ -71,11 +71,19 @@ WP2's geographic seal persistence/versioned coverage sets remain a separate
 backend package. API mode shows stamp/place counts without deriving awards or
 completion denominators from the prototype catalogue. Reviewer seals remain demos.
 
-M6 owns commissioned-artwork storage, approval and checksum-bound asset delivery.
-The account adapter preserves approved export keys/checksums and illustrator
-credit. Until delivery exists, a commissioned impression shows its history and
-credit with an artwork-unavailable state; it is never replaced with generated
-artwork or altered. The staging fixtures use supported generated templates.
+M6 preserves both legacy commissioned artwork and #73 neutral uploaded artwork.
+Legacy commissioned snapshots keep their existing export checksums and illustrator
+credit; they retain the previous artwork-unavailable state until those older
+provider assets are deliberately migrated rather than being guessed into the new
+environment-bound R2 path. New uploaded snapshots preserve truthful origin,
+creator name/optional safe link and transparent-PNG checksum only; private storage
+keys, rights evidence and approval paperwork are not copied into collection
+history. Uploaded stamp rendering requests the exact approved version through the
+guarded same-origin PNG route. The current active uploaded version is available
+for a published shop; an owner can still resolve the exact historical uploaded
+version already preserved in their private collection after a redesign. No custom
+kind is replaced with generated substitute art. Duplicate protection remains one
+collection per stamp; newer-design recollection is deferred to #70.
 
 Account export/deletion is still M8. API mode does not present local-data controls
 as deleting/exporting server records. Real-device indoor/mall acceptance requires

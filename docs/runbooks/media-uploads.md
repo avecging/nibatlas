@@ -1,8 +1,10 @@
 # R2 upload foundation — M6 WP3
 
 Read [the API and limitations](../api/admin-media-v1.md). This is private PNG/JPEG
-transport within WP3. JPEG shop photos are processed before storage. It cannot publish artwork/photos or make a new shop's
-stamp publication prerequisite disappear.
+transport, photo/logo delivery and the simplified #73 stamp-artwork workflow
+within WP3. JPEG shop photos are processed before storage. Stamp PNGs remain exact
+validated bytes; activation advances the same stamp identity without rewriting
+older versions or impressions.
 
 ## Cloudflare setup (once, before deploying this PR)
 
@@ -32,10 +34,9 @@ document the platform APIs used by the adapter/validator.
 
 After deployment, sign in as the existing staging editor/admin. On that same
 staging origin, use browser DevTools to run the snippet below after reviewing it.
-It opens a file chooser and prompts for an existing shop UUID and the required
-source/rights/credit/alt metadata. Use your own supported PNG or ordinary JPEG photo and a
+It opens a file chooser and prompts for an existing shop UUID without a metadata questionnaire. Use your own supported PNG or ordinary JPEG photo and a
 labelled test shop. It does not read authentication cookies or print secrets.
-This is temporary developer verification, not the later founder photo interface.
+This is temporary developer verification, not the later founder photo interface (use the normal controls below).
 Do not upload identifiable people without permission.
 
 Normal 8-bit RGB/RGBA, non-interlaced PNG exports may include `sRGB`, `gAMA`
@@ -57,9 +58,6 @@ picker.onchange = async () => {
   const manifest = {
     shopId: prompt('Existing staging shop UUID'), purpose: 'shop_photo',
     sha256, byteSize: file.size, contentType: file.type,
-    sourceRef: prompt('Source/original file reference'),
-    rightsBasis: prompt('Ownership or explicit reuse permission'),
-    creditText: prompt('Photographer credit'), altText: prompt('Describe the image')
   };
   const base = '/api/v1/admin/media/uploads';
   const call = async (url, options) => {
@@ -84,10 +82,10 @@ existing audit endpoint; editor cannot read audit. Never paste private evidence
 or account history into a public issue.
 
 Artwork verification uses the same API with `purpose=artwork_png` and an existing
-commissioned draft `artworkVersionId`, omitting `rightsBasis` and `creditText` from
-the request. Prepare the draft through the later artwork management flow or
-explicit operator test SQL, never by changing an approved version. No artwork
-creation endpoint or approval UI is included here.
+uploaded draft `artworkVersionId`. Do not send source, rights, credit or alt-text
+paperwork in that file manifest; origin and creator credit live on the draft
+version created in Admin → Shops → Atlas Stamp artwork. Never change an approved
+version.
 
 ### Retesting the founder PNG rejection
 
@@ -128,7 +126,7 @@ archive or a public delivery variant. Keep your own original if you need it late
 
 The original checksum/size/MIME remain the **input** identity. A separate output
 checksum/size/MIME/dimensions and immutable key describe the exact processed PNG.
-Only those output bytes are stored. PNG and commissioned-artwork uploads never
+Only those output bytes are stored. PNG and stamp-artwork uploads never
 enter this photo transformation path.
 
 ### Cloudflare setup for this slice (after review, before staging deployment)
@@ -203,8 +201,79 @@ JPEG is a new slice. Local Images emulation is not remote production fidelity;
 staging still needs actual Images processing, R2 write/read, RPC finalization and
 private-output inspection. PR #66 was deployed to staging; see the JPEG handoff
 for the recorded deployment. Deployment does not establish runtime or photo
-**display** acceptance. The UI/attachment/public delivery remain later WP3 work.
+**display** acceptance. Photo/logo and stamp UI/delivery are implemented on the
+draft PR but remain unaccepted remotely until the post-merge staging checks below.
 
 Keep #17 About accuracy before real catalogue launch and #27 with geographic seal
 delivery. Preserve existing impressions and duplicate protection. No social,
 notification, QR/NFC or merchant work is included.
+
+## Founder photo/logo workflow — issue #73 checkpoint
+
+1. Admin → Shops → choose the intended shop → **Photos and logo**.
+2. Choose a photo (PNG/JPEG) or logo (PNG). Check the local preview and named shop.
+   No source/rights/credit/description form is required. PNG keeps transparency;
+   unsupported exports receive an error rather than being silently rewritten.
+3. **Save photo/logo privately** validates, finalizes and attaches it to this shop.
+   Check the saved preview. It is not public yet. Retry Save after an interrupted
+   request; terminal expiry/conflict starts a fresh session on the next Save.
+4. **Publish** → **Confirm publish** is an admin action. Only published shops
+   expose approved media. A new public logo replaces the old public logo; all
+   uploaded versions stay saved. **Hide** → confirm stops new public delivery.
+5. Check the shop page signed out, including orientation, full image, transparent
+   logo, fallback alt text and any preserved credit. After hide/archive, fresh
+   image requests must fail. Use **Reload media** after ambiguous publication.
+
+Limits: 50 retained attachments per shop; hidden/replaced images count. No media
+removal/reordering UI yet. Catalogue saved changes and media publication are
+separate. Private previews require a current editor/admin session. Admin is needed
+for publish/hide. Keep buckets private; no new environment variables are needed.
+
+### Founder stamp artwork workflow — issue #73 checkpoint
+
+1. Admin → Shops → choose the intended shop → **Atlas Stamp artwork**.
+2. **Create uploaded stamp version**. Choose the truthful origin:
+   **Founder-created**, **AI-assisted**, or **Commissioned**. Enter creator name,
+   optional HTTP(S) creator link, and the approved ink. This does not require an
+   editable source, SVG bundle, rights evidence, maker-mark confirmation or
+   external sign-off for MVP; those commissioning questions are #71.
+3. Choose a **1200 × 800 transparent PNG** with the normal file picker and
+   **Save PNG privately**. The exact bytes are validated and attached to this
+   draft only. Unsupported exports fail instead of being silently cropped,
+   recoloured or rewritten.
+4. Compare the private **List / Passport / Detail** previews. The same complete
+   artwork is scaled with `object-fit: contain`; no crop is introduced.
+5. **Activate this design (admin)** → confirm. Activation is revision-checked and
+   changes only the current design pointer on the same stamp. Existing approved
+   versions and collected impressions remain unchanged.
+6. Collect with a fresh test account and confirm the ceremony/Passport/detail
+   render the exact PNG plus `created by: name`; when a creator link exists only
+   the name is clickable. A collector of an older uploaded version must still be
+   able to view that historical artwork after a newer design is activated.
+7. Confirm an account that already owns the stamp still receives duplicate
+   behavior rather than a second collection. Re-collecting later designs is #70,
+   not part of this MVP flow.
+
+Do not claim staging acceptance from CI alone. After authorized merge/deploy,
+test one founder-created or AI-assisted PNG through create → attach → previews →
+activate → new collection → historical view. Keep R2 private. If activation is
+ambiguous, reload versions before retrying; never edit an approved row.
+
+### Verification status and exact next slice
+
+Main baseline #69 (`ee4f6b7c8cf7180039fe13ae198c4b01f1130d57`) has successful
+[CI 35436010075](https://github.com/avecging/nibatlas/actions/runs/35436010075)
+and [staging 35436174212](https://github.com/avecging/nibatlas/actions/runs/35436174212).
+Founder-reported original PNG, physical-phone and draft-creation results remain
+confirmed separately. Remote JPEG processing/finalization/private output and
+public photo/logo display remain unverified; no local test proves those.
+
+Continue the draft photo/logo PR first: inspect final-head CI and independent
+review; resolve actionable failures. Obtain mobile/desktop evidence and test the
+real staging JPEG → private R2 → finalization → attachment → preview → publish/hide
+path after an authorized merge/deploy. Then implement remaining #73 stamp origin,
+creator name/optional safe URL, draft PNG attachment, list/Passport/detail preview,
+activation and intact public delivery with additive schema/contract/tests. Do not
+recreate this photo/logo implementation. Keep generated defaults, old credits,
+versions/impressions and duplicate protection. #70/#71/#72 stay deferred; WP4 is
+imports, #17 precedes real-catalogue launch, #27 accompanies geographic seals.

@@ -75,6 +75,9 @@ function auditRows(value: unknown) {
         "shop_specialties",
         "shop_brands",
         "media_uploads",
+        "shop_images",
+        "stamps",
+        "stamp_artwork_versions",
       ].includes(String(row["entityType"]));
     const summary = (value: Record<string, unknown> | null) => {
       if (!value || typeof value !== "object" || Array.isArray(value))

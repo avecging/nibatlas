@@ -38,6 +38,14 @@ describe('private media HTTP boundary',()=>{
       expect((await handleMedia(req('POST',JSON.stringify(invalid),{'content-type':'application/json'}),null,gateway)).status).toBe(400);
     }
   });
+  it('accepts a stamp PNG manifest with only byte identity and its draft version target',async()=>{
+    const artwork={shopId:id,artworkVersionId:actor,purpose:'artwork_png',sha256:checked.sha256,byteSize:bytes.length,contentType:'image/png'};
+    expect((await handleMedia(req('POST',JSON.stringify(artwork),{'content-type':'application/json'}),null,gateway)).status).toBe(201);
+    expect(gateway.operation).toHaveBeenCalledWith('initiate',expect.any(String),artwork);
+    for (const extra of [{sourceRef:'private note'},{rightsBasis:'permission'},{creditText:'Artist'},{altText:'stamp'}]) {
+      expect((await handleMedia(req('POST',JSON.stringify({...artwork,...extra}),{'content-type':'application/json'}),null,gateway)).status).toBe(400);
+    }
+  });
   it('enforces same-origin, verbs, queries and IDs',async()=>{
     expect((await handleMedia(req('PUT',bytes,{origin:'https://evil.test'}),id,gateway)).status).toBe(403);
     expect((await handleMedia(req('DELETE'),id,gateway)).status).toBe(400);
@@ -216,4 +224,17 @@ describe('JPEG photo transport identity',()=>{
     expect((await handleMedia(req('PUT',jpeg,{'content-type':'image/jpeg'}),id,gateway)).status).toBe(200);
     expect(upload.storageKey).toBe(preparedKey);
   });
+});
+
+it.each(['shop_photo','shop_logo'])('accepts %s without inventing paperwork and preserves supplied metadata',async purpose=>{
+  const simple={shopId:id,purpose,sha256:checked.sha256,byteSize:bytes.length,contentType:'image/png'};
+  expect((await handleMedia(req('POST',JSON.stringify(simple),{'content-type':'application/json'}),null,gateway)).status).toBe(201);
+  expect(gateway.operation).toHaveBeenLastCalledWith('initiate',expect.any(String),simple);
+  expect((await handleMedia(req('POST',JSON.stringify({...simple,altText:'',creditText:null}),{'content-type':'application/json'}),null,gateway)).status).toBe(400);
+});
+it('keeps logos out of photo JPEG processing and stamp artwork semantics',async()=>{
+  expect((await handleMedia(req('POST',JSON.stringify({...photo,purpose:'shop_logo',contentType:'image/jpeg'}),{'content-type':'application/json'}),null,gateway)).status).toBe(400);
+  upload.purpose='shop_logo';
+  expect((await handleMedia(req('PUT',bytes,{'content-type':'image/png'}),id,gateway)).status).toBe(200);
+  expect(gateway.store.putOnce).toHaveBeenCalledWith(upload.storageKey,new Uint8Array(bytes));
 });

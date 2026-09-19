@@ -23,7 +23,11 @@ suite inventory to update. Coverage includes catalogue/provenance, accounts/save
 collection/verification, guarded phone fixtures, authorization/shop operations
 and PNG/JPEG media integrity.
 
-The existing CI `Database reset` job discovers all SQL suites, then runs
+The existing CI `Database reset` job first runs `scripts/test-media-upgrade.sh`
+against a disposable database: reset to the pre-WP3 schema with approved seeded
+artwork, apply the new migrations, compare every pre-existing artwork field, and
+verify that approved-row immutability still rejects updates. It then resets the
+full schema, discovers all SQL suites, and runs
 `python3 scripts/verification/concurrency.py` and
 `supabase/performance/viewport_50k.sql` against disposable local data. The latter
 rolls back its 50k-shop dataset and measures the median of three p95 rounds.

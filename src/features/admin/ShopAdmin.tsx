@@ -1,5 +1,7 @@
 "use client";
 import Link from "next/link";
+import { ShopMediaAdmin } from "./ShopMediaAdmin";
+import { ShopStampAdmin } from "./ShopStampAdmin";
 import { useEffect, useId, useRef, useState } from "react";
 import { useAccountSession } from "@/src/features/account/AccountSessionProvider";
 import {
@@ -680,6 +682,8 @@ function Workspace({ id }: { id: string | null }) {
               </fieldset>
             </form>
           )}
+          <ShopMediaAdmin key={`media-${record.id}`} shopId={record.id} shopName={String(record.document.shop.name)} archived={record.publicationStatus === "archived"} />
+          <ShopStampAdmin key={`stamp-${record.id}`} shopId={record.id} shopName={String(record.document.shop.name)} archived={record.publicationStatus === "archived"} />
           <section className={styles.operations}>
             <h2>Publication and status</h2>
             {record.publicationErrors.length > 0 && (
@@ -911,7 +915,7 @@ function Preview({
       <p>
         Phone, postal code, record review date, appointment and accessibility
         notes remain internal. Private evidence notes are omitted here. Artwork
-        and media are managed in the next package.
+        versions are managed separately. Photos and logos have their own publication controls below.
       </p>
     </article>
   );

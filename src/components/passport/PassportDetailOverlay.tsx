@@ -7,6 +7,7 @@ import { passportHrefWithAnchor } from "@/src/components/shops/ShopBackLink";
 import { ImpressionPlate } from "@/src/components/stamps/ImpressionPlate";
 import { ImpressionSheet } from "@/src/components/stamps/ImpressionSheet";
 import { StampArt } from "@/src/components/stamps/StampArt";
+import { StampCredit } from "@/src/components/stamps/StampCredit";
 import { ButtonLink } from "@/src/components/ui/Button";
 import type { StampCollection } from "@/src/domain/passport";
 import type { EarnedSeal } from "@/src/domain/seals";
@@ -113,7 +114,7 @@ function ImpressionDetail({
         </div>
       </dl>
 
-      {collection.stamp.commissioned ? <p>Illustrated by {collection.stamp.commissioned.illustratorCredit}</p> : null}
+      <StampCredit stamp={collection.stamp} />
       {collection.shopSlug ? <div className={styles.actions}>
         <ButtonLink
           href={`/shops/${collection.shopSlug}?from=passport&back=${encodeURIComponent(

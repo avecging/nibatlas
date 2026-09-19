@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect, type Page } from "@playwright/test";
 import { stubSession } from "../support/auth";
+import { png as makePng } from "../../src/server/media/png.fixture";
 import {
   document,
   type ShopRecord,
@@ -63,7 +64,8 @@ async function setup(page: Page) {
     const url = new URL(route.request().url());
     let body: unknown,
       status = 200;
-    if (url.pathname.endsWith("/options"))
+    if (url.pathname.endsWith("/media") || url.pathname.endsWith("/stamp")) body = {entries: []};
+    else if (url.pathname.endsWith("/options"))
       body = {
         localities: [
           { id: locality, label: "Singapore (SG)", countryCode: "SG" },
@@ -349,4 +351,141 @@ test("dirty edits survive global links and browser Back @short", async ({ page }
   await expect(page.getByRole("main").getByRole("alert")).toContainText("Changes saved privately");
   await page.goBack();
   await expect(page).toHaveURL(/\/admin\/shops$/);
+});
+
+test('photos and logos save privately, preview and publish explicitly', async ({page}, testInfo) => {
+  await setup(page);
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==','base64');
+  const uploadId = '73000000-0000-4000-8000-000000000010';
+  const imageId = '73000000-0000-4000-8000-000000000020';
+  let uploaded = false, terminalFailure = true, initiations = 0;
+  let entries: {id:string;kind:string;width:number;height:number;altText:string;creditText:null;status:string;revision:string}[] = [];
+  const operations: string[] = [];
+  await page.route('**/api/v1/admin/media/uploads**',async route => {
+    const request=route.request();
+    if (request.url().endsWith('/uploads')) {
+      initiations++;
+      const manifest=request.postDataJSON();
+      expect(Object.keys(manifest).sort()).toEqual(['shopId','purpose','sha256','byteSize','contentType'].sort());
+      expect(manifest.shopId).toBe(id);
+      expect(manifest.purpose).toBe('shop_photo');
+      await route.fulfill({json:{id:uploadId,status:'pending'}});
+    } else if (terminalFailure) {
+      terminalFailure=false;
+      await route.fulfill({status:410,json:{error:{code:'upload_expired'}}});
+    } else if (request.method()==='PUT') {
+      uploaded=true; await route.fulfill({json:{id:uploadId,status:'uploaded'}});
+    } else {
+      await route.fulfill(uploaded ? {json:{id:uploadId,status:'validated'}} : {status:409,json:{error:{code:'upload_incomplete'}}});
+    }
+  });
+  await page.route(`**/api/v1/admin/shops/${id}/media**`,async route => {
+    const request=route.request();
+    if (request.url().endsWith(`/${imageId}`)) {
+      await route.fulfill({contentType:'image/png',body:png});return;
+    }
+    if (request.method()==='POST') {
+      const body=request.postDataJSON();operations.push(body.action);
+      if (body.action==='attach') {
+        expect(body.id).toBe(uploadId);
+        entries=[{id:imageId,kind:'photo',width:1,height:1,altText:'Photo of M6 Demo shop',creditText:null,status:'draft',revision:'a'.repeat(32)}];
+      } else entries=entries.map(e=>({...e,status:body.action==='publish'?'approved':'draft',revision:'b'.repeat(32)}));
+    }
+    await route.fulfill({json:{entries}});
+  });
+  await page.goto(`/admin/shops/${id}`);
+  const section=page.getByRole('region',{name:'Shop photos and logo'});
+  await expect(section.getByLabel('Choose photo')).toBeEnabled();
+  await section.getByLabel('Choose photo').setInputFiles({name:'demo-photo.png',mimeType:'image/png',buffer:png});
+  await expect(section.getByAltText('Selected photo for M6 Demo shop')).toBeVisible();
+  await section.getByRole('button',{name:'Save photo privately'}).click();
+  await expect(section.getByRole('alert')).toContainText('Save again');
+  await section.getByRole('button',{name:'Save photo privately'}).click();
+  await expect(section.getByRole('status')).toContainText('Saved privately');
+  expect(initiations).toBe(2);
+  expect(operations).toEqual(['attach']);
+  await expect(section.getByAltText('Photo of M6 Demo shop')).toBeVisible();
+  await section.getByRole('button',{name:'Publish photo 1'}).click();
+  expect(operations).toEqual(['attach']);
+  await section.getByRole('button',{name:'Confirm publish'}).click();
+  await expect(section.getByText('Photo 1 · Published when shop is public')).toBeVisible();
+  await section.getByRole('button',{name:'Hide photo 1'}).click();
+  await section.getByRole('button',{name:'Confirm hide'}).click();
+  await expect(section.getByText('Photo 1 · Private',{exact:true})).toBeVisible();
+  await section.getByLabel('Choose logo').setInputFiles({name:'demo-logo.png',mimeType:'image/png',buffer:png});
+  await expect(section.getByAltText('Selected logo for M6 Demo shop')).toBeVisible();
+  expect(await page.evaluate(()=>globalThis.document.documentElement.scrollWidth<=globalThis.document.documentElement.clientWidth)).toBe(true);
+  expect((await new AxeBuilder({page}).include('[aria-label="Shop photos and logo"]').analyze()).violations).toEqual([]);
+  await section.screenshot({path:testInfo.outputPath('admin-media-preview.png')});
+});
+
+test('stamp draft upload previews and explicit activation preserve earlier versions', async ({page}, testInfo) => {
+  await setup(page);
+  const versionId='76000000-0000-4000-8000-000000000001';
+  const stampId='76000000-0000-4000-8000-000000000002';
+  const uploadId='76000000-0000-4000-8000-000000000003';
+  // Explicit synthetic 3:2 artwork, with transparency and one teal ink.
+  // Transport is mocked; byte validation and real issuance have separate suites.
+  const raw=Buffer.alloc((1200*4+1)*800);
+  for(let y=80;y<720;y++) for(let x=80;x<1120;x++) {
+    const border=x<96||x>=1104||y<96||y>=704;
+    const nib=Math.abs(x-600)/220+Math.abs(y-380)/220;
+    if(border||(nib>=0.93&&nib<=1)||(Math.abs(x-600)<8&&y>=380&&y<=600)) {
+      const p=y*(1200*4+1)+1+x*4;raw[p]=35;raw[p+1]=105;raw[p+2]=106;raw[p+3]=255;
+    }
+  }
+  const png=makePng(1200,800,{raw});
+  const generated={id:'76000000-0000-4000-8000-000000000004',stampId,designVersion:1,kind:'generated_template',origin:'generated_template',status:'approved',ink:'teal',creatorName:null,creatorUrl:null,hasArtwork:false,active:true,revision:'a'.repeat(32)};
+  const uploaded={id:versionId,stampId,designVersion:2,kind:'uploaded',origin:'ai_assisted',status:'draft',ink:'teal',creatorName:'Gin + AI',creatorUrl:'https://example.test/gin',hasArtwork:false,active:false,revision:'b'.repeat(32)};
+  let created=false,transferred=false,expired=true,initiations=0;
+  const actions:string[]=[];
+  await page.route('**/api/v1/admin/media/uploads**',async route=>{
+    const r=route.request();
+    if(r.url().endsWith('/uploads')) {
+      initiations++;
+      expect(r.postDataJSON()).toMatchObject({shopId:id,artworkVersionId:versionId,purpose:'artwork_png',contentType:'image/png'});
+      expect(Object.keys(r.postDataJSON()).sort()).toEqual(['shopId','artworkVersionId','purpose','sha256','byteSize','contentType'].sort());
+      await route.fulfill({json:{id:uploadId}});
+    } else if(expired) {expired=false;await route.fulfill({status:410,json:{error:{code:'upload_expired'}}});}
+    else if(r.method()==='PUT') {transferred=true;await route.fulfill({json:{id:uploadId}});}
+    else await route.fulfill(transferred?{json:{id:uploadId,status:'validated'}}:{status:409,json:{error:{code:'upload_incomplete'}}});
+  });
+  await page.route(`**/api/v1/admin/shops/${id}/stamp**`,async route=>{
+    const r=route.request();
+    if(r.url().endsWith(`/${versionId}`)) {await route.fulfill({contentType:'image/png',body:png});return;}
+    if(r.method()==='POST') {
+      const body=r.postDataJSON(); actions.push(body.action);
+      if(body.action==='create') {
+        expect(body).toEqual({action:'create',origin:'ai_assisted',creatorName:'Gin + AI',creatorUrl:'https://example.test/gin',ink:'teal'});created=true;
+      } else if(body.action==='attach') {expect(body).toEqual({action:'attach',versionId,uploadId});uploaded.hasArtwork=true;}
+      else if(body.action==='activate') {expect(body.revision).toBe(uploaded.revision);uploaded.status='approved';uploaded.active=true;generated.active=false;}
+    }
+    await route.fulfill({json:{entries:created?[uploaded,generated]:[generated]}});
+  });
+  await page.goto(`/admin/shops/${id}`);
+  const section=page.getByRole('region',{name:'Atlas Stamp artwork'});
+  await section.getByText('Create uploaded stamp version',{exact:true}).click();
+  await expect(section.getByLabel('Creator name',{exact:true})).toBeEnabled();
+  await section.getByRole('combobox',{name:/^Origin/}).selectOption('ai_assisted');
+  await section.getByLabel('Creator name',{exact:true}).fill('Gin + AI');
+  await section.getByLabel('Creator link (optional)').fill('https://example.test/gin');
+  await section.getByRole('button',{name:'Create private draft'}).click();
+  await expect(section.getByRole('status')).toContainText('Draft stamp version created');
+  await section.getByLabel('Stamp PNG').setInputFiles({name:'demo-stamp.png',mimeType:'image/png',buffer:png});
+  await section.getByRole('button',{name:'Save PNG privately'}).click();
+  await expect(section.getByRole('alert')).toContainText('Save again');
+  await section.getByRole('button',{name:'Save PNG privately'}).click();
+  await expect(section.getByRole('status')).toContainText('Stamp PNG attached privately');
+  expect(initiations).toBe(2);
+  for(const label of ['List','Passport','Detail']) await expect(section.getByAltText(`${label}-size stamp preview`)).toBeVisible();
+  await expect(section.getByRole('link',{name:'Gin + AI'})).toHaveAttribute('href','https://example.test/gin');
+  await section.getByRole('button',{name:'Activate this design (admin)'}).click();
+  expect(actions).toEqual(['create','attach']);
+  await section.getByRole('button',{name:'Confirm activation'}).click();
+  await expect(section.getByRole('status')).toContainText('Historical versions and impressions were preserved');
+  await expect(section.getByText('Design v1',{exact:true})).toBeVisible();
+  await expect(section.getByText('Design v2',{exact:true})).toBeVisible();
+  expect(await page.evaluate(()=>globalThis.document.documentElement.scrollWidth<=globalThis.document.documentElement.clientWidth)).toBe(true);
+  expect((await new AxeBuilder({page}).include('[aria-label="Atlas Stamp artwork"]').analyze()).violations).toEqual([]);
+  await section.screenshot({path:testInfo.outputPath('admin-stamp-preview.png')});
 });

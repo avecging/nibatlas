@@ -2,7 +2,7 @@
 
 **Status:** Active implementation; see current-work table
 **Version:** 1.4
-**Last updated:** 15 September 2026
+**Last updated:** 19 September 2026
 
 ## Working model
 
@@ -23,7 +23,7 @@ is the shared working contract. This assignment covers every milestone; frontend
 | M1.5 | WP1–WP7 implemented; preserve the historical record unchanged. WP-D desktop review still needs founder feedback. |
 | M5 | Verification and account collection integration implemented. Geographic seal persistence/versioned coverage sets and broader indoor field validation remain outstanding. |
 | M6 WP1/WP2 | Authorization/audit and shop operations implemented. Founder confirmed draft creation; broader admin acceptance is separate. |
-| M6 WP3 | Active media/artwork package. JPEG intake merged in #66 and deployed to staging; remote Images/R2/finalization acceptance remains. Continue from `docs/runbooks/jpeg-intake-handoff.md`; attachment, delivery and photo UI follow. |
+| M6 WP3 | Issue #73 governs simplified MVP uploads. Photo/logo picker, private attachment/publication delivery, and truthful stamp draft → PNG → list/Passport/detail preview → admin activation → versioned delivery/creator credit are implemented on draft PR #74, pending final CI/review and staging acceptance. Generated defaults/history/duplicate protection remain intact; #70/#71/#72 stay deferred. Remote JPEG, photo/logo display and stamp end-to-end acceptance remain unverified; see `docs/runbooks/media-uploads.md`. |
 | M6 WP4 | Catalogue imports, validation, dry runs and deduplication follow media/artwork. |
 | M7/M8 | Catalogue quality, production setup, account export/deletion, monitoring, backup/restore, rollback and launch acceptance remain. October 2026 launch is the priority. |
 
@@ -362,9 +362,8 @@ Make the catalogue maintainable without code deployments.
 
 - Admin/editor server role checks.
 - Shop/stamp CRUD and preview/publish workflow.
-- Commissioned stamp-artwork upload, credit, motif-register and written-approval
-  workflow.
-- Provenance, freshness, image rights, and operational status fields.
+- Founder/admin stamp-artwork upload, truthful origin, creator credit, version preview and activation per #73. Commissioning paperwork is deferred to #71.
+- Catalogue provenance, freshness and operational status fields. Photo/logo metadata is optional per #73/#72.
 - R2 upload/variant flow.
 - CSV/JSON import contract, dry run, validation, deduplication report.
 - Import batches and admin audit log.
@@ -379,10 +378,8 @@ Make the catalogue maintainable without code deployments.
 - Non-admin users cannot reach admin data/actions even by direct request.
 - Founder can correct/publish/close a shop without code deployment.
 - Import dry run reports row-level errors and changes nothing.
-- Published imagery always has rights/source and alt text.
-- Commissioned artwork cannot be published until its required source and export
-  files, checksums, illustrator credit, maker-mark confirmation and written
-  approval are recorded.
+- Photo/logo upload and publication require no paperwork or mandatory description; accessible fallback text remains truthful.
+- Stamp uploads accept founder-created, commissioned and AI-assisted artwork with truthful attributes and optional creator link. MVP activation must not require source/SVG bundles, rights evidence or external illustrator sign-off (#73); existing version/history integrity remains mandatory.
 - Preview verifies the unchanged artwork in list, book and detail contexts; the
   delivery path resamples but never crops, recolours or draws over it.
 - Every canonical admin change is audited.
@@ -539,4 +536,5 @@ artwork rights and catalogue licensing boundaries in `CONTRIBUTING.md` and
 PR #66 is merged and deployed to staging. Continue remote runtime verification
 from `docs/runbooks/jpeg-intake-handoff.md`; do not reopen the completed merge
 steps. Attachment/public delivery and the founder photo interface remain later
-WP3 work. No commissioned artwork is processed or replaced. WP4 remains imports.
+WP3 work. Existing generated/commissioned artwork is never replaced in place;
+new #73 uploads are additive versions on the same stamp identity. WP4 remains imports.
