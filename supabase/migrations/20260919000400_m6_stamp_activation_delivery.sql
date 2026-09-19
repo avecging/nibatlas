@@ -405,7 +405,7 @@ begin
   select av.* into a from public.stamp_artwork_versions av
   where av.stamp_id=p_stamp and av.design_version=p_version
     and av.approval_status='approved'
-    and av.artwork_kind in ('uploaded','commissioned');
+    and av.artwork_kind='uploaded';
   if not found or a.transparent_png_key is null then
     raise exception 'Stamp artwork not found' using errcode='P0002'; end if;
   select * into st from public.stamps where id=a.stamp_id;
@@ -413,12 +413,12 @@ begin
   select * into s from public.shops where id=st.shop_id;
   allowed:=s.publication_status='published' and st.status='active'
     and st.current_design_version=p_version;
-  if not allowed and p_actor is not null then
+  if allowed is not true and p_actor is not null then
     allowed:=exists(select 1 from public.stamp_collections c
       where c.user_id=p_actor and c.stamp_id=p_stamp and c.stamp_design_version=p_version);
   end if;
-  if not allowed then raise exception 'Stamp artwork not found' using errcode='P0002'; end if;
-  if a.artwork_kind='uploaded' and not exists(select 1 from public.media_uploads u
+  if allowed is not true then raise exception 'Stamp artwork not found' using errcode='P0002'; end if;
+  if not exists(select 1 from public.media_uploads u
     where u.id=a.upload_id and u.environment=p_environment and u.status='validated') then
     raise exception 'Stamp artwork not found' using errcode='P0002'; end if;
   return jsonb_build_object('storageKey',a.transparent_png_key);
