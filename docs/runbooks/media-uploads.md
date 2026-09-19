@@ -1,8 +1,10 @@
 # R2 upload foundation — M6 WP3
 
 Read [the API and limitations](../api/admin-media-v1.md). This is private PNG/JPEG
-transport and photo/logo delivery within WP3. JPEG shop photos are processed before storage. It cannot publish stamp artwork or make a new shop's
-stamp publication prerequisite disappear.
+transport, photo/logo delivery and the simplified #73 stamp-artwork workflow
+within WP3. JPEG shop photos are processed before storage. Stamp PNGs remain exact
+validated bytes; activation advances the same stamp identity without rewriting
+older versions or impressions.
 
 ## Cloudflare setup (once, before deploying this PR)
 
@@ -80,10 +82,10 @@ existing audit endpoint; editor cannot read audit. Never paste private evidence
 or account history into a public issue.
 
 Artwork verification uses the same API with `purpose=artwork_png` and an existing
-commissioned draft `artworkVersionId`, omitting `rightsBasis` and `creditText` from
-the request. Prepare the draft through the later artwork management flow or
-explicit operator test SQL, never by changing an approved version. No artwork
-creation endpoint or approval UI is included here.
+uploaded draft `artworkVersionId`. Do not send source, rights, credit or alt-text
+paperwork in that file manifest; origin and creator credit live on the draft
+version created in Admin → Shops → Atlas Stamp artwork. Never change an approved
+version.
 
 ### Retesting the founder PNG rejection
 
@@ -124,7 +126,7 @@ archive or a public delivery variant. Keep your own original if you need it late
 
 The original checksum/size/MIME remain the **input** identity. A separate output
 checksum/size/MIME/dimensions and immutable key describe the exact processed PNG.
-Only those output bytes are stored. PNG and commissioned-artwork uploads never
+Only those output bytes are stored. PNG and stamp-artwork uploads never
 enter this photo transformation path.
 
 ### Cloudflare setup for this slice (after review, before staging deployment)
@@ -199,7 +201,8 @@ JPEG is a new slice. Local Images emulation is not remote production fidelity;
 staging still needs actual Images processing, R2 write/read, RPC finalization and
 private-output inspection. PR #66 was deployed to staging; see the JPEG handoff
 for the recorded deployment. Deployment does not establish runtime or photo
-**display** acceptance. The UI/attachment/public delivery remain later WP3 work.
+**display** acceptance. Photo/logo and stamp UI/delivery are implemented on the
+draft PR but remain unaccepted remotely until the post-merge staging checks below.
 
 Keep #17 About accuracy before real catalogue launch and #27 with geographic seal
 delivery. Preserve existing impressions and duplicate protection. No social,
@@ -225,6 +228,36 @@ Limits: 50 retained attachments per shop; hidden/replaced images count. No media
 removal/reordering UI yet. Catalogue saved changes and media publication are
 separate. Private previews require a current editor/admin session. Admin is needed
 for publish/hide. Keep buckets private; no new environment variables are needed.
+
+### Founder stamp artwork workflow — issue #73 checkpoint
+
+1. Admin → Shops → choose the intended shop → **Atlas Stamp artwork**.
+2. **Create uploaded stamp version**. Choose the truthful origin:
+   **Founder-created**, **AI-assisted**, or **Commissioned**. Enter creator name,
+   optional HTTP(S) creator link, and the approved ink. This does not require an
+   editable source, SVG bundle, rights evidence, maker-mark confirmation or
+   external sign-off for MVP; those commissioning questions are #71.
+3. Choose a **1200 × 800 transparent PNG** with the normal file picker and
+   **Save PNG privately**. The exact bytes are validated and attached to this
+   draft only. Unsupported exports fail instead of being silently cropped,
+   recoloured or rewritten.
+4. Compare the private **List / Passport / Detail** previews. The same complete
+   artwork is scaled with `object-fit: contain`; no crop is introduced.
+5. **Activate this design (admin)** → confirm. Activation is revision-checked and
+   changes only the current design pointer on the same stamp. Existing approved
+   versions and collected impressions remain unchanged.
+6. Collect with a fresh test account and confirm the ceremony/Passport/detail
+   render the exact PNG plus `created by: name`; when a creator link exists only
+   the name is clickable. A collector of an older uploaded version must still be
+   able to view that historical artwork after a newer design is activated.
+7. Confirm an account that already owns the stamp still receives duplicate
+   behavior rather than a second collection. Re-collecting later designs is #70,
+   not part of this MVP flow.
+
+Do not claim staging acceptance from CI alone. After authorized merge/deploy,
+test one founder-created or AI-assisted PNG through create → attach → previews →
+activate → new collection → historical view. Keep R2 private. If activation is
+ambiguous, reload versions before retrying; never edit an approved row.
 
 ### Verification status and exact next slice
 
