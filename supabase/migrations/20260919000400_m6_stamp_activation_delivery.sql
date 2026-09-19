@@ -402,13 +402,14 @@ begin
   if p_environment not in ('staging','production') or p_stamp is null
     or p_version is null or p_version<1 then
     raise exception 'Invalid stamp request' using errcode='22023'; end if;
-  select av.*,x.* into a,st
-  from public.stamp_artwork_versions av join public.stamps x on x.id=av.stamp_id
+  select av.* into a from public.stamp_artwork_versions av
   where av.stamp_id=p_stamp and av.design_version=p_version
     and av.approval_status='approved'
     and av.artwork_kind in ('uploaded','commissioned');
   if not found or a.transparent_png_key is null then
     raise exception 'Stamp artwork not found' using errcode='P0002'; end if;
+  select * into st from public.stamps where id=a.stamp_id;
+  if not found then raise exception 'Stamp artwork not found' using errcode='P0002'; end if;
   select * into s from public.shops where id=st.shop_id;
   allowed:=s.publication_status='published' and st.status='active'
     and st.current_design_version=p_version;
