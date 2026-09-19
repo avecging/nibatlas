@@ -39,6 +39,11 @@ select lives_ok($$select public.admin_shop_write('save','00000000-0000-4000-8000
   public.admin_shop_read('00000000-0000-4000-8000-000000000301')->>'revision',
   jsonb_set(public.admin_shop_read('00000000-0000-4000-8000-000000000301')->'document',
     '{shop,name}','"Admin edited demo fixture"'))$$,'admin edits a published demo privately');
+select public.admin_shop_write('save','00000000-0000-4000-8000-000000000301',
+  public.admin_shop_read('00000000-0000-4000-8000-000000000301')->>'revision',
+  jsonb_set(public.admin_shop_read('00000000-0000-4000-8000-000000000301')->'document','{shop,address_line_1}','"Synthetic admin address"'));
+select public.admin_shop_write('confirm_position','00000000-0000-4000-8000-000000000301',
+  public.admin_shop_read('00000000-0000-4000-8000-000000000301')->>'revision');
 select is(public.admin_shop_write('publish','00000000-0000-4000-8000-000000000301',
   public.admin_shop_read('00000000-0000-4000-8000-000000000301')->>'revision')->>'publicationStatus',
   'published','admin publishes a complete revision');

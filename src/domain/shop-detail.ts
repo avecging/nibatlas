@@ -112,7 +112,9 @@ export const SERVICE_ACCESS_MODE_LABELS: Record<ServiceAccessMode, string> = {
  */
 export interface SourcedClaim {
   /** Stable `ShopSourceRef.id` of the source that confirms this claim. */
-  readonly confirmedBy: string;
+  readonly confirmedBy?: string;
+  /** Catalogue review, not independent verification of this claim. */
+  readonly reviewedEditorially?: true;
 }
 
 /**
@@ -180,7 +182,30 @@ export interface ShopPracticalInfo {
   readonly appointmentRequired?: SourcedFlag;
 }
 
+export interface EditorialReview { readonly kind: 'editorial'; readonly reviewedAt: string }
+export interface EditorialContent {
+  readonly feature_headline?: string;
+  readonly field_note_heading?: string;
+  readonly field_note_body?: string;
+  readonly local_address?: string;
+  readonly unit_floor?: string;
+  readonly nearest_station?: string;
+  readonly station_exit?: string;
+  readonly walking_guidance?: string;
+  readonly entrance_notes?: string;
+  readonly editions_text?: string;
+  readonly payment_methods?: string;
+  readonly languages?: string;
+  readonly holiday_note?: string;
+  readonly accessibility_notes?: string;
+  readonly appointment_required?: boolean;
+  readonly experiences?: readonly { readonly id: string; readonly category: string; readonly title: string; readonly description?: string }[];
+}
 export interface ShopDetail extends ShopMapSummary {
+  readonly review?: EditorialReview;
+  readonly editorial?: EditorialContent;
+  readonly phone?: string;
+  readonly postalCode?: string;
   /** One or two sourced sentences on why the shop may be worth a visit. */
   readonly shortDescription?: string;
   readonly addressLines?: readonly string[];

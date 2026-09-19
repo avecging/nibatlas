@@ -50,14 +50,15 @@ inside SQL as well as the HTTP boundary. No verification date is synthesized.
 
 ## Publication and transitions
 
-- Draft → published requires sourced geography, locality, exactly one primary
-  type, a dated source with URL or founder visit, and an active Atlas Stamp with
-  approved artwork. Unknown operational status and absent optional facts remain
+- Draft → published requires valid geography/locality, street address, exactly
+  one primary type, deliberate saved-position confirmation and editorial review,
+  and an active Atlas Stamp with approved artwork. B2b removes mandatory dated
+  sources/claim tokens without synthesizing provenance. Unknown operational status and absent optional facts remain
   valid. Existing public stamp constraints remain enforced.
 - Published + saved changes → published atomically applies all edits. Package B1 now prepares the established generated template atomically on
   new shop creation; older drafts with no stamp have an explicit idempotent
   preparation action. This is a system default, not uploaded/custom approval.
-  Catalogue prerequisites remain until the separate B2 trusted-review migration.
+  B2b trusted-review prerequisites are shared by manual and future import writes.
 - Published shops can be marked open, temporarily closed, permanently closed or
   unknown. Each distinct transition is explicit. Both closure statuses keep the
   public detail available; the existing discovery/issuance rules apply.
@@ -88,18 +89,22 @@ flow; an archive cannot erase a page someone has already loaded. Issuance checks
 canonical state on every attempt. Deploying this change does not purge a response
 cached by an older Worker; allow its old TTL or explicitly purge during rollout.
 
-## Issue #30 semantics
+## Review and practical details — B2b
 
-Phone is a sourced contact string with no inferred country prefix. Postal code
-is a separate string, never concatenated to a source-published address. The
-optional record review date means an actual review of the record, not blanket
-verification of all displayed claims. Source checked dates and claim-specific
-review dates retain their independent meaning. All three stay omitted from the
-public page, as allowed by #30; no presentation decision or date automation is
-introduced. Source dates are entered deliberately; selecting a date stores UTC
-midnight for that date. Unedited imported timestamps preserve their precision.
-Appointment/accessibility remain internal pending their per-field provenance
-contract. Unknown fields stay null; no source statement is silently broadened.
+Phone and postal code are separate optional public strings; no inferred country
+prefix or rewritten address. Appointment null remains unknown, false remains No.
+New editorial publication permits these practical fields without per-field source
+paperwork. Existing legacy verification/source dates stay intact and independent.
+The actual publishing editor and timestamp are recorded server-side; the public
+review line expressly does not claim independent verification of every detail.
+Private notes and references stay behind the existing role/table boundary.
+
+Position confirmation belongs to the saved location, with private actor/time and
+fingerprint. Address/coordinates/accuracy changes clear it, including changes
+made directly through RPCs. Confirmation advances revision, rejects stale bases,
+and cannot be asserted by a save/import document. Canonical confirmation and
+public content stay unchanged during private edits; discard restores them.
+See the current admin API contract for the exact field/confirmation allowlists.
 
 ## Deferred constraints at the API transaction boundary
 

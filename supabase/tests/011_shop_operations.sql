@@ -28,6 +28,7 @@ $$;
 create function pg_temp.publication_code(d jsonb) returns text language plpgsql as $$
 begin
   perform pg_temp.change('save','00000000-0000-4000-8000-000000000301',d);
+  perform pg_temp.change('confirm_position','00000000-0000-4000-8000-000000000301');
   return pg_temp.change('publish','00000000-0000-4000-8000-000000000301')->>'code';
 end; $$;
 set local role authenticated;
@@ -51,16 +52,12 @@ select throws_ok($$select pg_temp.change('save','61000000-0000-4000-8000-0000000
 select throws_ok($$select pg_temp.change('temporarily_closed','61000000-0000-4000-8000-000000000090')$$,'22023','Invalid status transition','lifecycle status operation requires publication');
 -- Published edits are a separate private working copy.
 insert into checks values('original',public.admin_shop_read('00000000-0000-4000-8000-000000000301'));
-select is(pg_temp.publication_code(jsonb_set((select value->'document' from checks where key='original'),'{shop,address_line_1}','"Unsupported address"')),'publication_incomplete','an unrelated source cannot publish an address');
-select is(pg_temp.publication_code(jsonb_set((select value->'document' from checks where key='original'),'{shop,opening_hours}','{"entries":[{"day":"monday","opens":"09:00","closes":"17:00"}]}')),'publication_incomplete','a source for another fact cannot publish opening hours');
-select is(pg_temp.publication_code(jsonb_set((select value->'document' from checks where key='original'),'{sources,0,claims}','[]')),'publication_incomplete','an empty claims list cannot publish public facts');
-select is(pg_temp.publication_code(jsonb_set((select value->'document' from checks where key='original'),'{sources,0,status}','"stale"')),'publication_incomplete','stale evidence cannot satisfy publication');
-select is(public.shop_detail('m2-singapore-demo-fixture')->>'addressLines',null,'failed publication leaves unsupported address private');
-select is(pg_temp.publication_code(jsonb_set(jsonb_set(jsonb_set(
+-- B2 replaces token gates with deliberate position + editorial publication.
+select is(pg_temp.publication_code(jsonb_set(jsonb_set(
 (select value->'document' from checks where key='original'),'{shop,address_line_1}','"Explicit demo address"'),
-'{shop,opening_hours}','{"entries":[{"day":"monday","opens":"09:00","closes":"17:00"}]}'),
-'{sources,0,claims}',(select value->'document'->'sources'->0->'claims' from checks where key='original') || '["  ADDRESS  "," opening   HOURS "]')),
-null,'matching active source tokens allow publication with case and whitespace normalization');
+'{sources,0,claims}','[]')),null,'trusted editor publishes without mandatory claim tokens');
+select is(public.shop_detail('m2-singapore-demo-fixture')->'sources'->0->>'id',
+(select value->'document'->'sources'->0->>'id' from checks where key='original'),'legacy source identity retained');
 
 update checks set value=public.admin_shop_read('00000000-0000-4000-8000-000000000301') where key='original';
 select lives_ok($$select pg_temp.change('save','00000000-0000-4000-8000-000000000301',jsonb_set((select value->'document' from checks where key='original'),'{shop,name}','"Private revised demo name"'))$$,'save unpublished changes');
@@ -95,9 +92,10 @@ select is((select count(*)::int from public.stamps where shop_id='61000000-0000-
 set local role authenticated;
 select lives_ok($new$select pg_temp.change('save','61000000-0000-4000-8000-000000000090',
 jsonb_set(jsonb_set(jsonb_set((select value from checks where key='new_doc'),'{shop}',
-(select value->'shop' from checks where key='new_doc') || '{"country_code":"SG","locality_id":"00000000-0000-4000-8000-000000000201","timezone":"Asia/Singapore","latitude":1.3,"longitude":103.8,"source_quality":"demo"}'),
+(select value->'shop' from checks where key='new_doc') || '{"address_line_1":"Synthetic new address","country_code":"SG","locality_id":"00000000-0000-4000-8000-000000000201","timezone":"Asia/Singapore","latitude":1.3,"longitude":103.8,"source_quality":"demo"}'),
 '{sources}','[{"id":"61000000-0000-4000-8000-000000000092","label":"Explicit demo fixture","source_type":"demo_fixture","checked_at":"2026-09-01","reliability":"unknown","status":"active","claims":["Name","Location","Shop type: Fountain Pen Specialist","Shop type: Stationery Store"]}]'),
 '{types}','[{"shop_type_id":"00000000-0000-4000-8000-000000000101","is_primary":true}]'))$new$,'save valid new draft');
+select pg_temp.change('confirm_position','61000000-0000-4000-8000-000000000090');
 select lives_ok($$select pg_temp.change('publish','61000000-0000-4000-8000-000000000090')$$,'publish new shop once approved stamp exists');
 select is(public.shop_detail('private-demo')->>'name','Explicit test draft','new valid shop becomes public');
 select lives_ok($$select pg_temp.change('save','61000000-0000-4000-8000-000000000090',jsonb_set(public.admin_shop_read('61000000-0000-4000-8000-000000000090')->'document','{types}',

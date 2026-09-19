@@ -131,6 +131,7 @@ export async function handleShopAdmin(
           typeof data.action !== "string" ||
           ![
             "save",
+            "confirm_position",
             "publish",
             "discard",
             "temporarily_closed",

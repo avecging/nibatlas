@@ -95,8 +95,8 @@ export function normalizeShopDocument(input: unknown): Document {
   }
   const result = { shop } as Document;
   for (const g of GROUPS) {
-    const hasId = ['sources', 'aliases', 'links'].includes(g.key);
-    result[g.key] = list(d[g.key], g.key).map((v, i) => {
+    const hasId = ['sources', 'aliases', 'links', 'experiences'].includes(g.key);
+    result[g.key] = list(g.key === 'experiences' ? d[g.key] ?? [] : d[g.key], g.key).map((v, i) => {
       const path = `${g.key}.${i}`, r = parse(v, g.fields, path, hasId ? ['id'] : []);
       if (hasId) {
         const id = obj(v, path).id;
@@ -141,6 +141,7 @@ export function normalizeShopDocument(input: unknown): Document {
   for (const group of ['types', 'services', 'specialties', 'brands'] as const) result[group].forEach((r, i) => {
     if (r.source_id != null && !sources.has(r.source_id)) issue(`${group}.${i}.source_id`, 'Choose a source belonging to this shop.');
   });
+  if (typeof shop.reference_links === 'string' && shop.reference_links.split(/\r?\n/).some(link => link.trim() && !validWebUrl(link.trim()))) issue('shop.reference_links', 'Use one complete http:// or https:// reference link per line.');
   if (issues.length) throw new ShopValidationError(issues);
   return document(result);
 }

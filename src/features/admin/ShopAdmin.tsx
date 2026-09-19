@@ -1,4 +1,6 @@
 "use client";
+import { ShopEditorial } from '@/src/components/shops/ShopEditorial';
+import { decodeEditorialContent } from '@/src/api/v1/shop-read';
 import { readAdminResponse } from './read-response';
 import { normalizeShopDocument, ShopValidationError, type FieldIssue } from './shop-normalization';
 import Link from "next/link";
@@ -359,6 +361,8 @@ function Workspace({ id }: { id: string | null }) {
       announce(
         action === "save"
           ? "Changes saved privately. Preview and publish when ready."
+          : action === "confirm_position"
+            ? "Saved position confirmed. Review the listing before publishing."
           : action === "publish"
             ? "Shop published."
             : action === "discard"
@@ -555,7 +559,7 @@ function Workspace({ id }: { id: string | null }) {
               >
                 <legend>Catalogue details</legend>
                 <div className={styles.grid}>
-                  {SHOP_FIELDS.map((field) => (
+                  {SHOP_FIELDS.filter(f => !["internal_notes", "reference_links", "source_quality", "last_verified_at"].includes(f.key)).map((field) => (
                     <Input
                       key={field.key}
                       field={field}
@@ -567,6 +571,20 @@ function Workspace({ id }: { id: string | null }) {
                     />
                   ))}
                 </div>
+                <details>
+                  <summary>Internal admin notes · private</summary>
+                  <p>Only editors and admins can access these optional notes and references. One reference link per line.</p>
+                  {SHOP_FIELDS.filter(f => ['internal_notes','reference_links'].includes(f.key)).map(field => <Input
+                    key={field.key} field={field} path={`shop.${field.key}`} errors={fieldErrors} value={draft.shop[field.key]}
+                    options={viewOptions} prefix="" change={v => setShop(field.key, v)} />)}
+                </details>
+                <details>
+                  <summary>Legacy provenance classification</summary>
+                  <p>Preserved for existing records. No classification or evidence tokens are required for editorial publication.</p>
+                  {SHOP_FIELDS.filter(f => ['source_quality','last_verified_at'].includes(f.key)).map(field => <Input
+                    key={field.key} field={field} path={`shop.${field.key}`} errors={fieldErrors} value={draft.shop[field.key]}
+                    options={viewOptions} prefix="" change={v => setShop(field.key, v)} />)}
+                </details>
                 <details>
                   <summary>Opening hours</summary>
                   <p>
@@ -698,7 +716,7 @@ function Workspace({ id }: { id: string | null }) {
                             ...draft[g.key],
                             emptyRow(
                               g.fields,
-                              ["sources", "aliases", "links"].includes(g.key),
+                              ["sources", "aliases", "links", "experiences"].includes(g.key),
                             ),
                           ],
                         })
@@ -727,6 +745,11 @@ function Workspace({ id }: { id: string | null }) {
             }} />
           <section className={styles.operations}>
             <h2>Publication and status</h2>
+            <p>{record.positionConfirmed ? 'Saved position confirmed.' : 'Saved position needs confirmation.'}
+              {' '}Address, coordinate or accuracy changes require a new confirmation.</p>
+            <button disabled={busy || dirty || record.publicationStatus === 'archived'
+              || record.document.shop.latitude == null || record.document.shop.longitude == null}
+              onClick={() => setConfirmation('confirm_position')}>Confirm saved shop position</button>
             {record.publicationErrors.length > 0 && (
               <>
                 <p>Before publishing:</p>
@@ -818,9 +841,11 @@ function Workspace({ id }: { id: string | null }) {
                 aria-label="Confirm shop operation"
               >
                 <p>
-                  Confirm {confirmation.replaceAll("_", " ")}?{" "}
+                  Confirm {confirmation === "confirm_position" ? "position" : confirmation.replaceAll("_", " ")}?{" "}
                   {confirmation === "publish"
-                    ? "The saved version will become public."
+                    ? "I have reviewed this saved listing for publication. My account and the actual review time will be recorded; this does not certify every field independently."
+                    : confirmation === "confirm_position"
+                      ? "I checked the saved address, coordinates and stated accuracy against the shop’s location."
                     : confirmation === "archive"
                       ? "The shop will leave public discovery and its public page."
                       : confirmation === "discard"
@@ -828,7 +853,7 @@ function Workspace({ id }: { id: string | null }) {
                         : "Use this only when supported by your source or visit."}
                 </p>
                 <button autoFocus onClick={() => void mutate(confirmation)}>
-                  Confirm {confirmation.replaceAll("_", " ")}
+                  Confirm {confirmation === "confirm_position" ? "position" : confirmation.replaceAll("_", " ")}
                 </button>
                 <button onClick={() => setConfirmation(null)}>Cancel</button>
               </div>
@@ -864,6 +889,11 @@ function Preview({
           </p>
         ))}
       {d.shop.short_description && <p>{String(d.shop.short_description)}</p>}
+      <ShopEditorial content={decodeEditorialContent({ ...d.shop, experiences: d.experiences })} section="story" />
+      <ShopEditorial content={decodeEditorialContent({ ...d.shop, experiences: d.experiences })} section="visit" />
+      {d.shop.phone && <p>Phone: {String(d.shop.phone)}</p>}
+      {d.shop.postal_code && <p>Postal code: {String(d.shop.postal_code)}</p>}
+      {d.shop.position_precision === 'locality' && <p>Approximate area only. Check the shop’s address before travelling.</p>}
       <p>
         {name("localities", d.shop.locality_id) ??
           String(
@@ -894,7 +924,6 @@ function Preview({
         })}
       </dl>
       {d.services
-        .filter((r) => r.source_id)
         .map((r) => (
           <p key={String(r.service_id)}>
             {name("services", r.service_id)}
@@ -946,8 +975,8 @@ function Preview({
         <p>Demo data — not a verified shop listing.</p>
       )}
       <p>
-        Phone, postal code, record review date, appointment and accessibility
-        notes remain internal. Private evidence notes are omitted here. Artwork
+        Private notes and references are omitted here. Publication records an editorial
+        review, not independent verification of every field. Artwork
         versions are managed separately. Photos and logos have their own publication controls below.
       </p>
     </article>

@@ -65,3 +65,22 @@ describe('creation-only URL assistance',()=>{
     expect(()=>normalizeShopCreate({name:' ',slug:'a'},id)).toThrow(ShopValidationError);
   });
 });
+
+describe('B2 editorial input', () => {
+  it('keeps private references separate, paragraphs intact, and stable experience identities', () => {
+    const result = normalizeShopDocument({ ...base(), shop: { ...base().shop, field_note_body: 'First\n\n第二段', reference_links: 'https://example.test/one\nhttps://example.test/two', internal_notes: 'Private\n\nmaintenance' },
+      experiences: [{ id, category: 'nib_testing', title: 'Try nibs', description: 'One\n\nTwo' }] });
+    expect(result.shop.field_note_body).toBe('First\n\n第二段');
+    expect(result.shop.internal_notes).toBe('Private\n\nmaintenance');
+    expect(result.experiences[0]).toMatchObject({ id, title: 'Try nibs', description: 'One\n\nTwo' });
+  });
+  it('identifies an invalid private reference and invalid repeatable field', () => {
+    expect(errors({ ...base(), shop: { ...base().shop, reference_links: 'https://example.test\njavascript:alert(1)' },
+      experiences: [{ id, category: 'unsupported', title: '' }] }).map(e => e.path))
+      .toEqual(expect.arrayContaining(['shop.reference_links', 'experiences.0.category', 'experiences.0.title']));
+  });
+  it('rejects import/manual attempts to assert review or confirmation in data', () => {
+    for (const key of ['reviewed_by','reviewed_at','position_confirmation'])
+      expect(errors({ ...base(), shop: { ...base().shop, [key]: 'forged' } })).toContainEqual({ path: 'shop', message: 'Remove unsupported fields.' });
+  });
+});

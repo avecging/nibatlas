@@ -113,3 +113,42 @@ test("admin: direct authenticated PostgREST create keeps the actor", async ({ co
   expect(result.data.publicationStatus).toBe("draft");
   expect(sql(`select bool_and(actor_user_id='${actor}' and actor_kind='account') from public.admin_audit_log where entity_id='${id}';`)).toBe("t");
 });
+
+test('B2: source-free editorial publication through the real Worker preserves private drafts and review identity', async ({ context, page }) => {
+  const { actor } = await login(context, 'editor');
+  const id = randomUUID(), slug = `b2-worker-${id}`;
+  const create = await context.request.post('/api/v1/admin/shops', { headers: { Origin: origin }, data: { action: 'create', id, document: { name: 'B2 synthetic Worker shop', slug } } });
+  expect(create.status()).toBe(201);
+  let record = await create.json();
+  const options = await (await context.request.get('/api/v1/admin/shops/options')).json();
+  const locality = options.localities.find((l: {countryCode: string}) => l.countryCode === 'SG');
+  const document = { ...record.document, sources: [], types: [{ shop_type_id: options.types[0].id, is_primary: true }],
+    shop: { ...record.document.shop, country_code: 'SG', locality_id: locality.id, timezone: 'Asia/Singapore', latitude: 0, longitude: 0,
+      address_line_1: 'Synthetic Worker address', source_quality: 'demo', field_note_body: 'First paragraph.\n\n第二段。', internal_notes: 'PRIVATE WORKER SENTINEL', reference_links: 'https://example.test/private-worker' } };
+  const post = (action: string, extra = {}) => context.request.post(`/api/v1/admin/shops/${id}`, { headers: { Origin: origin }, data: { action, revision: record.revision, ...extra } });
+  let response = await post('save', { document });
+  expect(response.status()).toBe(200); record = await response.json();
+  expect(record.positionConfirmed).toBe(false);
+  expect((await context.request.get(`/api/v1/shops/${slug}`)).status()).toBe(404);
+  expect((await post('publish')).status()).toBe(422);
+  response = await post('confirm_position'); expect(response.status()).toBe(200); record = await response.json();
+  expect(record.positionConfirmed).toBe(true);
+  response = await post('publish'); expect(response.status()).toBe(200); record = await response.json();
+  expect(record.publicationStatus).toBe('published');
+  const publicResponse = await context.request.get(`/api/v1/shops/${slug}`);
+  expect(publicResponse.status()).toBe(200);
+  const publicText = await publicResponse.text();
+  expect(publicText).not.toMatch(/PRIVATE WORKER|private-worker/);
+  expect(sql(`select reviewed_by='${actor}' and reviewed_at is not null and last_verified_at is null from public.shops where id='${id}';`)).toBe('t');
+  await page.goto(`/shops/${slug}`);
+  await expect(page.getByText('First paragraph.', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Listing reviewed by Nib Atlas/)).toBeVisible();
+  response = await post('save', { document: { ...record.document, shop: { ...record.document.shop, longitude: 1 } } });
+  expect(response.status()).toBe(200); record = await response.json();
+  expect(record.positionConfirmed).toBe(false);
+  expect((await post('publish')).status()).toBe(422);
+  expect(await (await context.request.get(`/api/v1/shops/${slug}`)).text()).toBe(publicText);
+  await context.clearCookies();
+  expect((await context.request.get(`/api/v1/admin/shops/${id}`)).status()).toBe(401);
+  expect(await (await context.request.get(`/api/v1/shops/${slug}`)).text()).toBe(publicText);
+});

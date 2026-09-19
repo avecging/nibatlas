@@ -1,6 +1,6 @@
 "use client";
 
-import { provenanceSentence } from "@/src/components/shops/provenance";
+import { formatCheckedOn, provenanceSentence } from "@/src/components/shops/provenance";
 import { Icon } from "@/src/components/ui/Icon";
 import { PrototypeBadge } from "@/src/components/ui/StatusBadge";
 import {
@@ -94,14 +94,16 @@ export function ShopPositionDiagnostic({ shop }: { readonly shop: ShopDetail }) 
 export function ShopProvenance({ shop }: { readonly shop: ShopDetail }) {
   const reviewer = useReviewerMode();
 
+  const reviewLine = shop.review ? `Listing reviewed by Nib Atlas on ${formatCheckedOn(shop.review.reviewedAt.slice(0, 10))}. This is an editorial review, not independent verification of every detail.` : null;
   if (!reviewer) {
     const sentence = provenanceSentence(shop.sources);
 
     // A record with no source gets no line at all. A vague claim of provenance
     // would be worse than none.
-    return sentence ? (
-      <p className={styles.provenanceLine}>{sentence}</p>
-    ) : null;
+    return reviewLine || sentence ? <div className={styles.provenanceLine}>
+      {reviewLine && <p>{reviewLine}</p>}
+      {sentence && <p>{reviewLine ? `Retained source history: ${sentence}` : sentence}</p>}
+    </div> : null;
   }
 
   return (
@@ -114,8 +116,7 @@ export function ShopProvenance({ shop }: { readonly shop: ShopDetail }) {
         Where this came from
       </h2>
       <p>
-        Nib Atlas shows only what a source supports. Anything a source did not
-        confirm is left off this page rather than filled in.
+        {reviewLine ?? 'Legacy listing: source-specific support is recorded below. Unknown information is omitted.'}
       </p>
       <ul className={styles.sourceList}>
         {shop.sources.map((source) => (

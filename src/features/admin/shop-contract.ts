@@ -11,6 +11,7 @@ export interface Document {
   services: Row[];
   specialties: Row[];
   brands: Row[];
+  experiences: Row[];
 }
 export interface ShopRecord {
   id: string;
@@ -19,6 +20,7 @@ export interface ShopRecord {
   hasChanges: boolean;
   document: Document;
   publicationErrors: string[];
+  positionConfirmed?: boolean;
 }
 export interface ShopSummary {
   id: string;
@@ -49,12 +51,27 @@ const f = (
   extra: Omit<Field, "key" | "label"> = {},
 ): Field => ({ key, label, ...extra });
 export const SHOP_FIELDS: Field[] = [
+  f("feature_headline", "Feature headline", { kind: "long" }),
+  f("field_note_heading", "Field-note heading", { kind: "long" }),
+  f("field_note_body", "Why this place deserves a visit", { kind: "long" }),
+  f("local_address", "Local-language address", { kind: "long" }),
+  f("unit_floor", "Unit / floor", { kind: "long" }),
+  f("nearest_station", "Nearest station", { kind: "long" }),
+  f("station_exit", "Station exit", { kind: "long" }),
+  f("walking_guidance", "Walking guidance", { kind: "long" }),
+  f("entrance_notes", "Entrance notes", { kind: "long" }),
+  f("editions_text", "Store editions", { kind: "long" }),
+  f("payment_methods", "Payment methods", { kind: "long" }),
+  f("languages", "Languages spoken", { kind: "long" }),
+  f("holiday_note", "Holiday note", { kind: "long" }),
+  f("internal_notes", "Internal admin notes (private)", { kind: "long" }),
+  f("reference_links", "Reference links (private)", { kind: "long" }),
   f("name", "Shop name", { required: true }),
   f("slug", "URL name", {
     required: true,
     hint: "Lowercase words separated by hyphens. Changing this changes the public link.",
   }),
-  f("short_description", "Why visit", { kind: "long" }),
+  f("short_description", "Short introduction", { kind: "long" }),
   f("country_code", "Country code", {
     hint: "Two-letter ISO country code, for example SG. Leave unknown facts blank.",
   }),
@@ -74,19 +91,19 @@ export const SHOP_FIELDS: Field[] = [
   f("address_line_1", "Address line 1"),
   f("address_line_2", "Address line 2"),
   f("postal_code", "Postal code", {
-    hint: "Separate sourced value; never appended to the address. Not displayed publicly.",
+    hint: "Optional text; preserve leading zeroes and letters.",
   }),
   f("phone", "Phone", {
-    hint: "As sourced; no automatic country prefix. Not displayed publicly.",
+    hint: "As published by the shop; no automatic country prefix.",
   }),
   f("website_url", "Official website"),
   f("appointment_required", "Appointment required", {
     kind: "boolean",
-    hint: "Unknown is different from No. Internal until claim-specific provenance is supported.",
+    hint: "Unknown is different from No.",
   }),
   f("accessibility_notes", "Accessibility notes", {
     kind: "long",
-    hint: "Factual notes only. Internal until claim-specific provenance is supported.",
+    hint: "Public factual notes; leave unknown information blank.",
   }),
   f("operational_status", "Recorded operational status", {
     required: true,
@@ -95,11 +112,11 @@ export const SHOP_FIELDS: Field[] = [
   f("source_quality", "Source quality", {
     required: true,
     choices: ["community_unverified", "sourced", "verified", "demo"],
-    hint: "Never upgrade demo data to a real listing. Verified requires actual research.",
+    hint: "Legacy classification; not a publication requirement. Demo identities stay demo.",
   }),
   f("last_verified_at", "Record review date", {
     kind: "date",
-    hint: "Actual record review date; not verification of every field. Never automatic. Not displayed publicly.",
+    hint: "Legacy review date; preserved separately. New publication records its actual editor and time automatically.",
   }),
 ];
 export const GROUPS: {
@@ -107,9 +124,13 @@ export const GROUPS: {
   label: string;
   fields: Field[];
 }[] = [
+  { key: "experiences", label: "Experiences", fields: [
+    f("category", "Category", { required: true, choices: ["fountain_pens", "inks_paper", "nib_testing", "gifts", "repairs", "other"] }),
+    f("title", "Public title", { required: true }), f("description", "Experience description", { kind: "long" }),
+  ] },
   {
     key: "sources",
-    label: "Sources",
+    label: "Legacy sources (optional)",
     fields: [
       f("label", "Source label", { required: true }),
       f("source_type", "Source kind", {
@@ -307,10 +328,10 @@ export function document(value: unknown): Document {
   }
   const result = { shop } as Document;
   for (const g of GROUPS) {
-    result[g.key] = rows(d[g.key]).map((value) => {
+    result[g.key] = rows(g.key === "experiences" ? d[g.key] ?? [] : d[g.key]).map((value) => {
       const r = object(value),
         item = fields(r, g.fields, ["id"]);
-      if (["sources", "aliases", "links"].includes(g.key)) {
+      if (["sources", "aliases", "links", "experiences"].includes(g.key)) {
         if (typeof r.id !== "string" || !UUID.test(r.id))
           throw Error("Invalid ID");
         item.id = r.id;
@@ -337,6 +358,7 @@ export function decodeShop(value: unknown): ShopRecord {
     revision,
     publicationStatus,
     hasChanges: r.hasChanges,
+    positionConfirmed: r.positionConfirmed === true,
     document: document(r.document),
     publicationErrors: rows(r.publicationErrors).map(text),
   };

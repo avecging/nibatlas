@@ -1,6 +1,6 @@
 import { STAMP_MOTIFS } from '@/src/domain/stamp-design';
 import { STAMP_INK_LABELS } from '@/src/domain/stamp-palette';
-import type { ShopStampDesign } from '@/src/domain/shop-detail';
+import type { EditorialContent, EditorialReview, ShopStampDesign } from '@/src/domain/shop-detail';
 import { isCountryCode, type CountryCode, type GeoPoint, type ViewportBounds } from "@/src/domain/geo";
 import { isLanguageTag, type LanguageTag } from "@/src/domain/language";
 import {
@@ -92,6 +92,8 @@ export interface PublicGeneratedStampV1 {
   readonly templateData: { readonly tier: 'shop'; readonly motif: ShopStampDesign['motif'] };
 }
 export interface ShopDetailReadV1 extends ShopMapSummary {
+  readonly review?: EditorialReview;
+  readonly editorial?: EditorialContent;
   /** Absent for older APIs and non-generated artwork. Never invent stored art. */
   readonly generatedStamp?: PublicGeneratedStampV1;
   readonly shortDescription?: string;
@@ -421,14 +423,17 @@ export function decodeShopDetailV1(value: unknown): ShopDetailReadV1 | null {
     throw new ShopReadContractError("Test venues must remain demo data");
   }
 
-  const services = arrayOf("services", (entry, index) => {
+  const review = item.review === undefined ? undefined : decodeEditorialReview(item.review);
+  const services = arrayOf<ShopService>("services", (entry, index) => {
     const service = record(entry, `detail.services[${index}]`);
     const accessMode = service["accessMode"] === undefined ? undefined : enumValue(service["accessMode"], ACCESS_MODES, `detail.services[${index}].accessMode`);
     const duration = optionalString(service["duration"], `detail.services[${index}].duration`);
     const note = optionalString(service["note"], `detail.services[${index}].note`);
     return {
       label: string(service["label"], `detail.services[${index}].label`),
-      confirmedBy: uuid(service["confirmedBy"], `detail.services[${index}].confirmedBy`),
+      ...(service.reviewedEditorially === true && review
+        ? { reviewedEditorially: true as const }
+        : { confirmedBy: uuid(service["confirmedBy"], `detail.services[${index}].confirmedBy`) }),
       ...(accessMode === undefined ? {} : { accessMode }),
       ...(duration === undefined ? {} : { duration }),
       ...(note === undefined ? {} : { note }),
@@ -456,9 +461,10 @@ export function decodeShopDetailV1(value: unknown): ShopDetailReadV1 | null {
   }
 
   services.forEach((service, index) => {
+    if (service.reviewedEditorially && review) return;
     const failure = sourceEvidenceFailure(
       sources,
-      service.confirmedBy,
+      service.confirmedBy ?? "",
       serviceEvidenceToken(service.label),
     );
 
@@ -471,6 +477,8 @@ export function decodeShopDetailV1(value: unknown): ShopDetailReadV1 | null {
 
   return {
     ...base,
+    ...(review ? { review } : {}),
+    ...(item.editorial === undefined ? {} : { editorial: decodeEditorialContent(item.editorial) }),
     ...(item.generatedStamp === undefined ? {} : { generatedStamp: decodeGeneratedStamp(item.generatedStamp) }),
     timezone: string(item["timezone"], "detail.timezone"),
     positionPrecision: enumValue(item["positionPrecision"], POSITION_PRECISIONS, "detail.positionPrecision"),
@@ -511,4 +519,41 @@ function decodeGeneratedStamp(value: unknown): PublicGeneratedStampV1 {
   }
   return { id, designVersion: Number(r.designVersion), paletteVersion: 1, ink: r.ink as ShopStampDesign['ink'],
     templateData: { tier: 'shop', motif: template.motif as ShopStampDesign['motif'] } };
+}
+
+function decodeEditorialReview(value: unknown): EditorialReview {
+  const r = record(value, 'detail.review');
+  if (r.kind !== 'editorial' || typeof r.reviewedAt !== 'string'
+    || !/^\d{4}-\d{2}-\d{2}T/.test(r.reviewedAt) || !Number.isFinite(Date.parse(r.reviewedAt)))
+    throw new ShopReadContractError('Invalid editorial review');
+  return { kind: 'editorial', reviewedAt: r.reviewedAt };
+}
+export function decodeEditorialContent(value: unknown): EditorialContent {
+  const r = record(value, 'detail.editorial');
+  const result: Record<string, unknown> = {};
+  // Public allowlist only: never spread a draft or an upstream object.
+  for (const k of ['feature_headline','field_note_heading','field_note_body','local_address','unit_floor',
+    'nearest_station','station_exit','walking_guidance','entrance_notes','editions_text','payment_methods',
+    'languages','holiday_note','accessibility_notes']) {
+    if (r[k] !== undefined && r[k] !== null) {
+      const v = string(r[k], `editorial.${k}`);
+      if (v.length > 4000) throw new ShopReadContractError('Editorial text too long');
+      if (v) result[k] = v;
+    }
+  }
+  if (r.appointment_required !== undefined && r.appointment_required !== null)
+    result.appointment_required = boolean(r.appointment_required, 'editorial.appointment_required');
+  if (r.experiences !== undefined) {
+    if (!Array.isArray(r.experiences) || r.experiences.length > 100) throw new ShopReadContractError('Invalid experiences');
+    result.experiences = r.experiences.map((v) => {
+      const e = record(v, 'editorial.experiences');
+      const title = string(e.title, 'experience.title');
+      const description = e.description == null ? undefined : string(e.description, 'experience.description');
+      if (!title.trim() || title.length > 4000 || (description?.length ?? 0) > 4000) throw new ShopReadContractError('Invalid experience');
+      return { id: uuid(e.id, 'experience.id'), title,
+        category: enumValue(e.category, ['fountain_pens','inks_paper','nib_testing','gifts','repairs','other'], 'experience.category'),
+        ...(description ? { description } : {}) };
+    });
+  }
+  return result as EditorialContent;
 }

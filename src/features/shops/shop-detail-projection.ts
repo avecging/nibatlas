@@ -118,13 +118,8 @@ export function projectShopDetail(
    * link list the fixtures populate, so it is folded in rather than dropped —
    * deduplicated, because a record may already list it among `links`.
    *
-   * Three wire fields have no Milestone 3 presentation home and are therefore
-   * carried nowhere: `phone`, `postalCode`, and `lastVerifiedAt`. Their absence
-   * asserts nothing — the detail page omits unsupported fields in silence by
-   * design — and appending a postal code to an address the source published as
-   * it stands would change that address. All three are recorded as open
-   * presentation questions in the WP2 pull request rather than invented into a
-   * section of their own.
+   * Phone and postal code are distinct optional visit details; the legacy
+   * lastVerifiedAt stays separate from the actual editorial review event.
    */
   const hasWebsiteLink =
     wire.websiteUrl !== undefined &&
@@ -142,6 +137,10 @@ export function projectShopDetail(
         ];
 
   return {
+    ...(wire.review ? { review: wire.review } : {}),
+    ...(wire.editorial ? { editorial: wire.editorial } : {}),
+    ...(wire.phone ? { phone: wire.phone } : {}),
+    ...(wire.postalCode ? { postalCode: wire.postalCode } : {}),
     id: wire.id,
     slug: wire.slug,
     name: wire.name,

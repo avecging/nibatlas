@@ -1,3 +1,4 @@
+import { ShopEditorial } from './ShopEditorial';
 import type { ReactNode } from "react";
 import { ShopMediaGallery } from "./ShopMediaGallery";
 
@@ -177,6 +178,7 @@ export function ShopDetailView({
       <div className={styles.grid}>
         {/* 3 — what you can do there, or the one caution when nothing is sourced. */}
         {(process.env.NEXT_PUBLIC_CATALOGUE_MODE === "api" || process.env.NEXT_PUBLIC_CATALOGUE_MODE === "api-demo") && <ShopMediaGallery key={shop.id} shopId={shop.id} />}
+        <ShopEditorial content={shop.editorial} section="story" />
         <ShopWhatYouCanDo shop={shop} />
         <ShopValueGap shop={shop} />
 
@@ -189,6 +191,10 @@ export function ShopDetailView({
             Plan your visit
           </h2>
 
+          <ShopEditorial content={shop.editorial} section="visit" />
+          {shop.phone && <Fact icon="locate" label="Phone">{shop.phone}</Fact>}
+          {shop.postalCode && <Fact icon="locate" label="Postal code">{shop.postalCode}</Fact>}
+          {shop.positionPrecision === 'locality' && <p>Approximate area only. Check the shop’s address before travelling.</p>}
           {hasGettingThere ? (
             <div className={styles.subsection}>
               <h3 className={styles.subheading} id="getting-there">

@@ -55,16 +55,17 @@ rules below.
 
 Cache: `no-store` so archival and closure cannot be served from a stale CDN response.
 
-### Evidence contract
+### Legacy evidence and editorial review
 
 - Every public source has stable `id`, public `label`, controlled `kind`,
   optional public URL, `retrievedOn`, and explicit `confirms` tokens.
 - `confirmedBy` is always a source UUID, never display prose.
-- A sourced service is public only when its join row has `source_id`.
-- The internal `appointment_required` and `accessibility_notes` columns are not
-  part of v1 while they have no per-field source UUID. Populating either cannot
-  make an otherwise valid public detail unavailable or publish an unsourced
-  practical claim.
+- Legacy sourced services require same-shop source support. After explicit B2b
+  editorial publication, services use `reviewedEditorially: true`, without a
+  fabricated source UUID or claim token.
+- After editorial publication, appointment/accessibility are optional fields in
+  the public `editorial` object. Existing internal values remain private until
+  that explicit publication; null is omitted and false remains No.
 - The source UUID must belong to the same shop, enforced by composite foreign
   keys.
 - Canonical claim rows and admin evidence notes remain inaccessible to anonymous
@@ -131,3 +132,24 @@ Older responses without this additive field retain the previous identity motif.
 Current uploaded/legacy commissioned pre-collection discovery still uses that
 existing presentation; exact uploaded public preview remains D. This checkpoint
 does not claim to finish that lifecycle integration or change legacy provenance.
+
+## B2b editorial detail
+
+`review:{kind:"editorial",reviewedAt:<actual timestamp>}` is present only after
+an actual catalogue review/publication. Public copy attributes it to Nib Atlas;
+the actual actor UUID is stored privately. This is not field-by-field verification.
+Legacy sources and dates remain in the response and are labelled retained source
+history alongside the review line. No synthetic source entries are added.
+
+The optional `editorial` object allowlists public story, experience and practical
+fields listed in the admin contract. It excludes private notes/references and
+actor/position confirmation metadata. It is absent on legacy unreviewed records.
+The public decoder reconstructs the allowlist, bounds text/repeats and requires a
+valid parent editorial review before accepting editorial service attribution.
+Old source-backed service decoding remains strict. Phone/postcode are rendered
+separately, preserving their exact text; approximate-area positioning is labelled
+publicly and existing precision-aware distance behavior remains.
+
+Public detail and private saved preview share the new editorial renderer. Full
+page/gallery/selected-art preview parity remains Package D; this slice does not
+claim that lifecycle integration or change historical impressions.
