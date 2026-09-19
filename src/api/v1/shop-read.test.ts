@@ -159,3 +159,34 @@ it("renders a demo test venue without inventing a pen-shop type", () => {
   expect(decodeShopDetailV1(venue)?.primaryType).toBe("test_venue");
   expect(() => decodeShopDetailV1({ ...venue, sourceQuality: "sourced" })).toThrow(/must remain demo/);
 });
+
+it('decodes only the public stored generated design and rejects malformed art',()=>{
+  const art={id:'00000000-0000-4000-8000-000000000601',designVersion:3,ink:'plum',paletteVersion:1,templateData:{tier:'shop',motif:'counter'}};
+  expect(decodeShopDetailV1({...detail(),generatedStamp:{...art,privateKey:'must-not-survive'}})?.generatedStamp).toEqual(art);
+  for(const invalid of [null,{...art,ink:'red'},{...art,paletteVersion:2},{...art,designVersion:0},{...art,templateData:{tier:'shop',motif:'fake'}}])
+    expect(()=>decodeShopDetailV1({...detail(),generatedStamp:invalid})).toThrow();
+});
+
+describe('B2 trusted editorial public contract', () => {
+  const review = { kind: 'editorial', reviewedAt: '2026-09-19T12:34:56.123Z' };
+  it('accepts source-free editorial services without manufacturing provenance', () => {
+    const result = decodeShopDetailV1({ ...detail(), review, sources: [], services: [{ label: 'Nib tuning', reviewedEditorially: true }] });
+    expect(result?.services).toEqual([{ label: 'Nib tuning', reviewedEditorially: true }]);
+    expect(result?.sources).toEqual([]);
+    expect(result?.review).toEqual(review);
+  });
+  it('does not let a per-service flag replace a recorded editorial review', () => {
+    expect(() => decodeShopDetailV1({ ...detail(), sources: [], services: [{ label: 'Nib tuning', reviewedEditorially: true }] })).toThrow(ShopReadContractError);
+    expect(() => decodeShopDetailV1({ ...detail(), review: { ...review, reviewedAt: 'invented' } })).toThrow(ShopReadContractError);
+  });
+  it('allowlists editorial data and review metadata instead of forwarding private fields', () => {
+    const result = decodeShopDetailV1({ ...detail(), review: { ...review, actor: 'private-account' },
+      editorial: { field_note_body: 'First\n\n第二段', appointment_required: false, internal_notes: 'PRIVATE', reference_links: 'PRIVATE',
+        experiences: [{ id: OTHER_SOURCE_ID, category: 'nib_testing', title: 'Testing', description: 'First\n\nSecond', secret: 'PRIVATE' }] } });
+    expect(result?.editorial).toMatchObject({ field_note_body: 'First\n\n第二段', appointment_required: false });
+    expect(JSON.stringify(result)).not.toMatch(/PRIVATE|private-account/);
+  });
+  it('retains legacy sources and their dates when a listing receives editorial review', () => {
+    expect(decodeShopDetailV1({ ...detail(), review })?.sources).toEqual(detail().sources);
+  });
+});

@@ -103,7 +103,7 @@ describe("shop admin boundary", () => {
     ]) {
       const g = gateway();
       expect((await handleShopAdmin(req(body), "shop", id, g)).status).toBe(
-        400,
+        body.action === "save" ? 422 : 400,
       );
       expect(g.call).not.toHaveBeenCalled();
     }
@@ -266,4 +266,15 @@ describe("shop admin boundary", () => {
       document({ ...doc, shop: { ...doc.shop, latitude: "0" } }),
     ).toThrow();
   });
+});
+
+it('normalizes name-only creation and returns private field errors before writes', async()=>{
+  const g=gateway();
+  expect((await handleShopAdmin(req({action:'create',id,document:{name:' 文具店 '}}),'list',null,g)).status).toBe(201);
+  expect(g.call).toHaveBeenCalledWith('admin_shop_write',expect.objectContaining({p_document:{name:'文具店',slug:`shop-${id}`}}));
+  vi.mocked(g.call).mockClear();
+  const r=await handleShopAdmin(req({action:'save',revision,document:{...doc,shop:{...doc.shop,latitude:91,longitude:0,website_url:'https://'}}}),'shop',id,g);
+  expect(r.status).toBe(422);expect(r.headers.get('cache-control')).toBe('private, no-store');
+  expect(await r.json()).toMatchObject({error:{code:'invalid_fields'},fieldErrors:expect.arrayContaining([expect.objectContaining({path:'shop.latitude'}),expect.objectContaining({path:'shop.website_url'})])});
+  expect(g.call).not.toHaveBeenCalled();
 });

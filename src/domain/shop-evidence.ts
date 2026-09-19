@@ -122,11 +122,13 @@ function claimIssues(
   token: string,
   claim: SourcedClaim,
 ): readonly EvidenceIssue[] {
-  const failure = sourceEvidenceFailure(shop.sources, claim.confirmedBy, token);
+  if (claim.reviewedEditorially && shop.review?.kind === 'editorial') return [];
+  const confirmedBy = claim.confirmedBy ?? '';
+  const failure = sourceEvidenceFailure(shop.sources, confirmedBy, token);
 
   if (failure !== null) {
     return [
-      { path, token, confirmedBy: claim.confirmedBy, failure },
+      { path, token, confirmedBy, failure },
     ];
   }
 
@@ -241,6 +243,7 @@ export function hasSourcedValueLayer(shop: ShopDetail): boolean {
   return (
     (shop.services ?? []).length > 0 ||
     (shop.experiences ?? []).length > 0 ||
+    (shop.editorial?.experiences ?? []).length > 0 || Boolean(shop.editorial?.editions_text) ||
     (shop.exclusives ?? []).length > 0
   );
 }

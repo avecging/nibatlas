@@ -524,3 +524,14 @@ the owner of a historical collection can still resolve that exact approved
 version after a redesign. Unique `(user_id, stamp_id)` remains unchanged, so a
 collector cannot obtain a later design again until #70. #71 and #72 remain
 separate deferrals.
+
+## B2b additive editorial contract
+
+The shop table adds bounded optional story/location/practical text, ordered
+`editorial_experiences`, private `internal_notes`/`reference_links`, and server-only
+`reviewed_by`/`reviewed_at`/`position_confirmation`. Working copies retain a
+separate private position confirmation. Existing table revokes/RLS and audit
+triggers cover the additions; public projection remains an explicit allowlist.
+No source, confirmation, verification date, artwork or impression is backfilled.
+See `docs/api/admin-shops-v1.md` for the shared draft/publication contract and
+`docs/api/v1-shop-reads.md` for honest editorial attribution and compatibility.

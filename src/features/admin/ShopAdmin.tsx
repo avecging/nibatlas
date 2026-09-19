@@ -1,5 +1,8 @@
 "use client";
+import { ShopEditorial } from '@/src/components/shops/ShopEditorial';
+import { decodeEditorialContent } from '@/src/api/v1/shop-read';
 import { readAdminResponse } from './read-response';
+import { normalizeShopDocument, ShopValidationError, type FieldIssue } from './shop-normalization';
 import Link from "next/link";
 import { ShopMediaAdmin } from "./ShopMediaAdmin";
 import { ShopStampAdmin } from "./ShopStampAdmin";
@@ -35,13 +38,14 @@ const messages: Record<string, string> = {
     "That URL name or item already exists. Check it before trying again.",
   invalid_data_or_transition:
     "Check the values and dates. For closure or archive, publish or discard saved changes first.",
+  invalid_fields: "Correct the fields listed below. Your edits have not been saved.",
   invalid_request: "Check all fields and required values before saving.",
   invalid_reference: "A supporting source or catalogue item is missing.",
   shop_not_found: "This shop could not be found.",
   service_unavailable: "Shop administration is unavailable. Try again.",
 };
 class RequestFailure extends Error {
-  constructor(readonly code: string) {
+  constructor(readonly code: string, readonly issues: FieldIssue[] = []) {
     super(
       messages[code] ??
         "The operation could not be completed. Reload before retrying a publication or status change.",
@@ -73,7 +77,11 @@ async function api(path: string, signal: AbortSignal, body?: unknown) {
       const databaseReason = ["role_denied", "function_privilege", "table_privilege", "schema_privilege", "row_security", "other_permission"].includes(reason ?? "") ? reason : undefined;
       console.warn(JSON.stringify({ event: "shop_admin_failure", requestId, stage, status: response.status, databaseReason }));
     }
-    throw new RequestFailure(value.error?.code ?? "service_unavailable");
+    const issues = Array.isArray(value.fieldErrors) && value.fieldErrors.length <= 100
+      ? value.fieldErrors.filter((v: unknown): v is FieldIssue => !!v && typeof v === 'object' && 'path' in v && 'message' in v
+        && typeof v.path === 'string' && /^[a-z_]+(?:\.(?:[a-z_]+|[0-9]{1,2}))*$/.test(v.path)
+        && typeof v.message === 'string' && v.message.length <= 300) : [];
+    throw new RequestFailure(value.error?.code ?? "service_unavailable", issues);
   }
   return value;
 }
@@ -83,22 +91,29 @@ function Input({
   options,
   change,
   prefix,
+  path,
+  errors,
 }: {
   field: Field;
   value: Value | undefined;
   options: Options;
   change: (value: Value) => void;
   prefix: string;
+  path: string;
+  errors: FieldIssue[];
 }) {
   const id = useId();
   const label = `${prefix}${field.label}`;
   const choice = field.vocabulary
     ? (options[field.vocabulary] ?? [])
     : field.choices?.map((v) => ({ id: v, label: v.replaceAll("_", " ") }));
+  const error = errors.find(e => e.path === path)?.message;
   const common = {
     id,
     required: field.required,
-    "aria-describedby": field.hint ? `${id}-hint` : undefined,
+    "data-field-path": path,
+    "aria-invalid": error ? true : undefined,
+    "aria-describedby": [field.hint ? `${id}-hint` : "", error ? `${id}-error` : ""].filter(Boolean).join(" ") || undefined,
   };
   return (
     <div className={styles.field}>
@@ -174,6 +189,7 @@ function Input({
           }
         />
       )}
+      {error && <small id={`${id}-error`}>{error}</small>}
       {field.hint && <small id={`${id}-hint`}>{field.hint}</small>}
     </div>
   );
@@ -221,6 +237,7 @@ function Workspace({ id }: { id: string | null }) {
     [committedQuery, setCommittedQuery] = useState("");
   const [busy, setBusy] = useState(true),
     [message, setMessage] = useState(""),
+    [fieldErrors, setFieldErrors] = useState<FieldIssue[]>([]),
     [denied, setDenied] = useState(false),
     [preview, setPreview] = useState(false),
     [confirmation, setConfirmation] = useState<string | null>(null);
@@ -305,6 +322,7 @@ function Workspace({ id }: { id: string | null }) {
   async function run(action: () => Promise<void>) {
     if (busy) return;
     setBusy(true);
+    setFieldErrors([]);
     setConfirmation(null);
     try {
       await action();
@@ -319,6 +337,7 @@ function Workspace({ id }: { id: string | null }) {
         setDraft(null);
         setList([]);
       }
+      if (e instanceof ShopValidationError || e instanceof RequestFailure) setFieldErrors(e.issues);
       announce(
         e instanceof Error ? e.message : "Could not complete operation.",
       );
@@ -333,7 +352,7 @@ function Workspace({ id }: { id: string | null }) {
         await api(`/${id}`, signal(), {
           action,
           revision: record!.revision,
-          ...(action === "save" ? { document: clean(draft!) } : {}),
+          ...(action === "save" ? { document: normalizeShopDocument(draft!) } : {}),
         }),
       );
       setRecord(value);
@@ -342,6 +361,8 @@ function Workspace({ id }: { id: string | null }) {
       announce(
         action === "save"
           ? "Changes saved privately. Preview and publish when ready."
+          : action === "confirm_position"
+            ? "Saved position confirmed. Review the listing before publishing."
           : action === "publish"
             ? "Shop published."
             : action === "discard"
@@ -375,6 +396,17 @@ function Workspace({ id }: { id: string | null }) {
             ? "Loading shops…"
             : "Maintain sourced records; leave unknown information blank.")}
       </p>
+      {!denied && fieldErrors.length > 0 && <ul className={styles.fieldErrors} aria-label="Fields to correct">
+        {fieldErrors.map((error, index) => <li key={index}>
+          <button type="button" onClick={() => {
+            const target = [...window.document.querySelectorAll<HTMLElement>('[data-field-path]')]
+              .find(el => el.dataset.fieldPath === error.path || el.dataset.fieldPath?.startsWith(`${error.path}.`));
+            let section = target?.closest('details');
+            while (section) { section.open = true; section = section.parentElement?.closest('details') ?? null; }
+            target?.focus(); target?.scrollIntoView({ block: 'center' });
+          }}>{fieldLabel(error.path)}: {error.message}</button>
+        </li>)}
+      </ul>}
       {denied ? null : !id ? (
         <>
           <form
@@ -458,13 +490,13 @@ function Workspace({ id }: { id: string | null }) {
                 <legend>New shop</legend>
                 <label>
                   Shop name
-                  <input name="name" required maxLength={300} />
+                  <input name="name" data-field-path="name" required maxLength={300} />
                 </label>
                 <label>
-                  URL name
+                  URL name (optional)
                   <input
                     name="slug"
-                    required
+                    data-field-path="slug"
                     maxLength={120}
                     pattern="[a-z0-9]+(-[a-z0-9]+)*"
                   />
@@ -527,10 +559,11 @@ function Workspace({ id }: { id: string | null }) {
               >
                 <legend>Catalogue details</legend>
                 <div className={styles.grid}>
-                  {SHOP_FIELDS.map((field) => (
+                  {SHOP_FIELDS.filter(f => !["internal_notes", "reference_links", "source_quality", "last_verified_at"].includes(f.key)).map((field) => (
                     <Input
                       key={field.key}
                       field={field}
+                      path={`shop.${field.key}`} errors={fieldErrors}
                       value={draft.shop[field.key]}
                       options={viewOptions}
                       prefix=""
@@ -539,6 +572,20 @@ function Workspace({ id }: { id: string | null }) {
                   ))}
                 </div>
                 <details>
+                  <summary>Internal admin notes · private</summary>
+                  <p>Only editors and admins can access these optional notes and references. One reference link per line.</p>
+                  {SHOP_FIELDS.filter(f => ['internal_notes','reference_links'].includes(f.key)).map(field => <Input
+                    key={field.key} field={field} path={`shop.${field.key}`} errors={fieldErrors} value={draft.shop[field.key]}
+                    options={viewOptions} prefix="" change={v => setShop(field.key, v)} />)}
+                </details>
+                <details>
+                  <summary>Legacy provenance classification</summary>
+                  <p>Preserved for existing records. No classification or evidence tokens are required for editorial publication.</p>
+                  {SHOP_FIELDS.filter(f => ['source_quality','last_verified_at'].includes(f.key)).map(field => <Input
+                    key={field.key} field={field} path={`shop.${field.key}`} errors={fieldErrors} value={draft.shop[field.key]}
+                    options={viewOptions} prefix="" change={v => setShop(field.key, v)} />)}
+                </details>
+                <details>
                   <summary>Opening hours</summary>
                   <p>
                     Record only sourced hours. Missing days stay unknown; no
@@ -546,7 +593,7 @@ function Workspace({ id }: { id: string | null }) {
                   </p>
                   <label>
                     Hours summary
-                    <input
+                    <input data-field-path="shop.opening_hours.note"
                       value={String(
                         (draft.shop.opening_hours as Row | null)?.note ?? "",
                       )}
@@ -569,6 +616,7 @@ function Workspace({ id }: { id: string | null }) {
                           <Input
                             key={field.key}
                             field={field}
+                            path={`shop.opening_hours.entries.${i}.${field.key}`} errors={fieldErrors}
                             value={r[field.key]}
                             options={viewOptions}
                             prefix=""
@@ -631,6 +679,7 @@ function Workspace({ id }: { id: string | null }) {
                             <Input
                               key={field.key}
                               field={field}
+                              path={`${g.key}.${i}.${field.key}`} errors={fieldErrors}
                               value={r[field.key]}
                               options={viewOptions}
                               prefix=""
@@ -667,7 +716,7 @@ function Workspace({ id }: { id: string | null }) {
                             ...draft[g.key],
                             emptyRow(
                               g.fields,
-                              ["sources", "aliases", "links"].includes(g.key),
+                              ["sources", "aliases", "links", "experiences"].includes(g.key),
                             ),
                           ],
                         })
@@ -696,6 +745,11 @@ function Workspace({ id }: { id: string | null }) {
             }} />
           <section className={styles.operations}>
             <h2>Publication and status</h2>
+            <p>{record.positionConfirmed ? 'Saved position confirmed.' : 'Saved position needs confirmation.'}
+              {' '}Address, coordinate or accuracy changes require a new confirmation.</p>
+            <button disabled={busy || dirty || record.publicationStatus === 'archived'
+              || record.document.shop.latitude == null || record.document.shop.longitude == null}
+              onClick={() => setConfirmation('confirm_position')}>Confirm saved shop position</button>
             {record.publicationErrors.length > 0 && (
               <>
                 <p>Before publishing:</p>
@@ -787,9 +841,11 @@ function Workspace({ id }: { id: string | null }) {
                 aria-label="Confirm shop operation"
               >
                 <p>
-                  Confirm {confirmation.replaceAll("_", " ")}?{" "}
+                  Confirm {confirmation === "confirm_position" ? "position" : confirmation.replaceAll("_", " ")}?{" "}
                   {confirmation === "publish"
-                    ? "The saved version will become public."
+                    ? "I have reviewed this saved listing for publication. My account and the actual review time will be recorded; this does not certify every field independently."
+                    : confirmation === "confirm_position"
+                      ? "I checked the saved address, coordinates and stated accuracy against the shop’s location."
                     : confirmation === "archive"
                       ? "The shop will leave public discovery and its public page."
                       : confirmation === "discard"
@@ -797,7 +853,7 @@ function Workspace({ id }: { id: string | null }) {
                         : "Use this only when supported by your source or visit."}
                 </p>
                 <button autoFocus onClick={() => void mutate(confirmation)}>
-                  Confirm {confirmation.replaceAll("_", " ")}
+                  Confirm {confirmation === "confirm_position" ? "position" : confirmation.replaceAll("_", " ")}
                 </button>
                 <button onClick={() => setConfirmation(null)}>Cancel</button>
               </div>
@@ -807,14 +863,6 @@ function Workspace({ id }: { id: string | null }) {
       ) : null}
     </>
   );
-}
-function clean(d: Document): Document {
-  const result = structuredClone(d);
-  for (const s of result.sources)
-    s.claims = ((s.claims as string[]) ?? [])
-      .map((v) => v.trim())
-      .filter(Boolean);
-  return result;
 }
 function Preview({
   document: d,
@@ -841,6 +889,11 @@ function Preview({
           </p>
         ))}
       {d.shop.short_description && <p>{String(d.shop.short_description)}</p>}
+      <ShopEditorial content={decodeEditorialContent({ ...d.shop, experiences: d.experiences })} section="story" />
+      <ShopEditorial content={decodeEditorialContent({ ...d.shop, experiences: d.experiences })} section="visit" />
+      {d.shop.phone && <p>Phone: {String(d.shop.phone)}</p>}
+      {d.shop.postal_code && <p>Postal code: {String(d.shop.postal_code)}</p>}
+      {d.shop.position_precision === 'locality' && <p>Approximate area only. Check the shop’s address before travelling.</p>}
       <p>
         {name("localities", d.shop.locality_id) ??
           String(
@@ -871,7 +924,6 @@ function Preview({
         })}
       </dl>
       {d.services
-        .filter((r) => r.source_id)
         .map((r) => (
           <p key={String(r.service_id)}>
             {name("services", r.service_id)}
@@ -923,10 +975,18 @@ function Preview({
         <p>Demo data — not a verified shop listing.</p>
       )}
       <p>
-        Phone, postal code, record review date, appointment and accessibility
-        notes remain internal. Private evidence notes are omitted here. Artwork
+        Private notes and references are omitted here. Publication records an editorial
+        review, not independent verification of every field. Artwork
         versions are managed separately. Photos and logos have their own publication controls below.
       </p>
     </article>
   );
+}
+
+function fieldLabel(path: string): string {
+  const parts = path.split('.');
+  if (parts[0] === 'shop' && parts[1] !== 'opening_hours') return SHOP_FIELDS.find(f => f.key === parts[1])?.label ?? 'Shop';
+  if (parts[1] === 'opening_hours') return parts[2] === 'entries' ? `Hours ${Number(parts[3]) + 1} · ${HOURS_FIELDS.find(f => f.key === parts[4])?.label ?? 'entry'}` : 'Hours summary';
+  const g = GROUPS.find(g => g.key === parts[0]);
+  return g ? `${g.label}${parts[1] ? ` ${Number(parts[1]) + 1}` : ''}${parts[2] ? ` · ${g.fields.find(f => f.key === parts[2])?.label ?? 'item'}` : ''}` : parts[0] === 'name' ? 'Shop name' : parts[0] === 'slug' ? 'URL name' : 'Record';
 }

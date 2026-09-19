@@ -72,3 +72,14 @@ describe('generated default preparation',()=>{
     expect((await handleStampAdmin(req('POST',{action:'ensure_default'}),shop,null,gateway)).status).toBe(403);
   });
 });
+
+it.each([undefined,null,'','  '])('allows optional creator credit %s',async creatorName=>{
+  gateway.operation=vi.fn(async()=>[{...row,creatorName:null,creatorUrl:null}]);
+  expect((await handleStampAdmin(req('POST',{action:'create',origin:'founder_created',ink:'teal',creatorName}),shop,null,gateway)).status).toBe(200);
+  expect(gateway.operation).toHaveBeenCalledWith('create',shop,{origin:'founder_created',ink:'teal'});
+});
+it('requires a name for a valid creator link and rejects malformed links',async()=>{
+  for(const body of [{creatorUrl:'https://example.test'},{creatorName:'Gin',creatorUrl:'https://'},{creatorName:' ',creatorUrl:'https://example.test'}])
+    expect((await handleStampAdmin(req('POST',{action:'create',origin:'ai_assisted',ink:'teal',...body}),shop,null,gateway)).status).toBe(400);
+  expect(gateway.operation).not.toHaveBeenCalled();
+});

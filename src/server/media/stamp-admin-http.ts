@@ -1,3 +1,4 @@
+import { validCreatorCredit } from '@/src/domain/creator-credit';
 import { authorizeAdmin, AdminForbiddenError, adminFailure, type AdminGateway } from '@/src/server/admin/http';
 import { ADMIN_HEADERS } from '@/src/server/admin/shop-http';
 import { object, UUID } from '@/src/features/admin/shop-contract';
@@ -35,10 +36,13 @@ export async function handleStampAdmin(request:Request,shopId:string,versionId:s
       body=object(JSON.parse(new TextDecoder().decode(await readBounded(request.body,4096))));
       if(typeof body.action!=='string') throw Error();
       if(body.action==='create') {
+        for(const key of ['creatorName','creatorUrl']) {
+          if(typeof body[key]==='string') body[key]=body[key].trim();
+          if(body[key]===null||body[key]==='') delete body[key];
+        }
         if(Object.keys(body).some(k=>!['action','origin','creatorName','creatorUrl','ink'].includes(k))
           ||!STAMP_ORIGINS.includes(body.origin as never)||!STAMP_INKS.includes(body.ink as never)
-          ||typeof body.creatorName!=='string'||!body.creatorName.trim()||body.creatorName.length>300
-          ||!(body.creatorUrl===undefined||(typeof body.creatorUrl==='string'&&/^https?:\/\//i.test(body.creatorUrl)&&body.creatorUrl.length<=2000))) throw Error();
+          ||!validCreatorCredit(body.creatorName,body.creatorUrl)) throw Error();
       } else if(body.action==='ensure_default') {
         if(Object.keys(body).some(k=>k!=='action')) throw Error();
       } else if(body.action==='attach') {

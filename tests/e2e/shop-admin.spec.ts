@@ -96,6 +96,10 @@ async function setup(page: Page) {
           record.document = request.document;
           record.hasChanges = true;
         }
+        if (request.action === "confirm_position") {
+          record.positionConfirmed = true;
+          record.hasChanges = true;
+        }
         if (request.action === "publish") {
           record.publicationStatus = "published";
           record.hasChanges = false;
@@ -169,8 +173,8 @@ test("founder edits, previews, publishes, closes and archives @short", async ({
     page.getByRole("heading", { name: "M6 Revised demo shop" }),
   ).toBeVisible();
   await expect(page.getByText("Private internal note")).toHaveCount(0);
-  await expect(page.getByText("012345", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("+65 0000 0000", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Postal code: 012345", { exact: true })).toBeVisible();
+  await expect(page.getByText("Phone: +65 0000 0000", { exact: true })).toBeVisible();
   expect(
     (
       await new AxeBuilder({ page })
@@ -227,7 +231,7 @@ test("draft editor is accessible and preserves unknown information @short", asyn
   await page.goto(`/admin/shops/${id}`);
   await expect(page.getByLabel("Shop name")).toBeVisible();
   await expect(page.getByLabel("Appointment required")).toHaveValue("");
-  for (const label of ["Sources (1)", "Shop types (1)", "Opening hours"])
+  for (const label of ["Legacy sources (optional) (1)", "Shop types (1)", "Opening hours"])
     await page.getByText(label, { exact: true }).click();
   expect(
     (
@@ -465,9 +469,9 @@ test('stamp draft upload previews and explicit activation preserve earlier versi
   await page.goto(`/admin/shops/${id}`);
   const section=page.getByRole('region',{name:'Atlas Stamp artwork'});
   await section.getByText('Create uploaded stamp version',{exact:true}).click();
-  await expect(section.getByLabel('Creator name',{exact:true})).toBeEnabled();
+  await expect(section.getByLabel('Creator name (optional)',{exact:true})).toBeEnabled();
   await section.getByRole('combobox',{name:/^Origin/}).selectOption('ai_assisted');
-  await section.getByLabel('Creator name',{exact:true}).fill('Gin + AI');
+  await section.getByLabel('Creator name (optional)',{exact:true}).fill('Gin + AI');
   await section.getByLabel('Creator link (optional)').fill('https://example.test/gin');
   await section.getByRole('button',{name:'Create private draft'}).click();
   await expect(section.getByRole('status')).toContainText('Draft stamp version created');
@@ -553,4 +557,54 @@ test('generated default preview and retry preserve unsaved shop edits @short',as
   expect(await page.evaluate(()=>window.document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   expect((await new AxeBuilder({page}).include('main').withTags(['wcag2a','wcag2aa','wcag21aa']).analyze()).violations).toEqual([]);
   await stamps.screenshot({path:info.outputPath('admin-generated-default.png')});
+});
+
+test('field errors retain work and focus the exact control @short',async({page},info)=>{
+  const state=await setup(page);
+  await page.goto(`/admin/shops/${id}`);
+  await page.getByLabel('Shop name').fill('Unsaved synthetic name');
+  await page.getByLabel('Shop latitude').fill('91');
+  await page.getByLabel('Official website').fill('https://');
+  await page.getByRole('button',{name:'Save changes privately'}).click();
+  const errors=page.getByRole('list',{name:'Fields to correct'});
+  await expect(errors).toBeVisible();
+  await expect(page.getByLabel('Shop name')).toHaveValue('Unsaved synthetic name');
+  expect(state.actions).toEqual([]);
+  await errors.getByRole('button',{name:/Shop latitude/}).click();
+  await expect(page.getByLabel('Shop latitude')).toBeFocused();
+  await expect(page.getByLabel('Shop latitude')).toHaveAttribute('aria-invalid','true');
+  await page.screenshot({path:info.outputPath('admin-field-errors.png'),fullPage:true});
+  expect((await new AxeBuilder({page}).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(()=>window.document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.getByLabel('Shop latitude').fill('0');
+  await page.getByLabel('Official website').fill('https://example.test');
+  await page.getByRole('button',{name:'Save changes privately'}).click();
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('Changes saved privately');
+  expect(state.actions).toEqual(['save']);
+});
+
+test('B2 private notes, shared editorial preview and deliberate position review @short', async ({ page }, info) => {
+  const state = await setup(page);
+  await page.goto(`/admin/shops/${id}`);
+  await page.getByLabel('Why this place deserves a visit').fill('First paragraph.\n\n第二段。');
+  await page.getByLabel('Feature headline').fill('A synthetic headline');
+  await page.getByText('Internal admin notes · private', { exact: true }).click();
+  await page.getByLabel('Internal admin notes (private)', { exact: true }).fill('B2 PRIVATE SENTINEL');
+  await page.getByLabel('Reference links (private)', { exact: true }).fill('https://example.test/private-maintenance');
+  await expect(page.getByRole('button', { name: 'Confirm saved shop position', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Save changes privately' }).click();
+  await page.getByRole('button', { name: 'Preview saved version', exact: true }).click();
+  await expect(page.getByText('First paragraph.', { exact: true })).toBeVisible();
+  await expect(page.getByText('第二段。', { exact: true })).toBeVisible();
+  await expect(page.getByText('B2 PRIVATE SENTINEL', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('https://example.test/private-maintenance', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Confirm saved shop position', exact: true }).click();
+  await expect(page.getByText(/I checked the saved address, coordinates/)).toBeVisible();
+  await page.getByRole('button', { name: 'Confirm position', exact: true }).click();
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('Saved position confirmed');
+  await page.getByRole('button', { name: 'Publish saved version', exact: true }).click();
+  await expect(page.getByText(/I have reviewed this saved listing for publication/)).toBeVisible();
+  await page.screenshot({ path: info.outputPath(`admin-b2-review-${info.project.name}.png`), fullPage: true });
+  await page.getByRole('button', { name: 'Confirm publish', exact: true }).click();
+  expect(state.actions).toEqual(['save', 'confirm_position', 'publish']);
 });

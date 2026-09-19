@@ -228,7 +228,7 @@ IDs are cleared so the next Save creates a new session for the selected file.
 
 `/api/v1/admin/shops/[shop]/stamp` lists versions and creates uploaded drafts
 with explicit `founder_created`, `ai_assisted` or `commissioned` origin,
-creator name, optional HTTP(S) creator link and ink. The normal file picker sends
+optional creator name, optional HTTP(S) creator link and ink. A supplied link requires a name. The normal file picker sends
 a 1200 × 800 transparent PNG through the private upload transport, then attaches
 the validated receipt. The admin surface previews the exact PNG at list,
 Passport and detail sizes before activation.
@@ -242,8 +242,9 @@ New uploaded impressions render their exact PNG and public credit as
 `created by: name`, with the name linked only when a safe link exists. Legacy
 commissioned snapshots and credits remain intact; their provider keys have not
 been migrated to this delivery path, so they show an artwork-unavailable message
-rather than substituted artwork. Pre-collection shop discovery still uses its
-existing identity motif; the exact collected artwork appears in ceremony and
+rather than substituted artwork. Public detail now uses the exact active stored template/ink for generated defaults;
+non-generated pre-collection discovery retains its existing identity motif until
+the uploaded public preview work (D); the exact collected artwork appears in ceremony and
 Passport list/book/detail.
 
 This MVP keeps at most 50 versions per shop, including retained defaults and
@@ -274,10 +275,27 @@ approval reference `system-generated-default:v1` describes system initialization
 not an external artist sign-off or catalogue field verification. Existing approval
 immutability remains enforced. Later uploaded drafts reuse that stamp identity;
 only explicit admin activation changes its current version. This checkpoint does
-not change pre-collection discovery's existing identity motif or complete the
+not complete the
 rich public preview/Review integration (D). Unique `(user_id, stamp_id)` duplicate
 protection is unchanged, so collecting a later design again is still deferred to
 #70. Commissioning/source/SVG/sign-off requirements are #71 and photo metadata is
 #72. Imports remain WP4. Remote JPEG, photo/logo display, and the new stamp flow
 still need post-merge staging acceptance; passing local/CI checks does not claim
 that device/runtime acceptance.
+
+### B2a optional credit and compatibility
+
+New uploaded drafts may omit creatorName/creatorUrl. Blank optional UI credit is
+normalized to absence before the service operation. Supplying a link requires a
+nonblank name (at most 300 characters); new links must parse as HTTP(S) URLs and
+fit 2000 characters. SQL independently enforces the conditional name/link shape.
+Approval still requires an attached validated receipt and immutable PNG identity,
+admin authority and a current revision. No commissioning paperwork is added.
+
+Uploaded collection snapshots may omit both credit fields or hold JSON nulls.
+The authoritative-art trigger still compares their exact values against the
+approved version. Existing artwork, original credits, collection snapshots,
+duplicate protection, locks and audit remain unchanged; migrations do not rewrite
+any history. Older previously accepted HTTP(S)-prefix links remain readable;
+rendering omits an unusable link while retaining its original name and snapshot.
+No name means no invented credit or claim that uploaded work was generated.
