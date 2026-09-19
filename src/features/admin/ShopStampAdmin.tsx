@@ -112,7 +112,7 @@ function ArtworkPicker({shopId,version,disabled,run,attached}:{shopId:string;ver
         const value=await call(stampAdminPath(shopId),signal,post({action:'attach',versionId:version.id,uploadId:uploadId.current}));
         attached(decodeAdminStamps(value.entries));setFile(null);setPreview('');uploadId.current=null;if(input.current)input.current.value='';
       }catch(e){if(e instanceof Failure&&['upload_expired','upload_conflict'].includes(e.code))uploadId.current=null;throw e;}
-    }}>Save PNG privately</button></>:null}
+    })}>Save PNG privately</button></>:null}
   </div>;
 }
 
