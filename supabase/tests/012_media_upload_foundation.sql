@@ -50,7 +50,7 @@ select is((select jsonb_agg(to_jsonb(c) order by id) from public.stamp_collectio
 select is((select count(*)::int from public.shop_images),0,'transport validation does not create or publish shop imagery');
 select throws_ok($$update public.media_uploads set width=3 where id='62000000-0000-4000-8000-000000000090'$$,'42501','Validated upload is immutable','validated metadata cannot be replaced');
 select throws_ok($$delete from public.media_uploads where id='62000000-0000-4000-8000-000000000090'$$,'42501','Validated upload is immutable','validated identity cannot be deleted');
-select throws_ok('truncate public.media_uploads','42501','Catalogue truncation is forbidden; use audited row operations','no unaudited truncate');
+select throws_ok('truncate public.media_uploads cascade','42501','Catalogue truncation is forbidden; use audited row operations','no unaudited truncate');
 select public.assign_profile_role('62000000-0000-4000-8000-000000000002','user');
 set local role service_role;
 select throws_ok($$select pg_temp.media('read','62000000-0000-4000-8000-000000000090')$$,'42501','Admin access denied','revocation blocks metadata reads');
