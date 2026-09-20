@@ -26,6 +26,17 @@ describe("country choices", () => {
     expect(countryChoices().some((c) => c.code === "ZZ")).toBe(false);
   });
 
+  it("offers no withdrawn code, and never a country name twice", () => {
+    const codes = countryChoices().map((c) => c.code);
+    // CLDR still names all of these, each with the current country's own name.
+    for (const dead of ["DD","UK","AN","BU","CS","DY","FX","HV","NH","RH","SU","TP","VD","YD","YU","ZR"])
+      expect(codes).not.toContain(dead);
+    for (const live of ["DE","GB","CW","MM","RS","BJ","FR","BF","VU","ZW","RU","TL","VN","YE","CD"])
+      expect(codes).toContain(live);
+    const names = countryChoices().map((c) => c.name);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
   it("returns an unknown or malformed code unchanged rather than guessing", () => {
     expect(countryName("ZZ")).toBe("ZZ");
     expect(countryName("sg")).toBe("sg");
@@ -43,6 +54,19 @@ describe("country search", () => {
 
   it("ranks an exact code above a name that merely contains the letters", () => {
     expect(matchCountries("in")[0]?.code).toBe("IN");
+  });
+
+  it("never hands back a withdrawn code for a country's own name", () => {
+    expect(matchCountries("germany")[0]?.code).toBe("DE");
+    expect(matchCountries("united kingdom")[0]?.code).toBe("GB");
+    expect(matchCountries("zimbabwe")[0]?.code).toBe("ZW");
+    expect(matchCountries("vietnam")[0]?.code).toBe("VN");
+  });
+
+  it("finds an accented name typed without its accents", () => {
+    expect(matchCountries("curacao")[0]?.code).toBe("CW");
+    expect(matchCountries("aland").some((c) => c.code === "AX")).toBe(true);
+    expect(matchCountries("cote").some((c) => c.code === "CI")).toBe(true);
   });
 
   it("is case-insensitive", () => {

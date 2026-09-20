@@ -99,7 +99,18 @@ export function SearchSelect({
   };
 
   return (
-    <div className={styles.field} ref={box}>
+    <div
+      className={styles.field}
+      ref={box}
+      onBlur={(event) => {
+        // Tabbing past the field must not leave an open listbox covering what
+        // comes next, nor leave the input reading as empty while a value is set.
+        if (!box.current?.contains(event.relatedTarget as Node | null)) {
+          setOpen(false);
+          setQuery("");
+        }
+      }}
+    >
       <label htmlFor={id}>{label}</label>
       <div className={styles.control}>
         <input
@@ -168,7 +179,17 @@ export function SearchSelect({
         )}
       </div>
       {open && (
-        <ul className={styles.list} id={listId} role="listbox" ref={list} aria-label={listLabel}>
+        <ul
+          className={styles.list}
+          id={listId}
+          role="listbox"
+          ref={list}
+          aria-label={listLabel}
+          // A scrollable box is a tab stop in Chrome. Active option tracking is
+          // `aria-activedescendant` on the input, so the list must not be one:
+          // otherwise Tab lands in it and it stays open over the next field.
+          tabIndex={-1}
+        >
           {matches.map((choice, index) => (
             <li
               key={choice.id}

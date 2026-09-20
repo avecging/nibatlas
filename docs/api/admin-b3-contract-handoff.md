@@ -140,8 +140,10 @@ change needed, the persistence semantics and the integration acceptance cases.
   only `editor`, so an editor could otherwise see three buttons that all return
   403. The interface reads the signed-in role from `GET /api/v1/admin/access`
   and hides those actions for an editor, with a line saying an admin has to
-  review the upload. Both gates together are what makes "no shipped control can
-  fail" true; neither is sufficient alone.
+  review the upload. Both gates together are what makes every image
+  control in that section one that can succeed; neither is sufficient alone.
+  Stamp activation is not gated this way — its button names the admin
+  requirement in its label instead.
 
 ### D — Bounded locality and shop-type vocabulary
 

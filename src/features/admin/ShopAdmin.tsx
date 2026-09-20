@@ -361,27 +361,27 @@ function Workspace({ id }: { id: string | null }) {
     const load = async () => {
       try {
         if (id) {
-          const [r, o] = await Promise.all([
+          // Showing, hiding and deleting an image are admin-only on the server,
+          // so an editor is told that instead of being offered a button that
+          // 403s. The role is read with the shop rather than after it, so the
+          // controls are never briefly wrong while it is in flight.
+          const [r, o, access] = await Promise.all([
             api(`/${id}`, c.signal),
             api("/options", c.signal),
+            fetch("/api/v1/admin/access", {
+              signal: c.signal,
+              cache: "no-store",
+              credentials: "same-origin",
+            })
+              .then((response) => (response.ok ? response.json() : null))
+              .catch(() => null),
           ]);
           const parsed = decodeShop(r);
+          const actorRole = (access as { role?: unknown } | null)?.role;
+          if (actorRole === "admin" || actorRole === "editor") setRole(actorRole);
           setRecord(parsed);
           setDraft(parsed.document);
           setOptions(decodeOptions(o));
-          // Showing, hiding and deleting an image are admin-only on the server.
-          // An editor is told so instead of being offered a button that 403s.
-          void fetch("/api/v1/admin/access", {
-            signal: c.signal,
-            cache: "no-store",
-            credentials: "same-origin",
-          })
-            .then((response) => (response.ok ? response.json() : null))
-            .then((value) => {
-              const next = (value as { role?: unknown } | null)?.role;
-              if (next === "admin" || next === "editor") setRole(next);
-            })
-            .catch(() => {});
         } else {
           const r = await api("", c.signal);
           setList(decodeList(r.entries));
@@ -552,6 +552,8 @@ function Workspace({ id }: { id: string | null }) {
         setFieldErrors(e.issues);
         target = e.issues[0];
         if (target) {
+          // A correction has to be reachable, so this jump is not refusable;
+          // the pending-upload warning is raised by `go` for ordinary moves.
           setSection(sectionForPath(target.path));
           setFocusTarget({ path: target.path });
         }
@@ -895,20 +897,32 @@ function Workspace({ id }: { id: string | null }) {
           >
             <fieldset disabled={busy}>
               <legend>New shop</legend>
-              <label>
-                Shop name
-                <input name="name" data-field-path="name" required maxLength={300} />
-              </label>
-              <label>
-                URL name · optional
+              <div className={styles.field}>
+                {/* The hint sits outside the label so it describes the field
+                    without becoming part of its accessible name. */}
+                <label htmlFor="new-shop-name">Shop name</label>
                 <input
+                  id="new-shop-name"
+                  name="name"
+                  data-field-path="name"
+                  required
+                  maxLength={300}
+                />
+              </div>
+              <div className={styles.field}>
+                <label htmlFor="new-shop-slug">URL name · optional</label>
+                <input
+                  id="new-shop-slug"
                   name="slug"
                   data-field-path="slug"
                   maxLength={120}
                   pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                  aria-describedby="new-shop-slug-hint"
                 />
-                <small>Left blank, a stable URL name is generated for you.</small>
-              </label>
+                <small id="new-shop-slug-hint">
+                  Left blank, a stable URL name is generated for you.
+                </small>
+              </div>
               <p>
                 A draft is private and includes a generated Atlas Stamp. Add researched
                 shop details before publication.
@@ -1216,6 +1230,7 @@ function Workspace({ id }: { id: string | null }) {
         <ConfirmDialog
           action={confirmation}
           busy={busy}
+          fallback={noticeRef}
           onCancel={() => setConfirmation(null)}
           onConfirm={() => void mutate(confirmation)}
         />
@@ -1533,11 +1548,14 @@ const CONFIRMATIONS: Record<string, { title: string; body: string; verb: string 
 function ConfirmDialog({
   action,
   busy,
+  fallback,
   onCancel,
   onConfirm,
 }: {
   action: string;
   busy: boolean;
+  /** Where focus goes when the trigger is gone, rather than the document top. */
+  fallback: RefObject<HTMLElement | null>;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
@@ -1549,7 +1567,7 @@ function ConfirmDialog({
   const box = useRef<HTMLDivElement>(null);
   // Confirming closes the dialog and the outcome is announced in the notice
   // region, so the dialog never sits open over a request it cannot report on.
-  useDialog(box, onCancel);
+  useDialog(box, onCancel, fallback);
   return (
     <div className={styles.scrim} onMouseDown={onCancel}>
       <div

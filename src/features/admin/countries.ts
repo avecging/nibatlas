@@ -13,6 +13,25 @@ export interface CountryChoice {
  */
 const NOT_A_COUNTRY = new Set(["ZZ", "QO", "EU", "EZ", "UN", "XA", "XB"]);
 
+/**
+ * True for a withdrawn code CLDR still names — `DD` for Germany, `UK` for the
+ * United Kingdom, `AN` for Curaçao and thirteen others.
+ *
+ * They matter because CLDR gives each the *current* country's name, so
+ * "Germany" would appear twice and a search could hand back the dead code. The
+ * runtime's own alias table decides this rather than a list maintained here:
+ * canonicalising `und-DD` yields `und-DE`, and a current code canonicalises to
+ * itself.
+ */
+function withdrawn(code: string): boolean {
+  try {
+    const canonical = Intl.getCanonicalLocales(`und-${code}`)[0]?.split("-")[1];
+    return canonical !== undefined && canonical !== code;
+  } catch {
+    return false;
+  }
+}
+
 let cache: CountryChoice[] | null = null;
 
 /**
@@ -41,7 +60,8 @@ export function countryChoices(): CountryChoice[] {
         }
         // `fallback: "none"` returns undefined for a code CLDR does not know,
         // so anything that comes back is a region this runtime can actually name.
-        if (name && name !== code && !NOT_A_COUNTRY.has(code)) out.push({ code, name });
+        if (name && name !== code && !NOT_A_COUNTRY.has(code) && !withdrawn(code))
+          out.push({ code, name });
       }
   }
   out.sort((a, b) => a.name.localeCompare(b.name));
@@ -70,17 +90,22 @@ export function countryName(code: string): string {
   return countryLabel(code);
 }
 
+/** "Curaçao" has to be findable by typing "curacao". */
+function plain(value: string): string {
+  return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+}
+
 /**
- * Case-insensitive search over the country name and its code, so "japan",
- * "JP" and "united" all find something.
+ * Accent- and case-insensitive search over the country name and its code, so
+ * "japan", "JP", "curacao" and "united" all find something.
  */
 export function matchCountries(query: string, limit = 60): CountryChoice[] {
   const choices = countryChoices();
-  const needle = query.trim().toLowerCase();
+  const needle = plain(query.trim());
   if (!needle) return choices.slice(0, limit);
   const scored: { choice: CountryChoice; score: number }[] = [];
   for (const choice of choices) {
-    const name = choice.name.toLowerCase();
+    const name = plain(choice.name);
     const code = choice.code.toLowerCase();
     if (code === needle) scored.push({ choice, score: 0 });
     else if (name.startsWith(needle)) scored.push({ choice, score: 1 });

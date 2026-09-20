@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 
 const FOCUSABLE =
@@ -17,7 +17,7 @@ const FOCUSABLE =
  *
  * The handlers are held in refs so a caller passing an inline arrow function
  * does not re-run the effect on every render, which would restore focus while
- * the dialog is still open.
+ * the dialog is still open. `container` must likewise be a stable ref object.
  */
 export function useDialog(
   container: RefObject<HTMLElement | null>,
@@ -31,18 +31,26 @@ export function useDialog(
     exit.current = fallback;
   });
 
+  // Captured on the dialog's first render, which still happens inside the click
+  // that opened it. An effect would be too late: React applies the confirm
+  // button's `autoFocus` while committing, so by then the "previously focused"
+  // element is the dialog's own button and the trigger is lost.
+  const [trigger] = useState(() =>
+    typeof document !== "undefined" && document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null,
+  );
+
   useEffect(() => {
-    const previous =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const box = container.current;
+    const previous = trigger;
     const key = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
         close.current();
         return;
       }
-      if (event.key !== "Tab") return;
-      const box = container.current;
-      if (!box) return;
+      if (event.key !== "Tab" || !box) return;
       const focusable = [...box.querySelectorAll<HTMLElement>(FOCUSABLE)];
       if (!focusable.length) return;
       const first = focusable[0]!;
@@ -62,9 +70,15 @@ export function useDialog(
     document.addEventListener("keydown", key, true);
     return () => {
       document.removeEventListener("keydown", key, true);
-      const target =
-        previous && previous.isConnected ? previous : (exit.current?.current ?? null);
-      target?.focus();
+      // The trigger can be gone: deleting an image removes the button that
+      // opened the dialog. Then focus goes to the caller's fallback rather than
+      // to the top of the document.
+      const restorable =
+        previous &&
+        previous.isConnected &&
+        !box?.contains(previous) &&
+        previous !== document.body;
+      (restorable ? previous : (exit.current?.current ?? null))?.focus();
     };
-  }, [container]);
+  }, [container, trigger]);
 }

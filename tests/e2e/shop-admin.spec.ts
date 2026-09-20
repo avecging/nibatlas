@@ -312,8 +312,10 @@ test("create flow and revision conflict preserve the unsaved work", async ({
 }) => {
   const state = await setup(page);
   await page.goto("/admin/shops");
-  await page.getByLabel("Shop name").fill("Another demo");
-  await page.getByLabel("URL name · optional").fill("another-demo");
+  // These exact accessible names are what the Worker-authentication journey
+  // drives; a hint inside the label would silently widen them.
+  await page.getByLabel("Shop name", { exact: true }).fill("Another demo");
+  await page.getByLabel("URL name · optional", { exact: true }).fill("another-demo");
   await page.getByRole("button", { name: "Create draft", exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/shops\/[a-f0-9-]{36}$/);
   await expect(page.getByRole("navigation", { name: "Editor sections" })).toBeVisible();
@@ -737,6 +739,7 @@ test('B2 private notes, shared editorial preview and deliberate position review 
   await expect(page.getByRole('alertdialog')).toContainText('actual review time are recorded');
   await page.screenshot({ path: info.outputPath(`admin-b2-review-${info.project.name}.png`), fullPage: true });
   await page.getByRole('alertdialog').getByRole('button', { name: 'Publish', exact: true }).click();
+  await expect(page.getByRole('main').getByRole('status').first()).toContainText('Shop published');
   expect(state.actions).toEqual(['save', 'confirm_position', 'publish']);
 });
 
@@ -817,6 +820,29 @@ test('country is a searchable selector that stores the code @short',async({page}
   expect(await list.getByRole('option').count()).toBeGreaterThanOrEqual(1);
   await list.getByRole('option',{name:/^Japan/}).first().click();
   await expect(field).toHaveValue('Japan (JP)');
+  // A withdrawn code CLDR still names must never be handed back for a country.
+  await field.click();
+  await field.fill('germany');
+  await expect(list.getByRole('option').first()).toContainText('Germany');
+  await expect(list.getByRole('option').first()).toContainText('DE');
+  await expect(list.getByRole('option',{name:/DD/})).toHaveCount(0);
+  // Storage accepts any two uppercase letters, so a typed code stays reachable.
+  await field.fill('qq');
+  await list.getByRole('option',{name:/Use the code QQ/}).click();
+  await expect(field).toHaveValue('QQ');
+  // Tabbing past the field — the input, then its Clear button — closes the list
+  // and leaves the value readable instead of blank under an open listbox.
+  await field.click();
+  await expect(page.getByRole('listbox',{name:'Countries'})).toBeVisible();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button',{name:'Clear country'})).toBeFocused();
+  // The list is not itself a tab stop, so one more Tab leaves the field.
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('listbox',{name:'Countries'})).toHaveCount(0);
+  await expect(field).toHaveValue('QQ');
+  await field.click();
+  await field.fill('japan');
+  await list.getByRole('option',{name:/^Japan/}).first().click();
   // The locality still belongs to Singapore, so this must fail at the locality.
   await saveAndReview(page);
   await expect(page.getByLabel('Locality',{exact:true})).toBeFocused();
@@ -899,12 +925,22 @@ test('an archived shop is read-only everywhere, including legacy provenance @sho
 test('a refused image change closes the dialog and reports it @short', async ({page}) => {
   await setup(page);
   const imageId='73000000-0000-4000-8000-000000000030';
-  const entry={id:imageId,kind:'photo',width:1,height:1,altText:'Photo of M6 Demo shop',creditText:null,status:'draft',revision:'a'.repeat(32)};
+  // The refused change means the held revision is stale, so a retry can only
+  // work if the list is re-read. The second read hands back a different one.
+  let reads=0, posts=0;
+  const entry=(revision:string)=>({id:imageId,kind:'photo',width:1,height:1,altText:'Photo of M6 Demo shop',creditText:null,status:'draft',revision});
   await page.route(`**/api/v1/admin/shops/${id}/media**`, async route => {
     const request=route.request();
     if (request.url().endsWith(`/${imageId}`)) { await route.fulfill({status:404,json:{error:{code:'media_not_found'}}}); return; }
-    if (request.method()==='POST') { await route.fulfill({status:409,json:{error:{code:'revision_conflict'}}}); return; }
-    await route.fulfill({json:{entries:[entry]}});
+    if (request.method()==='POST') {
+      posts++;
+      const body=request.postDataJSON();
+      if (body.revision==='a'.repeat(32)) { await route.fulfill({status:409,json:{error:{code:'revision_conflict'}}}); return; }
+      await route.fulfill({json:{entries:[{...entry('c'.repeat(32)),status:'approved'}]}});
+      return;
+    }
+    reads++;
+    await route.fulfill({json:{entries:[entry(reads===1 ? 'a'.repeat(32) : 'b'.repeat(32))]}});
   });
   await page.goto(`/admin/shops/${id}`);
   await open(page,'Photos & logo');
@@ -915,6 +951,37 @@ test('a refused image change closes the dialog and reports it @short', async ({p
   await expect(page.getByRole('alertdialog')).toHaveCount(0);
   await expect(section.getByRole('alert')).toContainText('changed in another session');
   await expect(section.getByRole('button',{name:'Show on public page'})).toBeEnabled();
+  expect(reads).toBe(2);
+  // A failure takes focus to the message that explains it, never to the top of
+  // the document; cancelling instead gives focus back to the trigger.
+  await expect(section.locator('[role="alert"]').locator('xpath=..')).toBeFocused();
+  await section.getByRole('button',{name:'Show on public page'}).click();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  await expect(section.getByRole('button',{name:'Show on public page'})).toBeFocused();
+  // The retry now carries the reloaded revision, so it succeeds.
+  await section.getByRole('button',{name:'Show on public page'}).click();
+  await page.getByRole('alertdialog').getByRole('button',{name:'Show on public page'}).click();
+  await expect(section.getByRole('figure').getByText('On the public page',{exact:true})).toBeVisible();
+  expect(posts).toBe(2);
+});
+
+test('a confirmation dialog is modal and gives focus back @short', async ({page}) => {
+  await setup(page);
+  await page.goto(`/admin/shops/${id}`);
+  await open(page,'Review');
+  const trigger=page.getByRole('button',{name:'Archive shop',exact:true});
+  await trigger.click();
+  const dialog=page.getByRole('alertdialog');
+  await expect(dialog.getByRole('button',{name:'Archive shop',exact:true})).toBeFocused();
+  // Tab cycles inside the dialog instead of reaching the app's own navigation.
+  for (const name of ['Cancel','Archive shop','Cancel']) {
+    await page.keyboard.press('Tab');
+    await expect(dialog.getByRole('button',{name,exact:true})).toBeFocused();
+  }
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
 });
 
 test('an editor sees no image control that needs an admin account @short', async ({page}) => {

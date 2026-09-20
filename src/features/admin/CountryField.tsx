@@ -23,15 +23,25 @@ export function CountryField({
   disabled?: boolean | undefined;
 }) {
   const id = useId();
-  const search = useCallback(
-    (query: string): SelectChoice[] =>
-      matchCountries(query).map((choice) => ({
-        id: choice.code,
-        label: choice.name,
-        detail: choice.code,
-      })),
-    [],
-  );
+  const search = useCallback((query: string): SelectChoice[] => {
+    const matches: SelectChoice[] = matchCountries(query).map((choice) => ({
+      id: choice.code,
+      label: choice.name,
+      detail: choice.code,
+    }));
+    // The contract accepts any two uppercase ASCII letters so a new country
+    // never needs a code release (see src/domain/geo.ts). A selector that only
+    // offered names this runtime knows would quietly take that away, so a typed
+    // code the list does not hold is offered as its own choice.
+    const typed = query.trim().toUpperCase();
+    if (isCountryCode(typed) && !matches.some((match) => match.id === typed))
+      matches.unshift({
+        id: typed,
+        label: `Use the code ${typed}`,
+        detail: "This browser has no name for it. It is stored exactly as typed.",
+      });
+    return matches;
+  }, []);
   const unnamed = value !== "" && isCountryCode(value) && countryName(value) === value;
   const malformed = value !== "" && !isCountryCode(value);
 
@@ -40,7 +50,9 @@ export function CountryField({
       label="Country"
       path="shop.country_code"
       value={value}
-      valueLabel={value ? `${countryName(value)} (${value})` : ""}
+      valueLabel={
+        value ? (countryName(value) === value ? value : `${countryName(value)} (${value})`) : ""
+      }
       search={search}
       onChange={(next) => onChange(next ? next.toUpperCase() : null)}
       listLabel="Countries"
@@ -48,8 +60,8 @@ export function CountryField({
       clearLabel="Clear country"
       emptyLabel={
         countryChoices().length
-          ? "No country matches that search."
-          : "This browser did not provide a country list. Type a two-letter code such as SG."
+          ? "No country matches that search. A two-letter code can be entered directly."
+          : "This browser did not provide a country list. Type a two-letter code such as SG and choose it."
       }
       error={error}
       disabled={disabled}

@@ -10,25 +10,32 @@ Role meanings, bootstrap and revocation are defined once in
 `admin-authorization.md`. Publication, review, revision and archival rules
 apply to every permitted operator.
 
-1. Choose **Create a draft shop**. Enter name and a unique lowercase URL name.
-2. Open the draft and enter what is known. Choose the existing locality and
-   one primary shop type; add the street address, timezone, coordinates and stated
-   accuracy. Internal notes and reference links are optional and private. Legacy
-   sources remain editable but no claim tokens or dated evidence forms are needed.
-   New vocabulary/locality preparation remains B3 work.
-3. Choose **Save and review** to save privately and move into the saved preview.
-   **Save changes privately** remains available when continuing edits. The public
-   listing remains unchanged. Another account without editor/admin access cannot
-   read the preview even with its URL or UUID.
+1. Under **Add a shop**, enter a name and, if you want one, a URL name. Left
+   blank, a stable URL name is generated. Choose **Create draft**.
+2. The draft opens on **Shop & story**. Move between the seven sections in any
+   order from the section navigation; nothing forces you through the ones in
+   between. Enter what is known: the country and locality and one primary shop
+   type, the street address, timezone, coordinates and stated accuracy. Internal
+   notes and reference links are optional and private. Legacy sources are kept in
+   a collapsed, explicitly-not-required block on **Review**; no claim tokens or
+   dated evidence forms are needed. Creating a locality or a new shop type in the
+   product is still outstanding backend work — see
+   `../api/admin-b3-contract-handoff.md`.
+3. **Save** keeps working without leaving the section. **Save and review** saves
+   privately and opens **Review** on the saved version. Either way the confirmation
+   appears at the top of the work area, not below the fold, and the public listing
+   is unchanged. Another account without editor/admin access cannot read the
+   preview even with its URL or UUID.
 4. Resolve the listed publication requirements. In particular, a new shop needs
    an active approved Atlas Stamp. New drafts receive a generated default
    automatically. For an older draft with no stamp, use **Prepare generated
    default** in the stamp section. This preserves existing artwork/retired
    identities and private edits; no upload or creator credit is needed. Never
    manufacture a verified date to clear a catalogue gate.
-5. Choose **Confirm saved shop position** and deliberately confirm the saved
-   location. Address/coordinate/accuracy changes invalidate this confirmation.
-   Then choose **Publish saved version**, review its confirmation and publish.
+5. In **Location**, beside the coordinates, choose **Confirm saved shop position**
+   and deliberately confirm the saved location. Address/coordinate/accuracy
+   changes invalidate this confirmation, so confirm again after a correction.
+   Then, on **Review**, choose **Publish shop**, read the dialog and publish.
    The actual editor/time are recorded automatically; no blanket field
    verification is claimed. Check the public page afresh.
 6. To close a published shop, first finish or discard its saved edits. Choose
@@ -54,12 +61,12 @@ for new regressions, not a mandatory repeat of the confirmed fix:
 1. In your existing signed-in staging browser, open `/api/v1/admin/access` and
    confirm `{"role":"admin"}`. No second role assignment is needed.
 2. Open `/admin/shops`. Confirm the catalogue list loads without the access error.
-3. Choose **Create a draft shop**, name it **Admin acceptance test draft**, and
-   give it a unique URL name, such as `admin-acceptance-test-20260914`.
+3. Under **Add a shop**, name it **Admin acceptance test draft** and give it a
+   unique URL name, such as `admin-acceptance-test-20260914`.
 4. Choose **Create draft**. Change the name to **Admin acceptance test draft edited**
-   and choose **Save changes privately**.
+   and choose **Save**.
 5. Return to **All shops**, reopen the draft, and confirm the changed name is
-   still present. Choose **Preview saved version**. Keep this test draft private.
+   still present. Open **Review** and check the preview. Keep this draft private.
 6. In a signed-out browser, confirm `/admin/shops` asks for sign-in and its APIs
    reject access. An ordinary signed-in account must also remain denied.
 
@@ -215,8 +222,13 @@ and it disables itself while a request is in flight so a second tap cannot
 submit twice. A successful **Save and review** opens the Review section on the
 saved version.
 
-**Country.** The approved friendly selector: search a country by name, and the
-two-letter code is what is stored. `src/domain/geo.ts` still refuses to
+**Country.** The approved friendly selector: search a country by name — accents
+optional, so "curacao" finds Curaçao — and the two-letter code is what is
+stored. A code the runtime cannot name can still be typed and chosen, because
+storage accepts any two uppercase letters and the selector must not narrow that.
+Withdrawn codes CLDR still names, such as `DD` for Germany or `UK` for the
+United Kingdom, are left out: the runtime's own alias table identifies them, so
+a search for a country never hands back a dead code. `src/domain/geo.ts` still refuses to
 enumerate countries in the contract — storage accepts any two uppercase ASCII
 letters — so a saved code this runtime cannot name is kept and shown as the
 code rather than rejected. CLDR entries that are not a country a shop can be in
@@ -243,8 +255,10 @@ appear. The **actor** gate reads the signed-in role from
 on the server, so an editor sees none of them and is told an admin has to review
 the upload. The **deployment** gate is the `remove` capability the media list
 advertises: until request A in the contract handoff ships, permanent deletion is
-not offered and the section says so. Together they are what makes "no shipped
-control can fail" true — neither is sufficient alone. The Review section states how many images are saved and how many are
+not offered and the section says so. Together they are what makes every
+image control in this section one that can succeed — neither gate is sufficient
+alone. The Atlas Stamp section is not gated this way; its **Activate this design
+(admin)** button names the requirement instead. The Review section states how many images are saved and how many are
 on the public page, so the path from upload to public visibility is visible
 where publication is decided.
 

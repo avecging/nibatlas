@@ -2,6 +2,7 @@
 import { useCallback, useId, useMemo } from "react";
 import { SearchSelect, type SelectChoice } from "./SearchSelect";
 import {
+  currentOffset,
   isValidTimezone,
   matchTimezones,
   timezoneChoices,
@@ -36,14 +37,28 @@ export function TimezoneField({
   const choices = useMemo(() => timezoneChoices(value), [value]);
   const selected = choices.find((c) => c.id === value);
   const search = useCallback(
-    (query: string): SelectChoice[] =>
-      matchTimezones(choices, query).map((choice) => ({
+    (query: string): SelectChoice[] => {
+      const matches = matchTimezones(choices, query).map((choice) => ({
         id: choice.id,
         label: choice.region ? `${choice.place}, ${choice.region}` : choice.place,
         detail: `${choice.offset || "offset unavailable"}${
           choice.fixedOffset ? " · fixed offset, not a place" : ""
         } · ${choice.id}`,
-      })),
+      }));
+      // A runtime with no zone list, or a valid identifier it does not enumerate,
+      // must still be enterable — the database validates the name, not this list.
+      const typed = query.trim();
+      if (
+        isValidTimezone(typed) &&
+        !matches.some((match) => match.id === typed)
+      )
+        matches.unshift({
+          id: typed,
+          label: `Use ${typed}`,
+          detail: `${currentOffset(typed) || "offset unavailable"} · entered directly`,
+        });
+      return matches;
+    },
     [choices],
   );
   const invalid = value !== "" && !isValidTimezone(value);
@@ -62,7 +77,7 @@ export function TimezoneField({
       emptyLabel={
         choices.length
           ? "No timezone matches that search."
-          : "This browser did not provide a timezone list. Type an IANA name such as Asia/Singapore."
+          : "This browser did not provide a timezone list. Type an IANA name such as Asia/Singapore and choose it."
       }
       error={error}
       disabled={disabled}

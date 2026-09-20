@@ -218,12 +218,12 @@ notification, QR/NFC or merchant work is included.
    **Save photo/logo privately** retries if the automatic save failed.
    Check the saved preview. It is not public yet. Retry Save after an interrupted
    request; terminal expiry/conflict starts a fresh session on the next Save.
-4. **Publish** → **Confirm publish** is an admin action. Only published shops
+4. **Show on public page**, confirmed in its dialog, is an admin action. Only published shops
    expose approved media. A new public logo replaces the old public logo; all
    uploaded versions stay saved. **Hide** → confirm stops new public delivery.
 5. Check the shop page signed out, including orientation, full image, transparent
    logo, fallback alt text and any preserved credit. After hide/archive, fresh
-   image requests must fail. Use **Reload media** after ambiguous publication.
+   image requests must fail. Use **Reload images** after ambiguous publication.
 
 Limits: 50 retained attachments per shop; hidden/replaced images count. No media
 removal/reordering UI yet. Catalogue saved changes and media publication are
