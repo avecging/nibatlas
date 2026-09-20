@@ -29,7 +29,7 @@ async function api(signal: AbortSignal, payload?: unknown) {
 class AccessError extends Error {}
 export function ImportAdmin() {
   const { session } = useAccountSession();
-  if (session.status !== 'signed-in') return <main className={styles.main}><h1>Bulk shop preview</h1><p>Sign in with your admin account to preview an import.</p><Link href="/me">Go to Me</Link></main>;
+  if (session.status !== 'signed-in') return <div className={styles.main}><h1>Bulk shop preview</h1><p>Sign in with your admin account to preview an import.</p><Link href="/me">Go to Me</Link></div>;
   return <ImportWorkspace key={session.userId} />;
 }
 function ImportWorkspace() {
@@ -97,7 +97,7 @@ function ImportWorkspace() {
     } finally { if (current === generation.current) setBusy(false); }
   }
   const visible = results.filter(r => (filter === 'all' || r.action === filter) && `${r.rowId} ${r.name} ${r.line}`.toLowerCase().includes(query.toLowerCase()));
-  return <main className={styles.main}>
+  return <div className={styles.main}>
     <Link href="/admin/shops">← Shop administration</Link>
     <header><p className={styles.eyebrow}>BULK ONBOARDING · PREVIEW ONLY</p><h1>Prepare your shop catalogue</h1><p>Upload a spreadsheet once, map shared values, then review the changes and corrections. This step never saves or publishes shops.</p></header>
     <p role="status" aria-live="polite">{message}</p>
@@ -140,5 +140,5 @@ function ImportWorkspace() {
         <div className={styles.actions}><button disabled={page === 0} onClick={() => setPage(page - 1)}>Previous rows</button><button disabled={(page + 1) * 25 >= visible.length} onClick={() => setPage(page + 1)}>Next rows</button></div>
       </section>}
     </>}
-  </main>;
+  </div>;
 }

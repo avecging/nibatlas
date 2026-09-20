@@ -4,11 +4,12 @@ import { ImportAdmin } from './ImportAdmin';
 import { VERSION } from './contract';
 vi.mock('@/src/features/account/AccountSessionProvider', () => ({ useAccountSession: () => ({ session: { status: 'signed-in', userId: '70000000-0000-4000-8000-000000000001' } }) }));
 afterEach(() => vi.unstubAllGlobals());
-it('gives column, result filter and search controls explicit accessible names and invalidates changed input', async () => {
+it('uses the app shell landmark, names controls accessibly and invalidates changed input', async () => {
   const options = { localities: [], types: [], brands: [], specialties: [], services: [] };
   vi.stubGlobal('fetch', vi.fn(async (_url, init) => Response.json(init?.method === 'POST' ? { version: VERSION, rows: [{ rowId: 'line-2', line: 2, name: 'Synthetic', action: 'new_private_draft', targetId: null, revision: null, issues: [], candidates: [], fileDuplicates: [], changes: [], publicationErrors: [], hasPrivateChanges: false }] } : { options })));
-  render(<ImportAdmin />);
+  render(<main><ImportAdmin /></main>);
   const input = await screen.findByLabelText('CSV or JSON file');
+  expect(screen.getAllByRole('main')).toHaveLength(1);
   fireEvent.change(input, { target: { files: [{ name: 'synthetic.csv', size: 15, arrayBuffer: async () => new TextEncoder().encode('name\nSynthetic').buffer }] } });
   const preview = await screen.findByRole('button', { name: 'Run dry-run preview' });
   expect(screen.getByRole('combobox', { name: 'name' })).toBeInTheDocument();
