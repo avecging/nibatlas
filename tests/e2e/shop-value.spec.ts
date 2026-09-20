@@ -377,7 +377,13 @@ test("the reviewer confirm button takes the same primary treatment", async ({
 test("Directions hand off to the platform's own maps application", async ({ page }) => {
   await page.goto("/shops/ginza-itoya-main-store");
 
-  const directions = page.getByRole("link", { name: /directions/i });
+  /*
+   * Exact, because the location preview adds a second "Get directions" link
+   * wherever a tile key is configured. A loose match resolves to both and the
+   * strict locator fails — on staging, not in keyless CI, which is the worst
+   * place to find out.
+   */
+  const directions = page.getByRole("link", { name: "Directions", exact: true });
   const android = await page.evaluate(() =>
     /android/i.test(window.navigator.userAgent),
   );

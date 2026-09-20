@@ -1,11 +1,8 @@
 "use client";
 
-import "maplibre-gl/dist/maplibre-gl.css";
-
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { markerGlyph } from "@/src/components/map/marker-markup";
 import { directionsHref } from "@/src/components/shops/directions";
 import { useMapPlatform } from "@/src/components/shops/useMapPlatform";
 import { ButtonLink } from "@/src/components/ui/Button";
@@ -17,37 +14,45 @@ import { noopTelemetry } from "@/src/features/map/telemetry";
 
 import styles from "./ShopLocationMap.module.css";
 
+/** Start fetching the renderer before the frame is on screen, not after. */
+const PREFETCH_MARGIN = "400px";
+
 /**
  * Where the shop is, as a still picture of the map.
  *
  * A preview, not the map screen. It is built on the renderer and the style
  * provider the Map already uses — so a keyed deployment gets the same MapTiler
- * basemap, an unkeyed one gets the same offline paper style, and the licence
- * attribution arrives the way it already does — but every interaction handler is
- * off. `interactive: false` disables drag, scroll zoom, double-tap and keyboard
- * panning in one option, so the preview can never swallow a page scroll on a
- * phone, and nothing about the camera can drift from the coordinate the record
- * actually holds.
+ * basemap, an unkeyed one would get the same offline paper style, and the
+ * licence attribution arrives the way it already does — but every interaction
+ * handler is off. `interactive: false` disables drag, scroll zoom, double-tap
+ * and keyboard panning in one option, so the preview can never swallow a page
+ * scroll on a phone, and nothing about the camera can drift from the coordinate
+ * the record actually holds.
  *
- * MapLibre is loaded on demand rather than imported into the shop route: a
- * reader who never opens a shop page should not pay for a renderer, and a shop
- * with no usable coordinate does not load one either.
+ * The renderer and its stylesheet are fetched only when the frame comes near
+ * the viewport. It sits well below the fold on a phone, and MapLibre is 140 KB
+ * compressed: a reader who never scrolls that far should not pay for it.
  *
- * A build with no tile key has no geography to draw at this zoom. The offline
- * field-journal style is a graticule, which orients a world map and says
- * nothing at all about a street corner, so the preview is omitted rather than
- * framed around a blank sheet — the address below already answers the question,
- * and an empty box would read as a broken map rather than an absent one.
+ * A build with no tile key draws no preview. The offline field-journal style is
+ * a graticule, which orients a world map and says nothing at all about a street
+ * corner, so the alternative is a frame around a blank sheet that reads as a
+ * broken map rather than an absent one.
  *
  * The map is decoration over the address, never a substitute for it. A record
  * with no mappable coordinate, a renderer that will not start, and a basemap
- * that will not load all leave the address and the directions link untouched
- * below — see `ShopDetailView`, which renders them whatever this returns.
+ * that will not load all leave the address and the directions link untouched.
  */
 export function ShopLocationMap({ shop }: { readonly shop: ShopDetail }) {
   const platform = useMapPlatform();
+  const frameRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [failed, setFailed] = useState(false);
+  /*
+   * Where there is no observer to ask — the server, and jsdom — the renderer is
+   * simply wanted. Nothing rendered depends on this, so the server and the
+   * client can disagree about it without a hydration mismatch.
+   */
+  const [wanted, setWanted] = useState(() => typeof IntersectionObserver === "undefined");
 
   const styleProvider = useMemo(
     () => createMapStyleProvider(process.env.NEXT_PUBLIC_MAPTILER_KEY),
@@ -62,9 +67,31 @@ export function ShopLocationMap({ shop }: { readonly shop: ShopDetail }) {
   const zoom = PREVIEW_ZOOM[shop.positionPrecision];
 
   useEffect(() => {
+    const frame = frameRef.current;
+
+    if (wanted || !frame) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          observer.disconnect();
+          setWanted(true);
+        }
+      },
+      { rootMargin: PREFETCH_MARGIN },
+    );
+
+    observer.observe(frame);
+
+    return () => observer.disconnect();
+  }, [wanted]);
+
+  useEffect(() => {
     const container = containerRef.current;
 
-    if (latitude === undefined || longitude === undefined || !container) {
+    if (!wanted || latitude === undefined || longitude === undefined || !container) {
       return;
     }
 
@@ -72,58 +99,37 @@ export function ShopLocationMap({ shop }: { readonly shop: ShopDetail }) {
     let cancelled = false;
 
     /*
-     * The renderer arrives asynchronously, so every step re-checks whether the
-     * reader has already navigated away: a map created for a shop that is no
-     * longer on screen is torn down rather than left attached.
+     * The renderer arrives asynchronously, so the reader may have navigated
+     * away before it does. There is no await between creating the map and the
+     * check below, so an instance can never be created and then orphaned.
      */
     void (async () => {
       try {
-        const [maplibre, runtime] = await Promise.all([
-          import("maplibre-gl"),
-          import("@/src/features/map/maplibre-runtime"),
-        ]);
+        const { createShopMapPreview } = await import(
+          "@/src/components/shops/shop-map-preview"
+        );
 
         if (cancelled) {
           return;
         }
 
-        runtime.configureMapLibreRuntime();
-
-        map = new maplibre.Map({
+        map = createShopMapPreview({
           container,
-          style: styleProvider.getStyle(),
           center: [longitude, latitude],
           zoom,
-          // Every handler off: a preview must not compete with the page scroll.
-          interactive: false,
-          attributionControl: styleProvider.attribution
-            ? { compact: true, customAttribution: styleProvider.attribution }
-            : { compact: true },
+          styleProvider,
+          pinClassName: styles.pin ?? "",
         });
-
-        // A basemap that will not load must never break the page around it.
-        map.on("error", () => {});
-
-        const pin = document.createElement("span");
-
-        pin.className = styles.pin ?? "";
-        pin.innerHTML = markerGlyph("unvisited", false);
-
-        new maplibre.Marker({ element: pin })
-          .setLngLat([longitude, latitude])
-          .addTo(map);
 
         if (cancelled) {
           map.remove();
           map = null;
-        }
-      } catch {
-        try {
-          map?.remove();
-        } catch {
-          /* A partially initialized instance may not support removal. */
+          return;
         }
 
+        // A later attempt may succeed where an earlier one did not.
+        setFailed(false);
+      } catch {
         map = null;
         container.replaceChildren();
 
@@ -139,10 +145,10 @@ export function ShopLocationMap({ shop }: { readonly shop: ShopDetail }) {
       try {
         map?.remove();
       } catch {
-        /* As above: teardown is best effort. */
+        /* Teardown is best effort; a partial instance may not support it. */
       }
     };
-  }, [latitude, longitude, zoom, styleProvider]);
+  }, [wanted, latitude, longitude, zoom, styleProvider]);
 
   if (!point) {
     // No coordinate this record can stand behind, or no basemap to draw it on:
@@ -152,13 +158,13 @@ export function ShopLocationMap({ shop }: { readonly shop: ShopDetail }) {
 
   return (
     <div className={styles.location}>
-      <div className={styles.frame} data-testid="shop-location-map">
+      <div className={styles.frame} ref={frameRef} data-testid="shop-location-map">
         {/*
           The picture carries no information the address below does not already
           state in words, so it is not announced twice. MapLibre's attribution
-          control stays inside and reachable.
+          control stays inside it and reachable.
         */}
-        <div className={styles.canvas} ref={containerRef} aria-hidden={failed} />
+        <div className={styles.canvas} ref={containerRef} />
         {failed ? (
           <p className={styles.unavailable}>
             <Icon name="alert" size={16} />

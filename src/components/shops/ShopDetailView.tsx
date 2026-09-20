@@ -164,13 +164,20 @@ export function ShopDetailView({
   /*
    * Deliberately decided without reading the tile key.
    *
-   * `NEXT_PUBLIC_*` is inlined into the client bundle at build time but is an
-   * ordinary runtime read on the server, so a deployment built without the key
-   * and run with it would have this server component render the heading while
-   * `ShopLocationMap` — reading the inlined value — renders nothing under it.
-   * That is exactly the empty subsection heading the founder's review rejected,
-   * and it would fail silently. The heading therefore depends only on what the
-   * record itself says, and the preview is an addition inside it.
+   * Two reasons, and the product one is the stronger. A heading called
+   * *Getting there* over nothing but a picture and a button says a record has
+   * a shopfront to get to; `skb-kaohsiung` carries a coordinate precisely
+   * because its source does *not* confirm one, so the preview must be an
+   * addition to a subsection the record has earned in words, never something
+   * that can conjure the subsection by itself.
+   *
+   * The second is that this is a server component while `ShopLocationMap` is a
+   * client one, and whether `process.env.NEXT_PUBLIC_MAPTILER_KEY` is inlined
+   * at build time on both sides or read live on one is a property of the
+   * bundler and the command. Turbopack currently inlines it into the server
+   * chunk too, so the two agree — but `next dev` reads it live, and a heading
+   * that depends on the two never diverging is a silent empty heading waiting
+   * for the day they do.
    */
   const hasGettingThere = facts.gettingThere.length > 0 || nearby.length > 0;
 

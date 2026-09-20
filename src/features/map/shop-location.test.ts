@@ -29,7 +29,9 @@ describe("whether a coordinate can be drawn", () => {
 describe("how closely the preview frames the pin", () => {
   it("draws a locality-only point as an area rather than an address", () => {
     // The page already cautions that the area is approximate; the picture must
-    // not contradict it by looking certain.
+    // not contradict it by looking certain. Both values are pinned, not just
+    // their order, so a change to either is a deliberate one.
+    expect(PREVIEW_ZOOM).toEqual({ street: 15, locality: 11 });
     expect(PREVIEW_ZOOM.locality).toBeLessThan(PREVIEW_ZOOM.street);
   });
 });

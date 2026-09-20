@@ -1,6 +1,30 @@
 import { render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+/*
+ * The location preview renders here wherever a tile key is stubbed, and its
+ * renderer arrives through a dynamic import. Left unmocked, these cases pull
+ * the real MapLibre module into jsdom and pass only because the unmount wins
+ * the race. Mocked, they are deterministic.
+ */
+vi.mock("maplibre-gl", () => ({
+  Map: class {
+    painter = {};
+    on() {}
+    remove() {}
+  },
+  Marker: class {
+    setLngLat() {
+      return this;
+    }
+    addTo() {
+      return this;
+    }
+  },
+  NavigationControl: class {},
+  setWorkerUrl: vi.fn(),
+}));
+
 import { ShopDetailView } from "@/src/components/shops/ShopDetailView";
 import { ShopWhatYouCanDo } from "@/src/components/shops/ShopValueSections";
 import { nearbyPenShops, type NearbyShop } from "@/src/domain/nearby-shops";

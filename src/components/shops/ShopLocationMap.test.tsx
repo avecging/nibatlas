@@ -47,8 +47,9 @@ const itoya = findPrototypeShop("ginza-itoya-main-store")!;
  */
 beforeEach(() => vi.stubEnv("NEXT_PUBLIC_MAPTILER_KEY", "test-tile-key"));
 
+/** A healthy instance: MapLibre only has a painter when WebGL came up. */
 function instance() {
-  return { on: vi.fn(), remove: mock.remove };
+  return { painter: {}, on: vi.fn(), remove: mock.remove };
 }
 
 beforeEach(() => {
@@ -113,13 +114,19 @@ describe("the location preview", () => {
   });
 
   it("keeps the way out to a real map when the renderer will not start", async () => {
-    mock.construct.mockImplementation(() => {
-      throw new Error("No WebGL");
-    });
+    /*
+     * The real failure, not an invented one: MapLibre 6 does not throw when
+     * WebGL is unavailable. It reports a GPUInitializationError through the
+     * error event and returns an instance with no painter, which is what this
+     * mock reproduces.
+     */
+    mock.construct.mockImplementation(() => ({ on: vi.fn(), remove: mock.remove }));
 
     render(<ShopLocationMap shop={itoya} />);
 
     expect(await screen.findByText("Map preview unavailable.")).toBeVisible();
+    // The half-built instance is torn down rather than left attached.
+    expect(mock.remove).toHaveBeenCalledOnce();
 
     const directions = screen.getByRole("link", { name: /get directions/i });
 
@@ -137,6 +144,17 @@ describe("the location preview", () => {
 
     expect(screen.getByRole("link", { name: /get directions/i })).toBeVisible();
     await waitFor(() => expect(mock.construct).toHaveBeenCalledOnce());
+    expect(screen.getByRole("link", { name: /get directions/i })).toBeVisible();
+  });
+
+  it("still recovers when the constructor throws outright", async () => {
+    mock.construct.mockImplementation(() => {
+      throw new Error("No WebGL");
+    });
+
+    render(<ShopLocationMap shop={itoya} />);
+
+    expect(await screen.findByText("Map preview unavailable.")).toBeVisible();
     expect(screen.getByRole("link", { name: /get directions/i })).toBeVisible();
   });
 
