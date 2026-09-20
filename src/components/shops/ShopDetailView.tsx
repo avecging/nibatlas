@@ -22,6 +22,7 @@ import {
   type ShopDetail,
 } from "@/src/domain/shop-detail";
 import { shopVisitFacts, type VisitFact } from "@/src/features/shops/shop-visit-facts";
+import { readCatalogueMode } from "@/src/features/catalogue/catalogue-mode";
 
 import styles from "./ShopDetailView.module.css";
 
@@ -34,18 +35,6 @@ const DAY_LABELS: Record<OpeningHoursDay, string> = {
   saturday: "Saturday",
   sunday: "Sunday",
 };
-
-/**
- * Whether this build talks to a catalogue that can serve photographs at all.
- *
- * Accepted decision 5's one photography caption survives here, and only here: a
- * fixture build has no media route to ask, so "coming soon" is the truthful
- * answer. An API-backed shop with no published photographs says nothing —
- * "coming soon" there would be a promise the record does not make.
- */
-const MEDIA_CAPABLE_BUILD =
-  process.env.NEXT_PUBLIC_CATALOGUE_MODE === "api" ||
-  process.env.NEXT_PUBLIC_CATALOGUE_MODE === "api-demo";
 
 function TagList({
   items,
@@ -184,7 +173,13 @@ export function ShopDetailView({
    * carries. Anything less stays one measured reading column.
    */
   const hasStory =
-    Object.keys(shop.editorial ?? {}).length > 0 ||
+    Boolean(
+      shop.editorial?.feature_headline ||
+      shop.editorial?.field_note_heading ||
+      shop.editorial?.field_note_body ||
+      shop.editorial?.experiences?.length ||
+      shop.editorial?.editions_text,
+    ) ||
     (shop.exclusives?.length ?? 0) > 0 ||
     brands.length > 0;
   const hasRail =
@@ -224,7 +219,9 @@ export function ShopDetailView({
 
         {/* 2 — the photographs, contained. */}
         <ShopMediaGallery shopName={shop.name} />
-        {MEDIA_CAPABLE_BUILD ? null : (
+        {/* Only the fixture catalogue promises future photos. API records with
+            no published media and misconfigured builds make no such promise. */}
+        {readCatalogueMode().mode !== "fixture" ? null : (
           <p className={styles.photosPending}>
             <Icon name="camera" size={16} />
             <span>Photos coming soon</span>

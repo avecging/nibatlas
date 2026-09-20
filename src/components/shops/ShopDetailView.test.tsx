@@ -1,5 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ShopDetailView } from "@/src/components/shops/ShopDetailView";
 import { ShopWhatYouCanDo } from "@/src/components/shops/ShopValueSections";
@@ -8,6 +8,8 @@ import type { ShopDetail } from "@/src/domain/shop-detail";
 import { findPrototypeShop, prototypeShopDetails } from "@/src/fixtures/prototype-catalogue";
 import { shopValueSpecimen } from "@/src/fixtures/shop-value-specimen";
 import { seedReviewerMode, WithReviewerMode } from "@/src/test/reviewer";
+
+afterEach(() => vi.unstubAllEnvs());
 
 /**
  * The shop page's information order, and what it is allowed to say.
@@ -46,6 +48,25 @@ function headingOrder(): readonly string[] {
 }
 
 describe("shop page information order", () => {
+  it.each(["API", "API-DEMO", " api "])("does not promise fixture photos in %s mode", (mode) => {
+    vi.stubEnv("NEXT_PUBLIC_CATALOGUE_MODE", mode);
+    renderShop(findPrototypeShop("ginza-itoya-main-store")!);
+    expect(screen.queryByText("Photos coming soon")).not.toBeInTheDocument();
+  });
+
+  it("keeps practical-only editorial in one column even with hidden legacy services", () => {
+    const { container } = renderShop({
+      ...shopValueSpecimen,
+      brands: [],
+      exclusives: [],
+      editorial: { nearest_station: "Example Station" },
+    });
+    expect(screen.getByText("Example Station", { exact: false })).toBeVisible();
+    expect(screen.queryByTestId("shop-value-gap")).not.toBeInTheDocument();
+    expect(container.querySelector('[data-columns="two"]')).toBeNull();
+    expect(container.querySelector('[data-columns="one"]')).not.toBeNull();
+  });
+
   it("leads with the identity, then the shop's own name and why to visit", () => {
     const shop = findPrototypeShop("ginza-itoya-main-store")!;
 

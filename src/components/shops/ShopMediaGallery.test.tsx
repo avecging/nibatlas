@@ -61,6 +61,14 @@ afterEach(() => {
 });
 
 describe("the shop logo", () => {
+  it.each(["API", "API-DEMO", " api "])("loads published media in normalized %s mode", async (mode) => {
+    vi.stubEnv("NEXT_PUBLIC_CATALOGUE_MODE", mode);
+    renderMedia([photo(1, { kind: "logo", altText: "Shop logo" }), photo(2)]);
+    expect(await screen.findByAltText("Shop logo")).toBeVisible();
+    expect(await screen.findByRole("region", { name: "Photos of Ginza Itoya Main Store" })).toBeVisible();
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it("is drawn in the identity header and never counted as a photograph", async () => {
     renderMedia([
       photo(1, { kind: "logo", width: 512, height: 512, altText: "Itoya logo" }),
