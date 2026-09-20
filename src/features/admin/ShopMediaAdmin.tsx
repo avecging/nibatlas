@@ -123,10 +123,9 @@ export function ShopMediaAdmin({shopId,shopName,published,archived,onSummary}: {
     </div>
 
     {loaded && !canRemove && <p className={styles.help}>
-      <strong>Deleting an image is not available on this deployment yet.</strong> “Remove from the public page”
-      {' '}takes an image off the live listing straight away and keeps it in this draft. Permanent deletion needs the
-      {' '}media removal action described in <code>docs/api/admin-b3-contract-handoff.md</code>; the control appears here
-      {' '}automatically once that ships.
+      <strong>Deleting an image for good is not available yet.</strong> “Remove from the public page” takes an image
+      {' '}off the live listing straight away and keeps it here in the draft, so nothing a visitor can see is left behind.
+      {' '}A Delete button will appear here on its own once permanent deletion is switched on.
     </p>}
 
     <button type="button" className={styles.quiet} disabled={busy} onClick={() => void run(async signal => {

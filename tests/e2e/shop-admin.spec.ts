@@ -455,7 +455,7 @@ test('photos save privately, states are explicit and removal is honest', async (
   await expect(section.getByRole('figure').getByText('Private to this draft',{exact:true})).toBeVisible();
   // Permanent deletion is not advertised by this deployment, so no dead control.
   await expect(section.getByRole('button',{name:'Delete image'})).toHaveCount(0);
-  await expect(section.getByText(/Deleting an image is not available/)).toBeVisible();
+  await expect(section.getByText(/Deleting an image for good is not available yet/)).toBeVisible();
   await section.getByRole('button',{name:'Show on public page'}).click();
   expect(operations).toEqual(['attach']);
   const dialog=page.getByRole('alertdialog');
@@ -467,6 +467,12 @@ test('photos save privately, states are explicit and removal is honest', async (
   await page.getByRole('alertdialog').getByRole('button',{name:'Remove from public page'}).click();
   await expect(section.getByRole('figure').getByText('Private to this draft',{exact:true})).toBeVisible();
   expect(operations).toEqual(['attach','publish','hide']);
+  // Review reports public image state, so the path from upload to the public
+  // page is visible where publication is actually decided.
+  await open(page,'Review');
+  await expect(page.getByText('Images: 1 saved · 0 shown on the public page')).toBeVisible();
+  await page.getByRole('button',{name:'Go to Photos & logo'}).click();
+  await expect(page.getByRole('heading',{level:2,name:'Photos & logo'})).toBeVisible();
   expect(await page.evaluate(()=>globalThis.document.documentElement.scrollWidth<=globalThis.document.documentElement.clientWidth)).toBe(true);
   expect((await new AxeBuilder({page}).include('[aria-label="Shop photos and logo"]').analyze()).violations).toEqual([]);
   await section.screenshot({path:testInfo.outputPath('admin-media-preview.png')});

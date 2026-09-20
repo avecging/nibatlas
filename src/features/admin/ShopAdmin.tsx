@@ -11,6 +11,7 @@ import {
 } from "./shop-normalization";
 import Link from "next/link";
 import { ShopMediaAdmin, type MediaSummary } from "./ShopMediaAdmin";
+import { decodeShopMedia, mediaPath } from "./media-contract";
 import { ShopStampAdmin } from "./ShopStampAdmin";
 import { TimezoneField } from "./TimezoneField";
 import { suggestTimezone } from "./timezones";
@@ -439,6 +440,26 @@ function Workspace({ id }: { id: string | null }) {
       document.removeEventListener("click", guardLink, true);
     };
   }, [dirty, pendingUploads]);
+
+  // Review must be able to say how many images are public even when the editor
+  // has not opened Photos in this visit. A failure here is silent: the Photos
+  // section reports media problems, and this is only a summary line.
+  useEffect(() => {
+    if (!id || section !== "review" || media) return;
+    const c = new AbortController();
+    fetch(mediaPath(id), { signal: c.signal, cache: "no-store", credentials: "same-origin" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((value) => {
+        if (!value) return;
+        const rows = decodeShopMedia(value.entries, true);
+        setMedia({
+          total: rows.length,
+          published: rows.filter((row) => row.status === "approved").length,
+        });
+      })
+      .catch(() => {});
+    return () => c.abort();
+  }, [id, section, media]);
 
   // A correction link changes section first; the element only exists after that
   // section renders, so focus is taken here rather than in the click handler.
@@ -1003,6 +1024,7 @@ function Workspace({ id }: { id: string | null }) {
               setFocusTarget(fix);
             }}
             onConfirm={setConfirmation}
+            onOpenPhotos={() => go("photos")}
             onReload={() => {
               if (!dirty || window.confirm("Discard your unsaved edits and reload?"))
                 void run(async () => {
@@ -1260,6 +1282,7 @@ function ReviewSection({
   onFix,
   onConfirm,
   onReload,
+  onOpenPhotos,
   legacy,
 }: {
   record: ShopRecord;
@@ -1272,6 +1295,7 @@ function ReviewSection({
   onFix: (requirement: string) => void;
   onConfirm: (action: string) => void;
   onReload: () => void;
+  onOpenPhotos: () => void;
   legacy: ReactNode;
 }) {
   const archived = record.publicationStatus === "archived";
@@ -1318,10 +1342,12 @@ function ReviewSection({
         )}
         {!media && (
           <p className={styles.mediaSummary}>
-            Open <strong>Photos &amp; logo</strong> to check which images are visible on
-            the public page.
+            Checking which images are visible on the public page…
           </p>
         )}
+        <button type="button" className={styles.quiet} onClick={onOpenPhotos}>
+          Go to Photos &amp; logo
+        </button>
       </div>
 
       <div className={styles.previewHead}>
