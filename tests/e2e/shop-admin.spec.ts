@@ -1065,7 +1065,7 @@ test('an unknown role never exposes admin-only image controls @short',async({pag
 });
 
 test('admin can create missing localities and types then save their selection @short',async({page},info)=>{
-  await setup(page);
+  const state=await setup(page);
   const newLocality='85000000-0000-4000-8000-000000000001',newType='85000000-0000-4000-8000-000000000002';
   const options={localities:[{id:locality,label:'Singapore (SG)',countryCode:'SG'}],types:[{id:type,label:'Fountain Pen Specialist'}],services:[],brands:[],specialties:[]};
   await page.route('**/api/v1/admin/shops/options',async route=>{
@@ -1088,6 +1088,11 @@ test('admin can create missing localities and types then save their selection @s
   await page.getByRole('button',{name:'Add or reuse shop type'}).click();
   await expect(page.getByRole('status').filter({hasText:'Synthetic shop type selected'})).toBeVisible();
   await save(page);
+  await expect(page.getByRole('main').getByRole('status').first()).toContainText('Saved privately');
+  expect(state.actions).toContain('save');
+  await page.reload();
+  await open(page,'Experiences');
+  await expect(page.locator('select:has(option[value="'+newType+'"]:checked)')).toHaveCount(1);
   await open(page,'Location');
   await expect(page.getByLabel('Locality').first()).toHaveValue(newLocality);
   await page.screenshot({path:info.outputPath('admin-locality-creation.png')});

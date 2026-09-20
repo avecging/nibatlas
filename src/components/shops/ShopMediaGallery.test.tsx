@@ -22,3 +22,16 @@ it('does not claim photos are coming soon in live catalogue mode',()=>{
   render(<ShopIdentityHero shop={prototypeShopDetails[0]!}/>);
   expect(screen.queryByText('Photos coming soon')).not.toBeInTheDocument();
 });
+
+it('preserves published photo order and renders Unicode captions as text separately from credit',async()=>{
+  const caption='墨水 <script>window.__captionExecuted=true</script>';
+  vi.stubGlobal('fetch',vi.fn(async()=>Response.json({entries:[
+    {id:'84000000-0000-4000-8000-000000000002',kind:'photo',width:2,height:2,altText:'Cover',creditText:'Photographer',caption,sortOrder:0},
+    {id:'84000000-0000-4000-8000-000000000001',kind:'photo',width:2,height:2,altText:'Second photo',creditText:null,caption:null,sortOrder:1},
+  ]})));
+  const {container}=render(<ShopMediaGallery shopId="84000000-0000-4000-8000-000000000003"/>);
+  expect(await screen.findByText(caption)).toBeInTheDocument();
+  expect(screen.getByText('Photographer')).toBeInTheDocument();
+  expect(screen.getAllByRole('img').map(e=>e.getAttribute('alt'))).toEqual(['Cover','Second photo']);
+  expect(container.querySelector('script')).toBeNull();
+});

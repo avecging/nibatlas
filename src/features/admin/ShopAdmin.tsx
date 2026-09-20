@@ -445,7 +445,7 @@ function Workspace({ id }: { id: string | null }) {
       if (
         window.confirm(
           pendingUploads
-            ? "An image has not finished saving. Leave without it or any unsaved edits?"
+            ? "Changes in Photos & logo have not finished saving. Leave without them or any unsaved edits?"
             : "Leave without saving your edits?",
         )
       ) {
@@ -515,7 +515,7 @@ function Workspace({ id }: { id: string | null }) {
         next !== "photos" &&
         pendingUploads &&
         !window.confirm(
-          "An image has not finished saving. Leaving this section cancels it. Leave anyway?",
+          "Changes in Photos & logo have not finished saving. Leaving this section discards unsaved work. Leave anyway?",
         )
       )
         return;

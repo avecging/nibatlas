@@ -28,11 +28,13 @@ select throws_ok($$select public.admin_catalogue_choice('types','X','SG')$$,'220
 select throws_ok($$insert into public.localities(country_code,name,locality_type,slug) values('SG','Bypass','other','bypass')$$,'42501',null,'direct locality write stays denied');
 -- Save, attest and publish using the actual private-working-copy lifecycle.
 create temp table publication as select public.admin_shop_read('00000000-0000-4000-8000-000000000301') r;
+-- The historical seed has no street address; complete the synthetic draft deliberately.
+update publication set r=jsonb_set(r,'{document,shop,address_line_1}','"Synthetic test address"');
 update publication set r=public.admin_shop_write('save','00000000-0000-4000-8000-000000000301',r->>'revision',
   jsonb_set(jsonb_set(r->'document','{shop,locality_id}',to_jsonb((select id from choices where kind='SG'))),'{types}',
     jsonb_build_array(jsonb_build_object('shop_type_id',(select id from choices where kind='type'),'is_primary',true))));
 update publication set r=public.admin_shop_write('confirm_position','00000000-0000-4000-8000-000000000301',r->>'revision');
-select is(jsonb_array_length(r->'publicationErrors'),0,'new locality/type satisfy publication') from publication;
+select is(r->'publicationErrors','[]'::jsonb,'new locality/type satisfy publication') from publication;
 update publication set r=public.admin_shop_write('publish','00000000-0000-4000-8000-000000000301',r->>'revision');
 set constraints all immediate;
 select is(public.shop_detail('m2-singapore-demo-fixture')->>'primaryTypeLabel','Synthetic type','published detail carries new primary label');

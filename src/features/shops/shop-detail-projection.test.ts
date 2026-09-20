@@ -181,3 +181,10 @@ it('uses stored default art and identity across ordinary name and slug changes',
   expect(original.stamp).toEqual(renamed.stamp);
   expect(original.stamp).toMatchObject({id:generatedStamp.id,designVersion:3,ink:'plum',motif:'counter'});
 });
+
+it('retains custom type labels for public detail and metadata rendering',()=>{
+  const type='type_85000000_0000_4000_8000_000000000002';
+  const shop=projectShopDetail(wire({primaryType:type,primaryTypeLabel:'Synthetic type',shopTypes:[type],shopTypeLabels:{[type]:'Synthetic type'}}),{demoRecords:false});
+  expect(shop.primaryTypeLabel).toBe('Synthetic type');
+  expect(shop.shopTypeLabels?.[type]).toBe('Synthetic type');
+});

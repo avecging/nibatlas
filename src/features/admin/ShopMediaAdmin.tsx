@@ -109,6 +109,7 @@ export function ShopMediaAdmin({shopId,shopName,published,archived,role,onSummar
       <p role="status" aria-live="polite">{notice || (busy ? 'Working…' : loaded ? `${entries.length} saved · ${live} on the public page` : 'Loading images…')}</p>
     </div>
 
+    {canArrange && <p className={styles.help}>Cover, order and caption changes save separately. Changes to images already on the public page are visible immediately; private images stay private.</p>}
     <div className={styles.columns}>
       {(['photo','logo'] as const).map(kind => {
         const rows = kind === 'photo' ? photos : logos;
