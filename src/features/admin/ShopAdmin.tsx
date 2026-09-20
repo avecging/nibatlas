@@ -14,6 +14,7 @@ import { ShopMediaAdmin, type MediaSummary } from "./ShopMediaAdmin";
 import { decodeShopMedia, mediaPath } from "./media-contract";
 import { ShopStampAdmin } from "./ShopStampAdmin";
 import { TimezoneField } from "./TimezoneField";
+import { CountryField } from "./CountryField";
 import { suggestTimezone } from "./timezones";
 import {
   LEGACY_FIELDS,
@@ -597,6 +598,17 @@ function Workspace({ id }: { id: string | null }) {
   const shopField = (key: string) => {
     const field = fieldByKey.get(key);
     if (!field || !draft) return null;
+    if (key === "country_code")
+      return (
+        <div className={styles.field} key={key}>
+          <CountryField
+            value={String(draft.shop.country_code ?? "")}
+            disabled={busy || record?.publicationStatus === "archived"}
+            error={fieldErrors.find((e) => e.path === "shop.country_code")?.message}
+            onChange={(v) => setShop("country_code", v)}
+          />
+        </div>
+      );
     if (key === "timezone")
       return (
         <div className={styles.field} key={key}>

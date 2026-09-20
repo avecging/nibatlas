@@ -804,11 +804,20 @@ test('empty brand and specialty choices offer add/reuse and become selectable @s
   await expect(page.getByText('Private catalogue preview',{exact:true})).toBeVisible();
 });
 
-test('country mismatch identifies and focuses locality without discarding edits @short',async({page})=>{
+test('country is a searchable selector that stores the code @short',async({page})=>{
   const state=await setup(page);
   await page.goto(`/admin/shops/${id}`);
   await open(page,'Location');
-  await page.getByLabel('Country code').fill('JP');
+  const field=page.getByRole('combobox',{name:'Country'});
+  await expect(field).toHaveValue('Singapore (SG)');
+  await field.click();
+  await field.fill('japan');
+  const list=page.getByRole('listbox',{name:'Countries'});
+  await expect(list.getByRole('option',{name:/Japan/})).toBeVisible();
+  expect(await list.getByRole('option').count()).toBeGreaterThanOrEqual(1);
+  await list.getByRole('option',{name:/^Japan/}).first().click();
+  await expect(field).toHaveValue('Japan (JP)');
+  // The locality still belongs to Singapore, so this must fail at the locality.
   await saveAndReview(page);
   await expect(page.getByLabel('Locality',{exact:true})).toBeFocused();
   await expect(page.getByLabel('Locality',{exact:true})).toHaveAttribute('aria-invalid','true');

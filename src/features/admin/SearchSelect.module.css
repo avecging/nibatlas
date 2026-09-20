@@ -55,3 +55,7 @@
   cursor: default !important;
   color: var(--text-secondary);
 }
+.error {
+  color: var(--error) !important;
+  font-weight: 600 !important;
+}

@@ -215,6 +215,14 @@ and it disables itself while a request is in flight so a second tap cannot
 submit twice. A successful **Save and review** opens the Review section on the
 saved version.
 
+**Country.** The approved friendly selector: search a country by name, and the
+two-letter code is what is stored. `src/domain/geo.ts` still refuses to
+enumerate countries in the contract — storage accepts any two uppercase ASCII
+letters — so a saved code this runtime cannot name is kept and shown as the
+code rather than rejected. CLDR entries that are not a country a shop can be in
+(`ZZ` "Unknown Region", `QO`, `EU`, `EZ`, `UN`, `XA`, `XB`) are left out of the
+list so a record cannot acquire a placeholder country.
+
 **Timezone.** A searchable list of every IANA zone the runtime supports, showing
 the readable place and its *current* UTC offset. The stored value is always the
 IANA identifier; a fixed offset such as `Etc/GMT-8` is labelled as a fixed
