@@ -214,7 +214,8 @@ notification, QR/NFC or merchant work is included.
 2. Choose a photo (PNG/JPEG) or logo (PNG). Check the local preview and named shop.
    No source/rights/credit/description form is required. PNG keeps transparency;
    unsupported exports receive an error rather than being silently rewritten.
-3. **Save photo/logo privately** validates, finalizes and attaches it to this shop.
+3. Choosing the file starts validation, finalization and private attachment automatically.
+   **Save photo/logo privately** retries if the automatic save failed.
    Check the saved preview. It is not public yet. Retry Save after an interrupted
    request; terminal expiry/conflict starts a fresh session on the next Save.
 4. **Publish** → **Confirm publish** is an admin action. Only published shops
@@ -237,8 +238,9 @@ for publish/hide. Keep buckets private; no new environment variables are needed.
    optional HTTP(S) creator link, and the approved ink. This does not require an
    editable source, SVG bundle, rights evidence, maker-mark confirmation or
    external sign-off for MVP; those commissioning questions are #71.
-3. Choose a **1200 × 800 transparent PNG** with the normal file picker and
-   **Save PNG privately**. The exact bytes are validated and attached to this
+3. Choose a **1200 × 800 transparent PNG** with the normal file picker. It
+   uploads and saves privately automatically; **Save PNG privately** retries a
+   failed save. The exact bytes are validated and attached to this
    draft only. Unsupported exports fail instead of being silently cropped,
    recoloured or rewritten.
 4. Compare the private **List / Passport / Detail** previews. The same complete

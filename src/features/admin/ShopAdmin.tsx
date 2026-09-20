@@ -1,4 +1,6 @@
 "use client";
+import { publicationFix } from './publication-fix';
+import { useHasPendingUploads } from './use-pending-upload';
 import { ShopEditorial } from '@/src/components/shops/ShopEditorial';
 import { decodeEditorialContent } from '@/src/api/v1/shop-read';
 import { readAdminResponse } from './read-response';
@@ -45,7 +47,7 @@ const messages: Record<string, string> = {
   service_unavailable: "Shop administration is unavailable. Try again.",
 };
 class RequestFailure extends Error {
-  constructor(readonly code: string, readonly issues: FieldIssue[] = []) {
+  constructor(readonly code: string, readonly issues: FieldIssue[] = [], readonly requirements: string[] = []) {
     super(
       messages[code] ??
         "The operation could not be completed. Reload before retrying a publication or status change.",
@@ -81,7 +83,8 @@ async function api(path: string, signal: AbortSignal, body?: unknown) {
       ? value.fieldErrors.filter((v: unknown): v is FieldIssue => !!v && typeof v === 'object' && 'path' in v && 'message' in v
         && typeof v.path === 'string' && /^[a-z_]+(?:\.(?:[a-z_]+|[0-9]{1,2}))*$/.test(v.path)
         && typeof v.message === 'string' && v.message.length <= 300) : [];
-    throw new RequestFailure(value.error?.code ?? "service_unavailable", issues);
+    const requirements = Array.isArray(value.requirements) && value.requirements.length <= 10 && value.requirements.every((v: unknown) => typeof v === 'string' && v.length <= 300) ? value.requirements as string[] : [];
+    throw new RequestFailure(value.error?.code ?? "service_unavailable", issues, requirements);
   }
   return value;
 }
@@ -136,10 +139,11 @@ function Input({
       ) : choice ? (
         <select
           {...common}
+          disabled={choice.length === 0}
           value={String(value ?? "")}
           onChange={(e) => change(e.target.value || null)}
         >
-          <option value="">Choose…</option>
+          <option value="">{choice.length ? "Choose…" : "No options available"}</option>
           {choice.map((o) => (
             <option key={o.id} value={o.id}>
               {o.label}
@@ -226,6 +230,7 @@ export function ShopAdmin({ id }: { id?: string }) {
   );
 }
 function Workspace({ id }: { id: string | null }) {
+  const pendingUploads = useHasPendingUploads();
   const controller = useRef<AbortController | null>(null),
     feedback = useRef<HTMLParagraphElement>(null);
   const [record, setRecord] = useState<ShopRecord | null>(null),
@@ -279,7 +284,7 @@ function Workspace({ id }: { id: string | null }) {
     return () => c.abort();
   }, [id]);
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty && !pendingUploads) return;
     let leaving = false;
     const warn = (e: BeforeUnloadEvent) => {
       if (leaving) return;
@@ -303,7 +308,7 @@ function Workspace({ id }: { id: string | null }) {
       }
       e.preventDefault();
       e.stopImmediatePropagation();
-      if (window.confirm("Leave without saving your edits?")) {
+      if (window.confirm(pendingUploads ? "An image has not finished saving. Leave without it or any unsaved edits?" : "Leave without saving your edits?")) {
         leaving = true;
         window.location.assign(link.href);
       }
@@ -314,7 +319,7 @@ function Workspace({ id }: { id: string | null }) {
       window.removeEventListener("beforeunload", warn);
       document.removeEventListener("click", guardLink, true);
     };
-  }, [dirty]);
+  }, [dirty, pendingUploads]);
   const announce = (text: string) => {
     setMessage(text);
     requestAnimationFrame(() => feedback.current?.focus());
@@ -337,7 +342,16 @@ function Workspace({ id }: { id: string | null }) {
         setDraft(null);
         setList([]);
       }
-      if (e instanceof ShopValidationError || e instanceof RequestFailure) setFieldErrors(e.issues);
+      if (e instanceof RequestFailure && e.requirements.length) setRecord(current => current ? {...current,publicationErrors:e.requirements} : current);
+      if (e instanceof ShopValidationError || e instanceof RequestFailure) {
+        setFieldErrors(e.issues);
+        if (e.issues.length) requestAnimationFrame(() => {
+          const target = [...window.document.querySelectorAll<HTMLElement>('[data-field-path]')].find(el => el.dataset.fieldPath === e.issues[0]!.path);
+          let section = target?.closest('details');
+          while (section) { section.open = true; section = section.parentElement?.closest('details') ?? null; }
+          requestAnimationFrame(() => { target?.focus(); target?.scrollIntoView({block:'center'}); });
+        });
+      }
       announce(
         e instanceof Error ? e.message : "Could not complete operation.",
       );
@@ -346,18 +360,18 @@ function Workspace({ id }: { id: string | null }) {
     }
   }
   const signal = () => controller.current!.signal;
-  async function mutate(action: string) {
+  async function mutate(action: string, destination: "stay" | "review" = "stay") {
     await run(async () => {
       const value = decodeShop(
         await api(`/${id}`, signal(), {
           action,
           revision: record!.revision,
-          ...(action === "save" ? { document: normalizeShopDocument(draft!) } : {}),
+          ...(action === "save" ? { document: normalizeShopDocument(draft!, options) } : {}),
         }),
       );
       setRecord(value);
       setDraft(value.document);
-      setPreview(false);
+      setPreview(action === "save" && destination === "review");
       announce(
         action === "save"
           ? "Changes saved privately. Preview and publish when ready."
@@ -403,7 +417,7 @@ function Workspace({ id }: { id: string | null }) {
               .find(el => el.dataset.fieldPath === error.path || el.dataset.fieldPath?.startsWith(`${error.path}.`));
             let section = target?.closest('details');
             while (section) { section.open = true; section = section.parentElement?.closest('details') ?? null; }
-            target?.focus(); target?.scrollIntoView({ block: 'center' });
+            requestAnimationFrame(() => { target?.focus(); target?.scrollIntoView({ block: 'center' }); });
           }}>{fieldLabel(error.path)}: {error.message}</button>
         </li>)}
       </ul>}
@@ -538,10 +552,14 @@ function Workspace({ id }: { id: string | null }) {
               {preview ? "Back to editing" : "Preview saved version"}
             </button>
           </div>
+          {!preview && <div className={styles.saveBar}>
+            <span>{busy ? 'Saving…' : dirty ? 'Unsaved changes' : 'All details saved'}</span>
+            <button type="submit" form="shop-editor" disabled={busy || !dirty || record.publicationStatus === 'archived'}>Save and review</button>
+          </div>}
           {preview ? (
             <Preview document={record.document} options={options} />
           ) : (
-            <form
+            <form id="shop-editor" noValidate
               onInvalid={(e) => {
                 let section = (e.target as HTMLElement).closest("details");
                 while (section) {
@@ -551,7 +569,7 @@ function Workspace({ id }: { id: string | null }) {
               }}
               onSubmit={(e) => {
                 e.preventDefault();
-                void mutate("save");
+                void mutate("save", (e.nativeEvent as SubmitEvent).submitter?.getAttribute("value") === "stay" ? "stay" : "review");
               }}
             >
               <fieldset
@@ -586,7 +604,7 @@ function Workspace({ id }: { id: string | null }) {
                     options={viewOptions} prefix="" change={v => setShop(field.key, v)} />)}
                 </details>
                 <details>
-                  <summary>Opening hours</summary>
+                  <summary data-field-path="shop.opening_hours">Opening hours</summary>
                   <p>
                     Record only sourced hours. Missing days stay unknown; no
                     “open now” calculation.
@@ -665,17 +683,31 @@ function Workspace({ id }: { id: string | null }) {
                   </button>
                 </details>
                 {GROUPS.map((g) => (
-                  <details key={g.key}>
+                  <details key={g.key} data-field-path={g.key} tabIndex={-1}>
                     <summary>
                       {g.label} ({draft[g.key].length})
                     </summary>
+                    {g.fields[0]?.vocabulary && !(options[g.fields[0].vocabulary]?.length) && <p>No {g.label.toLowerCase()} have been added to the catalogue yet.</p>}
+                    {(['brands', 'specialties'].includes(g.key)) && <VocabularyCreator kind={g.key as 'brands' | 'specialties'} busy={busy} create={async label => {
+                      await run(async () => {
+                        const result = await api('/options', signal(), {kind:g.key, label});
+                        const updated = decodeOptions(result.options);
+                        const item = updated[g.key]?.find(o => o.id === result.id);
+                        if (!item) throw new Error('Could not load the new catalogue item. Reload before retrying.');
+                        setOptions(updated);
+                        setDraft(current => current && current[g.key].some(r => r[g.fields[0]!.key] === item.id) ? current : current ? {
+                          ...current, [g.key]: [...current[g.key], {...emptyRow(g.fields), [g.fields[0]!.key]:item.id}]
+                        } : current);
+                        announce(`${item.label} selected. Save the shop details to keep this selection.`);
+                      });
+                    }} />}
                     {draft[g.key].map((r, i) => (
                       <fieldset key={String(r.id ?? i)}>
                         <legend>
                           {g.label} {i + 1}
                         </legend>
                         <div className={styles.grid}>
-                          {g.fields.map((field) => (
+                          {g.fields.filter(field => !["source_id", "last_verified_at"].includes(field.key)).map((field) => (
                             <Input
                               key={field.key}
                               field={field}
@@ -694,6 +726,12 @@ function Workspace({ id }: { id: string | null }) {
                             />
                           ))}
                         </div>
+                        {g.fields.some(f => f.key === 'source_id') && <details>
+                          <summary>Legacy source and review date (optional)</summary>
+                          {g.fields.filter(f => ['source_id', 'last_verified_at'].includes(f.key)).map(field => <Input key={field.key} field={field}
+                            path={`${g.key}.${i}.${field.key}`} errors={fieldErrors} value={r[field.key]} options={viewOptions} prefix=""
+                            change={v => setDraft({...draft, [g.key]:draft[g.key].map((row,n) => n === i ? {...row,[field.key]:v} : row)})} />)}
+                        </details>}
                         <button
                           type="button"
                           onClick={() =>
@@ -709,6 +747,7 @@ function Workspace({ id }: { id: string | null }) {
                     ))}
                     <button
                       type="button"
+                      disabled={!!g.fields[0]?.vocabulary && !(options[g.fields[0].vocabulary]?.length)}
                       onClick={() =>
                         setDraft({
                           ...draft,
@@ -726,7 +765,7 @@ function Workspace({ id }: { id: string | null }) {
                     </button>
                   </details>
                 ))}
-                <button disabled={!dirty} type="submit">
+                <button disabled={!dirty} type="submit" value="stay">
                   Save changes privately
                 </button>
               </fieldset>
@@ -743,11 +782,11 @@ function Workspace({ id }: { id: string | null }) {
               setRecord(previous=>previous?.revision===current.revision
                 ? {...previous,publicationErrors:current.publicationErrors}:previous);
             }} />
-          <section className={styles.operations}>
+          <section className={styles.operations} id="shop-publication">
             <h2>Publication and status</h2>
             <p>{record.positionConfirmed ? 'Saved position confirmed.' : 'Saved position needs confirmation.'}
               {' '}Address, coordinate or accuracy changes require a new confirmation.</p>
-            <button disabled={busy || dirty || record.publicationStatus === 'archived'
+            <button id="confirm-shop-position" disabled={busy || dirty || record.publicationStatus === 'archived'
               || record.document.shop.latitude == null || record.document.shop.longitude == null}
               onClick={() => setConfirmation('confirm_position')}>Confirm saved shop position</button>
             {record.publicationErrors.length > 0 && (
@@ -755,7 +794,15 @@ function Workspace({ id }: { id: string | null }) {
                 <p>Before publishing:</p>
                 <ul>
                   {record.publicationErrors.map((e) => (
-                    <li key={e}>{e}</li>
+                    <li key={e}>{e} <button type="button" onClick={() => {
+                      setPreview(false);
+                      requestAnimationFrame(() => {
+                        const fix = publicationFix(e, draft);
+                        const target = fix.path ? [...document.querySelectorAll<HTMLElement>('[data-field-path]')].find(el => el.dataset.fieldPath === fix.path) : document.getElementById(fix.id!);
+                        if (target instanceof HTMLDetailsElement) target.open = true;
+                        target?.focus(); target?.scrollIntoView({block:'center'});
+                      });
+                    }}>Fix</button></li>
                   ))}
                 </ul>
               </>
@@ -989,4 +1036,14 @@ function fieldLabel(path: string): string {
   if (parts[1] === 'opening_hours') return parts[2] === 'entries' ? `Hours ${Number(parts[3]) + 1} · ${HOURS_FIELDS.find(f => f.key === parts[4])?.label ?? 'entry'}` : 'Hours summary';
   const g = GROUPS.find(g => g.key === parts[0]);
   return g ? `${g.label}${parts[1] ? ` ${Number(parts[1]) + 1}` : ''}${parts[2] ? ` · ${g.fields.find(f => f.key === parts[2])?.label ?? 'item'}` : ''}` : parts[0] === 'name' ? 'Shop name' : parts[0] === 'slug' ? 'URL name' : 'Record';
+}
+
+function VocabularyCreator({kind,busy,create}:{kind:'brands'|'specialties';busy:boolean;create:(label:string)=>Promise<void>}) {
+  const [label,setLabel] = useState('');
+  const name = kind === 'brands' ? 'brand' : 'specialty';
+  return <div className={styles.vocabulary}>
+    <label>New {name} name<input value={label} maxLength={300} disabled={busy} onChange={e=>setLabel(e.target.value)} /></label>
+    <button type="button" disabled={busy || !label.trim()} onClick={() => void create(label)}>Add or reuse {name}</button>
+    <small>Existing names are reused. New names become catalogue choices; the shop selection stays private until you save and publish.</small>
+  </div>;
 }

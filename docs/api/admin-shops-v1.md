@@ -14,6 +14,7 @@ RPC still checks the live role independently; trusted publication rules below ap
 | --- | --- | --- | --- |
 | `/api/v1/admin/shops` | GET | Optional `q` (≤120 chars), UUID `after` | ≤50 summaries and nullable nextCursor |
 | `/api/v1/admin/shops/options` | GET | None | Existing localities/types/services/specialties/brands |
+| `/api/v1/admin/shops/options` | POST | kind=brands/specialties, label (1–300 chars) | Reused/created canonical id and refreshed options; no shop attachment/publication |
 | `/api/v1/admin/shops/[id]` | GET | None | Private saved document, revision, publicationStatus, hasChanges, positionConfirmed, publicationErrors |
 | `/api/v1/admin/shops` | POST | action=create, new UUID id, document={name,slug?} | Created private draft plus generated default in one transaction, 201 |
 | `/api/v1/admin/shops/[id]` | POST | action=save, revision, full document | Saved private working copy |
@@ -160,3 +161,17 @@ and D's full public preview/media choices remain. C must invoke position review
 and publication deliberately against reviewed revisions, not copy attestations
 from CSV cells. Omitted/blank import values preserve data; explicit clears and
 safe merge/preview happen before this complete-document save contract.
+
+## Mobile acceptance correction
+
+Choice creation uses `admin_catalogue_choice`, current-role locking, serialized
+create/reuse and fingerprint-only audit. Case and collapsed whitespace reuse an
+existing name; existing IDs/slugs and old duplicate names are never merged or
+rewritten. New choice creation is bounded by 10,000 items per vocabulary.
+The selected shop relationship still requires an ordinary private save. Locality
+creation and grouped import mapping remain B3/C work.
+
+Save checks known locality/country and vocabulary references before mutation and
+returns field paths. A fixed allowlist maps known database failures to safe field
+errors; arbitrary provider text remains private. Revision conflicts retain the
+existing reload/review requirement.

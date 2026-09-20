@@ -278,3 +278,33 @@ it('normalizes name-only creation and returns private field errors before writes
   expect(await r.json()).toMatchObject({error:{code:'invalid_fields'},fieldErrors:expect.arrayContaining([expect.objectContaining({path:'shop.latitude'}),expect.objectContaining({path:'shop.website_url'})])});
   expect(g.call).not.toHaveBeenCalled();
 });
+
+it('choice creation is same-origin, bounded, projected and cannot bypass roles', async()=>{
+  const options={localities:[],types:[],services:[],specialties:[],brands:[{id,label:'Synthetic brand'}]};
+  const g=gateway();
+  g.call=vi.fn(async name=>name==='admin_catalogue_choice'?{id,private:'hidden'}:options);
+  const response=await handleShopAdmin(req({kind:'brands',label:'Synthetic brand'}),'options',null,g);
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({id,options});
+  expect(g.call).toHaveBeenCalledWith('admin_catalogue_choice',{p_kind:'brands',p_label:'Synthetic brand'});
+  for(const data of [{kind:'shops',label:'no'},{kind:'brands',label:' '},{kind:'brands',label:'a'.repeat(301)},{kind:'brands',label:'x',role:'admin'}]) {
+    const denied=gateway();
+    expect((await handleShopAdmin(req(data),'options',null,denied)).status).toBe(400);
+    expect(denied.call).not.toHaveBeenCalled();
+  }
+  expect((await handleShopAdmin(req({kind:'brands',label:'x'},'https://evil.test'),'options',null,g)).status).toBe(403);
+  expect((await handleShopAdmin(req({kind:'brands',label:'x'}),'options',null,gateway('user'))).status).toBe(403);
+});
+it('identifies country/locality and removed vocabulary mismatches before a write',async()=>{
+  const g=gateway();
+  g.call=vi.fn(async()=>({localities:[{id,label:'Singapore',countryCode:'SG'}],types:[],services:[],specialties:[],brands:[]}));
+  const r=await handleShopAdmin(req({action:'save',revision,document:{...doc,shop:{...doc.shop,country_code:'JP',locality_id:id},brands:[{brand_id:id}]}}),'shop',id,g);
+  expect(r.status).toBe(422);
+  expect((await r.json()).fieldErrors).toEqual(expect.arrayContaining([expect.objectContaining({path:'shop.locality_id'}),expect.objectContaining({path:'brands.0.brand_id'})]));
+  expect(g.call).not.toHaveBeenCalledWith('admin_shop_write',expect.anything());
+});
+it('returns safe structured database field errors without provider details',async()=>{
+  const g=gateway();g.call=vi.fn(async()=>{throw new ShopOperationError('22023',[{path:'shop.locality_id',message:'Choose a locality in the selected country.'}]);});
+  const r=await handleShopAdmin(req({action:'save',revision,document:doc}),'shop',id,g);
+  expect(r.status).toBe(422);expect(await r.json()).toMatchObject({error:{code:'invalid_fields'},fieldErrors:[{path:'shop.locality_id',message:'Choose a locality in the selected country.'}]});
+});

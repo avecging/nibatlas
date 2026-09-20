@@ -33,7 +33,21 @@ export async function shopAdminRoute(
             : "other_permission";
           throw new AdminForbiddenError();
         }
-        if (error) throw new ShopOperationError(error.code);
+        if (error) {
+          // Only these fixed messages may become field errors; never expose SQL/provider details.
+          const known: Record<string, {path:string;message:string}> = {
+            'Locality must match country': {path:'shop.locality_id',message:'Choose a locality in the selected country.'},
+            'Demo identity is permanent': {path:'shop.source_quality',message:'A demo shop must keep its Demo classification.'},
+            'Invalid opening hours': {path:'shop.opening_hours',message:'Check the opening and closing times for each day.'},
+            'Unknown catalogue vocabulary': {path:'types',message:'A catalogue choice changed. Reload the choices and select an available item.'},
+            'Invalid source': {path:'sources',message:'Check the legacy source fields, or remove an unused new source.'},
+            'Invalid alias': {path:'aliases',message:'Check the name and language tag.'},
+          };
+          const field = error.code === '23505' && error.message.includes('unique constraint "shops_slug_key"')
+            ? {path:path === 'list' ? 'slug' : 'shop.slug',message:'This URL name is already used by another shop. Choose a different URL name.'}
+            : known[error.message];
+          throw new ShopOperationError(error.code, field ? [field] : []);
+        }
         stage = "response";
         return data;
       },

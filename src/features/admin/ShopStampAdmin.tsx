@@ -7,6 +7,7 @@ import { readAdminResponse } from './read-response';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { decodeAdminStamps, stampAdminPath, STAMP_INKS, type AdminStampVersion } from './stamp-contract';
+import { usePendingUpload } from './use-pending-upload';
 import { UUID } from './shop-contract';
 import styles from './ShopStampAdmin.module.css';
 
@@ -14,7 +15,7 @@ const messages:Record<string,string>={
   stamp_limit:'This shop has reached the limit of 50 retained stamp versions.',
   upload_expired:'This upload expired. Save again to start a fresh upload.',
   upload_conflict:'This upload cannot be resumed. Save again to start a fresh upload.',
-  invalid_upload:'Use a 1200 × 800 transparent PNG with supported RGB/RGBA export settings.',
+  invalid_upload:'Use a 1200 × 800 transparent PNG up to 5 MiB with supported RGB/RGBA export settings.',
   invalid_request:'Check the stamp fields and try again.',
   invalid_stamp_target:'This stamp draft changed or no longer accepts that file. Reload stamps.',
   revision_conflict:'This stamp changed in another session. Reload before activating.',
@@ -38,6 +39,8 @@ export function ShopStampAdmin({shopId,shopName,archived,localityName='',country
   const [entries,setEntries]=useState<AdminStampVersion[]>([]),[busy,setBusy]=useState(false),[loaded,setLoaded]=useState(false);
   const [error,setError]=useState(''),[notice,setNotice]=useState(''),[confirm,setConfirm]=useState<AdminStampVersion|null>(null);
   const controller=useRef<AbortController|null>(null),lock=useRef(false);
+  const feedback = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (error || notice) { feedback.current?.focus(); feedback.current?.scrollIntoView({block:'center'}); } }, [error, notice]);
   const path=stampAdminPath(shopId);
   useEffect(()=>{
     const c=new AbortController();controller.current=c;
@@ -50,11 +53,11 @@ export function ShopStampAdmin({shopId,shopName,archived,localityName='',country
     try{await work(signal);}catch(e){if(!signal.aborted)setError(e instanceof Error?e.message:'Stamp operation failed.');}
     finally{lock.current=false;if(!signal.aborted)setBusy(false);}
   }
-  return <section className={styles.section} aria-label="Atlas Stamp artwork">
+  return <section className={styles.section} id="shop-stamp-artwork" tabIndex={-1} aria-label="Atlas Stamp artwork">
     <h2>Atlas Stamp artwork</h2>
     <p>Artwork for <strong>{shopName}</strong>. New shops receive a generated default without an image upload. The stamp stays private while the shop is a draft. Uploaded versions are saved privately, previewed intact, and become collectable only after an admin activates them.</p>
-    {error&&<p role="alert">{error}</p>}
-    <p role="status" aria-live="polite">{notice||(busy?'Saving…':'')}</p>
+    <div ref={feedback} tabIndex={-1}>{error&&<p role="alert">{error}</p>}
+    <p role="status" aria-live="polite">{notice||(busy?'Saving…':'')}</p></div>
     <button type="button" disabled={busy} onClick={()=>void run(async signal=>{
       setEntries(decodeAdminStamps((await call(path,signal)).entries));setLoaded(true);setConfirm(null);setNotice('Stamp versions reloaded.');
     })}>Reload stamps</button>
@@ -91,6 +94,7 @@ export function ShopStampAdmin({shopId,shopName,archived,localityName='',country
       <button autoFocus disabled={busy} onClick={()=>void run(async signal=>{
         const value=await call(path,signal,post({action:'activate',versionId:confirm.id,revision:confirm.revision}));
         setEntries(decodeAdminStamps(value.entries));setConfirm(null);setNotice('Stamp design activated. Historical versions and impressions were preserved.');
+        await onPrepared?.();
       })}>Confirm activation</button>
       <button disabled={busy} onClick={()=>setConfirm(null)}>Cancel</button>
     </div>:null}
@@ -119,12 +123,10 @@ function CreateStamp({disabled,run,path,saved}:{disabled:boolean;run:(w:(s:Abort
 function ArtworkPicker({shopId,version,disabled,run,attached}:{shopId:string;version:AdminStampVersion;disabled:boolean;run:(w:(s:AbortSignal)=>Promise<void>)=>void;attached:(r:AdminStampVersion[])=>void}) {
   const [file,setFile]=useState<File|null>(null),[preview,setPreview]=useState('');const input=useRef<HTMLInputElement>(null),uploadId=useRef<string|null>(null);
   useEffect(()=>()=>{if(preview)URL.revokeObjectURL(preview);},[preview]);
-  return <div className={styles.picker}><label>Stamp PNG<input ref={input} type="file" accept="image/png" disabled={disabled} onChange={e=>{
-    if(preview)URL.revokeObjectURL(preview);const next=e.target.files?.[0]??null;setFile(next);setPreview(next?URL.createObjectURL(next):'');uploadId.current=null;
-  }}/></label>
-    {file&&preview?<><img src={preview} alt={`Selected stamp artwork for ${version.creatorName??'creator'}`}/><p>{file.name} · not saved yet</p>
-    <button type="button" disabled={disabled} onClick={()=>void run(async signal=>{
+  usePendingUpload(!!file);
+  const save = (file: File) => void run(async signal => {
       try{
+        if(file.type!=='image/png'||file.size<1||file.size>5*1024*1024) throw new Failure('invalid_upload');
         const bytes=await file.arrayBuffer(),base='/api/v1/admin/media/uploads';
         if(!uploadId.current){
           const sha256=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
@@ -136,7 +138,14 @@ function ArtworkPicker({shopId,version,disabled,run,attached}:{shopId:string;ver
         const value=await call(stampAdminPath(shopId),signal,post({action:'attach',versionId:version.id,uploadId:uploadId.current}));
         attached(decodeAdminStamps(value.entries));setFile(null);setPreview('');uploadId.current=null;if(input.current)input.current.value='';
       }catch(e){if(e instanceof Failure&&['upload_expired','upload_conflict'].includes(e.code))uploadId.current=null;throw e;}
-    })}>Save PNG privately</button></>:null}
+
+  });
+  return <div className={styles.picker}><label>Stamp PNG<input ref={input} type="file" accept="image/png" disabled={disabled} onChange={e=>{
+    if(preview)URL.revokeObjectURL(preview);const next=e.target.files?.[0]??null;setFile(next);setPreview(next?URL.createObjectURL(next):'');uploadId.current=null;
+    if(next) save(next);
+  }}/></label><p>Choosing a PNG uploads and saves it privately. Review the saved preview before activation.</p>
+    {file&&preview?<><img src={preview} alt={`Selected stamp artwork for ${version.creatorName??'creator'}`}/><p>{file.name} · not saved yet</p>
+    <button type="button" disabled={disabled} onClick={()=>save(file)}>Save PNG privately</button></>:null}
   </div>;
 }
 
