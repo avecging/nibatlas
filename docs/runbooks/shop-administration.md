@@ -314,3 +314,27 @@ private-field separation. Logo intake failed for the supplied JPEG named
 is deployed and retested. This is founder-reported acceptance, not additional
 automated or device-specific evidence. Stamp upload/activation/collection/history,
 Package A 1102 investigation, bulk import and other retained obligations remain.
+
+## Package C1: bulk dry-run acceptance (not deployed)
+
+From the shop list, an admin can follow **Preview a bulk CSV / JSON import**.
+Download a v1 template, fill a source file, choose it, match columns and resolve
+shared vocabulary values. **Run dry-run preview** checks rows without saving.
+Filter corrections/duplicates, open a row's before/after and download the
+formula-safe correction report. Fix the source file and reselect it; mappings
+remain in memory for the current signed-in workspace. Details and next checkpoint
+are in `docs/api/admin-import-v1.md`.
+
+Founder acceptance after a separately authorized preview/deployment:
+
+- Load ~200 real source rows; map a repeated brand/place once; check affected rows.
+- Check invalid coordinates and ambiguous/missing vocabulary have useful guidance.
+- Confirm similar names produce candidates and no implicit overwrite target.
+- Preview an explicit existing ID with blank fields and an explicit clear; inspect
+  preserved private content/URL and the intended before/after.
+- Filter/search/page through results, export corrections and reload the catalogue:
+  nothing was created, changed or published.
+- Check mobile controls and signed-out/editor denial.
+
+This is not import/publication acceptance. No catalogue dataset or synthetic test
+rows have been imported. Existing launch obligations and deferrals are unchanged.
