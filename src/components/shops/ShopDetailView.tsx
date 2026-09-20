@@ -4,6 +4,7 @@ import { ShopCorrection } from "@/src/components/shops/ShopCorrection";
 import { ShopEditorial } from "@/src/components/shops/ShopEditorial";
 import { ShopIdentityHero } from "@/src/components/shops/ShopIdentityHero";
 import { ShopMediaGallery } from "@/src/components/shops/ShopMediaGallery";
+import { ShopLocationMap } from "@/src/components/shops/ShopLocationMap";
 import { ShopMediaProvider } from "@/src/components/shops/ShopMediaProvider";
 import { ShopNearby } from "@/src/components/shops/ShopNearby";
 import {
@@ -21,6 +22,7 @@ import {
   type OpeningHoursDay,
   type ShopDetail,
 } from "@/src/domain/shop-detail";
+import { canPreviewShopLocation } from "@/src/features/map/shop-location";
 import { shopVisitFacts, type VisitFact } from "@/src/features/shops/shop-visit-facts";
 import { readCatalogueMode } from "@/src/features/catalogue/catalogue-mode";
 
@@ -160,7 +162,17 @@ export function ShopDetailView({
    * empty subsection, and no reserved space where a section would have been.
    */
   const facts = shopVisitFacts(shop);
-  const hasGettingThere = facts.gettingThere.length > 0 || nearby.length > 0;
+  /*
+   * A mappable coordinate is itself something *Getting there* has to say, so a
+   * record with a position but no written address still gets the subsection —
+   * and one with neither still gets no empty heading.
+   */
+  const hasLocationPreview = canPreviewShopLocation(
+    shop.position,
+    process.env.NEXT_PUBLIC_MAPTILER_KEY,
+  );
+  const hasGettingThere =
+    hasLocationPreview || facts.gettingThere.length > 0 || nearby.length > 0;
 
   /*
    * Whether the page is worth splitting in two.
@@ -276,6 +288,13 @@ export function ShopDetailView({
                   <h3 className={styles.subheading} id="getting-there">
                     Getting there
                   </h3>
+                  {/*
+                    The picture first, then the address in words, then the way
+                    out to a real map — the order someone works out where a place
+                    is in. Everything below it renders whether or not the preview
+                    does.
+                  */}
+                  <ShopLocationMap shop={shop} />
                   <FactList facts={facts.gettingThere} />
 
                   {/*

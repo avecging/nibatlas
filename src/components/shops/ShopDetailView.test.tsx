@@ -262,14 +262,39 @@ describe("Plan your visit", () => {
   });
 
   it("renders no heading over a subsection with nothing in it", () => {
-    // SKB has a link and unpublished hours, and no address, station, floor note
-    // or catalogue neighbour in reach.
+    /*
+     * SKB has a link and unpublished hours, and no address, station, floor note
+     * or catalogue neighbour in reach — but it does have a coordinate, and the
+     * location preview is itself something *Getting there* has to say. A record
+     * with neither a mappable point nor a written address still gets no heading.
+     */
     const sparse = findPrototypeShop("skb-kaohsiung")!;
 
-    renderShop(sparse, []);
+    vi.stubEnv("NEXT_PUBLIC_MAPTILER_KEY", "test-tile-key");
+
+    const placed = renderShop(sparse, []);
 
     expect(screen.getByRole("heading", { name: "Plan your visit" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Before you go" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Getting there" })).toBeInTheDocument();
+    expect(screen.getByTestId("shop-location-map")).toBeInTheDocument();
+
+    placed.unmount();
+
+    // No coordinate to stand behind: no preview, and no heading over nothing.
+    const unplaced: ShopDetail = { ...sparse, position: { latitude: 0, longitude: 0 } };
+    const invented = renderShop(unplaced, []);
+
+    expect(screen.queryByTestId("shop-location-map")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Getting there" })).not.toBeInTheDocument();
+
+    invented.unmount();
+
+    // No tile key: the same, because there is no basemap to draw geography on.
+    vi.stubEnv("NEXT_PUBLIC_MAPTILER_KEY", "");
+    renderShop(sparse, []);
+
+    expect(screen.queryByTestId("shop-location-map")).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Getting there" })).not.toBeInTheDocument();
   });
 
