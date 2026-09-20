@@ -12,6 +12,7 @@ import {
 
 import { decodeShopMedia, mediaPath, type ShopMedia } from "@/src/features/admin/media-contract";
 import { UUID } from "@/src/features/admin/shop-contract";
+import { readCatalogueMode } from "@/src/features/catalogue/catalogue-mode";
 import { splitShopMedia } from "@/src/features/shops/shop-media";
 
 /**
@@ -59,11 +60,7 @@ export function useShopMedia(): ShopMediaValue {
  * the bundler can inline it, the same way the rest of the app reads it.
  */
 function mediaRouteAvailable(shopId: string): boolean {
-  return (
-    UUID.test(shopId) &&
-    (process.env.NEXT_PUBLIC_CATALOGUE_MODE === "api" ||
-      process.env.NEXT_PUBLIC_CATALOGUE_MODE === "api-demo")
-  );
+  return UUID.test(shopId) && readCatalogueMode().mode === "api";
 }
 
 export function ShopMediaProvider({
