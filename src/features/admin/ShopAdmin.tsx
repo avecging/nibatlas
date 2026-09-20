@@ -1,7 +1,7 @@
 "use client";
 import { publicationFix } from "./publication-fix";
 import { useHasPendingUploads } from "./use-pending-upload";
-import { ShopEditorial } from "@/src/components/shops/ShopEditorial";
+import { ShopEditorial, ShopEditorialVisit } from "@/src/components/shops/ShopEditorial";
 import { decodeEditorialContent } from "@/src/api/v1/shop-read";
 import { readAdminResponse } from "./read-response";
 import {
@@ -1638,11 +1638,9 @@ function Preview({
       {d.shop.short_description && <p>{String(d.shop.short_description)}</p>}
       <ShopEditorial
         content={decodeEditorialContent({ ...d.shop, experiences: d.experiences })}
-        section="story"
       />
-      <ShopEditorial
+      <ShopEditorialVisit
         content={decodeEditorialContent({ ...d.shop, experiences: d.experiences })}
-        section="visit"
       />
       {d.shop.phone && <p>Phone: {String(d.shop.phone)}</p>}
       {d.shop.postal_code && <p>Postal code: {String(d.shop.postal_code)}</p>}

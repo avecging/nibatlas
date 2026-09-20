@@ -71,11 +71,15 @@ test("the page leads with identity, the actions, and what you can do", async ({
  * actually holds.
  *
  * The founder's second staging review: a long name wrapped and pushed the
- * control beneath it, so where the bookmark sat depended on the shop. The title
- * row is now a two-column grid — the control's own 44 px, then the name — so the
- * name wraps inside its own column and the control never moves.
+ * control beneath it, so where the bookmark sat depended on the shop. The
+ * identity row keeps the control in its own 44 px slot at the end of the line —
+ * the September shop UI direction puts it on the trailing edge, as the founder's
+ * reference layout does — so the name wraps inside its own column and the
+ * control lands in the same place on every shop.
  */
 test("a long or wrapped name never moves the Save bookmark", async ({ page }) => {
+  const positions: number[] = [];
+
   for (const slug of [
     "skb-kaohsiung", // short Latin
     "nagasawa-stationery-center-main-store", // long Latin, wraps
@@ -86,21 +90,32 @@ test("a long or wrapped name never moves the Save bookmark", async ({ page }) =>
 
     const save = page.getByRole("button", { name: /^(save shop|remove saved shop)$/i });
     const title = page.getByRole("heading", { level: 1 });
+    const identity = page.getByTestId("shop-identity");
 
-    const [saveBox, titleBox] = await Promise.all([
+    const [saveBox, titleBox, identityBox] = await Promise.all([
       save.boundingBox(),
       title.boundingBox(),
+      identity.boundingBox(),
     ]);
 
     // A real 44 px target, whatever the name does.
     expect(saveBox?.width ?? 0, slug).toBeGreaterThanOrEqual(44);
     expect(saveBox?.height ?? 0, slug).toBeGreaterThanOrEqual(44);
 
-    // Before the name horizontally, and never pushed below it: the control's top
-    // stays within the title block rather than dropping under a wrapped line.
-    expect(saveBox!.x, slug).toBeLessThan(titleBox!.x);
+    // After the name horizontally, and never pushed below it: the control stays
+    // on the title's own line rather than dropping under a wrapped one.
+    expect(saveBox!.x, slug).toBeGreaterThan(titleBox!.x);
     expect(saveBox!.y, slug).toBeLessThan(titleBox!.y + titleBox!.height);
+
+    // Measured from the identity block's own trailing edge, because a record
+    // with nothing to put beside its story is deliberately a narrower page.
+    positions.push(
+      Math.round(identityBox!.x + identityBox!.width - (saveBox!.x + saveBox!.width)),
+    );
   }
+
+  // The same place on every shop: that is what "never moves" means.
+  expect(new Set(positions).size).toBe(1);
 });
 
 test("Save is a bookmark whose name and state change together", async ({ page }) => {

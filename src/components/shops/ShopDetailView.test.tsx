@@ -236,14 +236,31 @@ describe("Plan your visit", () => {
   });
 });
 
-describe("the interim identity treatment", () => {
-  it("carries the Nib Atlas identity and one restrained photography note", () => {
+describe("the identity header", () => {
+  it("is text-led, with one restrained photography note and no decorative plate", () => {
     renderShop(findPrototypeShop("pen-house-tainan")!);
 
+    // A fixture build has no media route to ask, so the caption accepted
+    // decision 5 introduced is still the truthful answer.
     expect(screen.getAllByText("Photos coming soon")).toHaveLength(1);
-    // No photographs, and no empty gallery slots standing in for them.
+    // No photographs, no empty gallery slots standing in for them, and no
+    // reserved square where a logo would go.
     expect(document.querySelectorAll("img")).toHaveLength(0);
-    expect(screen.getByText("Nib Atlas")).toBeInTheDocument();
+
+    // The stamp motif plate is gone from discovery: the impression belongs to
+    // collection and the Passport. The collection action itself is untouched.
+    expect(document.querySelectorAll("svg[viewBox='0 0 120 120']")).toHaveLength(0);
+    expect(screen.getByText("Collect Stamp")).toBeInTheDocument();
+  });
+
+  it("puts the locality, both names and the shop type above the photographs", () => {
+    renderShop(findPrototypeShop("ginza-itoya-main-store")!);
+
+    const page = document.body.textContent ?? "";
+
+    expect(page.indexOf("Chūō, Tokyo")).toBeLessThan(page.indexOf("Ginza Itoya Main Store"));
+    expect(page.indexOf("銀座 伊東屋 本店")).toBeLessThan(page.indexOf("Stationery Store"));
+    expect(page.indexOf("Stationery Store")).toBeLessThan(page.indexOf("Collect Stamp"));
   });
 });
 
