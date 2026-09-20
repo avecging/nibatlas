@@ -111,9 +111,15 @@ export async function handleShopAdmin(
     try {
       data = await body(request);
       if (path === 'options') {
-        if (Object.keys(data).some(k => !['kind','label'].includes(k)) || !['brands','specialties'].includes(String(data.kind))
-          || typeof data.label !== 'string' || !data.label.trim() || data.label.length > 300) return adminFailure('invalid_request');
-        const created = object(await gateway.call('admin_catalogue_choice', {p_kind:data.kind,p_label:data.label}));
+        const locality = data.kind === 'localities';
+        if (Object.keys(data).some(k => !(locality ? ['kind','label','countryCode','adminAreaCode'] : ['kind','label']).includes(k)) ||
+          !['brands','specialties','types','localities'].includes(String(data.kind)) ||
+          typeof data.label !== 'string' || !data.label.trim() || data.label.length > 300 ||
+          (locality && (typeof data.countryCode !== 'string' || !/^[A-Z]{2}$/.test(data.countryCode) ||
+            !(data.adminAreaCode === undefined || data.adminAreaCode === null || typeof data.adminAreaCode === 'string' && data.adminAreaCode.length <= 100)))) return adminFailure('invalid_request');
+        if (['types','localities'].includes(String(data.kind)) && role !== 'admin') return adminFailure('forbidden');
+        const created = object(await gateway.call('admin_catalogue_choice', {p_kind:data.kind,p_label:data.label,
+          ...(locality ? {p_country_code:data.countryCode,p_admin_area_code:data.adminAreaCode ?? null} : {})}));
         if (typeof created.id !== 'string' || !UUID.test(created.id)) return adminFailure('service_unavailable');
         return json({id:created.id,options:decodeOptions(await gateway.call('admin_shop_options'))});
       }

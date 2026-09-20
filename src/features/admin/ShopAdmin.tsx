@@ -484,6 +484,11 @@ function Workspace({ id }: { id: string | null }) {
     return () => c.abort();
   }, [id, section, media, mediaCheck]);
 
+  const updateMediaSummary = useCallback((summary: MediaSummary) => {
+    setMedia(summary);
+    setMediaCheck("pending");
+  }, []);
+
   // A correction link changes section first; the element only exists after that
   // section renders, so focus is taken here rather than in the click handler.
   useEffect(() => {
@@ -646,6 +651,22 @@ function Workspace({ id }: { id: string | null }) {
           />
         </div>
       );
+    if (key === "locality_id")
+      return <div key={key}>
+        <Input field={field} path="shop.locality_id" errors={fieldErrors} value={draft.shop[key]}
+          options={viewOptions} prefix="" change={v => setShop(key,v)} />
+        {role === "admin" && <VocabularyCreator kind="localities" busy={busy || record?.publicationStatus === "archived" || !/^[A-Z]{2}$/.test(String(draft.shop.country_code ?? ""))}
+          create={async label => { await run(async () => {
+            const result = await api("/options",signal(),{kind:"localities",label,countryCode:draft.shop.country_code,
+              adminAreaCode:draft.shop.admin_area_code || null});
+            const updated = decodeOptions(result.options);
+            const item = updated.localities?.find(o => o.id === result.id);
+            if (!item) throw new Error("Could not load the new locality. Reload before retrying.");
+            setOptions(updated); setShop("locality_id",item.id);
+            announce({tone:"ok",text:`${item.label} selected. Save to keep this selection.`});
+          }); }} />}
+        <p className={styles.help}>{role === "admin" ? "Choose a country first. New localities use that country and the administrative area code entered here." : "An admin can add a missing locality."}</p>
+      </div>;
     if (key === "timezone")
       return (
         <div className={styles.field} key={key}>
@@ -677,7 +698,7 @@ function Workspace({ id }: { id: string | null }) {
     if (!g || !draft) return null;
     const vocabulary = g.fields[0]?.vocabulary;
     const empty = !!vocabulary && !options[vocabulary]?.length;
-    const creatable = ["brands", "specialties"].includes(g.key);
+    const creatable = ["brands", "specialties"].includes(g.key) || (g.key === "types" && role === "admin");
     return (
       <fieldset className={styles.group} key={g.key} data-field-path={g.key} tabIndex={-1}>
         <legend>
@@ -688,13 +709,13 @@ function Workspace({ id }: { id: string | null }) {
             No {g.label.toLowerCase()} exist in the catalogue yet.
             {creatable
               ? " Add one below; it becomes a catalogue choice you can reuse."
-              : " This vocabulary can only be extended by the catalogue team — see the B3 contract handoff."}
+              : " Ask an admin to add the missing choice."}
           </p>
         )}
         {creatable && (
           <VocabularyCreator
-            kind={g.key as "brands" | "specialties"}
-            busy={busy}
+            kind={g.key as "brands" | "specialties" | "types"}
+            busy={busy || record?.publicationStatus === "archived"}
             create={async (label) => {
               await run(async () => {
                 const result = await api("/options", signal(), { kind: g.key, label });
@@ -1049,10 +1070,7 @@ function Workspace({ id }: { id: string | null }) {
             published={record.publicationStatus === "published"}
             archived={archived}
             role={role}
-            onSummary={(summary) => {
-              setMedia(summary);
-              setMediaCheck("pending");
-            }}
+            onSummary={updateMediaSummary}
           />
         ) : section === "stamp" ? (
           <ShopStampAdmin
@@ -1732,12 +1750,12 @@ function VocabularyCreator({
   busy,
   create,
 }: {
-  kind: "brands" | "specialties";
+  kind: "brands" | "specialties" | "types" | "localities";
   busy: boolean;
   create: (label: string) => Promise<void>;
 }) {
   const [label, setLabel] = useState("");
-  const name = kind === "brands" ? "brand" : "specialty";
+  const name = {brands:"brand",specialties:"specialty",types:"shop type",localities:"locality"}[kind];
   return (
     <div className={styles.vocabulary}>
       <label>

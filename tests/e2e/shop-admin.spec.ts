@@ -65,6 +65,7 @@ const saveAndReview = (page: Page) =>
 
 async function setup(page: Page) {
   await stubSession(page, { kind: "signed-in" });
+  await page.route("**/api/v1/admin/access",route=>route.fulfill({json:{role:"admin"}}));
   let record = fixture();
   let oldDocument = structuredClone(record.document);
   const actions: string[] = [];
@@ -1013,4 +1014,81 @@ test('Review says so when it cannot check which images are public @short', async
   fail = false;
   await page.getByRole('button',{name:'Check again'}).click();
   await expect(page.getByText('Images: 0 saved · 0 shown on the public page')).toBeVisible();
+});
+
+test('gallery arrangement binds all revisions, preserves private images and saves captions @short', async ({page},info) => {
+  await setup(page);
+  const ids=['84000000-0000-4000-8000-000000000001','84000000-0000-4000-8000-000000000002'];
+  let entries=ids.map((id,index)=>({id,kind:'photo',width:2,height:2,altText:`Synthetic photo ${index+1}`,creditText:null,status:index ? 'draft':'approved',revision:'a'.repeat(32),sortOrder:index,caption:null as string|null}));
+  const calls:Record<string,unknown>[]=[];
+  await page.route(`**/api/v1/admin/shops/${id}/media**`,async route=>{
+    if (!route.request().url().endsWith('/media')) {await route.fulfill({status:404});return;}
+    if(route.request().method()==='POST') {
+      const body=route.request().postDataJSON();calls.push(body);
+      if(body.action==='arrange') entries=body.order.map((id:string,index:number)=>{
+        const row=entries.find(e=>e.id===id)!;
+        expect(body.revisions[id]).toBe(row.revision);
+        return {...row,sortOrder:index,caption:Object.hasOwn(body.captions,id) ? body.captions[id]:row.caption,revision:row.revision==='a'.repeat(32)?'b'.repeat(32):'a'.repeat(32)};
+      });
+    }
+    await route.fulfill({json:{entries,capabilities:['remove','arrange']}});
+  });
+  await page.goto(`/admin/shops/${id}`);
+  await open(page,'Photos & logo');
+  const section=page.getByRole('region',{name:'Shop photos and logo'});
+  await section.getByRole('button',{name:'Make cover'}).nth(1).click();
+  await expect(section.locator('figure').first().getByRole('img')).toHaveAttribute('alt','Synthetic photo 2');
+  await expect(section.locator('figure').first()).toContainText('Private to this draft');
+  const caption='墨水 <script>literal text</script>';
+  await section.getByLabel('Photo caption · optional').first().fill(caption);
+  await section.getByRole('button',{name:'Save caption'}).first().click();
+  await expect(section.getByRole('status')).toContainText('Gallery saved');
+  await section.getByRole('button',{name:'Reload images'}).click();
+  await expect(section.getByLabel('Photo caption · optional').first()).toHaveValue(caption);
+  expect(calls.map(c=>c.action)).toEqual(['arrange','arrange']);
+  expect((calls[0]!.order as string[])).toEqual([ids[1],ids[0]]);
+  const violations=(await new AxeBuilder({page}).include('main').withTags(['wcag2a','wcag2aa','wcag21aa']).analyze()).violations;
+  expect(violations).toEqual([]);
+  await section.screenshot({path:info.outputPath('admin-gallery-arrangement.png')});
+});
+
+test('an unknown role never exposes admin-only image controls @short',async({page})=>{
+  await setup(page);
+  await page.route('**/api/v1/admin/access',route=>route.fulfill({status:503,json:{error:{code:'service_unavailable'}}}));
+  await page.route(`**/api/v1/admin/shops/${id}/media**`,route=>route.fulfill({json:{entries:[{id:source,kind:'photo',width:1,height:1,altText:'Synthetic photo',creditText:null,status:'draft',revision:'a'.repeat(32)}],capabilities:['remove','arrange']}}));
+  await page.goto(`/admin/shops/${id}`);
+  await open(page,'Photos & logo');
+  const section=page.getByRole('region',{name:'Shop photos and logo'});
+  await expect(section.getByRole('button',{name:'Show on public page'})).toHaveCount(0);
+  await expect(section.getByRole('button',{name:'Delete image'})).toHaveCount(0);
+  await expect(section.getByRole('button',{name:'Make cover'})).toHaveCount(0);
+});
+
+test('admin can create missing localities and types then save their selection @short',async({page},info)=>{
+  await setup(page);
+  const newLocality='85000000-0000-4000-8000-000000000001',newType='85000000-0000-4000-8000-000000000002';
+  const options={localities:[{id:locality,label:'Singapore (SG)',countryCode:'SG'}],types:[{id:type,label:'Fountain Pen Specialist'}],services:[],brands:[],specialties:[]};
+  await page.route('**/api/v1/admin/shops/options',async route=>{
+    if(route.request().method()==='POST') {
+      const body=route.request().postDataJSON();
+      if(body.kind==='localities') {
+        expect(body.countryCode).toBe('SG');
+        options.localities.push({id:newLocality,label:`${body.label} (SG)`,countryCode:'SG'});
+      } else options.types.push({id:newType,label:body.label});
+      await route.fulfill({json:{id:body.kind==='localities'?newLocality:newType,options}});
+    } else await route.fulfill({json:options});
+  });
+  await page.goto(`/admin/shops/${id}`);
+  await open(page,'Location');
+  await page.getByLabel('New locality name').fill('Synthetic place');
+  await page.getByRole('button',{name:'Add or reuse locality'}).click();
+  await expect(page.getByLabel('Locality').first()).toHaveValue(newLocality);
+  await open(page,'Experiences');
+  await page.getByLabel('New shop type name').fill('Synthetic shop type');
+  await page.getByRole('button',{name:'Add or reuse shop type'}).click();
+  await expect(page.getByRole('status').filter({hasText:'Synthetic shop type selected'})).toBeVisible();
+  await save(page);
+  await open(page,'Location');
+  await expect(page.getByLabel('Locality').first()).toHaveValue(newLocality);
+  await page.screenshot({path:info.outputPath('admin-locality-creation.png')});
 });

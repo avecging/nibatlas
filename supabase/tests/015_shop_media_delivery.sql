@@ -39,7 +39,7 @@ select throws_ok($$select pg_temp.op('publish',pg_temp.image(10),actor=>'7300000
 select throws_ok($$select pg_temp.op('publish',pg_temp.image(10),revision=>repeat('a',32))$$,'40001','Media changed; reload','stale revision conflicts');
 select lives_ok($$select pg_temp.publish(10)$$,'admin publishes without paperwork');
 select is(jsonb_array_length(pg_temp.op('public_list')),1,'published image is public');
-select ok((pg_temp.op('public_list')->0) - array['id','kind','width','height','altText','creditText']='{}'::jsonb,'public list excludes key, source, rights, revision and private status');
+select ok((pg_temp.op('public_list')->0) - array['id','kind','width','height','altText','creditText','sortOrder','caption']='{}'::jsonb,'public list excludes key, source, rights, revision and private status');
 select is(pg_temp.op('public_list')->0->>'altText',(select 'Photo of '||name from public.shops where id='00000000-0000-4000-8000-000000000301'),'truthful fallback derived from shop name');
 select throws_ok($$select pg_temp.op('public_file',pg_temp.image(10),'production')$$,'P0002','Media not found','wrong environment cannot deliver bytes');
 select throws_ok($$update public.shop_images set storage_key='replacement' where id=pg_temp.image(10)$$,'42501','Attached media identity is immutable','cannot overwrite attached bytes');

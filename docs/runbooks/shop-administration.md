@@ -277,3 +277,27 @@ for a city; upload a photo, show it on the public page, take it off again, and
 open the public shop page to check; confirm the position after changing an
 address; publish from Review. Hosted and founder acceptance remain pending
 until this is deployed and tested on a real device.
+
+### B3 backend integration follow-up
+
+The Codex integration branch builds on Claude PR #79. It completes media removal,
+capability advertisement, gallery cover/order/captions and admin locality/type
+creation. The Photos summary callback is stable (fixing a render loop), and an
+unknown account role never enables admin image controls. After deploying the
+additive migrations with the application, an admin can add/reuse a locality in
+Location using the selected country/area and add/reuse a shop type in Experiences.
+Select a type as primary before publishing when needed. New custom types have
+public labels across discovery, detail and Saved; fixed public filter tabs stay
+unchanged.
+
+Gallery actions save separately from shop details. Deletion is irreversible from
+this interface and withdraws public delivery while retaining private audit receipts
+and the existing 50-image cap. Cover/order/caption changes affect already-public
+images immediately and never publish private images. A private first photo is not
+the public cover until explicitly shown.
+
+Technical tests and independent review are not founder acceptance. Staging still
+needs the real-device create/correct/save/publish, JPEG/photo/logo display/removal,
+gallery and stamp checks, including the earlier Package A acceptance gaps. The
+mandatory 200-shop bulk-import Package C and Package D dated hours/richer review
+remain separate and unimplemented by this follow-up.

@@ -153,3 +153,15 @@ publicly and existing precision-aware distance behavior remains.
 Public detail and private saved preview share the new editorial renderer. Full
 page/gallery/selected-art preview parity remains Package D; this slice does not
 claim that lifecycle integration or change historical impressions.
+
+## B3 additive custom-type labels
+
+Viewport, detail, nearby and Saved projections may include `primaryTypeLabel`.
+Detail may also include `shopTypeLabels`, a map of its own attached codes to labels.
+Readers continue accepting legacy canonical codes without these optional fields.
+An administrator-created `type_<UUID with underscores>` code requires a nonblank
+label of at most 300 characters (and a matching detail-map label for each custom
+attached type). Unknown codes outside that namespace remain invalid. These labels
+are plain text and contain no account or private working-copy data. Existing
+public type filters retain their four canonical categories; new types remain
+visible in All and are not silently categorized.

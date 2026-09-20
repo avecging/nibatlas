@@ -82,6 +82,7 @@ function projectNearbyCandidate(
       name: candidate.name,
       localityName: candidate.localityName,
       primaryType: candidate.primaryType,
+    ...(candidate.primaryTypeLabel === undefined ? {} : {primaryTypeLabel:candidate.primaryTypeLabel}),
     },
     distanceMeters:
       current.positionPrecision === "street" &&

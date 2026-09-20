@@ -18,8 +18,10 @@ export async function shopMediaRoute(request: Request, shopId: string, id: strin
     const server = createClient(config.url,secret,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
     return await handleShopMedia(request,shopId,id,isPublic,{
       ...gateway, store:privateR2Store(binding.MEDIA_BUCKET,binding.MEDIA_ENV),
-      async operation(action,shop,id,revision) {
-        const {data,error} = await server.rpc('shop_media_operation',{
+      async operation(action,shop,id,revision,arrangement) {
+        const {data,error} = await server.rpc(action === 'arrange' ? 'shop_media_arrange' : 'shop_media_operation',action === 'arrange' ? {
+          p_actor:actor,p_environment:binding.MEDIA_ENV,p_shop:shop,p_payload:arrangement,
+        } : {
           p_actor:actor,p_environment:binding.MEDIA_ENV,p_shop:shop,p_action:action,p_id:id ?? null,p_revision:revision ?? null,
         });
         if (error?.code === '42501') throw new AdminForbiddenError();

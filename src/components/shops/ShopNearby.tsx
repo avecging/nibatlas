@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { distanceLabel, type NearbyShop } from "@/src/domain/nearby-shops";
-import { SHOP_TYPE_LABELS } from "@/src/domain/shop-detail";
+import { shopTypeLabel } from "@/src/domain/shop-detail";
 
 import styles from "./ShopDetailView.module.css";
 
@@ -48,7 +48,7 @@ export function ShopNearby({
                   ? `Also in ${entry.sameLocality ? localityName : entry.shop.localityName}`
                   : distanceLabel(entry.distanceMeters)}
                 {" · "}
-                {SHOP_TYPE_LABELS[entry.shop.primaryType]}
+                {shopTypeLabel(entry.shop.primaryType,entry.shop.primaryTypeLabel)}
               </span>
             </Link>
           </li>

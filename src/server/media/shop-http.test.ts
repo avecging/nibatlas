@@ -58,3 +58,23 @@ describe('shop media authorization and delivery',()=>{
     expect(r.status).toBe(status);expect(await r.text()).not.toContain(code);
   });
 });
+
+it('advertises implemented capabilities only on private responses and enforces removal role/revision',async()=>{
+  const response=await handleShopMedia(req(),shop,null,false,gateway);
+  expect((await response.json()).capabilities).toEqual(['remove','arrange']);
+  const removed=await handleShopMedia(req('POST',{action:'remove',id,revision:row.revision}),shop,null,false,gateway);
+  expect(removed.status).toBe(200);
+  expect(gateway.operation).toHaveBeenLastCalledWith('remove',shop,id,row.revision);
+  gateway.getAccess=async()=>({role:'editor'});
+  expect((await handleShopMedia(req('POST',{action:'remove',id,revision:row.revision}),shop,null,false,gateway)).status).toBe(403);
+});
+it('validates a complete arrangement and rejects malformed, duplicated, foreign caption/revision keys',async()=>{
+  const arrangement={order:[id],captions:{[id]:'墨水 <script>'},revisions:{[id]:row.revision}};
+  expect((await handleShopMedia(req('POST',{action:'arrange',...arrangement}),shop,null,false,gateway)).status).toBe(200);
+  expect(gateway.operation).toHaveBeenLastCalledWith('arrange',shop,undefined,undefined,arrangement);
+  for (const patch of [{order:[id,id]},{order:['bad']},{captions:{[shop]:'foreign'}},{captions:{[id]:'x'.repeat(301)}},{revisions:{}},{extra:'no'}]) {
+    expect((await handleShopMedia(req('POST',{action:'arrange',...arrangement,...patch}),shop,null,false,gateway)).status).toBe(400);
+  }
+  gateway.getAccess=async()=>({role:'editor'});
+  expect((await handleShopMedia(req('POST',{action:'arrange',...arrangement}),shop,null,false,gateway)).status).toBe(403);
+});

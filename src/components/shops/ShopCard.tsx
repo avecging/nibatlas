@@ -8,7 +8,7 @@ import {
   OperationalStatusBadge,
   VisitedBadge,
 } from "@/src/components/ui/StatusBadge";
-import { SHOP_TYPE_LABELS } from "@/src/domain/shop-detail";
+import { shopTypeLabel } from "@/src/domain/shop-detail";
 import type { ShopMapSummary } from "@/src/domain/shops";
 
 import styles from "./ShopCard.module.css";
@@ -104,7 +104,7 @@ export function ShopCard({
             </p>
           ) : null}
           <p className={styles.meta}>
-            {shop.localityName} · {SHOP_TYPE_LABELS[shop.primaryType]}
+            {shop.localityName} · {shopTypeLabel(shop.primaryType,shop.primaryTypeLabel)}
           </p>
           {specialtyLine ? <p className={styles.specialty}>{specialtyLine}</p> : null}
           <div className={styles.badges}>

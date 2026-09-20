@@ -81,8 +81,19 @@ export function ShopMediaAdmin({shopId,shopName,published,archived,role,onSummar
   // deleting an image are admin-only on the server, so an editor is told that
   // rather than shown a button that returns 403. `canRemove` is about the
   // DEPLOYMENT: permanent deletion does not exist until the service says so.
-  const canChange = role !== 'editor';
+  const canChange = role === 'admin';
   const canRemove = canChange && capabilities.includes('remove');
+  const canArrange = canChange && capabilities.includes('arrange');
+  const arrange = (order: ShopMedia[], captions: Record<string,string|null> = {}) => void run(async signal => {
+    try {
+      apply(await call(path,signal,post({action:'arrange',order:order.map(e => e.id),captions,
+        revisions:Object.fromEntries(entries.map(e => [e.id,e.revision]))})));
+      setNotice('Gallery saved. Changes to images already shown on the public page are live. Private images stay private.');
+    } catch (e) {
+      await call(path,signal).then(apply).catch(() => {});
+      throw e;
+    }
+  });
   const photos = entries.filter(e => e.kind === 'photo'), logos = entries.filter(e => e.kind === 'logo');
   const live = entries.filter(e => e.status === 'approved').length;
 
@@ -118,6 +129,22 @@ export function ShopMediaAdmin({shopId,shopName,published,archived,role,onSummar
                 {entry.creditText ? ` · ${entry.creditText}` : ''}
               </span>
             </figcaption>
+            {canArrange && kind === 'photo' && <>
+              <p className={styles.help}>{index === 0 ? 'First photo · gallery cover when public' : `Gallery position ${index+1}`}</p>
+              <CaptionEditor key={`${entry.id}:${entry.caption ?? ""}`} value={entry.caption ?? ''} disabled={busy || archived}
+                save={caption => arrange(entries,{[entry.id]:caption || null})} />
+              <div className={styles.cardActions}>
+                <button type="button" disabled={busy || archived || index === 0} onClick={() => arrange([entry,...entries.filter(e => e.id !== entry.id)])}>Make cover</button>
+                <button type="button" disabled={busy || archived || index === 0} onClick={() => {
+                  const next = [...entries], at=next.indexOf(entry), previous=next.indexOf(photos[index-1]!);
+                  [next[at],next[previous]]=[next[previous]!,next[at]!]; arrange(next);
+                }}>Move earlier</button>
+                <button type="button" disabled={busy || archived || index === photos.length-1} onClick={() => {
+                  const next = [...entries], at=next.indexOf(entry), following=next.indexOf(photos[index+1]!);
+                  [next[at],next[following]]=[next[following]!,next[at]!]; arrange(next);
+                }}>Move later</button>
+              </div>
+            </>}
             <div className={styles.cardActions}>
               {canChange && <button type="button" disabled={busy || archived} onClick={() => setConfirmation({entry,action:entry.status === 'approved' ? 'hide' : 'publish'})}>
                 {entry.status === 'approved' ? 'Remove from public page' : 'Show on public page'}
@@ -170,6 +197,17 @@ export function ShopMediaAdmin({shopId,shopName,published,archived,role,onSummar
   </section>;
 }
 
+function CaptionEditor({value,disabled,save}: {value:string;disabled:boolean;save:(caption:string)=>void}) {
+  const [caption,setCaption] = useState(value);
+  usePendingUpload(caption !== value);
+  return <div className={styles.picker}>
+    <label>Photo caption · optional
+      <textarea value={caption} maxLength={300} disabled={disabled} onChange={e => setCaption(e.target.value)} />
+    </label>
+    <button type="button" disabled={disabled || caption === value} onClick={() => save(caption)}>Save caption</button>
+  </div>;
+}
+
 function MediaDialog({pending,shopName,published,busy,fallback,onCancel,onConfirm}: {
   pending:Pending;shopName:string;published:boolean;busy:boolean;
   fallback:React.RefObject<HTMLElement|null>;onCancel:()=>void;onConfirm:()=>void;
@@ -188,7 +226,7 @@ function MediaDialog({pending,shopName,published,busy,fallback,onCancel,onConfir
          body:'It comes off the live listing immediately and stays saved in this draft, so you can show it again later.',
          verb:'Remove from public page'}
       : {title:'Delete this image?',
-         body:`${live ? 'It is currently on the public page: deleting removes it from the live listing and from this draft.' : 'It is private, so this affects this draft only.'} Deleting cannot be undone from this interface.`,
+         body:`${live ? 'It is currently on the public page: deleting removes it from the live listing and from this draft.' : 'It is private, so this affects this draft only.'} Deleting cannot be undone from this interface. The upload is retained for audit and still counts toward the 50-image limit.`,
          verb:'Delete image'};
   return <div className={styles.scrim} onMouseDown={onCancel}>
     <div ref={box} className={styles.dialog} role="alertdialog" aria-modal="true" aria-label={copy.title} onMouseDown={e => e.stopPropagation()}>
