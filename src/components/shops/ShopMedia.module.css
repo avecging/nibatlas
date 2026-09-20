@@ -34,15 +34,20 @@
 /*
  * A wide mark takes the row above the title on a phone.
  *
- * Kept beside a long or local-script name at 360 px it leaves the title a
- * column too narrow to read — `flex-basis: 100%` gives it its own line instead,
- * and the bookmark stays with the name below it.
+ * Kept beside a long or local-script name it leaves the title a column too
+ * narrow to read, so the slot is the full row and the mark is bounded inside
+ * it. The slot carries no `max-width`: a flex item's base size is clamped by
+ * its own maximum, so a capped slot would measure 160 px and share the line
+ * again at anything above the narrowest phone.
  */
 .logoSlot[data-shape="wide"] {
-  flex-basis: 100%;
-  width: auto;
-  max-width: 10rem;
+  flex: 0 0 100%;
+  width: 100%;
   height: 3rem;
+}
+
+.logoSlot[data-shape="wide"] .logoImage {
+  max-width: 10rem;
 }
 
 @media (min-width: 768px) {
@@ -52,8 +57,8 @@
   }
 
   .logoSlot[data-shape="wide"] {
-    flex-basis: auto;
-    max-width: 10rem;
+    flex: 0 0 auto;
+    width: 10rem;
     height: 4.5rem;
   }
 }
@@ -359,7 +364,7 @@
   cursor: pointer;
 }
 
-.viewerControl:disabled {
+.viewerControl[aria-disabled="true"] {
   opacity: 0.45;
   cursor: default;
 }

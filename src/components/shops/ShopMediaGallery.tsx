@@ -110,8 +110,12 @@ export function ShopMediaGallery({ shopName }: { readonly shopName: string }) {
   }
 
   const cover = photos[0]!;
-  const previews = photos.slice(1, PREVIEW_COUNT);
+  const shown = photos.slice(0, PREVIEW_COUNT);
+  const previews = shown.slice(1);
   const hidden = photos.length - PREVIEW_COUNT;
+  const shownCredits = [
+    ...new Set(shown.map((photo) => photo.creditText).filter(Boolean)),
+  ] as string[];
 
   return (
     <section className={styles.gallery} aria-label={`Photos of ${shopName}`}>
@@ -162,11 +166,18 @@ export function ShopMediaGallery({ shopName }: { readonly shopName: string }) {
         </button>
       ) : null}
 
-      {(cover.caption ?? cover.creditText) ? (
+      {/*
+        The cover's caption describes the cover, so it is shown with it. The
+        credits cover every photograph actually on screen: a supplied credit is
+        an attribution for a picture that is being displayed, and the two
+        previews are displayed here as much as the cover is. Distinct only, so
+        one photographer credited three times is named once.
+      */}
+      {cover.caption || shownCredits.length > 0 ? (
         <p className={styles.coverCaption}>
           {cover.caption ? <span>{cover.caption}</span> : null}
-          {cover.creditText ? (
-            <span className={styles.coverCredit}>{cover.creditText}</span>
+          {shownCredits.length > 0 ? (
+            <span className={styles.coverCredit}>{shownCredits.join(" · ")}</span>
           ) : null}
         </p>
       ) : null}

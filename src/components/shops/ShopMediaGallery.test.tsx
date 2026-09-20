@@ -149,6 +149,35 @@ describe("the contained gallery", () => {
     );
   });
 
+  it("lays two photographs out without a third empty slot", async () => {
+    renderMedia([photo(1), photo(2)]);
+
+    const gallery = await screen.findByRole("region", {
+      name: "Photos of Ginza Itoya Main Store",
+    });
+
+    expect(within(gallery).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(gallery).getByText("1 / 2")).toBeInTheDocument();
+    expect(within(gallery).queryByText(/View all/)).not.toBeInTheDocument();
+  });
+
+  it("credits every photograph it is showing, and names a photographer once", async () => {
+    renderMedia([
+      photo(1, { creditText: "First photographer" }),
+      photo(2, { creditText: "Second photographer" }),
+      photo(3, { creditText: "Second photographer" }),
+      photo(4, { creditText: "Unshown photographer" }),
+    ]);
+
+    const gallery = await screen.findByRole("region", {
+      name: "Photos of Ginza Itoya Main Store",
+    });
+
+    expect(gallery).toHaveTextContent("First photographer · Second photographer");
+    // A credit for a photograph nobody can see here is not an attribution.
+    expect(gallery).not.toHaveTextContent("Unshown photographer");
+  });
+
   it("offers no overflow control when everything published is already on screen", async () => {
     renderMedia([photo(1), photo(2), photo(3)]);
 
@@ -275,11 +304,24 @@ describe("the enlarged viewer", () => {
     // It does not wrap past the ends, and says so on the control.
     fireEvent.keyDown(document, { key: "ArrowLeft" });
     expect(screen.getByText("Photo 1 of 12")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Previous photo" })).toBeDisabled();
+
+    // Marked unavailable rather than removed from the tab order: a control that
+    // disables itself under the finger that pressed it drops keyboard focus.
+    const previous = screen.getByRole("button", { name: "Previous photo" });
+
+    expect(previous).toHaveAttribute("aria-disabled", "true");
+
+    previous.focus();
+    fireEvent.click(previous);
+
+    expect(screen.getByText("Photo 1 of 12")).toBeInTheDocument();
+    expect(document.activeElement).toBe(previous);
   });
 
   it("downloads the photograph being read and its two neighbours, not the set", async () => {
     await openViewer();
+
+    const before = screen.getByRole("dialog").querySelector(`img[src$="${id(2)}"]`);
 
     fireEvent.click(screen.getByRole("button", { name: "Next photo" }));
 
@@ -287,6 +329,21 @@ describe("the enlarged viewer", () => {
 
     expect(dialog.querySelectorAll("img")).toHaveLength(3);
     expect(within(dialog).getByAltText("Photo 2 of the shop")).toBeInTheDocument();
+
+    /*
+     * The same element, not a replacement for it. The media route is
+     * `no-store`, so a fresh element would re-request the photograph the
+     * neighbour slot had already fetched — and re-run its publication check.
+     */
+    expect(dialog.querySelector(`img[src$="${id(2)}"]`)).toBe(before);
+  });
+
+  it("keeps the whole set out of the accessibility tree while one is read", async () => {
+    await openViewer();
+
+    const dialog = screen.getByRole("dialog");
+
+    expect(dialog.querySelectorAll('img:not([aria-hidden="true"])')).toHaveLength(1);
   });
 
   it("closes on Escape and returns focus to the tile that opened it", async () => {

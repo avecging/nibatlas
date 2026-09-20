@@ -6,7 +6,6 @@ import { useEffect, useRef, useState } from "react";
 import { useDialogFocus } from "@/src/components/hooks/useDialogFocus";
 import { Icon } from "@/src/components/ui/Icon";
 import type { ShopMedia } from "@/src/features/admin/media-contract";
-
 import styles from "./ShopMedia.module.css";
 
 /** A deliberate swipe rather than a tap that drifted, in CSS pixels. */
@@ -45,7 +44,7 @@ export function ShopPhotoViewer({
 }) {
   const dialogRef = useDialogFocus<HTMLDivElement>(true, onClose);
   const [broken, setBroken] = useState<readonly string[]>([]);
-  const touchStartX = useRef<number | null>(null);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   const current = photos[index];
   const hasPrevious = index > 0;
@@ -94,6 +93,11 @@ export function ShopPhotoViewer({
 
   const position = `${index + 1} of ${photos.length}`;
 
+  /* The photograph being read and its two neighbours, and nothing else. */
+  const window = [index - 1, index, index + 1]
+    .filter((at) => at >= 0 && at < photos.length)
+    .map((at) => ({ photo: photos[at]!, isCurrent: at === index }));
+
   return (
     <div className={styles.viewerBackdrop}>
       <div
@@ -121,19 +125,26 @@ export function ShopPhotoViewer({
         <div
           className={styles.viewerStage}
           onTouchStart={(event) => {
-            touchStartX.current = event.touches[0]?.clientX ?? null;
+            const touch = event.touches[0];
+
+            touchStart.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
           }}
           onTouchEnd={(event) => {
-            const start = touchStartX.current;
-            const end = event.changedTouches[0]?.clientX;
+            const start = touchStart.current;
+            const end = event.changedTouches[0];
 
-            touchStartX.current = null;
+            touchStart.current = null;
 
-            if (start === null || end === undefined) {
+            if (!start || !end) {
               return;
             }
 
-            const travelled = end - start;
+            const travelled = end.clientX - start.x;
+
+            // A mostly-vertical drag is not a swipe through the set.
+            if (Math.abs(travelled) <= Math.abs(end.clientY - start.y)) {
+              return;
+            }
 
             if (travelled <= -SWIPE_THRESHOLD && hasNext) {
               onIndexChange(index + 1);
@@ -144,41 +155,39 @@ export function ShopPhotoViewer({
             }
           }}
         >
+          {/*
+            One element per photograph in the window, keyed by the photograph.
+            Moving to the next photograph shows the element that already
+            fetched it rather than creating a new one: the public media route
+            is `no-store`, so a fresh element would re-request the image and
+            re-run its publication check. Only the current one is shown, and
+            only the current one is in the accessibility tree.
+          */}
+          {window.map(({ photo, isCurrent }) => {
+            const readable = isCurrent && !broken.includes(photo.id);
+
+            return (
+              <img
+                key={photo.id}
+                className={readable ? styles.viewerImage : styles.viewerPreload}
+                src={srcFor(photo.id)}
+                alt={readable ? photo.altText : ""}
+                aria-hidden={readable ? undefined : "true"}
+                width={photo.width}
+                height={photo.height}
+                onError={() =>
+                  setBroken((ids) => (ids.includes(photo.id) ? ids : [...ids, photo.id]))
+                }
+              />
+            );
+          })}
+
           {broken.includes(current.id) ? (
             <p className={styles.viewerBroken}>
               <Icon name="alert" size={18} />
               <span>This photo could not be loaded.</span>
             </p>
-          ) : (
-            <img
-              key={current.id}
-              className={styles.viewerImage}
-              src={srcFor(current.id)}
-              alt={current.altText}
-              width={current.width}
-              height={current.height}
-              onError={() => setBroken((ids) => [...ids, current.id])}
-            />
-          )}
-
-          {/*
-            The two neighbours, fetched but not shown, so the next press is
-            immediate without downloading the whole set. They are out of the
-            accessibility tree: there is one photograph on screen.
-          */}
-          {[photos[index - 1], photos[index + 1]]
-            .filter((photo): photo is ShopMedia => photo !== undefined)
-            .map((photo) => (
-              <img
-                key={photo.id}
-                className={styles.viewerPreload}
-                src={srcFor(photo.id)}
-                alt=""
-                aria-hidden="true"
-                width={photo.width}
-                height={photo.height}
-              />
-            ))}
+          ) : null}
         </div>
 
         {current.caption || current.creditText ? (
@@ -192,11 +201,17 @@ export function ShopPhotoViewer({
 
         {photos.length > 1 ? (
           <div className={styles.viewerNavigation}>
+            {/*
+              `aria-disabled` rather than `disabled` at the ends of the set: a
+              control that disables itself under the finger that just pressed it
+              drops focus to the document, and a keyboard reader loses its place
+              in the middle of browsing.
+            */}
             <button
               type="button"
               className={styles.viewerControl}
-              onClick={() => onIndexChange(index - 1)}
-              disabled={!hasPrevious}
+              onClick={() => hasPrevious && onIndexChange(index - 1)}
+              aria-disabled={hasPrevious ? undefined : "true"}
               aria-label="Previous photo"
             >
               <Icon name="chevron-left" size={20} />
@@ -204,8 +219,8 @@ export function ShopPhotoViewer({
             <button
               type="button"
               className={styles.viewerControl}
-              onClick={() => onIndexChange(index + 1)}
-              disabled={!hasNext}
+              onClick={() => hasNext && onIndexChange(index + 1)}
+              aria-disabled={hasNext ? undefined : "true"}
               aria-label="Next photo"
             >
               <Icon name="chevron-right" size={20} />

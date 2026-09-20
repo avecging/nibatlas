@@ -251,8 +251,15 @@ export function ShopDetailView({
             ) : null}
           </div>
 
-          {/* 4 — everything a visitor needs to actually make the trip. */}
-          <aside className={styles.sideColumn}>
+          {/*
+            4 — everything a visitor needs to actually make the trip.
+
+            A `div`, not an `aside`: hours, address and accessibility are the
+            reason someone is on this page, and the complementary landmark an
+            `aside` maps to would describe them as an aside from it. The section
+            inside carries the label.
+          */}
+          <div className={styles.sideColumn}>
             <section className={styles.section} aria-labelledby="plan-your-visit">
               <h2 className={styles.sectionTitle} id="plan-your-visit">
                 Plan your visit
@@ -360,7 +367,7 @@ export function ShopDetailView({
               */}
               <ShopPositionDiagnostic shop={shop} />
             </section>
-          </aside>
+          </div>
         </div>
 
         {/* 5 — quiet provenance, then the correction route. */}

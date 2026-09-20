@@ -35,16 +35,29 @@ function fact(
   label: string,
   value: string | undefined,
 ): VisitFact | null {
-  const text = value?.trim();
+  const trimmed = text(value);
 
-  return text ? { key, icon, label, value: text } : null;
+  return trimmed ? { key, icon, label, value: trimmed } : null;
 }
 
 /** Joined exactly as each source words it; nothing here computes a distance. */
 function joined(parts: readonly (string | undefined)[]): string | undefined {
-  const present = parts.map((part) => part?.trim()).filter(Boolean);
+  const present = parts.map(text).filter(Boolean);
 
   return present.length > 0 ? present.join(" · ") : undefined;
+}
+
+/**
+ * A value only counts as published if it says something.
+ *
+ * Trimming happens before the choice, not after it: `decodeEditorialContent`
+ * drops an empty string but keeps `" "`, and a stray space typed into a field
+ * must not blank the sourced fact it would otherwise fall back to.
+ */
+function text(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+
+  return trimmed ? trimmed : undefined;
 }
 
 export function shopVisitFacts(shop: ShopDetail): ShopVisitFacts {
@@ -52,12 +65,19 @@ export function shopVisitFacts(shop: ShopDetail): ShopVisitFacts {
   const access = shop.access;
   const practical = shop.practical;
 
-  const station =
-    joined([
-      editorial?.nearest_station,
-      editorial?.station_exit,
-      editorial?.walking_guidance,
-    ]) ?? joined([access?.nearestStation?.value, access?.walkFromStation?.value]);
+  /*
+   * Station, exit and walk are three facts, so the fallback is per field.
+   *
+   * Deciding it for the whole group loses content: an editor who types only the
+   * station name on a record whose own source publishes "4 minutes on foot"
+   * would drop that walk time off the page, and `ShopAccessNote` keeps walking
+   * guidance precisely because it is worded by the source and not computed.
+   */
+  const station = joined([
+    text(editorial?.nearest_station) ?? access?.nearestStation?.value,
+    editorial?.station_exit,
+    text(editorial?.walking_guidance) ?? access?.walkFromStation?.value,
+  ]);
 
   /*
    * Appointment: unknown and false are different answers.
@@ -82,7 +102,7 @@ export function shopVisitFacts(shop: ShopDetail): ShopVisitFacts {
       "floor",
       "locate",
       "Unit / floor",
-      editorial?.unit_floor ?? access?.floorNote?.value,
+      text(editorial?.unit_floor) ?? access?.floorNote?.value,
     ),
     fact("entrance", "locate", "Finding the door", editorial?.entrance_notes),
     fact(
@@ -104,20 +124,20 @@ export function shopVisitFacts(shop: ShopDetail): ShopVisitFacts {
       "payment",
       "card",
       "Payment",
-      editorial?.payment_methods ?? practical?.paymentMethods?.values.join(", "),
+      text(editorial?.payment_methods) ?? practical?.paymentMethods?.values.join(", "),
     ),
     fact(
       "languages",
       "globe",
       "Languages",
-      editorial?.languages ?? practical?.languages?.values.join(", "),
+      text(editorial?.languages) ?? practical?.languages?.values.join(", "),
     ),
     fact("holidays", "clock", "Holidays", editorial?.holiday_note),
     fact(
       "accessibility",
       "accessibility",
       "Accessibility",
-      editorial?.accessibility_notes ?? access?.accessibilityNote?.value,
+      text(editorial?.accessibility_notes) ?? access?.accessibilityNote?.value,
     ),
   ];
 
