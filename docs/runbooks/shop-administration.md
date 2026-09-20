@@ -18,9 +18,11 @@ apply to every permitted operator.
    type, the street address, timezone, coordinates and stated accuracy. Internal
    notes and reference links are optional and private. Legacy sources are kept in
    a collapsed, explicitly-not-required block on **Review**; no claim tokens or
-   dated evidence forms are needed. Creating a locality or a new shop type in the
-   product is still outstanding backend work — see
-   `../api/admin-b3-contract-handoff.md`.
+   dated evidence forms are needed. Admins can create or reuse a missing locality
+   in **Location**, after choosing its country and entering an administrative area
+   code when applicable. Admins can also create or reuse a shop type in
+   **Experiences**. Select the resulting choices and save the draft; editors can
+   select existing choices and ask an admin to add missing localities or types.
 3. **Save** keeps working without leaving the section. **Save and review** saves
    privately and opens **Review** on the saved version. Either way the confirmation
    appears at the top of the work area, not below the fold, and the public listing
