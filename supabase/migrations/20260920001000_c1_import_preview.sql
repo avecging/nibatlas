@@ -4,7 +4,7 @@ begin;
 create function public.admin_import_preview(p_mode text, p_rows jsonb)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
 declare r jsonb; result jsonb := '[]'; matches jsonb; rec jsonb; target uuid;
-  d jsonb; issues jsonb; requirements jsonb; conflicted boolean; slug text; shop_name text;
+  d jsonb; issues jsonb; requirements jsonb; conflicted boolean; lookup_slug text; shop_name text;
 begin
   if not exists(select 1 from public.profiles where id=auth.uid() and role='admin') then
     raise exception 'Admin access denied' using errcode='42501'; end if;
@@ -21,14 +21,14 @@ begin
         rec := public.admin_shop_read(target);
         conflicted := exists(select 1 from public.shop_working_copies w where w.shop_id=target and w.base_fingerprint<>md5(public.shop_edit_document(target)::text));
       end if;
-      slug := nullif(btrim(r->>'slug'),''); shop_name := nullif(btrim(r->>'name'),'');
+      lookup_slug := nullif(btrim(r->>'slug'),''); shop_name := nullif(btrim(r->>'name'),'');
       select coalesce(jsonb_agg(x.item order by x.priority,x.id),'[]') into matches from (
-        select s.id, case when slug=s.slug or slug=w.document->'shop'->>'slug' then 0 else 1 end priority,
+        select s.id, case when lookup_slug=s.slug or lookup_slug=w.document->'shop'->>'slug' then 0 else 1 end priority,
           jsonb_build_object('id',s.id,'name',coalesce(w.document->'shop'->>'name',s.name),'slug',s.slug,
-            'reason',case when slug=s.slug or slug=w.document->'shop'->>'slug' then 'same URL name' else 'similar name; inspect before importing' end) item
+            'reason',case when lookup_slug=s.slug or lookup_slug=w.document->'shop'->>'slug' then 'same URL name' else 'similar name; inspect before importing' end) item
         from public.shops s left join public.shop_working_copies w on w.shop_id=s.id
         where s.id is distinct from target and (
-          (slug is not null and (s.slug=slug or w.document->'shop'->>'slug'=slug)) or
+          (lookup_slug is not null and (s.slug=lookup_slug or w.document->'shop'->>'slug'=lookup_slug)) or
           (shop_name is not null and (nullif(r->>'country','') is null or s.country_code=r->>'country' or w.document->'shop'->>'country_code'=r->>'country') and
             (lower(s.name)=lower(shop_name) or lower(w.document->'shop'->>'name')=lower(shop_name)
               or extensions.similarity(lower(s.name),lower(shop_name))>=0.5

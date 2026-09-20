@@ -1,0 +1,23 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, expect, it, vi } from 'vitest';
+import { ImportAdmin } from './ImportAdmin';
+import { VERSION } from './contract';
+vi.mock('@/src/features/account/AccountSessionProvider', () => ({ useAccountSession: () => ({ session: { status: 'signed-in', userId: '70000000-0000-4000-8000-000000000001' } }) }));
+afterEach(() => vi.unstubAllGlobals());
+it('gives column, result filter and search controls explicit accessible names and invalidates changed input', async () => {
+  const options = { localities: [], types: [], brands: [], specialties: [], services: [] };
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => Response.json(init?.method === 'POST' ? { version: VERSION, rows: [{ rowId: 'line-2', line: 2, name: 'Synthetic', action: 'new_private_draft', targetId: null, revision: null, issues: [], candidates: [], fileDuplicates: [], changes: [], publicationErrors: [], hasPrivateChanges: false }] } : { options })));
+  render(<ImportAdmin />);
+  const input = await screen.findByLabelText('CSV or JSON file');
+  fireEvent.change(input, { target: { files: [{ name: 'synthetic.csv', size: 15, arrayBuffer: async () => new TextEncoder().encode('name\nSynthetic').buffer }] } });
+  const preview = await screen.findByRole('button', { name: 'Run dry-run preview' });
+  expect(screen.getByRole('combobox', { name: 'name' })).toBeInTheDocument();
+  fireEvent.click(preview);
+  const filter = await screen.findByRole('combobox', { name: 'Show' });
+  expect(screen.getByLabelText('Show', { exact: true })).toBe(filter);
+  expect(screen.getByRole('textbox', { name: 'Find row or shop' })).toBeInTheDocument();
+  fireEvent.change(filter, { target: { value: 'blocked' } });
+  expect(screen.getByText(/0 matching rows/)).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('name', { exact: true }), { target: { value: 'short_description' } });
+  await waitFor(() => expect(screen.queryByRole('heading', { name: 'Preview results' })).not.toBeInTheDocument());
+});
