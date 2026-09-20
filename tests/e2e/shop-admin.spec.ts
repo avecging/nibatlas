@@ -54,6 +54,15 @@ function fixture(): ShopRecord {
     }),
   };
 }
+
+/** Section nav is the editor's only navigation; every test reaches fields this way. */
+const open = (page: Page, title: string) =>
+  page.getByRole("navigation", { name: "Editor sections" }).getByRole("button", { name: title }).click();
+const bar = (page: Page) => page.locator("main").getByRole("button", { name: /^(Save|Save and review|Review and publish|Saving…|Working…)$/ });
+const save = (page: Page) => page.getByRole("button", { name: "Save", exact: true }).click();
+const saveAndReview = (page: Page) =>
+  page.getByRole("button", { name: "Save and review", exact: true }).click();
+
 async function setup(page: Page) {
   await stubSession(page, { kind: "signed-in" });
   let record = fixture();
@@ -152,29 +161,59 @@ async function setup(page: Page) {
     },
   };
 }
-test("founder edits, previews, publishes, closes and archives @short", async ({
+
+test("all seven approved sections are directly reachable @short", async ({ page }, info) => {
+  await setup(page);
+  await page.goto(`/admin/shops/${id}`);
+  const nav = page.getByRole("navigation", { name: "Editor sections" });
+  for (const title of [
+    "Shop & story",
+    "Experiences",
+    "Location",
+    "Visit details",
+    "Photos & logo",
+    "Stamp",
+    "Review",
+  ]) {
+    await nav.getByRole("button", { name: title }).click();
+    await expect(page.getByRole("heading", { level: 2, name: title })).toBeVisible();
+  }
+  // Reached directly, in any order, without stepping through the ones between.
+  await nav.getByRole("button", { name: "Location" }).click();
+  await expect(page.getByLabel("Shop latitude")).toHaveValue("1.3");
+  await nav.getByRole("button", { name: "Shop & story" }).click();
+  await expect(page.getByLabel("Shop name")).toHaveValue("M6 Demo shop");
+  expect(
+    await page.evaluate(
+      () => window.document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: info.outputPath(`admin-sections-${info.project.name}.png`),
+    fullPage: true,
+  });
+});
+
+test("founder edits, reviews, publishes, closes and archives @short", async ({
   page,
 }, info) => {
   const state = await setup(page);
   await page.goto(`/admin/shops/${id}`);
   await expect(page.getByLabel("Shop name")).toHaveValue("M6 Demo shop");
   await page.getByLabel("Shop name").fill("M6 Revised demo shop");
-  await expect(
-    page.getByRole("button", { name: "Preview saved version", exact: true }),
-  ).toBeDisabled();
-  await page.getByRole("button", { name: "Save changes privately" }).click();
-  await expect(page.getByRole("main").getByRole("alert")).toContainText(
-    "Changes saved privately",
+  await saveAndReview(page);
+  // Feedback for the action sits at the top of the work area, not below the fold.
+  await expect(page.getByRole("main").getByRole("status").first()).toContainText(
+    "Saved privately",
   );
-  await page
-    .getByRole("button", { name: "Preview saved version", exact: true })
-    .click();
+  await expect(page.getByRole("heading", { level: 2, name: "Review", exact: true })).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "M6 Revised demo shop" }),
+    page.getByRole("heading", { name: "M6 Revised demo shop" }).first(),
   ).toBeVisible();
-  await expect(page.getByText("Private internal note")).toHaveCount(0);
-  await expect(page.getByText("Postal code: 012345", { exact: true })).toBeVisible();
-  await expect(page.getByText("Phone: +65 0000 0000", { exact: true })).toBeVisible();
+  const preview = page.getByRole("article", { name: "Public page preview" });
+  await expect(preview.getByText("Private internal note")).toHaveCount(0);
+  await expect(preview.getByText("Postal code: 012345", { exact: true })).toBeVisible();
+  await expect(preview.getByText("Phone: +65 0000 0000", { exact: true })).toBeVisible();
   expect(
     (
       await new AxeBuilder({ page })
@@ -184,36 +223,35 @@ test("founder edits, previews, publishes, closes and archives @short", async ({
     ).violations,
   ).toEqual([]);
   await page.screenshot({
-    path: info.outputPath(`admin-preview-${info.project.name}.png`),
+    path: info.outputPath(`admin-review-${info.project.name}.png`),
     fullPage: true,
   });
-  await page
-    .getByRole("button", { name: "Publish saved version", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Confirm publish", exact: true })
-    .click();
-  await expect(page.getByRole("main").getByRole("alert")).toHaveText(
-    "Shop published.",
+  await page.getByRole("button", { name: "Publish shop", exact: true }).click();
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(page.getByRole("main").getByRole("status").first()).toContainText(
+    "Shop published",
   );
   for (const action of ["temporarily closed", "open", "permanently closed"]) {
+    await page.getByRole("button", { name: `Mark ${action}`, exact: true }).click();
     await page
+      .getByRole("alertdialog")
       .getByRole("button", { name: `Mark ${action}`, exact: true })
       .click();
-    await page
-      .getByRole("button", { name: `Confirm ${action}`, exact: true })
-      .click();
-    await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    await expect(page.getByRole("main").getByRole("status").first()).toContainText(
       "Operational status updated",
     );
   }
   await page.getByRole("button", { name: "Archive shop", exact: true }).click();
   await page
-    .getByRole("button", { name: "Confirm archive", exact: true })
+    .getByRole("alertdialog")
+    .getByRole("button", { name: "Archive shop", exact: true })
     .click();
-  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+  await expect(page.getByRole("main").getByRole("status").first()).toContainText(
     "Shop archived",
   );
+  await open(page, "Shop & story");
   await expect(page.getByLabel("Shop name")).toBeDisabled();
   expect(state.actions).toEqual([
     "save",
@@ -224,15 +262,20 @@ test("founder edits, previews, publishes, closes and archives @short", async ({
     "archive",
   ]);
 });
+
 test("draft editor is accessible and preserves unknown information @short", async ({
   page,
 }, info) => {
   await setup(page);
   await page.goto(`/admin/shops/${id}`);
   await expect(page.getByLabel("Shop name")).toBeVisible();
+  await open(page, "Visit details");
   await expect(page.getByLabel("Appointment required")).toHaveValue("");
-  for (const label of ["Legacy sources (optional) (1)", "Shop types (1)", "Opening hours"])
-    await page.getByText(label, { exact: true }).click();
+  await open(page, "Experiences");
+  await expect(page.getByRole("group", { name: /^Shop types/ })).toBeVisible();
+  await open(page, "Review");
+  await page.getByText("Legacy provenance · retained, not required", { exact: true }).click();
+  await expect(page.getByRole("group", { name: /^Legacy sources/ })).toBeVisible();
   expect(
     (
       await new AxeBuilder({ page })
@@ -254,6 +297,7 @@ test("draft editor is accessible and preserves unknown information @short", asyn
     const b = await control.boundingBox();
     expect(b?.height).toBeGreaterThanOrEqual(44);
   }
+  await open(page, "Shop & story");
   await page.getByLabel("Shop name").focus();
   await page.keyboard.press("Tab");
   await expect(page.getByLabel("URL name")).toBeFocused();
@@ -262,28 +306,27 @@ test("draft editor is accessible and preserves unknown information @short", asyn
     fullPage: true,
   });
 });
+
 test("create flow and revision conflict preserve the unsaved work", async ({
   page,
 }) => {
   const state = await setup(page);
   await page.goto("/admin/shops");
-  await page.getByText("Create a draft shop", { exact: true }).click();
   await page.getByLabel("Shop name").fill("Another demo");
-  await page.getByLabel("URL name").fill("another-demo");
+  await page.getByLabel("URL name · optional").fill("another-demo");
   await page.getByRole("button", { name: "Create draft", exact: true }).click();
-  // The create form contains the same name field while navigation is pending.
-  // Wait for the editor before making another edit, rather than matching that form.
   await expect(page).toHaveURL(/\/admin\/shops\/[a-f0-9-]{36}$/);
-  await expect(page.getByRole("group", { name: "Catalogue details", exact: true })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Editor sections" })).toBeVisible();
   await expect(page.getByLabel("Shop name")).toHaveValue("Another demo");
   state.conflict();
   await page.getByLabel("Shop name").fill("Uncommitted demo");
-  await page.getByRole("button", { name: "Save changes privately" }).click();
+  await save(page);
   await expect(page.getByRole("main").getByRole("alert")).toContainText(
     "changed in another session",
   );
   await expect(page.getByLabel("Shop name")).toHaveValue("Uncommitted demo");
 });
+
 test("denied and signed-out visitors see no editor data", async ({ page }) => {
   await stubSession(page, { kind: "signed-in" });
   await page.route("**/api/v1/admin/shops**", (route) =>
@@ -317,9 +360,9 @@ test("editor supports zoom and reduced motion", async ({ page }) => {
     globalThis.document.body.style.zoom = "2";
   });
   await page.getByLabel("Shop name").fill("Zoomed demo edit");
-  await page.getByRole("button", { name: "Save changes privately" }).click();
-  await expect(page.getByRole("main").getByRole("alert")).toContainText(
-    "Changes saved privately",
+  await save(page);
+  await expect(page.getByRole("main").getByRole("status").first()).toContainText(
+    "Saved privately",
   );
   expect(
     await page.evaluate(
@@ -329,7 +372,6 @@ test("editor supports zoom and reduced motion", async ({ page }) => {
     ),
   ).toBe(true);
 });
-
 
 test("dirty edits survive global links and browser Back @short", async ({ page }) => {
   await setup(page);
@@ -347,17 +389,17 @@ test("dirty edits survive global links and browser Back @short", async ({ page }
     await expect(page.getByLabel("Shop name")).toHaveValue("Keep these unsaved edits");
   };
   await rejectLeave(() => page.getByRole("banner").getByRole("link").first().click(), "confirm");
-  const bottomLink = page.getByRole("navigation").last().getByRole("link").first();
+  const bottomLink = page.getByRole("navigation", { name: /^(?!Editor sections)/ }).last().getByRole("link").first();
   if (await bottomLink.isVisible()) await rejectLeave(() => bottomLink.click(), "confirm");
   await rejectLeave(() => page.getByRole("link", { name: "All shops", exact: true }).click(), "confirm");
   await rejectLeave(() => page.evaluate(() => history.back()), "beforeunload");
-  await page.getByRole("button", { name: "Save changes privately" }).click();
-  await expect(page.getByRole("main").getByRole("alert")).toContainText("Changes saved privately");
+  await save(page);
+  await expect(page.getByRole("main").getByRole("status").first()).toContainText("Saved privately");
   await page.goBack();
   await expect(page).toHaveURL(/\/admin\/shops$/);
 });
 
-test('photos and logos save privately, preview and publish explicitly', async ({page}, testInfo) => {
+test('photos save privately, states are explicit and removal is honest', async ({page}, testInfo) => {
   await setup(page);
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==','base64');
   const uploadId = '73000000-0000-4000-8000-000000000010';
@@ -398,29 +440,62 @@ test('photos and logos save privately, preview and publish explicitly', async ({
     await route.fulfill({json:{entries}});
   });
   await page.goto(`/admin/shops/${id}`);
+  await open(page,'Photos & logo');
   const section=page.getByRole('region',{name:'Shop photos and logo'});
-  await expect(section.getByLabel('Choose photo')).toBeEnabled();
-  await section.getByLabel('Choose photo').setInputFiles({name:'demo-photo.png',mimeType:'image/png',buffer:png});
+  await expect(section.getByLabel('Choose a photo')).toBeEnabled();
+  await section.getByLabel('Choose a photo').setInputFiles({name:'demo-photo.png',mimeType:'image/png',buffer:png});
+  // The first attempt fails; the chosen file stays on screen with a retry.
   await expect(section.getByAltText('Selected photo for M6 Demo shop')).toBeVisible();
-  await expect(section.getByRole('alert')).toContainText('Save again');
-  await section.getByRole('button',{name:'Save photo privately'}).click();
+  await expect(section.getByRole('alert')).toContainText('Choose the file again');
+  await section.getByRole('button',{name:'Retry saving this photo'}).click();
   await expect(section.getByRole('status')).toContainText('Saved privately');
   expect(initiations).toBe(2);
   expect(operations).toEqual(['attach']);
   await expect(section.getByAltText('Photo of M6 Demo shop')).toBeVisible();
-  await section.getByRole('button',{name:'Publish photo 1'}).click();
+  await expect(section.getByRole('figure').getByText('Private to this draft',{exact:true})).toBeVisible();
+  // Permanent deletion is not advertised by this deployment, so no dead control.
+  await expect(section.getByRole('button',{name:'Delete image'})).toHaveCount(0);
+  await expect(section.getByText(/Deleting an image is not available/)).toBeVisible();
+  await section.getByRole('button',{name:'Show on public page'}).click();
   expect(operations).toEqual(['attach']);
-  await section.getByRole('button',{name:'Confirm publish'}).click();
-  await expect(section.getByText('Photo 1 · Published when shop is public')).toBeVisible();
-  await section.getByRole('button',{name:'Hide photo 1'}).click();
-  await section.getByRole('button',{name:'Confirm hide'}).click();
-  await expect(section.getByText('Photo 1 · Private',{exact:true})).toBeVisible();
-  await page.route('**/api/v1/admin/media/uploads', route => route.fulfill({status:503,json:{error:{code:'service_unavailable'}}}));
-  await section.getByLabel('Choose logo').setInputFiles({name:'demo-logo.png',mimeType:'image/png',buffer:png});
-  await expect(section.getByAltText('Selected logo for M6 Demo shop')).toBeVisible();
+  const dialog=page.getByRole('alertdialog');
+  await expect(dialog).toContainText('not published yet');
+  await dialog.getByRole('button',{name:'Show on public page'}).click();
+  await expect(section.getByRole('figure').getByText('On the public page',{exact:true})).toBeVisible();
+  await section.getByRole('button',{name:'Remove from public page'}).click();
+  await expect(page.getByRole('alertdialog')).toContainText('stays saved in this draft');
+  await page.getByRole('alertdialog').getByRole('button',{name:'Remove from public page'}).click();
+  await expect(section.getByRole('figure').getByText('Private to this draft',{exact:true})).toBeVisible();
+  expect(operations).toEqual(['attach','publish','hide']);
   expect(await page.evaluate(()=>globalThis.document.documentElement.scrollWidth<=globalThis.document.documentElement.clientWidth)).toBe(true);
   expect((await new AxeBuilder({page}).include('[aria-label="Shop photos and logo"]').analyze()).violations).toEqual([]);
   await section.screenshot({path:testInfo.outputPath('admin-media-preview.png')});
+});
+
+test('advertised removal capability renders a delete control with live/draft wording @short', async ({page}) => {
+  await setup(page);
+  const imageId='73000000-0000-4000-8000-000000000021';
+  let entries=[{id:imageId,kind:'photo',width:1,height:1,altText:'Photo of M6 Demo shop',creditText:null,status:'approved',revision:'a'.repeat(32)}];
+  const operations:string[]=[];
+  await page.route(`**/api/v1/admin/shops/${id}/media**`,async route=>{
+    const request=route.request();
+    if (request.url().endsWith(`/${imageId}`)) { await route.fulfill({status:404,json:{error:{code:'media_not_found'}}}); return; }
+    if (request.method()==='POST') {
+      const body=request.postDataJSON();operations.push(body.action);
+      if (body.action==='remove') entries=[];
+    }
+    await route.fulfill({json:{entries,capabilities:['remove']}});
+  });
+  await page.goto(`/admin/shops/${id}`);
+  await open(page,'Photos & logo');
+  const section=page.getByRole('region',{name:'Shop photos and logo'});
+  await section.getByRole('button',{name:'Delete image'}).click();
+  const dialog=page.getByRole('alertdialog');
+  await expect(dialog).toContainText('currently on the public page');
+  await expect(dialog).toContainText('cannot be undone');
+  await dialog.getByRole('button',{name:'Delete image'}).click();
+  await expect(section.getByRole('status')).toContainText('Image deleted');
+  expect(operations).toEqual(['remove']);
 });
 
 test('stamp draft upload previews and explicit activation preserve earlier versions', async ({page}, testInfo) => {
@@ -468,6 +543,7 @@ test('stamp draft upload previews and explicit activation preserve earlier versi
     await route.fulfill({json:{entries:created?[uploaded,generated]:[generated]}});
   });
   await page.goto(`/admin/shops/${id}`);
+  await open(page,'Stamp');
   const section=page.getByRole('region',{name:'Atlas Stamp artwork'});
   await section.getByText('Create uploaded stamp version',{exact:true}).click();
   await expect(section.getByLabel('Creator name (optional)',{exact:true})).toBeEnabled();
@@ -490,7 +566,9 @@ test('stamp draft upload previews and explicit activation preserve earlier versi
   expect(actions).toEqual(['create','attach']);
   await section.getByRole('button',{name:'Confirm activation'}).click();
   await expect(section.getByRole('status')).toContainText('Historical versions and impressions were preserved');
-  await expect(page.getByRole('button',{name:'Publish saved version',exact:true})).toBeEnabled();
+  await open(page,'Review');
+  await expect(page.getByRole('button',{name:'Publish shop',exact:true})).toBeEnabled();
+  await open(page,'Stamp');
   await expect(section.getByText('Design v1',{exact:true})).toBeVisible();
   await expect(section.getByText('Design v2',{exact:true})).toBeVisible();
   expect(await page.evaluate(()=>globalThis.document.documentElement.scrollWidth<=globalThis.document.documentElement.clientWidth)).toBe(true);
@@ -513,20 +591,24 @@ test('infrastructure HTML keeps unsaved edits and media reload recovery usable',
     await route.fulfill({status: 500, contentType: 'text/html', body: '<html>private provider text</html>', headers: {'CF-Ray': 'a3d9cfc85b0b0b21-SIN'}});
   });
   await page.goto(`/admin/shops/${id}`);
+  await open(page, 'Photos & logo');
   const media = page.getByRole('region', {name: 'Shop photos and logo'});
-  const stamp = page.getByRole('region', {name: 'Atlas Stamp artwork'});
   await expect(media.getByRole('alert')).toContainText('HTTP 500');
+  await expect(media.getByLabel('Choose a photo')).toBeDisabled();
+  await open(page, 'Stamp');
+  const stamp = page.getByRole('region', {name: 'Atlas Stamp artwork'});
   await expect(stamp.getByRole('alert')).toContainText('HTTP 502');
-  await expect(media.getByLabel('Choose photo')).toBeDisabled();
+  await open(page, 'Shop & story');
   await page.getByLabel('Shop name').fill('Keep my unsaved work');
-  await page.getByRole('button', {name: 'Save changes privately'}).click();
+  await save(page);
   await expect(page.getByText(/Your last action may have completed/)).toBeVisible();
   await expect(page.getByLabel('Shop name')).toHaveValue('Keep my unsaved work');
   await expect(page.getByRole('main')).not.toContainText('private provider text');
   await expect(page.getByRole('main')).not.toContainText('Unexpected token');
   failMedia = false;
-  await media.getByRole('button', {name: 'Reload media'}).click();
-  await expect(media.getByLabel('Choose photo')).toBeEnabled();
+  await open(page, 'Photos & logo');
+  await media.getByRole('button', {name: 'Reload images'}).click();
+  await expect(media.getByLabel('Choose a photo')).toBeEnabled();
   expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.document.documentElement.clientWidth)).toBe(true);
   await page.screenshot({path: info.outputPath('admin-infrastructure-recovery.png'), fullPage: true});
 });
@@ -546,13 +628,12 @@ test('generated default preview and retry preserve unsaved shop edits @short',as
     await route.fulfill({json:{entries}});
   });
   await page.goto(`/admin/shops/${id}`);
-  await expect(page.getByRole('button',{name:'Prepare generated default'})).toBeEnabled();
   await page.getByLabel('Shop name').fill('Unsaved name kept');
-  await page.getByRole('button',{name:'Prepare generated default'}).click();
+  await open(page,'Stamp');
   const stamps=page.getByRole('region',{name:'Atlas Stamp artwork'});
+  await expect(page.getByRole('button',{name:'Prepare generated default'})).toBeEnabled();
+  await page.getByRole('button',{name:'Prepare generated default'}).click();
   await expect(stamps.getByRole('img',{name:/Shop stamp, M6 Demo shop/})).toBeVisible();
-  await expect(page.getByLabel('Shop name')).toHaveValue('Unsaved name kept');
-  await expect(page.getByRole('button',{name:'Save changes privately'})).toBeEnabled();
   await expect(stamps.getByText(/no upload or creator credit needed/)).toBeVisible();
   await page.getByRole('button',{name:'Reload stamps'}).click();
   await expect(stamps.getByRole('img',{name:/Shop stamp, M6 Demo shop/})).toHaveCount(1);
@@ -561,29 +642,66 @@ test('generated default preview and retry preserve unsaved shop edits @short',as
   expect(await page.evaluate(()=>window.document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   expect((await new AxeBuilder({page}).include('main').withTags(['wcag2a','wcag2aa','wcag21aa']).analyze()).violations).toEqual([]);
   await stamps.screenshot({path:info.outputPath('admin-generated-default.png')});
+  // Preparing artwork is a separate operation: it must not touch the document.
+  await open(page,'Shop & story');
+  await expect(page.getByLabel('Shop name')).toHaveValue('Unsaved name kept');
+  await expect(bar(page).first()).toBeEnabled();
 });
 
-test('field errors retain work and focus the exact control @short',async({page},info)=>{
+test('invalid entry, actionable error, correction and successful save @short',async({page},info)=>{
   const state=await setup(page);
   await page.goto(`/admin/shops/${id}`);
   await page.getByLabel('Shop name').fill('Unsaved synthetic name');
-  await page.getByLabel('Shop latitude').fill('91');
   await page.getByLabel('Official website').fill('https://');
-  await page.getByRole('button',{name:'Save changes privately'}).click();
+  await open(page,'Location');
+  await page.getByLabel('Shop latitude').fill('91');
+  await save(page);
   const errors=page.getByRole('list',{name:'Fields to correct'});
   await expect(errors).toBeVisible();
-  await expect(page.getByLabel('Shop name')).toHaveValue('Unsaved synthetic name');
   expect(state.actions).toEqual([]);
+  // The error names a field, the nav flags its section, and the link lands on it.
+  await expect(page.getByRole('navigation',{name:'Editor sections'})
+    .getByRole('button',{name:/Shop & story/})).toContainText('!');
   await errors.getByRole('button',{name:/Shop latitude/}).click();
   await expect(page.getByLabel('Shop latitude')).toBeFocused();
   await expect(page.getByLabel('Shop latitude')).toHaveAttribute('aria-invalid','true');
   await page.screenshot({path:info.outputPath('admin-field-errors.png'),fullPage:true});
   expect((await new AxeBuilder({page}).analyze()).violations).toEqual([]);
   expect(await page.evaluate(()=>window.document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  // Correcting the field clears its stale error immediately.
   await page.getByLabel('Shop latitude').fill('0');
+  await expect(page.getByLabel('Shop latitude')).not.toHaveAttribute('aria-invalid','true');
+  await errors.getByRole('button',{name:/Official website/}).click();
+  await expect(page.getByLabel('Official website')).toBeFocused();
   await page.getByLabel('Official website').fill('https://example.test');
-  await page.getByRole('button',{name:'Save changes privately'}).click();
-  await expect(page.getByRole('main').getByRole('alert')).toContainText('Changes saved privately');
+  await save(page);
+  await expect(page.getByRole('main').getByRole('status').first()).toContainText('Saved privately');
+  await expect(page.getByRole('list',{name:'Fields to correct'})).toHaveCount(0);
+  await expect(page.getByLabel('Shop name')).toHaveValue('Unsaved synthetic name');
+  expect(state.actions).toEqual(['save']);
+});
+
+test('timezone is a searchable list of IANA zones with current offsets @short',async({page},info)=>{
+  const state=await setup(page);
+  await page.goto(`/admin/shops/${id}`);
+  await open(page,'Visit details');
+  const field=page.getByRole('combobox',{name:'Timezone'});
+  await expect(field).toHaveValue(/Singapore, Asia — UTC\+08:00/);
+  await field.click();
+  await field.fill('tokyo');
+  const list=page.getByRole('listbox',{name:'Timezones'});
+  await expect(list.getByRole('option',{name:/Tokyo, Asia/})).toBeVisible();
+  await expect(list.getByRole('option',{name:/Asia\/Tokyo/})).toContainText('UTC+09:00');
+  // A large, genuinely searchable set, not a handful of sample countries.
+  await field.fill('');
+  expect(await list.getByRole('option').count()).toBeGreaterThan(20);
+  await field.fill('tokyo');
+  await list.getByRole('option',{name:/Tokyo, Asia/}).click();
+  await expect(field).toHaveValue(/Tokyo, Asia — UTC\+09:00/);
+  await page.screenshot({path:info.outputPath('admin-timezone.png'),fullPage:true});
+  expect((await new AxeBuilder({page}).include('main').withTags(['wcag2a','wcag2aa','wcag21aa']).analyze()).violations).toEqual([]);
+  await save(page);
+  await expect(page.getByRole('main').getByRole('status').first()).toContainText('Saved privately');
   expect(state.actions).toEqual(['save']);
 });
 
@@ -595,40 +713,63 @@ test('B2 private notes, shared editorial preview and deliberate position review 
   await page.getByText('Internal admin notes · private', { exact: true }).click();
   await page.getByLabel('Internal admin notes (private)', { exact: true }).fill('B2 PRIVATE SENTINEL');
   await page.getByLabel('Reference links (private)', { exact: true }).fill('https://example.test/private-maintenance');
+  await open(page, 'Location');
+  // Position confirmation now sits beside the coordinates it attests to.
   await expect(page.getByRole('button', { name: 'Confirm saved shop position', exact: true })).toBeDisabled();
-  await page.getByRole('button', { name: 'Save changes privately' }).click();
-  await page.getByRole('button', { name: 'Preview saved version', exact: true }).click();
+  await saveAndReview(page);
   await expect(page.getByText('First paragraph.', { exact: true })).toBeVisible();
   await expect(page.getByText('第二段。', { exact: true })).toBeVisible();
   await expect(page.getByText('B2 PRIVATE SENTINEL', { exact: true })).toHaveCount(0);
   await expect(page.getByText('https://example.test/private-maintenance', { exact: true })).toHaveCount(0);
+  await open(page, 'Location');
   await page.getByRole('button', { name: 'Confirm saved shop position', exact: true }).click();
-  await expect(page.getByText(/I checked the saved address, coordinates/)).toBeVisible();
-  await page.getByRole('button', { name: 'Confirm position', exact: true }).click();
-  await expect(page.getByRole('main').getByRole('alert')).toContainText('Saved position confirmed');
-  await page.getByRole('button', { name: 'Publish saved version', exact: true }).click();
-  await expect(page.getByText(/I have reviewed this saved listing for publication/)).toBeVisible();
+  await expect(page.getByRole('alertdialog')).toContainText('you checked the saved address, coordinates');
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Confirm position', exact: true }).click();
+  await expect(page.getByRole('main').getByRole('status').first()).toContainText('Saved position confirmed');
+  await open(page, 'Review');
+  await page.getByRole('button', { name: 'Publish shop', exact: true }).click();
+  await expect(page.getByRole('alertdialog')).toContainText('actual review time are recorded');
   await page.screenshot({ path: info.outputPath(`admin-b2-review-${info.project.name}.png`), fullPage: true });
-  await page.getByRole('button', { name: 'Confirm publish', exact: true }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Publish', exact: true }).click();
   expect(state.actions).toEqual(['save', 'confirm_position', 'publish']);
 });
 
-
-test('save and review moves to the saved preview and retains the editor on a failed save @short', async ({page},info) => {
+test('save and review opens the saved review state and keeps a failed save @short', async ({page},info) => {
   const state = await setup(page);
   await page.goto(`/admin/shops/${id}`);
   await page.getByLabel('Shop name').fill('Mobile review test shop');
-  await page.getByRole('button',{name:'Save and review',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Mobile review test shop',exact:true})).toBeVisible();
+  await saveAndReview(page);
+  await expect(page.getByRole('heading', { level: 2, name: 'Review', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Mobile review test shop'}).first()).toBeVisible();
   await expect(page.getByLabel('Shop name',{exact:true})).toHaveCount(0);
   expect(state.actions).toEqual(['save']);
   await page.screenshot({path:info.outputPath('admin-save-review.png'),fullPage:true});
-  await page.getByRole('button',{name:'Back to editing',exact:true}).click();
+  await open(page,'Shop & story');
   await page.getByLabel('Shop name').fill('Keep failed save');
   state.conflict();
-  await page.getByRole('button',{name:'Save and review',exact:true}).click();
+  await saveAndReview(page);
   await expect(page.getByLabel('Shop name')).toHaveValue('Keep failed save');
   await expect(page.getByRole('main').getByRole('alert')).toContainText('changed in another session');
+});
+
+test('publication blockers lead to the section that fixes them @short', async ({page}) => {
+  await setup(page);
+  await page.route(`**/api/v1/admin/shops/${id}`, route => route.fulfill({json:{
+    ...fixture(),
+    publicationErrors:[
+      'Add the street address.',
+      'Prepare an active Atlas Stamp with approved artwork (artwork package).',
+    ],
+  }}));
+  await page.goto(`/admin/shops/${id}`);
+  await open(page,'Review');
+  await expect(page.getByRole('button',{name:'Publish shop',exact:true})).toBeDisabled();
+  await page.getByRole('listitem').filter({hasText:'Add the street address.'}).getByRole('button',{name:'Fix'}).click();
+  await expect(page.getByRole('heading',{level:2,name:'Location'})).toBeVisible();
+  await expect(page.getByLabel('Address line 1')).toBeFocused();
+  await open(page,'Review');
+  await page.getByRole('listitem').filter({hasText:'Atlas Stamp'}).getByRole('button',{name:'Fix'}).click();
+  await expect(page.getByRole('heading',{level:2,name:'Stamp'})).toBeVisible();
 });
 
 test('empty brand and specialty choices offer add/reuse and become selectable @short', async ({page},info) => {
@@ -643,26 +784,26 @@ test('empty brand and specialty choices offer add/reuse and become selectable @s
     } else await route.fulfill({json:options});
   });
   await page.goto(`/admin/shops/${id}`);
+  await open(page,'Experiences');
   for (const [group,name,label] of [['Brands','brand','Synthetic test brand'],['Specialties','specialty','Synthetic specialty']]) {
-    await page.getByText(`${group} (0)`,{exact:true}).click();
-    await expect(page.getByRole('button',{name:`Add ${group!.toLowerCase()}`,exact:true})).toBeDisabled();
-    await page.getByLabel(`New ${name} name`).fill(label!);
-    await page.getByRole('button',{name:`Add or reuse ${name}`,exact:true}).click();
-    const row=page.getByRole('group',{name:`${group} 1`,exact:true});
-    await expect(row.getByLabel('Item',{exact:false})).toHaveValue(group==='Brands'?'82000000-0000-4000-8000-000000000001':'82000000-0000-4000-8000-000000000002');
-    await expect(row.getByText('Legacy source and review date (optional)')).toBeVisible();
-    await expect(row.getByLabel('Claim review date')).not.toBeVisible();
+    const fieldset=page.getByRole('group',{name:`${group} (0)`,exact:true});
+    await expect(fieldset.getByRole('button',{name:`Add ${group!.toLowerCase()}`,exact:true})).toBeDisabled();
+    await fieldset.getByLabel(`New ${name} name`).fill(label!);
+    await fieldset.getByRole('button',{name:`Add or reuse ${name}`,exact:true}).click();
+    const row=page.getByRole('group',{name:`${group} (1)`,exact:true});
+    await expect(row.getByLabel('Item',{exact:false}).first()).toHaveValue(group==='Brands'?'82000000-0000-4000-8000-000000000001':'82000000-0000-4000-8000-000000000002');
   }
   await page.screenshot({path:info.outputPath('admin-choice-recovery.png'),fullPage:true});
-  await page.getByRole('button',{name:'Save and review',exact:true}).click();
+  await saveAndReview(page);
   await expect(page.getByText('Private catalogue preview',{exact:true})).toBeVisible();
 });
 
 test('country mismatch identifies and focuses locality without discarding edits @short',async({page})=>{
   const state=await setup(page);
   await page.goto(`/admin/shops/${id}`);
+  await open(page,'Location');
   await page.getByLabel('Country code').fill('JP');
-  await page.getByRole('button',{name:'Save and review',exact:true}).click();
+  await saveAndReview(page);
   await expect(page.getByLabel('Locality',{exact:true})).toBeFocused();
   await expect(page.getByLabel('Locality',{exact:true})).toHaveAttribute('aria-invalid','true');
   await expect(page.getByRole('list',{name:'Fields to correct'})).toContainText('Choose a locality in the selected country');

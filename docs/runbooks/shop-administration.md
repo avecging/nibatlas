@@ -185,3 +185,68 @@ and specialty then save/reopen; select a supported image, verify automatic
 private save, interrupt/retry and verify no duplicate attachment; deliberately
 publish/activate after checking the preview. Hosted and founder acceptance of
 this correction remain pending until it is explicitly deployed and tested.
+
+## B3 seven-section editor rebuild
+
+The approved seven-section design in `nib-atlas-admin-rework-handoff.md` and
+`nib-atlas-admin-prototype.html` is now the editor's actual structure. The
+backend contract this depends on is `docs/api/admin-b3-contract-handoff.md`;
+Codex owns everything listed there.
+
+**How the editor is laid out.** Shop & story, Experiences, Location, Visit
+details, Photos & logo, Stamp, Review — reachable in any order from the section
+navigation, never as a forced sequence. The layout adds no field and removes
+none: `editor-sections.ts` is a view over the same shared `SHOP_FIELDS` and
+`GROUPS` contract that a Package C import will write, and a unit test fails if
+any approved field or repeatable group stops being reachable.
+
+**Where feedback appears.** One notice region sits at the top of the work area
+and stays in view while the page scrolls. Routine success (save, position
+confirmed, image shown or hidden) is a notice and never moves focus. A failure
+moves focus to the first field that has to change, or to the notice when there
+is no such field. Decisions that are hard to reverse — publish, discard,
+archive, close, confirm position, show or hide an image, delete an image — open
+a centred dialog rather than a panel appended below the section.
+
+**The persistent action.** A fixed bar holds the save and review actions at
+every scroll position, sitting above the app's own Map/Passport/Me navigation
+below 1024px. It shows whether work is unsaved, saved privately or in progress,
+and it disables itself while a request is in flight so a second tap cannot
+submit twice. A successful **Save and review** opens the Review section on the
+saved version.
+
+**Timezone.** A searchable list of every IANA zone the runtime supports, showing
+the readable place and its *current* UTC offset. The stored value is always the
+IANA identifier; a fixed offset such as `Etc/GMT-8` is labelled as a fixed
+offset and sorted below real places. An existing valid identifier the runtime
+does not list — a legacy alias — is kept and remains selectable. A country
+suggestion is offered only where the country has one civil timezone, and is
+never applied for the editor.
+
+**Images.** Each image shows its state in words: *Private to this draft* or *On
+the public page*. **Show on public page** and **Remove from the public page**
+are per-image admin actions and are spelled out in the dialog, including that
+hiding leaves the image saved in the draft. A failed upload keeps the chosen
+file on screen with **Retry saving this photo** and **Discard this file**;
+nothing has to be found again. Permanent deletion appears only when the media
+service advertises a `remove` capability; until request A in the contract
+handoff ships, the section says so instead of showing a control that cannot
+succeed. The Review section states how many images are saved and how many are
+on the public page, so the path from upload to public visibility is visible
+where publication is decided.
+
+**Position confirmation** now sits beside the coordinates it attests to, in the
+Location section, and states that an address, coordinate or accuracy change
+clears the previous confirmation.
+
+**Stamps** are their own section. The generated default still needs no upload
+and no creator credit; uploaded artwork still requires an explicit admin
+activation, and saving ordinary shop details still activates nothing.
+
+Retest on a phone: reach all seven sections from the navigation; save and see
+the confirmation without scrolling; enter an invalid coordinate, follow the
+error to the field, correct it and save successfully; search the timezone list
+for a city; upload a photo, show it on the public page, take it off again, and
+open the public shop page to check; confirm the position after changing an
+address; publish from Review. Hosted and founder acceptance remain pending
+until this is deployed and tested on a real device.
