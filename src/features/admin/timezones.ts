@@ -37,13 +37,25 @@ export function supportedTimezones(): string[] {
   }
 }
 
+// Building a formatter per zone is the expensive part of listing 400+ zones,
+// and the set never changes within a page, so they are kept.
+const formatters = new Map<string, Intl.DateTimeFormat>();
+function offsetFormatter(id: string): Intl.DateTimeFormat {
+  let formatter = formatters.get(id);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: id,
+      timeZoneName: "longOffset",
+    });
+    formatters.set(id, formatter);
+  }
+  return formatter;
+}
+
 /** "GMT+08:00" → "UTC+08:00"; "GMT" → "UTC+00:00". */
 export function currentOffset(id: string, now = new Date()): string {
   try {
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone: id,
-      timeZoneName: "longOffset",
-    }).formatToParts(now);
+    const parts = offsetFormatter(id).formatToParts(now);
     const name = parts.find((p) => p.type === "timeZoneName")?.value ?? "";
     if (!name.startsWith("GMT")) return "";
     const rest = name.slice(3);

@@ -28,6 +28,7 @@ import {
   type SectionId,
 } from "./editor-sections";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useDialog } from "./use-dialog";
 import type { ReactNode, RefObject } from "react";
 import { useAccountSession } from "@/src/features/account/AccountSessionProvider";
 import {
@@ -174,8 +175,11 @@ function reveal(target: FocusTarget): boolean {
     group.open = true;
     group = group.parentElement?.closest("details") ?? null;
   }
-  element.focus();
+  // A disabled control cannot take focus — a Fix link for the position
+  // confirmation lands on one whenever there are unsaved edits — so bring it
+  // into view regardless and only then try to focus it.
   element.scrollIntoView({ block: "center" });
+  element.focus();
   return true;
 }
 
@@ -344,6 +348,8 @@ function Workspace({ id }: { id: string | null }) {
     [section, setSection] = useState<SectionId>("story"),
     [previewWidth, setPreviewWidth] = useState<"desktop" | "mobile">("desktop"),
     [media, setMedia] = useState<MediaSummary | null>(null),
+    [mediaCheck, setMediaCheck] = useState<"pending" | "failed">("pending"),
+    [role, setRole] = useState<"editor" | "admin" | null>(null),
     [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null),
     [headingFocus, setHeadingFocus] = useState(0),
     [confirmation, setConfirmation] = useState<string | null>(null);
@@ -363,6 +369,19 @@ function Workspace({ id }: { id: string | null }) {
           setRecord(parsed);
           setDraft(parsed.document);
           setOptions(decodeOptions(o));
+          // Showing, hiding and deleting an image are admin-only on the server.
+          // An editor is told so instead of being offered a button that 403s.
+          void fetch("/api/v1/admin/access", {
+            signal: c.signal,
+            cache: "no-store",
+            credentials: "same-origin",
+          })
+            .then((response) => (response.ok ? response.json() : null))
+            .then((value) => {
+              const next = (value as { role?: unknown } | null)?.role;
+              if (next === "admin" || next === "editor") setRole(next);
+            })
+            .catch(() => {});
         } else {
           const r = await api("", c.signal);
           setList(decodeList(r.entries));
@@ -446,21 +465,24 @@ function Workspace({ id }: { id: string | null }) {
   // has not opened Photos in this visit. A failure here is silent: the Photos
   // section reports media problems, and this is only a summary line.
   useEffect(() => {
-    if (!id || section !== "review" || media) return;
+    if (!id || section !== "review" || media || mediaCheck === "failed") return;
     const c = new AbortController();
     fetch(mediaPath(id), { signal: c.signal, cache: "no-store", credentials: "same-origin" })
-      .then((response) => (response.ok ? response.json() : null))
+      .then((response) => (response.ok ? response.json() : Promise.reject(new Error())))
       .then((value) => {
-        if (!value) return;
         const rows = decodeShopMedia(value.entries, true);
         setMedia({
           total: rows.length,
           published: rows.filter((row) => row.status === "approved").length,
         });
       })
-      .catch(() => {});
+      .catch(() => {
+        // The Photos section owns media errors. Review only has to stop
+        // claiming a check is still running when it has given up.
+        if (!c.signal.aborted) setMediaCheck("failed");
+      });
     return () => c.abort();
-  }, [id, section, media]);
+  }, [id, section, media, mediaCheck]);
 
   // A correction link changes section first; the element only exists after that
   // section renders, so focus is taken here rather than in the click handler.
@@ -480,10 +502,23 @@ function Workspace({ id }: { id: string | null }) {
   // keyboard both land in the new content. It happens in the commit that
   // renders the section, never in a later frame that could steal focus from
   // something the editor has already reached for.
-  const go = useCallback((next: SectionId) => {
-    setSection(next);
-    setHeadingFocus((n) => n + 1);
-  }, []);
+  const go = useCallback(
+    (next: SectionId) => {
+      // Leaving Photos unmounts the uploader and aborts an upload in flight,
+      // so this gets the same warning as leaving the page by a link.
+      if (
+        next !== "photos" &&
+        pendingUploads &&
+        !window.confirm(
+          "An image has not finished saving. Leaving this section cancels it. Leave anyway?",
+        )
+      )
+        return;
+      setSection(next);
+      setHeadingFocus((n) => n + 1);
+    },
+    [pendingUploads],
+  );
   useEffect(() => {
     if (!headingFocus) return;
     window.document.getElementById("shop-section-heading")?.focus();
@@ -729,14 +764,15 @@ function Workspace({ id }: { id: string | null }) {
                       value={r[field.key]}
                       options={viewOptions}
                       prefix=""
-                      change={(v) =>
+                      change={(v) => {
+                        clearError(`${g.key}.${i}.${field.key}`);
                         setDraft({
                           ...draft,
                           [g.key]: draft[g.key].map((row, n) =>
                             n === i ? { ...row, [field.key]: v } : row,
                           ),
-                        })
-                      }
+                        });
+                      }}
                     />
                   ))}
               </details>
@@ -898,8 +934,10 @@ function Workspace({ id }: { id: string | null }) {
   const locked = busy || archived;
   const active = SECTIONS.find((s) => s.id === section)!;
   const errorSections = new Set(fieldErrors.map((e) => sectionForPath(e.path)));
+  // The checks and this routing both describe the saved version, which is what
+  // the Review copy promises; an unsaved edit must not move where Fix lands.
   const blockerSections = new Set(
-    record.publicationErrors.map((e) => sectionForFix(publicationFix(e, draft))),
+    record.publicationErrors.map((e) => sectionForFix(publicationFix(e, record.document))),
   );
   const stateLabel = `${record.publicationStatus}${record.hasChanges ? " · saved changes" : ""}${
     dirty ? " · unsaved edits" : ""
@@ -996,7 +1034,11 @@ function Workspace({ id }: { id: string | null }) {
             shopName={String(record.document.shop.name)}
             published={record.publicationStatus === "published"}
             archived={archived}
-            onSummary={setMedia}
+            role={role}
+            onSummary={(summary) => {
+              setMedia(summary);
+              setMediaCheck("pending");
+            }}
           />
         ) : section === "stamp" ? (
           <ShopStampAdmin
@@ -1026,17 +1068,19 @@ function Workspace({ id }: { id: string | null }) {
             record={record}
             options={options}
             media={media}
+            mediaCheck={mediaCheck}
             busy={busy}
             dirty={dirty}
             previewWidth={previewWidth}
             setPreviewWidth={setPreviewWidth}
             onFix={(requirement) => {
-              const fix = publicationFix(requirement, draft);
+              const fix = publicationFix(requirement, record.document);
               setSection(sectionForFix(fix));
               setFocusTarget(fix);
             }}
             onConfirm={setConfirmation}
             onOpenPhotos={() => go("photos")}
+            onRecheckMedia={() => setMediaCheck("pending")}
             onReload={() => {
               if (!dirty || window.confirm("Discard your unsaved edits and reload?"))
                 void run(async () => {
@@ -1047,10 +1091,11 @@ function Workspace({ id }: { id: string | null }) {
                 });
             }}
             legacy={
-              <>
+              <fieldset disabled={locked} className={styles.plain}>
+                <legend className={styles.hidden}>Legacy provenance</legend>
                 {LEGACY_FIELDS.map((key) => shopField(key))}
                 {LEGACY_GROUPS.map((key) => groupEditor(key))}
-              </>
+              </fieldset>
             }
           />
         ) : (
@@ -1214,7 +1259,7 @@ function HoursEditor({
   const hours = (draft.shop.opening_hours as Row | null) ?? {};
   const entries = (hours.entries ?? []) as Row[];
   return (
-    <div className={styles.box} data-field-path="shop.opening_hours">
+    <div className={styles.box} data-field-path="shop.opening_hours" tabIndex={-1}>
       <h3>Opening hours</h3>
       <p className={styles.help}>
         Record only hours you have checked. A day with no entry stays unknown, which is
@@ -1287,6 +1332,7 @@ function ReviewSection({
   record,
   options,
   media,
+  mediaCheck,
   busy,
   dirty,
   previewWidth,
@@ -1295,11 +1341,13 @@ function ReviewSection({
   onConfirm,
   onReload,
   onOpenPhotos,
+  onRecheckMedia,
   legacy,
 }: {
   record: ShopRecord;
   options: Options;
   media: MediaSummary | null;
+  mediaCheck: "pending" | "failed";
   busy: boolean;
   dirty: boolean;
   previewWidth: "desktop" | "mobile";
@@ -1308,6 +1356,7 @@ function ReviewSection({
   onConfirm: (action: string) => void;
   onReload: () => void;
   onOpenPhotos: () => void;
+  onRecheckMedia: () => void;
   legacy: ReactNode;
 }) {
   const archived = record.publicationStatus === "archived";
@@ -1352,9 +1401,17 @@ function ReviewSection({
             ) : null}
           </p>
         )}
-        {!media && (
+        {!media && mediaCheck === "pending" && (
           <p className={styles.mediaSummary}>
             Checking which images are visible on the public page…
+          </p>
+        )}
+        {!media && mediaCheck === "failed" && (
+          <p className={styles.mediaSummary} role="status">
+            Could not check which images are on the public page.{" "}
+            <button type="button" className={styles.quiet} onClick={onRecheckMedia}>
+              Check again
+            </button>
           </p>
         )}
         <button type="button" className={styles.quiet} onClick={onOpenPhotos}>
@@ -1489,16 +1546,14 @@ function ConfirmDialog({
     body: "Use this only when supported by your source or visit. Collected impressions are preserved.",
     verb: `Mark ${action.replaceAll("_", " ")}`,
   };
-  useEffect(() => {
-    const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
-    };
-    document.addEventListener("keydown", key);
-    return () => document.removeEventListener("keydown", key);
-  }, [onCancel]);
+  const box = useRef<HTMLDivElement>(null);
+  // Confirming closes the dialog and the outcome is announced in the notice
+  // region, so the dialog never sits open over a request it cannot report on.
+  useDialog(box, onCancel);
   return (
     <div className={styles.scrim} onMouseDown={onCancel}>
       <div
+        ref={box}
         className={styles.dialog}
         role="alertdialog"
         aria-modal="true"
@@ -1509,7 +1564,7 @@ function ConfirmDialog({
         <p>{copy.body}</p>
         <div className={styles.dialogActions}>
           <button autoFocus className={styles.primary} disabled={busy} onClick={onConfirm}>
-            {busy ? "Working…" : copy.verb}
+            {copy.verb}
           </button>
           <button disabled={busy} onClick={onCancel}>
             Cancel

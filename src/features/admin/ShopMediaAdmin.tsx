@@ -4,6 +4,7 @@ import { readAdminResponse } from './read-response';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { decodeShopMedia, mediaCapabilities, mediaPath, type ShopMedia } from './media-contract';
 import { usePendingUpload } from './use-pending-upload';
+import { useDialog } from './use-dialog';
 import { UUID } from './shop-contract';
 import styles from './ShopMediaAdmin.module.css';
 
@@ -14,8 +15,8 @@ export interface MediaSummary {
 
 const messages: Record<string,string> = {
   invalid_upload:'This file is not supported. Photos: ordinary RGB JPEG or PNG. Logos: RGB/RGBA PNG. PNG must be non-interlaced, at most 2048 px per side, without text or EXIF metadata.',
-  invalid_request:'That action is not available on this deployment yet. Nothing was changed.',
-  authentication_required:'Sign in again to continue.', forbidden:'Your account cannot perform this media action. Publishing, hiding and removing an image need an admin account.',
+  invalid_request:'That request was refused. Nothing was changed. Reload images and try again.',
+  authentication_required:'Sign in again to continue.', forbidden:'Your account cannot do this. Showing an image on the public page, taking it off again and deleting it all need an admin account.',
   service_unavailable:'Media service is unavailable. Your file was not lost — try again.',
   upload_expired:'This upload expired. Choose the file again to start a fresh upload.', upload_conflict:'Choose the file again to start a fresh upload.',
   revision_conflict:'This image changed in another session. Reload images before trying again.',
@@ -35,8 +36,10 @@ const post = (value: unknown): RequestInit => ({method:'POST',headers:{'Content-
 
 type Pending = {entry: ShopMedia; action: 'publish' | 'hide' | 'remove'};
 
-export function ShopMediaAdmin({shopId,shopName,published,archived,onSummary}: {
-  shopId:string;shopName:string;published:boolean;archived:boolean;onSummary?:(summary:MediaSummary)=>void;
+export function ShopMediaAdmin({shopId,shopName,published,archived,role,onSummary}: {
+  shopId:string;shopName:string;published:boolean;archived:boolean;
+  /** The signed-in account's catalogue role, or null while it is unknown. */
+  role?:'editor'|'admin'|null;onSummary?:(summary:MediaSummary)=>void;
 }) {
   const [entries,setEntries] = useState<ShopMedia[]>([]), [capabilities,setCapabilities] = useState<string[]>([]);
   const [busy,setBusy] = useState(false), [error,setError] = useState('');
@@ -74,7 +77,12 @@ export function ShopMediaAdmin({shopId,shopName,published,archived,onSummary}: {
     finally { lock.current = false; if (!signal.aborted) setBusy(false); }
   }
 
-  const canRemove = capabilities.includes('remove');
+  // Two separate gates. `canChange` is about the ACTOR: showing, hiding and
+  // deleting an image are admin-only on the server, so an editor is told that
+  // rather than shown a button that returns 403. `canRemove` is about the
+  // DEPLOYMENT: permanent deletion does not exist until the service says so.
+  const canChange = role !== 'editor';
+  const canRemove = canChange && capabilities.includes('remove');
   const photos = entries.filter(e => e.kind === 'photo'), logos = entries.filter(e => e.kind === 'logo');
   const live = entries.filter(e => e.status === 'approved').length;
 
@@ -111,9 +119,9 @@ export function ShopMediaAdmin({shopId,shopName,published,archived,onSummary}: {
               </span>
             </figcaption>
             <div className={styles.cardActions}>
-              <button type="button" disabled={busy || archived} onClick={() => setConfirmation({entry,action:entry.status === 'approved' ? 'hide' : 'publish'})}>
+              {canChange && <button type="button" disabled={busy || archived} onClick={() => setConfirmation({entry,action:entry.status === 'approved' ? 'hide' : 'publish'})}>
                 {entry.status === 'approved' ? 'Remove from public page' : 'Show on public page'}
-              </button>
+              </button>}
               {canRemove && <button type="button" className={styles.danger} disabled={busy || archived}
                 onClick={() => setConfirmation({entry,action:'remove'})}>Delete image</button>}
             </div>
@@ -122,7 +130,13 @@ export function ShopMediaAdmin({shopId,shopName,published,archived,onSummary}: {
       })}
     </div>
 
-    {loaded && !canRemove && <p className={styles.help}>
+    {loaded && !canChange && <p className={styles.help}>
+      <strong>Your account can add images but cannot change what is public.</strong> Showing an image on the
+      {' '}public page, taking it off again and deleting it need an admin account, so those controls are not
+      {' '}shown here. Upload what you need and ask an admin to review it.
+    </p>}
+
+    {loaded && canChange && !canRemove && <p className={styles.help}>
       <strong>Deleting an image for good is not available yet.</strong> “Remove from the public page” takes an image
       {' '}off the live listing straight away and keeps it here in the draft, so nothing a visitor can see is left behind.
       {' '}A Delete button will appear here on its own once permanent deletion is switched on.
@@ -132,28 +146,38 @@ export function ShopMediaAdmin({shopId,shopName,published,archived,onSummary}: {
       apply(await call(path,signal)); setLoaded(true); setConfirmation(null); setNotice('Images reloaded.');
     })}>Reload images</button>
 
-    {confirmation && <MediaDialog pending={confirmation} shopName={shopName} published={published} busy={busy}
+    {confirmation && <MediaDialog pending={confirmation} shopName={shopName} published={published} busy={busy} fallback={feedback}
       onCancel={() => setConfirmation(null)}
-      onConfirm={() => void run(async signal => {
-        const r = await call(path,signal,post({action:confirmation.action,id:confirmation.entry.id,revision:confirmation.entry.revision}));
-        apply(r);
-        setNotice(confirmation.action === 'publish'
-          ? (published ? 'Now on the public page. Open the public shop page to check it.' : 'Marked for the public page. It appears once the shop itself is published.')
-          : confirmation.action === 'hide' ? 'Taken off the public page. It is still saved in this draft.'
-          : 'Image deleted.');
+      onConfirm={() => {
+        const pending = confirmation;
         setConfirmation(null);
-      })}/>}
+        void run(async signal => {
+          try {
+            const r = await call(path,signal,post({action:pending.action,id:pending.entry.id,revision:pending.entry.revision}));
+            apply(r);
+            setNotice(pending.action === 'publish'
+              ? (published ? 'Now on the public page. Open the public shop page to check it.' : 'Marked for the public page. It appears once the shop itself is published.')
+              : pending.action === 'hide' ? 'Taken off the public page. It is still saved in this draft.'
+              : 'Image deleted.');
+          } catch (e) {
+            // A refused change leaves the saved list stale, and its revision with
+            // it, so reload before the editor can try the same thing again.
+            await call(path,signal).then(apply).catch(() => {});
+            throw e;
+          }
+        });
+      }}/>}
   </section>;
 }
 
-function MediaDialog({pending,shopName,published,busy,onCancel,onConfirm}: {
-  pending:Pending;shopName:string;published:boolean;busy:boolean;onCancel:()=>void;onConfirm:()=>void;
+function MediaDialog({pending,shopName,published,busy,fallback,onCancel,onConfirm}: {
+  pending:Pending;shopName:string;published:boolean;busy:boolean;
+  fallback:React.RefObject<HTMLElement|null>;onCancel:()=>void;onConfirm:()=>void;
 }) {
-  useEffect(() => {
-    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
-    document.addEventListener('keydown',key);
-    return () => document.removeEventListener('keydown',key);
-  },[onCancel]);
+  const box = useRef<HTMLDivElement>(null);
+  // Deleting removes the button that opened this dialog, so focus falls back to
+  // the section's own status region rather than to the top of the document.
+  useDialog(box,onCancel,fallback);
   const live = pending.entry.status === 'approved';
   const copy = pending.action === 'publish'
     ? {title:`Show this ${pending.entry.kind} on the public page?`,
@@ -167,12 +191,12 @@ function MediaDialog({pending,shopName,published,busy,onCancel,onConfirm}: {
          body:`${live ? 'It is currently on the public page: deleting removes it from the live listing and from this draft.' : 'It is private, so this affects this draft only.'} Deleting cannot be undone from this interface.`,
          verb:'Delete image'};
   return <div className={styles.scrim} onMouseDown={onCancel}>
-    <div className={styles.dialog} role="alertdialog" aria-modal="true" aria-label={copy.title} onMouseDown={e => e.stopPropagation()}>
+    <div ref={box} className={styles.dialog} role="alertdialog" aria-modal="true" aria-label={copy.title} onMouseDown={e => e.stopPropagation()}>
       <h3>{copy.title}</h3>
       <p>{copy.body}</p>
       <div className={styles.dialogActions}>
         <button autoFocus type="button" disabled={busy} className={pending.action === 'remove' ? styles.danger : undefined} onClick={onConfirm}>
-          {busy ? 'Working…' : copy.verb}
+          {copy.verb}
         </button>
         <button type="button" disabled={busy} onClick={onCancel}>Cancel</button>
       </div>

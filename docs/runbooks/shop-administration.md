@@ -236,10 +236,15 @@ the public page*. **Show on public page** and **Remove from the public page**
 are per-image admin actions and are spelled out in the dialog, including that
 hiding leaves the image saved in the draft. A failed upload keeps the chosen
 file on screen with **Retry saving this photo** and **Discard this file**;
-nothing has to be found again. Permanent deletion appears only when the media
-service advertises a `remove` capability; until request A in the contract
-handoff ships, the section says so instead of showing a control that cannot
-succeed. The Review section states how many images are saved and how many are
+nothing has to be found again, and leaving the Photos section while an upload is
+in flight asks first, because unmounting the uploader cancels it. Two separate gates decide which image controls
+appear. The **actor** gate reads the signed-in role from
+`GET /api/v1/admin/access`: showing, hiding and deleting an image are admin-only
+on the server, so an editor sees none of them and is told an admin has to review
+the upload. The **deployment** gate is the `remove` capability the media list
+advertises: until request A in the contract handoff ships, permanent deletion is
+not offered and the section says so. Together they are what makes "no shipped
+control can fail" true — neither is sufficient alone. The Review section states how many images are saved and how many are
 on the public page, so the path from upload to public visibility is visible
 where publication is decided.
 

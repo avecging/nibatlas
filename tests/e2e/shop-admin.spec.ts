@@ -824,3 +824,126 @@ test('country is a searchable selector that stores the code @short',async({page}
   await expect(page.getByRole('list',{name:'Fields to correct'})).toContainText('Choose a locality in the selected country');
   expect(state.actions).toEqual([]);
 });
+
+test('server field errors drive the same correction cycle as client ones @short', async ({page}) => {
+  const state = await setup(page);
+  // The client validator accepts this document; only the server rejects it, which
+  // is the path the founder actually hit on the deployed system.
+  let reject = true;
+  await page.route(`**/api/v1/admin/shops/${id}`, async route => {
+    if (route.request().method() !== 'POST' || !reject) { await route.fallback(); return; }
+    reject = false;
+    await route.fulfill({status:422,json:{ok:false,error:{code:'invalid_fields'},
+      fieldErrors:[{path:'shop.postal_code',message:'Use a postal code valid for the selected country.'}]}});
+  });
+  await page.goto(`/admin/shops/${id}`);
+  await page.getByLabel('Shop name').fill('Server-rejected name');
+  await save(page);
+  const errors = page.getByRole('list',{name:'Fields to correct'});
+  await expect(errors).toContainText('Use a postal code valid for the selected country.');
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('Nothing was saved');
+  // The section flag, the link and the entered data all behave as for a client error.
+  await expect(page.getByRole('navigation',{name:'Editor sections'})
+    .getByRole('button',{name:/Location/})).toContainText('!');
+  await expect(page.getByRole('heading',{level:2,name:'Location'})).toBeVisible();
+  await expect(page.getByLabel('Postal code')).toBeFocused();
+  await expect(page.getByLabel('Postal code')).toHaveAttribute('aria-invalid','true');
+  await page.getByLabel('Postal code').fill('018956');
+  await expect(page.getByLabel('Postal code')).not.toHaveAttribute('aria-invalid','true');
+  await save(page);
+  await expect(page.getByRole('main').getByRole('status').first()).toContainText('Saved privately');
+  await expect(page.getByRole('list',{name:'Fields to correct'})).toHaveCount(0);
+  await open(page,'Shop & story');
+  await expect(page.getByLabel('Shop name')).toHaveValue('Server-rejected name');
+  // The rejected attempt is answered by this test's own route, so only the
+  // successful retry reaches the shared handler.
+  expect(state.actions).toEqual(['save']);
+});
+
+test('a refused publication replaces the blockers from the server @short', async ({page}) => {
+  await setup(page);
+  let refuse = true;
+  await page.route(`**/api/v1/admin/shops/${id}`, async route => {
+    if (route.request().method() !== 'POST') { await route.fallback(); return; }
+    if (route.request().postDataJSON().action !== 'publish' || !refuse) { await route.fallback(); return; }
+    refuse = false;
+    await route.fulfill({status:422,json:{ok:false,error:{code:'publication_incomplete'},
+      requirements:['Add the street address.']}});
+  });
+  await page.goto(`/admin/shops/${id}`);
+  await open(page,'Review');
+  await expect(page.getByText('Nothing is blocking publication of the saved version.')).toBeVisible();
+  await page.getByRole('button',{name:'Publish shop',exact:true}).click();
+  await page.getByRole('alertdialog').getByRole('button',{name:'Publish',exact:true}).click();
+  // The saved version's blockers are replaced by what the server actually said.
+  await expect(page.getByRole('listitem').filter({hasText:'Add the street address.'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Publish shop',exact:true})).toBeDisabled();
+  await page.getByRole('listitem').filter({hasText:'Add the street address.'}).getByRole('button',{name:'Fix'}).click();
+  await expect(page.getByLabel('Address line 1')).toBeFocused();
+});
+
+test('an archived shop is read-only everywhere, including legacy provenance @short', async ({page}) => {
+  await setup(page);
+  await page.route(`**/api/v1/admin/shops/${id}`, route =>
+    route.fulfill({json:{...fixture(),publicationStatus:'archived'}}));
+  await page.goto(`/admin/shops/${id}`);
+  await expect(page.getByText(/archived and read-only/)).toBeVisible();
+  await expect(page.getByLabel('Shop name')).toBeDisabled();
+  await open(page,'Review');
+  await page.getByText('Legacy provenance · retained, not required',{exact:true}).click();
+  await expect(page.getByLabel('Source quality')).toBeDisabled();
+  await expect(page.getByRole('button',{name:'Add legacy sources (optional)'})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'Publish shop',exact:true})).toHaveCount(0);
+});
+
+test('a refused image change closes the dialog and reports it @short', async ({page}) => {
+  await setup(page);
+  const imageId='73000000-0000-4000-8000-000000000030';
+  const entry={id:imageId,kind:'photo',width:1,height:1,altText:'Photo of M6 Demo shop',creditText:null,status:'draft',revision:'a'.repeat(32)};
+  await page.route(`**/api/v1/admin/shops/${id}/media**`, async route => {
+    const request=route.request();
+    if (request.url().endsWith(`/${imageId}`)) { await route.fulfill({status:404,json:{error:{code:'media_not_found'}}}); return; }
+    if (request.method()==='POST') { await route.fulfill({status:409,json:{error:{code:'revision_conflict'}}}); return; }
+    await route.fulfill({json:{entries:[entry]}});
+  });
+  await page.goto(`/admin/shops/${id}`);
+  await open(page,'Photos & logo');
+  const section=page.getByRole('region',{name:'Shop photos and logo'});
+  await section.getByRole('button',{name:'Show on public page'}).click();
+  await page.getByRole('alertdialog').getByRole('button',{name:'Show on public page'}).click();
+  // No modal left open over a revision that can only fail again.
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  await expect(section.getByRole('alert')).toContainText('changed in another session');
+  await expect(section.getByRole('button',{name:'Show on public page'})).toBeEnabled();
+});
+
+test('an editor sees no image control that needs an admin account @short', async ({page}) => {
+  await setup(page);
+  const imageId='73000000-0000-4000-8000-000000000031';
+  await page.route('**/api/v1/admin/access', route => route.fulfill({json:{role:'editor'}}));
+  await page.route(`**/api/v1/admin/shops/${id}/media**`, async route => {
+    if (route.request().url().endsWith(`/${imageId}`)) { await route.fulfill({status:404,json:{error:{code:'media_not_found'}}}); return; }
+    await route.fulfill({json:{entries:[{id:imageId,kind:'photo',width:1,height:1,altText:'Photo of M6 Demo shop',creditText:null,status:'draft',revision:'a'.repeat(32)}],capabilities:['remove']}});
+  });
+  await page.goto(`/admin/shops/${id}`);
+  await open(page,'Photos & logo');
+  const section=page.getByRole('region',{name:'Shop photos and logo'});
+  await expect(section.getByLabel('Choose a photo')).toBeEnabled();
+  await expect(section.getByRole('button',{name:'Show on public page'})).toHaveCount(0);
+  await expect(section.getByRole('button',{name:'Delete image'})).toHaveCount(0);
+  await expect(section.getByText(/cannot change what is public/)).toBeVisible();
+});
+
+test('Review says so when it cannot check which images are public @short', async ({page}) => {
+  await setup(page);
+  let fail = true;
+  await page.route(`**/api/v1/admin/shops/${id}/media`, async route => {
+    await route.fulfill(fail ? {status:503,json:{error:{code:'service_unavailable'}}} : {json:{entries:[]}});
+  });
+  await page.goto(`/admin/shops/${id}`);
+  await open(page,'Review');
+  await expect(page.getByText(/Could not check which images are on the public page/)).toBeVisible();
+  fail = false;
+  await page.getByRole('button',{name:'Check again'}).click();
+  await expect(page.getByText('Images: 0 saved · 0 shown on the public page')).toBeVisible();
+});

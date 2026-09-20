@@ -112,7 +112,7 @@ export function SearchSelect({
           disabled={disabled}
           data-field-path={path}
           aria-expanded={open}
-          aria-controls={listId}
+          aria-controls={open ? listId : undefined}
           aria-autocomplete="list"
           aria-activedescendant={
             open && matches[active] ? `${id}-option-${active}` : undefined

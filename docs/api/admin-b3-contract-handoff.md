@@ -16,8 +16,9 @@ by GPT/Codex.
 **Files this session edits**
 
 - `src/features/admin/*.tsx`, `src/features/admin/*.module.css`
-- `src/features/admin/timezones.ts`, `editor-sections.ts`, `media-contract.ts`
-  (decoder tolerance only — see "Decoder tolerance" below)
+- `src/features/admin/timezones.ts`, `countries.ts`, `editor-sections.ts`,
+  `use-dialog.ts`, `media-contract.ts` (decoder tolerance only — see "Decoder
+  tolerance" below)
 - `app/admin/**` page wiring
 - `tests/e2e/shop-admin.spec.ts`, admin unit tests, this document and the
   affected sections of `IMPLEMENTATION-PLAN.md` / `docs/runbooks/shop-administration.md`
@@ -133,8 +134,14 @@ change needed, the persistence semantics and the integration acceptance cases.
   reorder controls are **not rendered**, and the Photos section says permanent
   deletion is not available yet and offers **Remove from the public page**
   (`hide`), which does work today. When the field appears, the controls appear
-  with no further frontend change. Nothing is mocked and no button is shipped
-  that cannot succeed.
+  with no further frontend change. Nothing is mocked.
+- **This capability is about the deployment, not the actor.** Showing, hiding
+  and deleting an image are admin-only in `handleShopMedia`, while `list` needs
+  only `editor`, so an editor could otherwise see three buttons that all return
+  403. The interface reads the signed-in role from `GET /api/v1/admin/access`
+  and hides those actions for an editor, with a line saying an admin has to
+  review the upload. Both gates together are what makes "no shipped control can
+  fail" true; neither is sufficient alone.
 
 ### D — Bounded locality and shop-type vocabulary
 
