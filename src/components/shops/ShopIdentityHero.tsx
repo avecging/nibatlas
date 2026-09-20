@@ -1,31 +1,32 @@
 import type { ReactNode } from "react";
 
-import { NibAtlasMark } from "@/src/components/brand/NibAtlasMark";
-import { STAMP_MOTIF_PATHS } from "@/src/components/stamps/StampArt";
-import { Icon } from "@/src/components/ui/Icon";
+import { ShopLogoMark } from "@/src/components/shops/ShopLogoMark";
 import { shopTypeLabel, type ShopDetail } from "@/src/domain/shop-detail";
 
 import styles from "./ShopDetailView.module.css";
 
 /**
- * The designed shop identity, standing in for a photograph.
+ * Who this shop is: the mark, the name, the place, and one bookmark.
  *
- * Accepted decision 5: development does not wait for image permissions, and the
- * answer is a deliberately designed interim treatment rather than an empty
- * gallery. So this is a plate in the Atlas paper palette carrying the Nib Atlas
- * mark, the shop's own name, and the same motif line art its Atlas Stamp is
- * drawn with — one identity across the map, the page and the impression, rather
- * than a grey rectangle where a picture should be.
+ * This replaces the designed identity plate accepted decision 5 introduced. That
+ * plate stood in for a photograph while no shop had one, carried the Nib Atlas
+ * mark and the shop's own stamp motif, and was the right answer then. Published
+ * photographs and business logos now exist, and the founder's shop UI direction
+ * asks for the stamp taken out of discovery: the impression belongs to
+ * collection and the Passport, not to the top of every listing. Nothing about
+ * the stamp flow changes — `VerifiedCollection`, the ceremony, and the existing
+ * impression view are untouched.
  *
- * The motif is a watermark at low contrast, not an illustration of the shop: the
- * record does not claim to know what the shopfront looks like, and the page must
- * not imply it. "Photos coming soon" is one caption, once, and there are no
- * repeated empty slots and no photo-count badge — a count would be a claim about
- * images that do not exist.
+ * What replaces it is an editorial header: locality, the shop's own logo where
+ * it has published one, its name in both scripts, what kind of shop it is, and
+ * the Save bookmark in a position that does not move with the length of a name.
+ * A record with no logo is text-led, with no reserved square and no invented
+ * mark.
  */
 export function ShopIdentityHero({
   shop,
   save,
+  badges,
   titleAs: Title = "h1",
 }: {
   readonly shop: ShopDetail;
@@ -37,68 +38,44 @@ export function ShopIdentityHero({
    * full button in the action row.
    */
   readonly save?: ReactNode;
+  /** Saved/visited state and the operational status, as client islands. */
+  readonly badges?: ReactNode;
   /**
-   * The shop page's identity plate carries the page's `h1`. The styleguide
-   * renders the same plate as a specimen inside its own section, where an `h1`
-   * would be a second document title, so it asks for a paragraph instead.
+   * The shop page's identity carries the page's `h1`. The styleguide renders the
+   * same block as a specimen inside its own section, where an `h1` would be a
+   * second document title, so it asks for a paragraph instead.
    */
   readonly titleAs?: "h1" | "p";
 }) {
   return (
-    <div className={styles.hero} data-ink={shop.stamp.ink}>
-      <svg className={styles.heroMotif} viewBox="0 0 120 120" aria-hidden="true" focusable="false">
-        <g
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          {STAMP_MOTIF_PATHS[shop.stamp.motif].map((d) => (
-            <path key={d} d={d} />
-          ))}
-        </g>
-      </svg>
+    <header className={styles.identity} data-testid="shop-identity">
+      <p className={styles.identityPlace}>{shop.localityName}</p>
 
-      <p className={styles.heroBrand}>
-        <NibAtlasMark size={22} tone="duotone" />
-        <span>Nib Atlas</span>
-      </p>
-
-      <div className={styles.heroIdentity}>
-        {/*
-          The bookmark leads the row, in its own fixed column.
-          `銀座 伊東屋 横浜元町` wrapped onto two lines and pushed the control
-          below the name when the name came first; a control that moves with the
-          length of a shop's name is not a control anyone can find twice.
-        */}
-        <div className={styles.heroNameRow} data-save={save ? "true" : "false"}>
-          {save}
+      {/*
+        Three parts on one row, in a flex line rather than fixed columns: the
+        mark takes the width its own proportions need, the name takes the rest,
+        and the bookmark keeps its 44 px at the end of the line. A wide mark
+        takes the row above the name on a phone — see `ShopMedia.module.css`.
+      */}
+      <div className={styles.identityRow}>
+        <ShopLogoMark />
+        <div className={styles.identityText}>
           <Title className={styles.title}>{shop.name}</Title>
+          {shop.localName ? (
+            <p className={styles.localTitle} lang={shop.localNameLang} dir="auto">
+              {shop.localName}
+            </p>
+          ) : null}
+          <p className={styles.identityTypes}>
+            {shop.shopTypes
+              .map((type) => shopTypeLabel(type, shop.shopTypeLabels?.[type]))
+              .join(" · ")}
+          </p>
         </div>
-        <p className={styles.heroPlace}>
-          {shop.localityName} ·{" "}
-          {shop.shopTypes.map((type) => shopTypeLabel(type,shop.shopTypeLabels?.[type])).join(" · ")}
-        </p>
+        {save ? <div className={styles.identityBookmark}>{save}</div> : null}
       </div>
 
-      {process.env.NEXT_PUBLIC_CATALOGUE_MODE !== "api" && process.env.NEXT_PUBLIC_CATALOGUE_MODE !== "api-demo" && <p className={styles.heroPhotos}>
-        <Icon name="camera" size={16} />
-        <span>Photos coming soon</span>
-      </p>}
-    </div>
-  );
-}
-
-/** The shop's own name, in its own script, directly under the identity plate. */
-export function ShopLocalName({ shop }: { readonly shop: ShopDetail }) {
-  if (!shop.localName) {
-    return null;
-  }
-
-  return (
-    <p className={styles.localTitle} lang={shop.localNameLang} dir="auto">
-      {shop.localName}
-    </p>
+      {badges ? <div className={styles.badges}>{badges}</div> : null}
+    </header>
   );
 }

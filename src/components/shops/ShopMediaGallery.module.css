@@ -1,5 +1,0 @@
-.gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 16px; margin: 24px 0; }
-.gallery figure { margin: 0; }
-.photo, .logo { display: block; width: 100%; height: auto; max-height: 360px; object-fit: contain; border-radius: 6px; }
-.logo { height: 128px; padding: 16px; background: var(--bg-surface-warm); }
-.gallery figcaption { margin-top: 8px; font-size: 14px; color: var(--text-secondary); }

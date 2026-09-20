@@ -47,6 +47,61 @@ const phoneVenue = {
   addressLines: ["277C Compassvale Link", "#01-13 Aspella, Singapore 543277"],
 };
 
+/*
+ * Published editorial for the demo shop only.
+ *
+ * The specimen copy an editor would have typed, so the integration build
+ * exercises the API-shaped editorial path — the feature headline, the field
+ * note, the repeatable experiences, the editions line and the practical rows
+ * that the public page reconciles against its sourced `access`/`practical`
+ * blocks. It describes an invented shop and says so; no real business, and no
+ * claim about one, appears here.
+ */
+const demoEditorial = {
+  feature_headline: "A deterministic fixture, written out in full",
+  field_note_heading: "Worth slowing down for.",
+  field_note_body:
+    "This is specimen editorial for an invented shop. It exists so the published editorial layout can be reviewed against real API shapes rather than a fixture object.\n\nA second paragraph, so paragraph breaks are visible in review.",
+  nearest_station: "Demo Station",
+  station_exit: "Exit 1",
+  walking_guidance: "3 minutes on foot",
+  unit_floor: "Second floor",
+  local_address: "デモ 1-2-3",
+  payment_methods: "Cash and major cards",
+  languages: "Japanese, English",
+  holiday_note: "Closed on the second Tuesday of the month.",
+  accessibility_notes: "Step-free from the street.",
+  appointment_required: false,
+  editions_text:
+    "Specimen store editions. Nothing here is a claim about stock at any real business.",
+  experiences: [
+    {
+      id: "00000000-0000-4000-8000-000000000401",
+      category: "fountain_pens",
+      title: "Fountain pens",
+      description: "Try a range of nibs and find your next favourite pen.",
+    },
+    {
+      id: "00000000-0000-4000-8000-000000000402",
+      category: "inks_paper",
+      title: "Inks & paper",
+      description: "A wide selection of inks, notebooks and paper.",
+    },
+    {
+      id: "00000000-0000-4000-8000-000000000403",
+      category: "nib_testing",
+      title: "Nib testing",
+      description: "Staff can help you try different nibs and find the right fit.",
+    },
+    {
+      id: "00000000-0000-4000-8000-000000000404",
+      category: "gifts",
+      title: "Gifts",
+      description: "From everyday essentials to special seasonal items.",
+    },
+  ],
+};
+
 function detail(shop) {
   return {
     ...shop,
@@ -66,6 +121,23 @@ function detail(shop) {
         confirms: ["Name", `Shop type: ${shop.primaryType}`],
       },
     ],
+    // Last, so it wins: the empty defaults above would otherwise overwrite the
+    // demo record's own brands.
+    ...(shop.slug === "m3-api-demo-shop"
+      ? {
+          editorial: demoEditorial,
+          brands: ["Demo Brand A", "Demo Brand B", "Demo Brand C"],
+          openingHours: [
+            { day: "monday", opens: "10:00", closes: "20:00" },
+            { day: "tuesday", opens: "10:00", closes: "20:00" },
+            { day: "wednesday", opens: "10:00", closes: "20:00" },
+            { day: "thursday", opens: "10:00", closes: "20:00" },
+            { day: "friday", opens: "10:00", closes: "20:00" },
+            { day: "saturday", opens: "10:00", closes: "20:00" },
+            { day: "sunday", opens: "10:00", closes: "19:00" },
+          ],
+        }
+      : {}),
   };
 }
 

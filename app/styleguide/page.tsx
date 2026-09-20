@@ -244,6 +244,9 @@ export default function StyleguidePage() {
           the prototype catalogue publishes a service, an in-store experience or
           a shop-only item, so every real shop page shows the gap state; the
           populated state is drawn from a specimen record that exists only here.
+          <strong>What you can do there</strong> is kept here only: since
+          20 September the public page answers that question once, through
+          published editorial, and this section is no longer rendered on it.
         </p>
         <div className={styles.shopValue}>
           <PrototypeBadge>{SHOP_VALUE_SPECIMEN_NOTICE}</PrototypeBadge>

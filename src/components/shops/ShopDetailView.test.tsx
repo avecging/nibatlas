@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { ShopDetailView } from "@/src/components/shops/ShopDetailView";
+import { ShopWhatYouCanDo } from "@/src/components/shops/ShopValueSections";
 import { nearbyPenShops, type NearbyShop } from "@/src/domain/nearby-shops";
 import type { ShopDetail } from "@/src/domain/shop-detail";
 import { findPrototypeShop, prototypeShopDetails } from "@/src/fixtures/prototype-catalogue";
@@ -63,18 +64,19 @@ describe("shop page information order", () => {
     expect(screen.getByText(/stationery specialist that has traded in Ginza/i)).toBeInTheDocument();
   });
 
-  it("puts the actions in the header, before what you can do there", () => {
+  it("puts the actions in the header, before the shop's own sections", () => {
     renderShop(shopValueSpecimen, []);
 
     const order = headingOrder();
 
+    /*
+     * WP4's own *What you can do there* is not here: the founder's
+     * 20 September decision gives that question one heading, answered by
+     * published editorial. The specimen still carries the services and
+     * experiences behind it — see the component's own tests below.
+     */
     expect(order).toEqual([
       "Specimen Pen Bench",
-      "What you can do there",
-      // Two labelled groups: something done to your pen, and something you do in
-      // the shop.
-      "Services",
-      "In the shop",
       "Only available here",
       "Plan your visit",
       "Getting there",
@@ -91,7 +93,7 @@ describe("shop page information order", () => {
 
     expect(page.indexOf("Save shop")).toBeLessThan(page.indexOf("Collect Stamp"));
     expect(page.indexOf("Collect Stamp")).toBeLessThan(
-      page.indexOf("What you can do there"),
+      page.indexOf("Only available here"),
     );
     expect(page.indexOf("Collect Stamp")).toBeLessThan(page.indexOf("Plan your visit"));
   });
@@ -116,9 +118,15 @@ describe("shop page information order", () => {
   });
 });
 
-describe("what you can do there", () => {
+describe("what you can do", () => {
+  /*
+   * The legacy section came off the public page on 20 September; it was not
+   * deleted. These are its own tests, against the component the styleguide
+   * still renders, so the access modes, durations and booking qualifiers stay
+   * covered by something other than the page that stopped showing them.
+   */
   it("states how a service is reached and how long it takes", () => {
-    renderShop(shopValueSpecimen);
+    render(<ShopWhatYouCanDo shop={shopValueSpecimen} />);
 
     const services = screen.getByRole("list", { name: "Services" });
 
@@ -131,13 +139,28 @@ describe("what you can do there", () => {
   });
 
   it("shows in-store experiences and whether they need booking", () => {
-    renderShop(shopValueSpecimen);
+    render(<ShopWhatYouCanDo shop={shopValueSpecimen} />);
 
     const experiences = screen.getByRole("list", { name: "In-store experiences" });
 
     expect(within(experiences).getByText("Test bench")).toBeInTheDocument();
     expect(within(experiences).getByText("No booking needed")).toBeInTheDocument();
     expect(within(experiences).getByText("Booking needed")).toBeInTheDocument();
+  });
+
+  it("does not answer the same question twice on the public page", () => {
+    // The specimen carries three services and two experiences, and the page
+    // shows neither: one heading, answered by published editorial.
+    renderShop(shopValueSpecimen);
+
+    expect(screen.queryByRole("list", { name: "Services" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("list", { name: "In-store experiences" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("What you can do there")).not.toBeInTheDocument();
+
+    // And it does not claim nothing was confirmed when something was.
+    expect(screen.queryByTestId("shop-value-gap")).not.toBeInTheDocument();
   });
 
   it("gives the only-available-here items their own section", () => {
@@ -236,14 +259,31 @@ describe("Plan your visit", () => {
   });
 });
 
-describe("the interim identity treatment", () => {
-  it("carries the Nib Atlas identity and one restrained photography note", () => {
+describe("the identity header", () => {
+  it("is text-led, with one restrained photography note and no decorative plate", () => {
     renderShop(findPrototypeShop("pen-house-tainan")!);
 
+    // A fixture build has no media route to ask, so the caption accepted
+    // decision 5 introduced is still the truthful answer.
     expect(screen.getAllByText("Photos coming soon")).toHaveLength(1);
-    // No photographs, and no empty gallery slots standing in for them.
+    // No photographs, no empty gallery slots standing in for them, and no
+    // reserved square where a logo would go.
     expect(document.querySelectorAll("img")).toHaveLength(0);
-    expect(screen.getByText("Nib Atlas")).toBeInTheDocument();
+
+    // The stamp motif plate is gone from discovery: the impression belongs to
+    // collection and the Passport. The collection action itself is untouched.
+    expect(document.querySelectorAll("svg[viewBox='0 0 120 120']")).toHaveLength(0);
+    expect(screen.getByText("Collect Stamp")).toBeInTheDocument();
+  });
+
+  it("puts the locality, both names and the shop type above the photographs", () => {
+    renderShop(findPrototypeShop("ginza-itoya-main-store")!);
+
+    const page = document.body.textContent ?? "";
+
+    expect(page.indexOf("Chūō, Tokyo")).toBeLessThan(page.indexOf("Ginza Itoya Main Store"));
+    expect(page.indexOf("銀座 伊東屋 本店")).toBeLessThan(page.indexOf("Stationery Store"));
+    expect(page.indexOf("Stationery Store")).toBeLessThan(page.indexOf("Collect Stamp"));
   });
 });
 

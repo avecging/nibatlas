@@ -1,22 +1,34 @@
 /*
- * One reading column, at every width.
+ * The shop page: one reading column on a phone, story and practical detail side
+ * by side at desktop width.
  *
- * The founder's staging review of WP4: the two-column desktop grid presented a
- * sparse record as a handful of small boxes with an implied empty cell, which
- * made a shop that is honestly thin look unfinished instead. A single measured
- * column has no cell to leave empty — a record with three sections reads as a
- * short page rather than a broken layout — and it is what the consolidated
- * *Plan your visit* section was consolidated for.
+ * The founder's staging review of WP4 withdrew a two-column grid because a
+ * sparse record became a handful of small boxes with an implied empty cell. The
+ * September shop UI direction asks for two columns again, so the rail is
+ * conditional rather than structural: `.body[data-columns="one"]` keeps the
+ * measured single column for a record that has nothing to put beside the story,
+ * and no cell is ever reserved for content that does not exist.
  *
  * Nothing here reserves space: no placeholder cards, no fixed minimum heights,
  * no filler. What is absent simply is not rendered.
  */
 .page {
   display: grid;
-  gap: var(--space-6);
+  gap: var(--space-5);
   width: 100%;
   max-width: 46rem;
   margin-inline: auto;
+}
+
+@media (min-width: 1024px) {
+  /* Only the two-column page widens; a single column stays a reading measure. */
+  .page[data-columns="two"] {
+    max-width: 68rem;
+  }
+
+  .page {
+    gap: var(--space-6);
+  }
 }
 
 .back {
@@ -28,11 +40,6 @@
   font-size: var(--type-label-size);
   font-weight: 600;
   text-decoration: none;
-}
-
-.header {
-  display: grid;
-  gap: var(--space-3);
 }
 
 .title {
@@ -61,11 +68,6 @@
   line-height: var(--type-body-lg-line);
   color: var(--text-secondary);
   max-width: 42rem;
-}
-
-.grid {
-  display: grid;
-  gap: var(--space-5);
 }
 
 .section {
@@ -145,65 +147,20 @@
 }
 
 /*
- * The designed shop identity, in place of a photograph.
+ * The shop's identity: mark, name, place, type, and the Save bookmark.
  *
- * Accepted decision 5: the interim state is designed, not a missing asset. The
- * plate is Atlas paper stock with a soft directional wash — the founder's own
- * prototype used `linear-gradient(135deg,#EFE9DC,#E2D9C9)`, and this is that
- * gradient expressed in the shipped token palette — carrying the mark, the shop
- * name, and the shop's own stamp motif as a low-contrast watermark.
+ * A flex line rather than fixed columns. The logo takes the width its own
+ * proportions need and disappears entirely when a shop has not published one —
+ * a grid track would have reserved an empty square for it — while the name keeps
+ * `minmax(0, 1fr)` behaviour through `min-width: 0`, so a long or local-script
+ * name wraps inside its own column instead of pushing the bookmark around.
  */
-.hero {
-  position: relative;
-  overflow: hidden;
+.identity {
   display: grid;
-  grid-template-areas:
-    "brand"
-    "identity"
-    "photos";
-  gap: var(--space-4);
-  min-height: 13rem;
-  padding: var(--space-5);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background:
-    linear-gradient(135deg, var(--paper-100) 0%, var(--paper-200) 100%);
-  color: var(--text-primary);
+  gap: var(--space-3);
 }
 
-/*
- * The motif, at watermark contrast.
- *
- * Ink comes from the shop's own impression, so the map marker, the page and the
- * stamp read as one identity. It is decoration and is hidden from assistive
- * technology: the record does not claim to know what the shopfront looks like.
- */
-.heroMotif {
-  position: absolute;
-  right: -1.5rem;
-  bottom: -2.5rem;
-  width: 13rem;
-  height: 13rem;
-  color: var(--ink-navy);
-  opacity: 0.1;
-  pointer-events: none;
-}
-
-.hero[data-ink="vermilion"] .heroMotif { color: var(--ink-vermilion); }
-.hero[data-ink="navy"] .heroMotif { color: var(--ink-navy); }
-.hero[data-ink="teal"] .heroMotif { color: var(--ink-teal); }
-.hero[data-ink="indigo"] .heroMotif { color: var(--ink-indigo); }
-.hero[data-ink="plum"] .heroMotif { color: var(--ink-plum); }
-.hero[data-ink="moss"] .heroMotif { color: var(--ink-moss); }
-.hero[data-ink="ochre"] .heroMotif { color: var(--ink-ochre); }
-.hero[data-ink="brick"] .heroMotif { color: var(--ink-brick); }
-
-.heroBrand {
-  grid-area: brand;
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+.identityPlace {
   color: var(--text-secondary);
   font-size: var(--type-caption-size);
   line-height: var(--type-caption-line);
@@ -212,66 +169,136 @@
   text-transform: uppercase;
 }
 
-.heroIdentity {
-  grid-area: identity;
-  position: relative;
-  align-self: end;
-  display: grid;
-  gap: var(--space-2);
-}
-
-/*
- * The shop's name and its Save bookmark, on one line where there is room and
- * wrapping onto two where there is not. The bookmark keeps its own 44 px target
- * either way — `flex: none` on the control stops a long name squeezing it.
- */
-/*
- * Two columns that do not move: the bookmark's own 44 px, then the name.
- *
- * A flex row let a long or wrapped name — `銀座 伊東屋 横浜元町`,
- * `NAGASAWA Stationery Center Main Store` — push the control onto its own line
- * and change where it sits from shop to shop. `minmax(0, 1fr)` lets the name
- * wrap inside its own column instead, at every breakpoint and in every script.
- */
-.heroNameRow {
-  display: grid;
-  grid-template-columns: var(--tap-target) minmax(0, 1fr);
+.identityRow {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
 
-/*
- * Without the bookmark there is only the name, and it takes the whole row.
- *
- * Auto-placement put a lone name into the bookmark's 44 px column, and
- * `overflow-wrap: anywhere` — which is there so a long name wraps rather than
- * truncating — then broke it two characters to a line. Only the styleguide
- * specimen renders the plate without a Save control, which is why the shop page
- * never showed it.
- */
-.heroNameRow[data-save="false"] {
-  grid-template-columns: minmax(0, 1fr);
+.identityText {
+  flex: 1 1 12rem;
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
 }
 
-.heroPlace {
+.identityTypes {
   color: var(--text-secondary);
   font-size: var(--type-body-sm-size);
   line-height: var(--type-body-sm-line);
 }
 
+/* The bookmark keeps its own 44 px target at the end of the line, whatever the
+   name does above or beside it. */
+.identityBookmark {
+  flex: none;
+  margin-left: auto;
+}
+
+.intro {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.actionsRow {
+  display: grid;
+  gap: var(--space-3);
+}
+
 /*
- * One caption, once. No repeated empty gallery slots and no photo count: a count
- * would be a claim about images that do not exist.
+ * One photography caption, once, in a fixture build with no media route to ask.
+ * No repeated empty gallery slots and no photo count: a count would be a claim
+ * about images that do not exist.
  */
-.heroPhotos {
-  grid-area: photos;
-  position: relative;
+.photosPending {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   color: var(--text-secondary);
   font-size: var(--type-caption-size);
   line-height: var(--type-caption-line);
+}
+
+.body {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.mainColumn,
+.sideColumn {
+  display: grid;
+  gap: var(--space-5);
+  align-content: start;
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .body[data-columns="two"] {
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-6);
+  }
+}
+
+/* An editorial label above a heading, not a heading itself. */
+.eyebrow {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.fieldNoteHeading {
+  font-family: var(--font-serif);
+  font-size: var(--type-h2-size);
+  line-height: var(--type-h2-line);
+  font-weight: 600;
+}
+
+/* Published editorial keeps the paragraph breaks the founder typed, and a very
+   long unbroken string still wraps rather than widening the column. */
+.editorialBody {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+}
+
+.experienceGrid {
+  display: grid;
+  gap: var(--space-4);
+}
+
+@media (min-width: 640px) {
+  .experienceGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.experienceCard {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.experienceCategory {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.experienceTitle {
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+  font-weight: 700;
 }
 
 /*
@@ -485,23 +512,4 @@
   color: var(--action-secondary);
   font-weight: 600;
   text-decoration: underline;
-}
-
-@media (min-width: 768px) {
-  /*
-   * The identity plate becomes a wide banner rather than a tall card: the same
-   * treatment a photograph would get in this slot once rights exist.
-   */
-  .hero {
-    grid-template-areas:
-      "brand photos"
-      "identity identity";
-    align-content: space-between;
-    min-height: 15rem;
-    padding: var(--space-6);
-  }
-
-  .heroPhotos {
-    justify-self: end;
-  }
 }
