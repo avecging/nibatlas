@@ -41,7 +41,7 @@ test('admin previews 200 synthetic shops, corrects once, filters and downloads s
   const dl = page.waitForEvent('download'); await page.getByRole('button', { name: 'Download correction report' }).click(); expect((await dl).suggestedFilename()).toContain('corrections.csv');
   await expect(page.locator('body')).toHaveJSProperty('scrollWidth', await page.evaluate(() => window.innerWidth));
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
-  await page.screenshot({ path: testInfo.outputPath('import-preview.png'), fullPage: true });
+  await page.screenshot({ path: testInfo.outputPath('admin-import-preview.png'), fullPage: true });
   await page.getByLabel('Find row or shop').fill('row-1');
   // Input changes invalidate the old preview instead of presenting stale results.
   await page.getByLabel('name', { exact: true }).selectOption('short_description');
