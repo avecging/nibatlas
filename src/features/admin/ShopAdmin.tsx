@@ -383,7 +383,12 @@ function Workspace({ id }: { id: string | null }) {
           setDraft(parsed.document);
           setOptions(decodeOptions(o));
         } else {
-          const r = await api("", c.signal);
+          const [r, access] = await Promise.all([
+            api("", c.signal),
+            fetch("/api/v1/admin/access", { signal: c.signal, cache: "no-store", credentials: "same-origin" })
+              .then(response => response.ok ? response.json() : null),
+          ]);
+          if (access?.role === "admin" || access?.role === "editor") setRole(access.role);
           setList(decodeList(r.entries));
           setCursor(r.nextCursor);
         }
@@ -899,6 +904,7 @@ function Workspace({ id }: { id: string | null }) {
         )}
         <section className={styles.createPanel}>
           <h2>Add a shop</h2>
+          {role === "admin" && <p><Link href="/admin/shops/import">Preview a bulk CSV / JSON import</Link></p>}
           <form
             onSubmit={(e) => {
               e.preventDefault();

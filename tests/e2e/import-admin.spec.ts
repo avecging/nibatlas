@@ -1,0 +1,59 @@
+import AxeBuilder from '@axe-core/playwright';
+import { test, expect } from '@playwright/test';
+import { stubSession } from '../support/auth';
+import { handleImport } from '../../src/server/admin/import-http';
+import type { ShopAdminGateway } from '../../src/server/admin/shop-http';
+const local = '70000000-0000-4000-8000-000000000002', brand = '70000000-0000-4000-8000-000000000003';
+const options = { localities: [{ id: local, label: 'Synthetic City (SG)', countryCode: 'SG' }], types: [], brands: [{ id: brand, label: 'Synthetic Brand' }], specialties: [], services: [] };
+test('admin previews 200 synthetic shops, corrects once, filters and downloads safely', async ({ page }, testInfo) => {
+  await stubSession(page, { kind: 'signed-in' });
+  const calls: string[] = [], sizes: number[] = [];
+  const gateway: ShopAdminGateway = { getIdentity: async () => local, getAccess: async () => ({ role: 'admin' }), listAudit: async () => [], call: async (name, args) => {
+    calls.push(`${name}:${args?.p_mode ?? ''}`);
+    if (name === 'admin_shop_options') return options;
+    expect(name).toBe('admin_import_preview');
+    const rows = args!.p_rows as { rowId: string }[];
+    if (args!.p_mode === 'context') return rows.map(r => ({ rowId: r.rowId, record: null, candidates: Number(r.rowId.split('-')[1]) % 5 === 3 ? [{ id: brand, name: 'Existing synthetic candidate', slug: 'existing', reason: 'similar name' }] : [], truncated: false, conflict: false }));
+    expect(args!.p_mode).toBe('validate');
+    return rows.map(r => ({ rowId: r.rowId, issues: [], publicationErrors: ['Check and confirm the saved shop position.'] }));
+  } };
+  await page.route('**/api/v1/admin/import', async route => {
+    const body = route.request().postData();
+    if (body) sizes.push(JSON.parse(body).rows.length);
+    const response = await handleImport(new Request('https://example.test/api/v1/admin/import', { method: route.request().method(), ...(body ? { body, headers: { origin: 'https://example.test', 'content-type': 'application/json' } } : {}) }), gateway);
+    await route.fulfill({ status: response.status, body: await response.text(), headers: Object.fromEntries(response.headers) });
+  });
+  await page.goto('/admin/shops/import');
+  const rows = Array.from({ length: 200 }, (_, i) => `row-${i},Synthetic ${i},SG,${i % 5 === 2 ? 'My City' : 'Synthetic City'},${i % 5 === 1 ? '999' : '0'},0,00123,Synthetic Brand`);
+  await page.getByLabel('CSV or JSON file').setInputFiles({ name: 'synthetic-only.csv', mimeType: 'text/csv', buffer: Buffer.from('row_id,name,country,locality,latitude,longitude,postal_code,brands\n' + rows.join('\n')) });
+  await expect(page.getByText('1 unresolved.', { exact: false })).toBeVisible();
+  const picker = page.getByRole('combobox', { name: 'locality: My City (40 rows)' });
+  await picker.fill('Synthetic');
+  await page.getByRole('option', { name: /Synthetic City/ }).click();
+  await page.getByRole('button', { name: 'Run dry-run preview' }).click();
+  await expect(page.getByText('Preview complete: 200 rows checked. Nothing has been saved or published.', { exact: true })).toBeVisible();
+  expect(sizes).toHaveLength(8); expect(Math.max(...sizes)).toBe(25);
+  expect(calls.every(c => c.startsWith('admin_shop_options') || c.startsWith('admin_import_preview'))).toBe(true);
+  await page.getByLabel('Show', { exact: true }).selectOption('blocked');
+  await expect(page.getByText('40 matching rows', { exact: false })).toBeVisible();
+  await page.locator('summary').filter({ hasText: 'Synthetic 1' }).first().click();
+  await expect(page.getByText('Enter a value between −90 and 90.', { exact: false }).first()).toBeVisible();
+  const dl = page.waitForEvent('download'); await page.getByRole('button', { name: 'Download correction report' }).click(); expect((await dl).suggestedFilename()).toContain('corrections.csv');
+  await expect(page.locator('body')).toHaveJSProperty('scrollWidth', await page.evaluate(() => window.innerWidth));
+  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+  await page.screenshot({ path: testInfo.outputPath('admin-import-preview.png'), fullPage: true });
+  await page.getByLabel('Find row or shop').fill('row-1');
+  // Input changes invalidate the old preview instead of presenting stale results.
+  await page.getByLabel('name', { exact: true }).selectOption('short_description');
+  await expect(page.getByRole('heading', { name: 'Preview results' })).toHaveCount(0);
+});
+test('editor cannot load import data, and signed-out view has no upload control', async ({ page }) => {
+  await stubSession(page, { kind: 'signed-in' });
+  await page.route('**/api/v1/admin/import', route => route.fulfill({ status: 403, json: { error: { code: 'forbidden' } } }));
+  await page.goto('/admin/shops/import');
+  await expect(page.getByText('Bulk preview requires a signed-in admin account.')).toBeVisible();
+  await expect(page.getByLabel('CSV or JSON file')).toHaveCount(0);
+  await stubSession(page, { kind: 'signed-out' }); await page.reload();
+  await expect(page.getByText('Sign in with your admin account to preview an import.')).toBeVisible();
+  await expect(page.getByLabel('CSV or JSON file')).toHaveCount(0);
+});
