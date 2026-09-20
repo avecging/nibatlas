@@ -154,10 +154,10 @@ it('new media audit summaries remain admin-only and bounded',async()=>{
   expect(r.status).toBe(200);expect(await r.text()).not.toContain('secret');
 });
 
-describe('JPEG photo transport identity',()=>{
+describe.each(['shop_photo','shop_logo'] as const)('JPEG %s transport identity',purpose=>{
   beforeEach(async()=>{
     const {jpeg}=await import('./jpeg.fixture');
-    upload={...upload,contentType:'image/jpeg',storageKey:null,sha256:createHash('sha256').update(jpeg).digest('hex'),byteSize:jpeg.length,output:null};
+    upload={...upload,purpose,contentType:'image/jpeg',storageKey:null,sha256:createHash('sha256').update(jpeg).digest('hex'),byteSize:jpeg.length,output:null};
     gateway.images={input:vi.fn(()=>({transform:()=>({output:async()=>({response:()=>new Response(png(24,16),{headers:{'content-type':'image/png'}})})})}))};
     gateway.operation=vi.fn(async(action,_id,payload)=>{
       if(action==='prepare') {
@@ -168,8 +168,8 @@ describe('JPEG photo transport identity',()=>{
       return upload;
     });
   });
-  it('accepts JPEG photo manifests but rejects JPEG artwork',async()=>{
-    expect((await handleMedia(req('POST',JSON.stringify({...photo,contentType:'image/jpeg'}),{'content-type':'application/json'}),null,gateway)).status).toBe(201);
+  it('accepts JPEG shop-image manifests but rejects JPEG artwork',async()=>{
+    expect((await handleMedia(req('POST',JSON.stringify({...photo,purpose,contentType:'image/jpeg'}),{'content-type':'application/json'}),null,gateway)).status).toBe(201);
     expect((await handleMedia(req('POST',JSON.stringify({...photo,contentType:'image/jpeg',purpose:'artwork_png',artworkVersionId:id}),{'content-type':'application/json'}),null,gateway)).status).toBe(400);
   });
   it('binds transformed bytes, keeps input checksum, and independently finalizes stored output',async()=>{
@@ -232,8 +232,7 @@ it.each(['shop_photo','shop_logo'])('accepts %s without inventing paperwork and 
   expect(gateway.operation).toHaveBeenLastCalledWith('initiate',expect.any(String),simple);
   expect((await handleMedia(req('POST',JSON.stringify({...simple,altText:'',creditText:null}),{'content-type':'application/json'}),null,gateway)).status).toBe(400);
 });
-it('keeps logos out of photo JPEG processing and stamp artwork semantics',async()=>{
-  expect((await handleMedia(req('POST',JSON.stringify({...photo,purpose:'shop_logo',contentType:'image/jpeg'}),{'content-type':'application/json'}),null,gateway)).status).toBe(400);
+it('preserves PNG logo bytes without JPEG processing or stamp artwork semantics',async()=>{
   upload.purpose='shop_logo';
   expect((await handleMedia(req('PUT',bytes,{'content-type':'image/png'}),id,gateway)).status).toBe(200);
   expect(gateway.store.putOnce).toHaveBeenCalledWith(upload.storageKey,new Uint8Array(bytes));

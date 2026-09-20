@@ -22,7 +22,7 @@ export function decodeUpload(value: unknown, id: string): Upload {
     const n=row[key];
     if (row.status==='pending' ? n!==null : typeof n!=='number' || !Number.isInteger(n) || n<1 || n>2048) throw Error('Invalid dimensions');
   }
-  if (!['image/png','image/jpeg'].includes(String(row.contentType ?? 'image/png')) || (row.contentType==='image/jpeg' && row.purpose!=='shop_photo')) throw Error('Invalid MIME');
+  if (!['image/png','image/jpeg'].includes(String(row.contentType ?? 'image/png')) || (row.contentType==='image/jpeg' && !['shop_photo','shop_logo'].includes(String(row.purpose)))) throw Error('Invalid MIME');
   let output: Upload['output']=null;
   if(row.output!=null) {
     const o=object(row.output);
@@ -69,7 +69,7 @@ export async function handleMedia(request: Request, id: string | null, gateway: 
             (data.artworkVersionId!==undefined && (typeof data.artworkVersionId!=='string' || !UUID.test(data.artworkVersionId))) ||
             !['artwork_png','shop_photo','shop_logo'].includes(String(data.purpose)) ||
             (data.purpose==='artwork_png') !== (data.artworkVersionId!==undefined) ||
-            !(data.contentType==='image/png' || (data.contentType==='image/jpeg' && data.purpose==='shop_photo')) || typeof data.sha256!=='string' || !/^[a-f0-9]{64}$/.test(data.sha256) ||
+            !(data.contentType==='image/png' || (data.contentType==='image/jpeg' && ['shop_photo','shop_logo'].includes(String(data.purpose)))) || typeof data.sha256!=='string' || !/^[a-f0-9]{64}$/.test(data.sha256) ||
             typeof data.byteSize!=='number' || !Number.isInteger(data.byteSize) || data.byteSize<1 || data.byteSize>MAX_MEDIA_BYTES) throw Error();
         for (const [key, max] of [['sourceRef',2000],['altText',1000],['rightsBasis',2000],['creditText',300]] as [string,number][]) {
           if (data[key]===undefined) continue;
@@ -96,7 +96,7 @@ export async function handleMedia(request: Request, id: string | null, gateway: 
     const jpeg=upload.contentType==='image/jpeg';
     let bytes: Uint8Array;
     if(jpeg && request.method==='PUT') {
-      if(upload.purpose!=='shop_photo' || request.headers.get('content-type')!=='image/jpeg') return fail('invalid_upload',422);
+      if(!['shop_photo','shop_logo'].includes(upload.purpose) || request.headers.get('content-type')!=='image/jpeg') return fail('invalid_upload',422);
       if(!gateway.images) return adminFailure('service_unavailable');
       const input=await readBounded(request.body,upload.byteSize);
       if(input.length!==upload.byteSize || digest(input)!==upload.sha256) return fail('invalid_upload',422);

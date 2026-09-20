@@ -2,7 +2,8 @@
 
 Read [the API and limitations](../api/admin-media-v1.md). This is private PNG/JPEG
 transport, photo/logo delivery and the simplified #73 stamp-artwork workflow
-within WP3. JPEG shop photos are processed before storage. Stamp PNGs remain exact
+within WP3. JPEG shop photos and logos are processed before storage. PNG logos are resized
+and normalized by the picker before upload; original stamp PNGs remain unchanged. Stamp PNGs remain exact
 validated bytes; activation advances the same stamp identity without rewriting
 older versions or impressions.
 
@@ -211,9 +212,11 @@ notification, QR/NFC or merchant work is included.
 ## Founder photo/logo workflow — issue #73 checkpoint
 
 1. Admin → Shops → choose the intended shop → **Photos and logo**.
-2. Choose a photo (PNG/JPEG) or logo (PNG). Check the local preview and named shop.
-   No source/rights/credit/description form is required. PNG keeps transparency;
-   unsupported exports receive an error rather than being silently rewritten.
+2. Choose a photo or logo (PNG/JPEG). Check the local preview and named shop.
+   No source/rights/credit/description form is required. Logos fit automatically within 1024 px while keeping their proportions and PNG
+   transparency; small logos are not enlarged. PNG logos are normalized in the
+   browser and JPEG logos through the existing server processor. Stamp artwork
+   remains on its separate exact-file path.
 3. Choosing the file starts validation, finalization and private attachment automatically.
    **Save photo/logo privately** retries if the automatic save failed.
    Check the saved preview. It is not public yet. Retry Save after an interrupted
@@ -225,8 +228,7 @@ notification, QR/NFC or merchant work is included.
    logo, fallback alt text and any preserved credit. After hide/archive, fresh
    image requests must fail. Use **Reload images** after ambiguous publication.
 
-Limits: 50 retained attachments per shop; hidden/replaced images count. No media
-removal/reordering UI yet. Catalogue saved changes and media publication are
+Limits: 50 retained attachments per shop; hidden/replaced images count. Deletion and gallery cover/order/captions are available in the B3 editor. Catalogue saved changes and media publication are
 separate. Private previews require a current editor/admin session. Admin is needed
 for publish/hide. Keep buckets private; no new environment variables are needed.
 
@@ -286,3 +288,19 @@ before retrying; keep resumable upload IDs and exact selected bytes intact.
 #70/#71/#72 remain deferred. WP4 imports are mandatory after shared contracts and
 before final rich-editor polish; #17 precedes real catalogue launch and #27 stays
 with geographic seal delivery. Keep R2 private and preserve versions/credits.
+
+## Founder acceptance after B3 deployment
+
+The founder reports the six requested checks otherwise work: navigation/saving,
+correctable errors, country/timezone/choices, photo visibility, gallery/removal,
+and review/publication. Logo upload is the exception: the supplied `logo-ab.png`
+copy is a valid RGB JPEG, 1536 × 507, and the deployed logo path only accepted PNG.
+This records the reported result without inventing device details or per-step
+telemetry. Uploaded-stamp activation/collection/history and original Package A
+1102 investigation remain separate.
+
+The logo follow-up accepts actual PNG/JPEG contents even if the filename/MIME hint
+is wrong, and fits wide logos without forcing 2:1 or cropping. After this fix is
+deployed, retest the supplied logo and a transparent 2:1 PNG: private save, reload,
+explicit show on public page, full proportions/transparency, then removal. No
+need to repeat the six otherwise-passed checks solely because of this fix.

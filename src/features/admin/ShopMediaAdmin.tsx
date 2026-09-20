@@ -3,6 +3,7 @@
 import { readAdminResponse } from './read-response';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { decodeShopMedia, mediaCapabilities, mediaPath, type ShopMedia } from './media-contract';
+import { prepareShopImage } from './prepare-shop-image';
 import { usePendingUpload } from './use-pending-upload';
 import { useDialog } from './use-dialog';
 import { UUID } from './shop-contract';
@@ -14,7 +15,7 @@ export interface MediaSummary {
 }
 
 const messages: Record<string,string> = {
-  invalid_upload:'This file is not supported. Photos: ordinary RGB JPEG or PNG. Logos: RGB/RGBA PNG. PNG must be non-interlaced, at most 2048 px per side, without text or EXIF metadata.',
+  invalid_upload:'This image could not be saved. Logos: static PNG or ordinary RGB JPEG, up to 8192 px per side and 24 MP. Photos: ordinary RGB JPEG or non-interlaced RGB/RGBA PNG; photo PNGs must be at most 2048 px per side without text or EXIF metadata.',
   invalid_request:'That request was refused. Nothing was changed. Reload images and try again.',
   authentication_required:'Sign in again to continue.', forbidden:'Your account cannot do this. Showing an image on the public page, taking it off again and deleting it all need an admin account.',
   service_unavailable:'Media service is unavailable. Your file was not lost — try again.',
@@ -249,17 +250,24 @@ function UploadPicker({kind,shopId,shopName,disabled,run,saved}: {
 }) {
   const [file,setFile] = useState<File | null>(null), [preview,setPreview] = useState(''), [error,setError] = useState('');
   const [failed,setFailed] = useState(false);
+  const prepared = useRef<{file:File;image:Awaited<ReturnType<typeof prepareShopImage>>} | null>(null);
   const session = useRef<string | null>(null), input = useRef<HTMLInputElement | null>(null);
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); },[preview]);
   usePendingUpload(!!file);
   const save = (file: File) => void run(async signal => {
         setFailed(false);
         try {
-        const bytes = await file.arrayBuffer();
+        if (prepared.current?.file !== file) {
+          prepared.current = {file,image:await prepareShopImage(file,kind === 'logo')};
+          if (kind === 'logo' && prepared.current.image.contentType === 'image/png' && !signal.aborted) {
+            setPreview(URL.createObjectURL(new Blob([prepared.current.image.bytes], {type:'image/png'})));
+          }
+        }
+        const {bytes,contentType} = prepared.current.image;
         const base = '/api/v1/admin/media/uploads';
         if (!session.current) {
           const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b => b.toString(16).padStart(2,'0')).join('');
-          const r = await call(base,signal,post({shopId,purpose:kind === 'logo' ? 'shop_logo' : 'shop_photo',sha256,byteSize:file.size,contentType:file.type}));
+          const r = await call(base,signal,post({shopId,purpose:kind === 'logo' ? 'shop_logo' : 'shop_photo',sha256,byteSize:bytes.byteLength,contentType}));
           if (typeof r.id !== 'string' || !UUID.test(r.id)) throw new MediaFailure('service_unavailable');
           session.current = r.id;
         }
@@ -268,11 +276,11 @@ function UploadPicker({kind,shopId,shopName,disabled,run,saved}: {
         try { await call(url,signal,{method:'POST'}); }
         catch (e) {
           if (!(e instanceof MediaFailure) || e.code !== 'upload_incomplete') throw e;
-          await call(url,signal,{method:'PUT',headers:{'Content-Type':file.type},body:bytes});
+          await call(url,signal,{method:'PUT',headers:{'Content-Type':contentType},body:bytes});
           await call(url,signal,{method:'POST'});
         }
         const r = await call(mediaPath(shopId),signal,post({action:'attach',id:session.current}));
-        saved(r);setFile(null);setPreview('');session.current = null;
+        saved(r);setFile(null);setPreview('');session.current = null;prepared.current = null;
         if (input.current) input.current.value = '';
         } catch (e) {
           if (e instanceof MediaFailure && ['upload_expired','upload_conflict'].includes(e.code)) session.current = null;
@@ -285,23 +293,23 @@ function UploadPicker({kind,shopId,shopName,disabled,run,saved}: {
   const label = kind === 'logo' ? 'logo' : 'photo';
   return <div className={styles.picker}>
     <label className={styles.fileLabel}>Choose a {label}
-      <input ref={input} type="file" accept={kind === 'logo' ? 'image/png' : 'image/png,image/jpeg'} disabled={disabled} onChange={e => {
-      setPreview('');setError('');setFailed(false);session.current = null;
+      <input ref={input} type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" disabled={disabled} onChange={e => {
+      setPreview('');setError('');setFailed(false);session.current = null;prepared.current = null;
       const f = e.target.files?.[0] ?? null;
-      if (f && (f.size < 1 || f.size > 5*1024*1024 || !(f.type === 'image/png' || (kind === 'photo' && f.type === 'image/jpeg')))) {
-        setFile(null); setError('Choose a supported file up to 5 MiB. Logos use PNG; photos use PNG or JPEG.'); return;
+      if (f && (f.size < 1 || f.size > 5*1024*1024)) {
+        setFile(null); setError('Choose a PNG or JPEG up to 5 MiB.'); return;
       }
       setFile(f);
-      if (f) { setPreview(URL.createObjectURL(f)); save(f); }
+      if (f) { if (kind === 'photo') setPreview(URL.createObjectURL(f)); save(f); }
     }}/></label>
-    <p className={styles.help}>{kind === 'logo' ? 'PNG, up to 5 MiB and 2048 px per side. Transparent backgrounds are preserved.' : 'JPEG or PNG, up to 5 MiB. JPEG: up to 24 MP / 8192 px per side. PNG: up to 2048 px per side.'} Choosing a file saves it privately straight away.</p>
+    <p className={styles.help}>{kind === 'logo' ? 'JPEG or PNG, up to 5 MiB, 24 MP and 8192 px per side. Logos automatically fit within 1024 px, keeping their proportions and PNG transparency. No cropping or stretching.' : 'JPEG or PNG, up to 5 MiB. JPEG: up to 24 MP / 8192 px per side. PNG: up to 2048 px per side.'} Choosing a file saves it privately straight away.</p>
     {error && <p role="alert" className={styles.error}>{error}</p>}
-    {file && preview && <div className={styles.pendingUpload}>
-      <img className={kind === 'logo' ? styles.logo : styles.photo} src={preview} alt={`Selected ${label} for ${shopName}`}/>
+    {file && <div className={styles.pendingUpload}>
+      {preview && <img className={kind === 'logo' ? styles.logo : styles.photo} src={preview} alt={`Selected ${label} for ${shopName}`}/>}
       <p>{file.name} · {failed ? 'not saved' : 'saving…'}</p>
       {failed && <button type="button" disabled={disabled} onClick={() => save(file)}>Retry saving this {label}</button>}
       {failed && <button type="button" className={styles.quiet} onClick={() => {
-        setFile(null);setPreview('');setFailed(false);session.current = null;
+        setFile(null);setPreview('');setFailed(false);session.current = null;prepared.current = null;
         if (input.current) input.current.value = '';
       }}>Discard this file</button>}
     </div>}

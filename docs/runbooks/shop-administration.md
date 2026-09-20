@@ -303,3 +303,14 @@ needs the real-device create/correct/save/publish, JPEG/photo/logo display/remov
 gallery and stamp checks, including the earlier Package A acceptance gaps. The
 mandatory 200-shop bulk-import Package C and Package D dated hours/richer review
 remain separate and unimplemented by this follow-up.
+
+### Founder B3 acceptance report and logo follow-up
+
+After reporting staging deployed, the founder reports checks 1–6 otherwise work:
+section navigation/save/reload, actionable validation corrections, timezone and
+vocabulary selection, photo visibility, gallery/removal, review/publication and
+private-field separation. Logo intake failed for the supplied JPEG named
+`logo-ab.png`; logo acceptance remains open until the intake/automatic-resize fix
+is deployed and retested. This is founder-reported acceptance, not additional
+automated or device-specific evidence. Stamp upload/activation/collection/history,
+Package A 1102 investigation, bulk import and other retained obligations remain.
