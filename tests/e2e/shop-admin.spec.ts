@@ -1,6 +1,9 @@
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect, type Page } from "@playwright/test";
 import { stubSession } from "../support/auth";
+import { jpeg as makeJpeg } from "../../src/server/media/jpeg.fixture";
+import { validatePng } from "../../src/server/media/png";
+import { createHash } from "node:crypto";
 import { png as makePng } from "../../src/server/media/png.fixture";
 import {
   document,
@@ -1096,4 +1099,74 @@ test('admin can create missing localities and types then save their selection @s
   await open(page,'Location');
   await expect(page.getByLabel('Locality').first()).toHaveValue(newLocality);
   await page.screenshot({path:info.outputPath('admin-locality-creation.png')});
+});
+
+for (const format of ['jpeg-disguised-as-png','wide-transparent-png','small-transparent-png'] as const) {
+  test(`logo intake handles ${format} and preserves proportions @short`, async ({page}) => {
+    await setup(page);
+    const isPng=format!=='jpeg-disguised-as-png';
+    const width=format==='wide-transparent-png'?1024:format==='small-transparent-png'?300:24;
+    const height=format==='wide-transparent-png'?512:format==='small-transparent-png'?100:16;
+    const inputWidth=format==='wide-transparent-png'?2400:300, inputHeight=format==='wide-transparent-png'?1200:100;
+    const raw=Buffer.alloc((inputWidth*4+1)*inputHeight);
+    for(let y=0;y<inputHeight;y++) for(let x=0;x<inputWidth/2;x++) raw.set([80,120,160,255],y*(inputWidth*4+1)+1+x*4);
+    const original=isPng ? makePng(inputWidth,inputHeight,{raw}) : makeJpeg;
+    const uploadId='89000000-0000-4000-8000-000000000010', imageId='89000000-0000-4000-8000-000000000020';
+    let transferred=false, attachments=0, initiations=0, puts=0, manifest: Record<string,unknown>={};
+    const entry={id:imageId,kind:'logo',width,height,altText:'Synthetic test logo',creditText:null,status:'draft',revision:'a'.repeat(32)};
+    await page.route('**/api/v1/admin/media/uploads**',async route=>{
+      const r=route.request();
+      if(r.url().endsWith('/uploads')) {
+        initiations++;manifest=r.postDataJSON();
+        expect(manifest.purpose).toBe('shop_logo');
+        expect(manifest.contentType).toBe(isPng?'image/png':'image/jpeg');
+        await route.fulfill({json:{id:uploadId}});
+      } else if(r.method()==='PUT') {
+        const bytes=r.postDataBuffer()!;
+        expect(r.headers()['content-type']).toBe(manifest.contentType);
+        expect(bytes.length).toBe(manifest.byteSize);
+        expect(createHash('sha256').update(bytes).digest('hex')).toBe(manifest.sha256);
+        if(isPng) {
+          const pixels=new Uint8Array(width*height*4);
+          const checked=validatePng(bytes,false,pixels);
+          expect([checked.width,checked.height]).toEqual([width,height]);
+          expect(Array.from(pixels.slice((10*width+10)*4,(10*width+10)*4+4))).toEqual([80,120,160,255]);
+          expect(pixels[(10*width+width-10)*4+3]).toBe(0); // transparent half remains transparent
+        } else expect(bytes.equals(original)).toBe(true);
+        puts++;
+        if(isPng && puts===1) {await route.fulfill({status:503,json:{error:{code:'service_unavailable'}}});return;}
+        transferred=true;await route.fulfill({json:{id:uploadId}});
+      } else await route.fulfill(transferred?{json:{id:uploadId,status:'validated'}}:{status:409,json:{error:{code:'upload_incomplete'}}});
+    });
+    await page.route(`**/api/v1/admin/shops/${id}/media**`,async route=>{
+      if(route.request().url().endsWith(imageId)) {await route.fulfill({contentType:'image/png',body:makePng(entry.width,entry.height)});return;}
+      if(route.request().method()==='POST') {expect(route.request().postDataJSON()).toEqual({action:'attach',id:uploadId});attachments++;}
+      await route.fulfill({json:{entries:attachments?[entry]:[]}});
+    });
+    await page.goto(`/admin/shops/${id}`);await open(page,'Photos & logo');
+    const media=page.getByRole('region',{name:'Shop photos and logo'});
+    await media.getByLabel('Choose a logo').setInputFiles({name:'synthetic-logo.png',mimeType:'image/png',buffer:original});
+    if(isPng) {
+      await expect(media.getByRole('alert')).toContainText('Media service is unavailable');
+      await media.getByRole('button',{name:'Retry saving this logo'}).click();
+    }
+    await expect(media.getByRole('status')).toContainText('Saved privately');
+    await expect(media.getByRole('figure').getByText('Private to this draft',{exact:true})).toBeVisible();
+    await expect(media.getByAltText('Synthetic test logo')).toHaveCSS('object-fit','contain');
+    expect(attachments).toBe(1);expect(initiations).toBe(1);expect(puts).toBe(isPng?2:1);
+    await page.reload();await open(page,'Photos & logo');
+    await expect(media.getByAltText('Synthetic test logo')).toBeVisible();
+  });
+}
+
+test('oversized PNG logo is rejected before preview decoding or upload @short',async ({page})=>{
+  await setup(page);let uploads=0;
+  await page.route('**/api/v1/admin/media/uploads**',async route=>{uploads++;await route.fulfill({status:400,json:{error:{code:'invalid_request'}}});});
+  await page.route(`**/api/v1/admin/shops/${id}/media**`,route=>route.fulfill({json:{entries:[]}}));
+  await page.goto(`/admin/shops/${id}`);await open(page,'Photos & logo');
+  const media=page.getByRole('region',{name:'Shop photos and logo'});
+  await media.getByLabel('Choose a logo').setInputFiles({name:'oversized.png',mimeType:'image/png',buffer:makePng(9000,1)});
+  await expect(media.getByRole('alert')).toContainText('8192 px');
+  await expect(media.getByAltText('Selected logo for M6 Demo shop')).toHaveCount(0);
+  expect(uploads).toBe(0);
 });

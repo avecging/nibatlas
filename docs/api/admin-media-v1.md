@@ -19,7 +19,7 @@ initiating account; even another editor/admin cannot take over that session.
 | Route | Method | Input | Result |
 | --- | --- | --- | --- |
 | `/api/v1/admin/media/uploads` | POST | JSON manifest below | 201: id, pending status, expiry, null dimensions |
-| `/api/v1/admin/media/uploads/[id]` | PUT | `image/png`, or `image/jpeg` for shop photos | Uploaded; must still finalize |
+| `/api/v1/admin/media/uploads/[id]` | PUT | `image/png`, or `image/jpeg` for shop photos and logos | Uploaded; must still finalize |
 | Same | POST | Empty body | Reads R2 bytes, validates, records validated manifest |
 | Same | GET | No query | Private status/expiry/dimensions only; no file bytes |
 
@@ -30,7 +30,7 @@ errors are redacted. UUID knowledge grants no access.
 
 Initiation JSON (max 8 KiB): `shopId`, `purpose` (`shop_photo`, `shop_logo` or `artwork_png`),
 `sha256` (64 lowercase hex), `byteSize` (integer, 1–5 MiB), `contentType`
-(`image/png`, or `image/jpeg` for shop photos only). Photos/logos may omit all
+(`image/png`, or `image/jpeg` for shop photos and logos). Photos/logos may omit all
 metadata. If supplied, `sourceRef` (1–2000), `rightsBasis` (1–2000), `creditText`
 (1–300), `altText` (1–1000) must be nonblank text. Omission stays null; no fake
 permission, ownership, licence, credit or description is inserted. Existing
@@ -71,14 +71,14 @@ ancillary chunks, palette PNG and animation (`acTL`, `fcTL`, `fdAT`). Sensitive 
 unsupported metadata is rejected **before R2 persistence**, not stripped after
 storing GPS. Fixed display declarations are not a general metadata allowlist or
 a guarantee against sensitive content encoded in pixels. Artwork requires RGBA,
-1200 × 800 and transparent pixels. PNG uploads are never rewritten or converted.
+1200 × 800 and transparent pixels. The server does not rewrite PNG upload bytes. The shop-logo picker normalizes PNGs before creating an upload manifest, as described below; stamp artwork never uses that picker.
 
 This intentionally narrow subset can reject otherwise valid illustrator PNGs.
 Ask for a suitable export, never silently modify approved artwork. Transport validation is not evidence of external illustrator approval. Under #73,
 MVP activation deliberately does not require maker-mark confirmation, source/SVG
 bundles, rights evidence or external sign-off; those commissioning requirements
 are deferred to #71. WebP/AVIF, SVG and editable sources are not accepted by this
-upload path. JPEG shop-photo intake is described below.
+upload path. JPEG shop-image intake is described below.
 
 A generated upload UUID identifies one immutable file version, separate from the
 existing artwork/design identity. Keys are server generated:
@@ -96,9 +96,28 @@ commit. Like any external write, an already-authorized R2 write may finish while
 revocation races; it remains private and finalization checks the current role
 again. There is no long-lived upload bearer URL after revocation.
 
-## JPEG shop photos: transformed input and output identity
+## Logo picker preparation
 
-JPEG is permitted only for `shop_photo`. Input manifest `sha256`, `byteSize` and
+The photo/logo picker detects PNG/JPEG from bytes rather than trusting a filename
+or browser MIME hint. This chooses a transport path only; the server still fully
+validates all uploaded bytes. No filename enters the storage identity.
+
+For PNG logos, the browser first checks the 5 MiB input limit, IHDR dimensions
+(8192 px per axis / 24 MP) and bounded static chunk structure, then decodes the
+image. Animated PNG is refused. It renders a static PNG at at most 1024 px on the
+longest edge, retaining the aspect ratio (whole-pixel rounding), transparency and
+small-image size, without crop/stretch/upscale. The canvas export removes source
+metadata; the server independently checks the exported PNG. The upload checksum
+and size identify this prepared PNG, cached for retries, not the source file.
+The selected PNG preview uses those prepared bytes only after bounded decoding.
+JPEG logos use the server pipeline below; their preview appears after processing
+and private attachment. Both admin and public logo displays use `object-fit: contain`.
+This preparation does not run for photos or stamp artwork; exact stamp dimensions,
+transparency, validation, immutable version identity and activation remain intact.
+
+## JPEG shop photos and logos: transformed input and output identity
+
+JPEG is permitted for `shop_photo` and `shop_logo`, never `artwork_png`. Input manifest `sha256`, `byteSize` and
 `contentType` describe the exact original bytes. Input remains at most 5 MiB.
 Preflight checks JPEG markers/segment and entropy boundaries, exact EOI (no
 trailing bytes), one 8-bit baseline/progressive three-component frame, at most
