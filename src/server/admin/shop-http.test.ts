@@ -308,3 +308,20 @@ it('returns safe structured database field errors without provider details',asyn
   const r=await handleShopAdmin(req({action:'save',revision,document:doc}),'shop',id,g);
   expect(r.status).toBe(422);expect(await r.json()).toMatchObject({error:{code:'invalid_fields'},fieldErrors:[{path:'shop.locality_id',message:'Choose a locality in the selected country.'}]});
 });
+
+it('admin creates bounded country-specific localities and types; editors retain only original vocabularies',async()=>{
+  const g=gateway('admin');
+  const options={localities:[{id,label:'Synthetic locality (SG)',countryCode:'SG'}],types:[],services:[],brands:[],specialties:[]};
+  g.call=vi.fn(async name=>name==='admin_catalogue_choice'?{id}:options);
+  const data={kind:'localities',label:'Synthetic locality',countryCode:'SG',adminAreaCode:'SG-01'};
+  expect((await handleShopAdmin(req(data),'options',null,g)).status).toBe(200);
+  expect(g.call).toHaveBeenCalledWith('admin_catalogue_choice',{p_kind:'localities',p_label:data.label,p_country_code:'SG',p_admin_area_code:'SG-01'});
+  expect((await handleShopAdmin(req({kind:'types',label:'Synthetic type'}),'options',null,g)).status).toBe(200);
+  for(const data of [{kind:'localities',label:'X'}, {kind:'localities',label:'X',countryCode:'sg'}, {kind:'types',label:'X',countryCode:'SG'}, {kind:'localities',label:'X',countryCode:'SG',adminAreaCode:'x'.repeat(101)}])
+    expect((await handleShopAdmin(req(data),'options',null,g)).status).toBe(400);
+  for(const data of [{kind:'types',label:'X'}, {kind:'localities',label:'X',countryCode:'SG'}]) {
+    const editor=gateway('editor');
+    expect((await handleShopAdmin(req(data),'options',null,editor)).status).toBe(403);
+    expect(editor.call).not.toHaveBeenCalled();
+  }
+});

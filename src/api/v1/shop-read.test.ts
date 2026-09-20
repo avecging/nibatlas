@@ -190,3 +190,15 @@ describe('B2 trusted editorial public contract', () => {
     expect(decodeShopDetailV1({ ...detail(), review })?.sources).toEqual(detail().sources);
   });
 });
+
+it('custom catalogue types retain labels across map, detail, nearby and reject missing labels',()=>{
+  const type='type_85000000_0000_4000_8000_000000000002';
+  const row={...MAP_SHOP,primaryType:type,primaryTypeLabel:'手作りペン'};
+  const viewport={shops:[row],truncated:false,committedBounds:{west:103,south:1,east:104,north:2}};
+  expect(decodeViewportShopsV1(viewport).shops[0]?.primaryTypeLabel).toBe('手作りペン');
+  expect(decodeShopDetailV1({...detail(),...row,shopTypes:[type],shopTypeLabels:{[type]:'手作りペン'}})?.shopTypeLabels?.[type]).toBe('手作りペン');
+  expect(decodeNearbyShopsV1({shops:[{...row,positionPrecision:'street',distanceMeters:100}],radiusMeters:5000}).shops[0]?.primaryTypeLabel).toBe('手作りペン');
+  expect(()=>decodeViewportShopsV1({...viewport,shops:[{...row,primaryTypeLabel:undefined}]})).toThrow(ShopReadContractError);
+  expect(()=>decodeShopDetailV1({...detail(),...row,shopTypes:[type]})).toThrow(ShopReadContractError);
+  expect(()=>decodeShopDetailV1({...detail(),...row,shopTypes:[type],shopTypeLabels:{[type]:'x'.repeat(301)}})).toThrow(ShopReadContractError);
+});

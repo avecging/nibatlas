@@ -1,0 +1,61 @@
+.field {
+  position: relative;
+}
+.control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px;
+}
+.control input {
+  flex: 1 1 200px;
+}
+.clear {
+  flex: 0 0 auto;
+  align-self: end;
+}
+.list {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  max-height: 44vh;
+  overflow-y: auto;
+  margin: 4px 0 0;
+  padding: 0 !important;
+  list-style: none;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(16, 45, 70, 0.18);
+}
+.list li {
+  display: block;
+  padding: 10px 12px;
+  min-height: 44px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-default);
+}
+.list li:last-child {
+  border-bottom: 0;
+}
+.active {
+  background: var(--state-saved-surface);
+}
+.place {
+  display: block;
+  font-weight: 600;
+}
+.meta {
+  display: block;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.empty {
+  cursor: default !important;
+  color: var(--text-secondary);
+}
+.error {
+  color: var(--error) !important;
+  font-weight: 600 !important;
+}

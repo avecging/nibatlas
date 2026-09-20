@@ -212,6 +212,7 @@ export interface ShopDetail extends ShopMapSummary {
   readonly neighbourhood?: string;
   readonly timezone: string;
   readonly shopTypes: readonly ShopType[];
+  readonly shopTypeLabels?: Readonly<Record<string,string>>;
   readonly specialties?: readonly string[];
   /**
    * What you can do there.
@@ -317,3 +318,8 @@ export const POSITION_PRECISION_LABELS: Record<PositionPrecision, string> = {
   street: "Approximate, placed from a sourced street address",
   locality: "Approximate, locality only",
 };
+
+/** Custom vocabulary labels are supplied by the published catalogue, never UUID-derived. */
+export function shopTypeLabel(type: ShopType, label?: string): string {
+  return label ?? SHOP_TYPE_LABELS[type] ?? 'Shop';
+}

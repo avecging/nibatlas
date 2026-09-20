@@ -1,10 +1,10 @@
 import { isCountryCode, type CountryCode, type GeoPoint } from "@/src/domain/geo";
 import { isLanguageTag, type LanguageTag } from "@/src/domain/language";
 import {
-  SHOP_RECORD_TYPES,
+  isShopType,
+  validTypeLabel,
   type OperationalStatus,
   type ShopMapSummary,
-  type ShopType,
   type SourceQuality,
 } from "@/src/domain/shops";
 
@@ -157,6 +157,9 @@ export function decodeSavedShopV1(value: unknown, at = "shop"): SavedShopV1 {
     throw new SavedShopContractError("Test venues must remain demo data");
   }
 
+  if (!isShopType(item.primaryType) || (item.primaryTypeLabel !== undefined || String(item.primaryType).startsWith('type_')) && !validTypeLabel(item.primaryTypeLabel)) {
+    throw new SavedShopContractError('Invalid shop type or label');
+  }
   const output: SavedShopV1 = {
     id,
     slug: string(item["slug"], `${at}.slug`),
@@ -164,7 +167,8 @@ export function decodeSavedShopV1(value: unknown, at = "shop"): SavedShopV1 {
     countryCode: country as CountryCode,
     localityName: string(item["localityName"], `${at}.localityName`),
     position: point(item["position"], `${at}.position`),
-    primaryType: oneOf(item["primaryType"], SHOP_RECORD_TYPES, `${at}.primaryType`) as ShopType,
+    primaryType: item.primaryType,
+    ...(validTypeLabel(item.primaryTypeLabel) ? {primaryTypeLabel:item.primaryTypeLabel} : {}),
     specialtyLine:
       item["specialtyLine"] === null
         ? null

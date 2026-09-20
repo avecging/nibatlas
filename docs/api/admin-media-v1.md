@@ -299,3 +299,31 @@ duplicate protection, locks and audit remain unchanged; migrations do not rewrit
 any history. Older previously accepted HTTP(S)-prefix links remain readable;
 rendering omits an unusable link while retaining its original name and snapshot.
 No name means no invented credit or claim that uploaded work was generated.
+
+## B3 image management
+
+Admin media responses advertise `capabilities: ["remove","arrange"]`. These are
+service capabilities; the UI additionally requires a confirmed admin role.
+`remove` uses `{action,id,revision}` with the existing 32-character image token.
+It soft-removes both private and public images by marking the immutable attachment
+rejected. Removed images disappear from both lists and both byte routes; their
+receipts cannot be reattached or revived. Receipts/bytes remain private for audit
+and still count toward the existing 50-attachment lifetime cap. No stamp or
+impression changes. Archived shops refuse removal; stale tokens return 409.
+
+`arrange` takes `{action:"arrange",order:[id,...],captions:{id:textOrNull},revisions:{id:token}}`.
+The complete current gallery (photos and logos) must appear exactly once, with a
+revision for each image. Caption keys may be a subset; omission preserves,
+null/blank clears, and text is at most 300 characters. Same-origin admin-only HTTP
+forwards a bounded request to service-only `shop_media_arrange`. SQL validates the
+whole environment-specific gallery under the shop/current-role lock before an
+atomic audited update. Missing/unknown/duplicate IDs return 422; stale image
+revisions return 409. Neither action publishes any private image.
+
+`sort_order` already existed in the catalogue foundation; only `caption` is a new
+column. Lists now use `sort_order,created_at,id` and expose `sortOrder` and
+`caption`. The first public photo is the public cover. The admin's first photo
+only becomes that cover if explicitly shown; private photos stay private. New
+attachments append after existing positions. Captions and ordering on approved
+images change the public gallery immediately. Captions render as escaped text,
+separately from preserved credit. Normal catalogue saves still publish no media.

@@ -10,7 +10,15 @@ export const SHOP_TYPES = [
 
 // Test venues are renderable records, never a public pen-shop filter.
 export const SHOP_RECORD_TYPES = [...SHOP_TYPES, "test_venue"] as const;
-export type ShopType = (typeof SHOP_RECORD_TYPES)[number];
+export type ShopType = (typeof SHOP_RECORD_TYPES)[number] | `type_${string}`;
+/** Only server-generated custom identities extend the fixed filter vocabulary. */
+export function isShopType(value: unknown): value is ShopType {
+  return typeof value === 'string' && ((SHOP_RECORD_TYPES as readonly string[]).includes(value) ||
+    /^type_[a-f0-9]{8}_[a-f0-9]{4}_[a-f0-9]{4}_[a-f0-9]{4}_[a-f0-9]{12}$/.test(value));
+}
+export function validTypeLabel(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0 && value.length <= 300;
+}
 export type OperationalStatus =
   | "open"
   | "temporarily_closed"
@@ -30,6 +38,7 @@ export interface ShopMapSummary {
   readonly localityName: string;
   readonly position: GeoPoint;
   readonly primaryType: ShopType;
+  readonly primaryTypeLabel?: string;
   /** One visit-oriented specialty or service for compact map/list cards. */
   readonly specialtyLine: string | null;
   readonly operationalStatus: OperationalStatus;

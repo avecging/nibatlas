@@ -52,6 +52,7 @@ export function createHttpShopLocator(client: ShopReadClient): ShopLocator {
         localityName: detail.localityName,
         position: detail.position,
         primaryType: detail.primaryType,
+    ...(detail.primaryTypeLabel === undefined ? {} : {primaryTypeLabel:detail.primaryTypeLabel}),
         specialtyLine: detail.specialtyLine,
         operationalStatus: detail.operationalStatus,
         markerState: "unvisited",

@@ -10,25 +10,34 @@ Role meanings, bootstrap and revocation are defined once in
 `admin-authorization.md`. Publication, review, revision and archival rules
 apply to every permitted operator.
 
-1. Choose **Create a draft shop**. Enter name and a unique lowercase URL name.
-2. Open the draft and enter what is known. Choose the existing locality and
-   one primary shop type; add the street address, timezone, coordinates and stated
-   accuracy. Internal notes and reference links are optional and private. Legacy
-   sources remain editable but no claim tokens or dated evidence forms are needed.
-   New vocabulary/locality preparation remains B3 work.
-3. Choose **Save and review** to save privately and move into the saved preview.
-   **Save changes privately** remains available when continuing edits. The public
-   listing remains unchanged. Another account without editor/admin access cannot
-   read the preview even with its URL or UUID.
+1. Under **Add a shop**, enter a name and, if you want one, a URL name. Left
+   blank, a stable URL name is generated. Choose **Create draft**.
+2. The draft opens on **Shop & story**. Move between the seven sections in any
+   order from the section navigation; nothing forces you through the ones in
+   between. Enter what is known: the country and locality and one primary shop
+   type, the street address, timezone, coordinates and stated accuracy. Internal
+   notes and reference links are optional and private. Legacy sources are kept in
+   a collapsed, explicitly-not-required block on **Review**; no claim tokens or
+   dated evidence forms are needed. Admins can create or reuse a missing locality
+   in **Location**, after choosing its country and entering an administrative area
+   code when applicable. Admins can also create or reuse a shop type in
+   **Experiences**. Select the resulting choices and save the draft; editors can
+   select existing choices and ask an admin to add missing localities or types.
+3. **Save** keeps working without leaving the section. **Save and review** saves
+   privately and opens **Review** on the saved version. Either way the confirmation
+   appears at the top of the work area, not below the fold, and the public listing
+   is unchanged. Another account without editor/admin access cannot read the
+   preview even with its URL or UUID.
 4. Resolve the listed publication requirements. In particular, a new shop needs
    an active approved Atlas Stamp. New drafts receive a generated default
    automatically. For an older draft with no stamp, use **Prepare generated
    default** in the stamp section. This preserves existing artwork/retired
    identities and private edits; no upload or creator credit is needed. Never
    manufacture a verified date to clear a catalogue gate.
-5. Choose **Confirm saved shop position** and deliberately confirm the saved
-   location. Address/coordinate/accuracy changes invalidate this confirmation.
-   Then choose **Publish saved version**, review its confirmation and publish.
+5. In **Location**, beside the coordinates, choose **Confirm saved shop position**
+   and deliberately confirm the saved location. Address/coordinate/accuracy
+   changes invalidate this confirmation, so confirm again after a correction.
+   Then, on **Review**, choose **Publish shop**, read the dialog and publish.
    The actual editor/time are recorded automatically; no blanket field
    verification is claimed. Check the public page afresh.
 6. To close a published shop, first finish or discard its saved edits. Choose
@@ -54,12 +63,12 @@ for new regressions, not a mandatory repeat of the confirmed fix:
 1. In your existing signed-in staging browser, open `/api/v1/admin/access` and
    confirm `{"role":"admin"}`. No second role assignment is needed.
 2. Open `/admin/shops`. Confirm the catalogue list loads without the access error.
-3. Choose **Create a draft shop**, name it **Admin acceptance test draft**, and
-   give it a unique URL name, such as `admin-acceptance-test-20260914`.
+3. Under **Add a shop**, name it **Admin acceptance test draft** and give it a
+   unique URL name, such as `admin-acceptance-test-20260914`.
 4. Choose **Create draft**. Change the name to **Admin acceptance test draft edited**
-   and choose **Save changes privately**.
+   and choose **Save**.
 5. Return to **All shops**, reopen the draft, and confirm the changed name is
-   still present. Choose **Preview saved version**. Keep this test draft private.
+   still present. Open **Review** and check the preview. Keep this draft private.
 6. In a signed-out browser, confirm `/admin/shops` asks for sign-in and its APIs
    reject access. An ordinary signed-in account must also remain denied.
 
@@ -185,3 +194,112 @@ and specialty then save/reopen; select a supported image, verify automatic
 private save, interrupt/retry and verify no duplicate attachment; deliberately
 publish/activate after checking the preview. Hosted and founder acceptance of
 this correction remain pending until it is explicitly deployed and tested.
+
+## B3 seven-section editor rebuild
+
+The approved seven-section design in `nib-atlas-admin-rework-handoff.md` and
+`nib-atlas-admin-prototype.html` is now the editor's actual structure. The
+backend contract this depends on is `docs/api/admin-b3-contract-handoff.md`;
+Codex owns everything listed there.
+
+**How the editor is laid out.** Shop & story, Experiences, Location, Visit
+details, Photos & logo, Stamp, Review — reachable in any order from the section
+navigation, never as a forced sequence. The layout adds no field and removes
+none: `editor-sections.ts` is a view over the same shared `SHOP_FIELDS` and
+`GROUPS` contract that a Package C import will write, and a unit test fails if
+any approved field or repeatable group stops being reachable.
+
+**Where feedback appears.** One notice region sits at the top of the work area
+and stays in view while the page scrolls. Routine success (save, position
+confirmed, image shown or hidden) is a notice and never moves focus. A failure
+moves focus to the first field that has to change, or to the notice when there
+is no such field. Decisions that are hard to reverse — publish, discard,
+archive, close, confirm position, show or hide an image, delete an image — open
+a centred dialog rather than a panel appended below the section.
+
+**The persistent action.** A fixed bar holds the save and review actions at
+every scroll position, sitting above the app's own Map/Passport/Me navigation
+below 1024px. It shows whether work is unsaved, saved privately or in progress,
+and it disables itself while a request is in flight so a second tap cannot
+submit twice. A successful **Save and review** opens the Review section on the
+saved version.
+
+**Country.** The approved friendly selector: search a country by name — accents
+optional, so "curacao" finds Curaçao — and the two-letter code is what is
+stored. A code the runtime cannot name can still be typed and chosen, because
+storage accepts any two uppercase letters and the selector must not narrow that.
+Withdrawn codes CLDR still names, such as `DD` for Germany or `UK` for the
+United Kingdom, are left out: the runtime's own alias table identifies them, so
+a search for a country never hands back a dead code. `src/domain/geo.ts` still refuses to
+enumerate countries in the contract — storage accepts any two uppercase ASCII
+letters — so a saved code this runtime cannot name is kept and shown as the
+code rather than rejected. CLDR entries that are not a country a shop can be in
+(`ZZ` "Unknown Region", `QO`, `EU`, `EZ`, `UN`, `XA`, `XB`) are left out of the
+list so a record cannot acquire a placeholder country.
+
+**Timezone.** A searchable list of every IANA zone the runtime supports, showing
+the readable place and its *current* UTC offset. The stored value is always the
+IANA identifier; a fixed offset such as `Etc/GMT-8` is labelled as a fixed
+offset and sorted below real places. An existing valid identifier the runtime
+does not list — a legacy alias — is kept and remains selectable. A country
+suggestion is offered only where the country has one civil timezone, and is
+never applied for the editor.
+
+**Images.** Each image shows its state in words: *Private to this draft* or *On
+the public page*. **Show on public page** and **Remove from the public page**
+are per-image admin actions and are spelled out in the dialog, including that
+hiding leaves the image saved in the draft. A failed upload keeps the chosen
+file on screen with **Retry saving this photo** and **Discard this file**;
+nothing has to be found again, and leaving the Photos section while an upload is
+in flight asks first, because unmounting the uploader cancels it. Two separate gates decide which image controls
+appear. The **actor** gate reads the signed-in role from
+`GET /api/v1/admin/access`: showing, hiding and deleting an image are admin-only
+on the server, so an editor sees none of them and is told an admin has to review
+the upload. The **deployment** gate is the `remove` capability the media list
+advertises: until request A in the contract handoff ships, permanent deletion is
+not offered and the section says so. Together they are what makes every
+image control in this section one that can succeed — neither gate is sufficient
+alone. The Atlas Stamp section is not gated this way; its **Activate this design
+(admin)** button names the requirement instead. The Review section states how many images are saved and how many are
+on the public page, so the path from upload to public visibility is visible
+where publication is decided.
+
+**Position confirmation** now sits beside the coordinates it attests to, in the
+Location section, and states that an address, coordinate or accuracy change
+clears the previous confirmation.
+
+**Stamps** are their own section. The generated default still needs no upload
+and no creator credit; uploaded artwork still requires an explicit admin
+activation, and saving ordinary shop details still activates nothing.
+
+Retest on a phone: reach all seven sections from the navigation; save and see
+the confirmation without scrolling; enter an invalid coordinate, follow the
+error to the field, correct it and save successfully; search the timezone list
+for a city; upload a photo, show it on the public page, take it off again, and
+open the public shop page to check; confirm the position after changing an
+address; publish from Review. Hosted and founder acceptance remain pending
+until this is deployed and tested on a real device.
+
+### B3 backend integration follow-up
+
+The Codex integration branch builds on Claude PR #79. It completes media removal,
+capability advertisement, gallery cover/order/captions and admin locality/type
+creation. The Photos summary callback is stable (fixing a render loop), and an
+unknown account role never enables admin image controls. After deploying the
+additive migrations with the application, an admin can add/reuse a locality in
+Location using the selected country/area and add/reuse a shop type in Experiences.
+Select a type as primary before publishing when needed. New custom types have
+public labels across discovery, detail and Saved; fixed public filter tabs stay
+unchanged.
+
+Gallery actions save separately from shop details. Deletion is irreversible from
+this interface and withdraws public delivery while retaining private audit receipts
+and the existing 50-image cap. Cover/order/caption changes affect already-public
+images immediately and never publish private images. A private first photo is not
+the public cover until explicitly shown.
+
+Technical tests and independent review are not founder acceptance. Staging still
+needs the real-device create/correct/save/publish, JPEG/photo/logo display/removal,
+gallery and stamp checks, including the earlier Package A acceptance gaps. The
+mandatory 200-shop bulk-import Package C and Package D dated hours/richer review
+remain separate and unimplemented by this follow-up.

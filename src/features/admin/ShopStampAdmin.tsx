@@ -54,8 +54,7 @@ export function ShopStampAdmin({shopId,shopName,archived,localityName='',country
     finally{lock.current=false;if(!signal.aborted)setBusy(false);}
   }
   return <section className={styles.section} id="shop-stamp-artwork" tabIndex={-1} aria-label="Atlas Stamp artwork">
-    <h2>Atlas Stamp artwork</h2>
-    <p>Artwork for <strong>{shopName}</strong>. New shops receive a generated default without an image upload. The stamp stays private while the shop is a draft. Uploaded versions are saved privately, previewed intact, and become collectable only after an admin activates them.</p>
+    <p className={styles.help}>Artwork for <strong>{shopName}</strong>. New shops receive a generated default without an image upload, so no artwork has to be commissioned or uploaded. The stamp stays private while the shop is a draft. Uploaded versions are saved privately, previewed intact, and become collectable only after an admin activates them &mdash; saving ordinary shop details never activates artwork.</p>
     <div ref={feedback} tabIndex={-1}>{error&&<p role="alert">{error}</p>}
     <p role="status" aria-live="polite">{notice||(busy?'Saving…':'')}</p></div>
     <button type="button" disabled={busy} onClick={()=>void run(async signal=>{
