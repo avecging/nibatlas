@@ -1,6 +1,5 @@
 import type { GeoPoint } from "@/src/domain/geo";
 import type { PositionPrecision } from "@/src/domain/shop-detail";
-import { createMapStyleProvider } from "@/src/features/map/map-style";
 
 /**
  * Whether a record's coordinate can honestly be drawn.
@@ -43,18 +42,3 @@ export const PREVIEW_ZOOM: Record<PositionPrecision, number> = {
   locality: 11,
 };
 
-/**
- * Whether this build can draw a location preview at all.
- *
- * Two conditions, decided in one place so the section and its heading cannot
- * disagree: the record needs a coordinate worth drawing, and the deployment
- * needs a basemap with geography on it. Without a tile key the style provider
- * falls back to the offline graticule, which orients a world map and says
- * nothing about a street corner — a preview built on it would be an empty box.
- */
-export function canPreviewShopLocation(
-  point: GeoPoint | undefined,
-  tileKey: string | undefined,
-): boolean {
-  return isMappablePoint(point) && !createMapStyleProvider(tileKey).isOffline;
-}

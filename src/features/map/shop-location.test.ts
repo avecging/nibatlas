@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  canPreviewShopLocation,
-  isMappablePoint,
-  PREVIEW_ZOOM,
-} from "@/src/features/map/shop-location";
+import { isMappablePoint, PREVIEW_ZOOM } from "@/src/features/map/shop-location";
 
 describe("whether a coordinate can be drawn", () => {
   it("accepts a real position", () => {
@@ -33,18 +29,5 @@ describe("how closely the preview frames the pin", () => {
     // their order, so a change to either is a deliberate one.
     expect(PREVIEW_ZOOM).toEqual({ street: 15, locality: 11 });
     expect(PREVIEW_ZOOM.locality).toBeLessThan(PREVIEW_ZOOM.street);
-  });
-});
-
-describe("whether this build can draw a preview at all", () => {
-  const ginza = { latitude: 35.6721, longitude: 139.7669 };
-
-  it("needs both a coordinate worth drawing and a basemap to draw it on", () => {
-    expect(canPreviewShopLocation(ginza, "a-tile-key")).toBe(true);
-    // No key: the style provider falls back to the offline graticule, which
-    // says nothing about a street corner.
-    expect(canPreviewShopLocation(ginza, undefined)).toBe(false);
-    expect(canPreviewShopLocation(ginza, "   ")).toBe(false);
-    expect(canPreviewShopLocation({ latitude: 0, longitude: 0 }, "a-tile-key")).toBe(false);
   });
 });

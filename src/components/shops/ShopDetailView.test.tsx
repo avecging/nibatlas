@@ -296,7 +296,6 @@ describe("Plan your visit", () => {
     // or catalogue neighbour in reach.
     const sparse = findPrototypeShop("skb-kaohsiung")!;
 
-    vi.stubEnv("NEXT_PUBLIC_MAPTILER_KEY", "test-tile-key");
     renderShop(sparse, []);
 
     expect(screen.getByRole("heading", { name: "Plan your visit" })).toBeInTheDocument();
@@ -312,8 +311,6 @@ describe("Plan your visit", () => {
   });
 
   it("puts the location preview above the address it illustrates", () => {
-    vi.stubEnv("NEXT_PUBLIC_MAPTILER_KEY", "test-tile-key");
-
     const itoya = findPrototypeShop("ginza-itoya-main-store")!;
 
     renderShop(itoya, []);
@@ -330,12 +327,13 @@ describe("Plan your visit", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps the address when the record has no basemap to draw it on", () => {
-    vi.stubEnv("NEXT_PUBLIC_MAPTILER_KEY", "");
+  it("keeps the address when the record has no coordinate to draw", () => {
+    const unplaced: ShopDetail = {
+      ...findPrototypeShop("ginza-itoya-main-store")!,
+      position: { latitude: 0, longitude: 0 },
+    };
 
-    const itoya = findPrototypeShop("ginza-itoya-main-store")!;
-
-    renderShop(itoya, []);
+    renderShop(unplaced, []);
 
     expect(screen.getByRole("heading", { name: "Getting there" })).toBeInTheDocument();
     expect(screen.queryByTestId("shop-location-map")).not.toBeInTheDocument();

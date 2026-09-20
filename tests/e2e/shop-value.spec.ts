@@ -434,6 +434,54 @@ test("the populated value layer is reviewable from a labelled specimen", async (
   ).toBeVisible();
 });
 
+/**
+ * The location preview, in the ordinary journeys.
+ *
+ * It renders on the strength of the coordinate alone, so these run without a
+ * tile key against the offline basemap — the renderer, the pin, the handlers
+ * and the layout are all the real ones. Only the geography is absent, and that
+ * is covered on staging where the origin-restricted key works.
+ */
+test("the location preview shows where a shop is without taking the page scroll", async ({
+  page,
+}) => {
+  await page.goto("/shops/ginza-itoya-main-store");
+
+  const preview = page.getByTestId("shop-location-map");
+
+  await preview.scrollIntoViewIfNeeded();
+  await expect(preview).toBeVisible();
+  await expect(preview.locator(".maplibregl-canvas")).toBeVisible();
+
+  // Every handler is off, so the renderer never claims the interactive class.
+  await expect(preview.locator(".maplibregl-map")).not.toHaveClass(
+    /maplibregl-interactive/,
+  );
+
+  // A wheel with the pointer over the preview scrolls the page, not the map.
+  const box = (await preview.boundingBox())!;
+  const before = await page.evaluate(() => window.scrollY);
+
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, 400);
+  await page.waitForTimeout(400);
+
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(before);
+
+  // The address and the way out to a real map are beside it, not replaced by it.
+  await expect(page.getByRole("link", { name: "Get directions" })).toBeVisible();
+  await expect(page.getByText("2-7-15 Ginza, Chūō-ku, Tokyo 104-0061")).toBeVisible();
+});
+
+test("a record with no usable coordinate gets no invented one", async ({ page }) => {
+  // Every catalogue record carries a coordinate, so the guard is asserted on
+  // the surface it protects: no preview may appear without one.
+  await page.goto("/shops/skb-kaohsiung");
+
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByTestId("shop-location-map")).toHaveCount(0);
+});
+
 test("no shop page becomes a listing, a catalogue, or a review page", async ({ page }) => {
   for (const slug of ["ginza-itoya-main-store", "pen-house-tainan", "skb-kaohsiung"]) {
     await page.goto(`/shops/${slug}`);

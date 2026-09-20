@@ -40,13 +40,6 @@ vi.mock("maplibre-gl", () => ({
 
 const itoya = findPrototypeShop("ginza-itoya-main-store")!;
 
-/*
- * Every case below is a keyed deployment unless it says otherwise: without a
- * tile key there is no geography to draw at this zoom, and the preview is
- * omitted rather than framed around a blank sheet.
- */
-beforeEach(() => vi.stubEnv("NEXT_PUBLIC_MAPTILER_KEY", "test-tile-key"));
-
 /** A healthy instance: MapLibre only has a painter when WebGL came up. */
 function instance() {
   return { painter: {}, on: vi.fn(), remove: mock.remove };
@@ -92,13 +85,19 @@ describe("the location preview", () => {
     expect((mock.construct.mock.calls[0]![0] as { zoom: number }).zoom).toBe(11);
   });
 
-  it("omits the preview rather than framing a build with no basemap", () => {
+  it("draws whether or not a tile key reached the bundle", async () => {
+    /*
+     * A key that fails to reach the client is the one failure worth noticing.
+     * Hiding the section on a missing key made it invisible instead, so the
+     * preview is drawn on the strength of the coordinate alone and an unkeyed
+     * build simply falls back to the offline style.
+     */
     vi.stubEnv("NEXT_PUBLIC_MAPTILER_KEY", "");
 
     render(<ShopLocationMap shop={itoya} />);
 
-    expect(screen.queryByTestId("shop-location-map")).not.toBeInTheDocument();
-    expect(mock.construct).not.toHaveBeenCalled();
+    expect(screen.getByTestId("shop-location-map")).toBeInTheDocument();
+    await waitFor(() => expect(mock.construct).toHaveBeenCalledOnce());
   });
 
   it("invents no location for a record whose coordinate is unusable", () => {

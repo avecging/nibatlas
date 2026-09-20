@@ -9,7 +9,7 @@ import { ButtonLink } from "@/src/components/ui/Button";
 import { Icon } from "@/src/components/ui/Icon";
 import type { ShopDetail } from "@/src/domain/shop-detail";
 import { createMapStyleProvider } from "@/src/features/map/map-style";
-import { canPreviewShopLocation, PREVIEW_ZOOM } from "@/src/features/map/shop-location";
+import { isMappablePoint, PREVIEW_ZOOM } from "@/src/features/map/shop-location";
 import { noopTelemetry } from "@/src/features/map/telemetry";
 
 import styles from "./ShopLocationMap.module.css";
@@ -33,10 +33,18 @@ const PREFETCH_MARGIN = "400px";
  * the viewport. It sits well below the fold on a phone, and MapLibre is 140 KB
  * compressed: a reader who never scrolls that far should not pay for it.
  *
- * A build with no tile key draws no preview. The offline field-journal style is
- * a graticule, which orients a world map and says nothing at all about a street
- * corner, so the alternative is a frame around a blank sheet that reads as a
- * broken map rather than an absent one.
+ * The preview draws wherever the record has a coordinate, and does not ask
+ * whether a tile key is configured. Hiding the whole section when the key is
+ * missing made the one failure worth noticing — a key that did not reach the
+ * bundle — completely invisible, which is precisely when someone is looking for
+ * it. A deployment without a key falls back to the offline field-journal style,
+ * which is a graticule and so nearly bare at street zoom; that is a visible,
+ * diagnosable state rather than a silent absence, and it only happens in
+ * development, since staging and production both supply the key.
+ *
+ * Rendering unconditionally also means the ordinary gates exercise this: the
+ * axe scan, the interaction journeys and the visual breakpoints all run without
+ * a key, and would have skipped the preview entirely otherwise.
  *
  * The map is decoration over the address, never a substitute for it. A record
  * with no mappable coordinate, a renderer that will not start, and a basemap
@@ -58,9 +66,7 @@ export function ShopLocationMap({ shop }: { readonly shop: ShopDetail }) {
     () => createMapStyleProvider(process.env.NEXT_PUBLIC_MAPTILER_KEY),
     [],
   );
-  const point = canPreviewShopLocation(shop.position, process.env.NEXT_PUBLIC_MAPTILER_KEY)
-    ? shop.position
-    : null;
+  const point = isMappablePoint(shop.position) ? shop.position : null;
 
   const latitude = point?.latitude;
   const longitude = point?.longitude;
@@ -151,8 +157,7 @@ export function ShopLocationMap({ shop }: { readonly shop: ShopDetail }) {
   }, [wanted, latitude, longitude, zoom, styleProvider]);
 
   if (!point) {
-    // No coordinate this record can stand behind, or no basemap to draw it on:
-    // either way the address below speaks for itself.
+    // No coordinate this record can stand behind: the address speaks for itself.
     return null;
   }
 
