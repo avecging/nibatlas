@@ -22,7 +22,6 @@ import {
   type OpeningHoursDay,
   type ShopDetail,
 } from "@/src/domain/shop-detail";
-import { canPreviewShopLocation } from "@/src/features/map/shop-location";
 import { shopVisitFacts, type VisitFact } from "@/src/features/shops/shop-visit-facts";
 import { readCatalogueMode } from "@/src/features/catalogue/catalogue-mode";
 
@@ -163,16 +162,17 @@ export function ShopDetailView({
    */
   const facts = shopVisitFacts(shop);
   /*
-   * A mappable coordinate is itself something *Getting there* has to say, so a
-   * record with a position but no written address still gets the subsection —
-   * and one with neither still gets no empty heading.
+   * Deliberately decided without reading the tile key.
+   *
+   * `NEXT_PUBLIC_*` is inlined into the client bundle at build time but is an
+   * ordinary runtime read on the server, so a deployment built without the key
+   * and run with it would have this server component render the heading while
+   * `ShopLocationMap` — reading the inlined value — renders nothing under it.
+   * That is exactly the empty subsection heading the founder's review rejected,
+   * and it would fail silently. The heading therefore depends only on what the
+   * record itself says, and the preview is an addition inside it.
    */
-  const hasLocationPreview = canPreviewShopLocation(
-    shop.position,
-    process.env.NEXT_PUBLIC_MAPTILER_KEY,
-  );
-  const hasGettingThere =
-    hasLocationPreview || facts.gettingThere.length > 0 || nearby.length > 0;
+  const hasGettingThere = facts.gettingThere.length > 0 || nearby.length > 0;
 
   /*
    * Whether the page is worth splitting in two.

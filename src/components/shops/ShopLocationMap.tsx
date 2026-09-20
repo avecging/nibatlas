@@ -12,7 +12,7 @@ import { ButtonLink } from "@/src/components/ui/Button";
 import { Icon } from "@/src/components/ui/Icon";
 import type { ShopDetail } from "@/src/domain/shop-detail";
 import { createMapStyleProvider } from "@/src/features/map/map-style";
-import { isMappablePoint, PREVIEW_ZOOM } from "@/src/features/map/shop-location";
+import { canPreviewShopLocation, PREVIEW_ZOOM } from "@/src/features/map/shop-location";
 import { noopTelemetry } from "@/src/features/map/telemetry";
 
 import styles from "./ShopLocationMap.module.css";
@@ -53,8 +53,9 @@ export function ShopLocationMap({ shop }: { readonly shop: ShopDetail }) {
     () => createMapStyleProvider(process.env.NEXT_PUBLIC_MAPTILER_KEY),
     [],
   );
-  const point =
-    !styleProvider.isOffline && isMappablePoint(shop.position) ? shop.position : null;
+  const point = canPreviewShopLocation(shop.position, process.env.NEXT_PUBLIC_MAPTILER_KEY)
+    ? shop.position
+    : null;
 
   const latitude = point?.latitude;
   const longitude = point?.longitude;

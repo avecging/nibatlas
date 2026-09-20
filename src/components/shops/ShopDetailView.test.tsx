@@ -268,34 +268,54 @@ describe("Plan your visit", () => {
      * location preview is itself something *Getting there* has to say. A record
      * with neither a mappable point nor a written address still gets no heading.
      */
+    // SKB has a link and unpublished hours, and no address, station, floor note
+    // or catalogue neighbour in reach.
     const sparse = findPrototypeShop("skb-kaohsiung")!;
 
     vi.stubEnv("NEXT_PUBLIC_MAPTILER_KEY", "test-tile-key");
-
-    const placed = renderShop(sparse, []);
+    renderShop(sparse, []);
 
     expect(screen.getByRole("heading", { name: "Plan your visit" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Before you go" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Getting there" })).toBeInTheDocument();
-    expect(screen.getByTestId("shop-location-map")).toBeInTheDocument();
-
-    placed.unmount();
-
-    // No coordinate to stand behind: no preview, and no heading over nothing.
-    const unplaced: ShopDetail = { ...sparse, position: { latitude: 0, longitude: 0 } };
-    const invented = renderShop(unplaced, []);
-
-    expect(screen.queryByTestId("shop-location-map")).not.toBeInTheDocument();
+    /*
+     * The heading follows what the record says in words, never the tile key: a
+     * build without one still inlines nothing into the client bundle, and a
+     * heading whose content depended on that would be empty exactly when the
+     * two disagreed.
+     */
     expect(screen.queryByRole("heading", { name: "Getting there" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("shop-location-map")).not.toBeInTheDocument();
+  });
 
-    invented.unmount();
+  it("puts the location preview above the address it illustrates", () => {
+    vi.stubEnv("NEXT_PUBLIC_MAPTILER_KEY", "test-tile-key");
 
-    // No tile key: the same, because there is no basemap to draw geography on.
+    const itoya = findPrototypeShop("ginza-itoya-main-store")!;
+
+    renderShop(itoya, []);
+
+    const gettingThere = screen.getByRole("heading", { name: "Getting there" }).parentElement!;
+    const page = document.body.textContent ?? "";
+
+    expect(within(gettingThere).getByTestId("shop-location-map")).toBeInTheDocument();
+    expect(page.indexOf("Get directions")).toBeLessThan(page.indexOf("2-7-15 Ginza"));
+
+    // Directions stay reachable whatever the renderer does with the picture.
+    expect(
+      within(gettingThere).getByRole("link", { name: /get directions/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the address when the record has no basemap to draw it on", () => {
     vi.stubEnv("NEXT_PUBLIC_MAPTILER_KEY", "");
-    renderShop(sparse, []);
 
+    const itoya = findPrototypeShop("ginza-itoya-main-store")!;
+
+    renderShop(itoya, []);
+
+    expect(screen.getByRole("heading", { name: "Getting there" })).toBeInTheDocument();
     expect(screen.queryByTestId("shop-location-map")).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Getting there" })).not.toBeInTheDocument();
+    expect(screen.getByText("2-7-15 Ginza, Chūō-ku, Tokyo 104-0061")).toBeInTheDocument();
   });
 
   it("says nothing about an appointment that is not required", () => {
