@@ -33,7 +33,14 @@ test("published editorial reaches the shop page through the v1 contract", async 
   await expect(page.getByRole("heading", { name: "Nib testing" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Store editions" })).toBeVisible();
 
-  // One station row, joined from the three published fields, not one per field.
+  /*
+   * One station row, joined from the three published editorial fields.
+   *
+   * Not a test of the two-generation precedence: `shop-detail-projection.ts`
+   * carries no `access` or `practical` block from the wire, so an API record
+   * has no sourced counterpart to prefer against. That reconciliation is
+   * covered in `src/features/shops/shop-visit-facts.test.ts`.
+   */
   const plan = page.getByRole("region", { name: "Plan your visit" });
   await expect(plan.getByText("Demo Station · Exit 1 · 3 minutes on foot")).toBeVisible();
   await expect(plan.getByText("Nearest station")).toHaveCount(1);

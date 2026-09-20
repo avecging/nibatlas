@@ -114,8 +114,12 @@ export function ShopMediaGallery({ shopName }: { readonly shopName: string }) {
   const previews = shown.slice(1);
   const hidden = photos.length - PREVIEW_COUNT;
   const shownCredits = [
-    ...new Set(shown.map((photo) => photo.creditText).filter(Boolean)),
-  ] as string[];
+    ...new Set(
+      shown
+        .map((photo) => photo.creditText)
+        .filter((credit): credit is string => Boolean(credit)),
+    ),
+  ];
 
   return (
     <section className={styles.gallery} aria-label={`Photos of ${shopName}`}>
@@ -177,7 +181,10 @@ export function ShopMediaGallery({ shopName }: { readonly shopName: string }) {
         <p className={styles.coverCaption}>
           {cover.caption ? <span>{cover.caption}</span> : null}
           {shownCredits.length > 0 ? (
-            <span className={styles.coverCredit}>{shownCredits.join(" · ")}</span>
+            /* Labelled, so it does not read as a second line of the caption. */
+            <span className={styles.coverCredit}>
+              Photos: {shownCredits.join(" · ")}
+            </span>
           ) : null}
         </p>
       ) : null}

@@ -93,8 +93,15 @@ export function ShopPhotoViewer({
 
   const position = `${index + 1} of ${photos.length}`;
 
-  /* The photograph being read and its two neighbours, and nothing else. */
-  const window = [index - 1, index, index + 1]
+  /*
+   * The photograph being read and its two neighbours, and nothing else.
+   *
+   * Not named `window`: a `const` in the component body shadows the global for
+   * every line of this component, including the effects above, and a sibling
+   * client island reaching for `window.matchMedia` is an ordinary thing to
+   * write here one day.
+   */
+  const visible = [index - 1, index, index + 1]
     .filter((at) => at >= 0 && at < photos.length)
     .map((at) => ({ photo: photos[at]!, isCurrent: at === index }));
 
@@ -163,7 +170,7 @@ export function ShopPhotoViewer({
             re-run its publication check. Only the current one is shown, and
             only the current one is in the accessibility tree.
           */}
-          {window.map(({ photo, isCurrent }) => {
+          {visible.map(({ photo, isCurrent }) => {
             const readable = isCurrent && !broken.includes(photo.id);
 
             return (

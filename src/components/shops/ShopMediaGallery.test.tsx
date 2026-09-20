@@ -209,7 +209,7 @@ describe("the contained gallery", () => {
     ]);
 
     expect(await screen.findByText(caption)).toBeInTheDocument();
-    expect(screen.getByText("Existing photographer")).toBeInTheDocument();
+    expect(screen.getByText("Photos: Existing photographer")).toBeInTheDocument();
     expect(container.querySelector("script")).toBeNull();
   });
 
@@ -377,10 +377,40 @@ describe("the enlarged viewer", () => {
   it("says a photograph could not be loaded rather than showing a broken frame", async () => {
     await openViewer(4);
 
-    fireEvent.error(screen.getByAltText("Photo 1 of the shop"));
+    const failed = screen.getByAltText("Photo 1 of the shop");
+
+    fireEvent.error(failed);
+
+    const dialog = screen.getByRole("dialog");
 
     expect(screen.getByText("This photo could not be loaded.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Next photo" })).toBeEnabled();
+    // Nothing broken is left exposed: the element stays, out of the
+    // accessibility tree and out of sight, and no image is shown at all.
+    expect(failed).toHaveAttribute("aria-hidden", "true");
+    expect(failed).toHaveAttribute("alt", "");
+    expect(dialog.querySelectorAll('img:not([aria-hidden="true"])')).toHaveLength(0);
+    expect(
+      screen.getByRole("button", { name: "Next photo" }),
+    ).not.toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("does not re-request a photograph that already failed", async () => {
+    await openViewer(4);
+
+    const failed = screen.getByAltText("Photo 1 of the shop");
+
+    fireEvent.error(failed);
+    fireEvent.click(screen.getByRole("button", { name: "Next photo" }));
+
+    expect(screen.queryByText("This photo could not be loaded.")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Previous photo" }));
+
+    // The same element, so returning neither refetches the image nor re-runs
+    // the publication check behind it — and the failure is reported without a
+    // flash of a frame that was already known to be broken.
+    expect(screen.getByRole("dialog").querySelector(`img[src$="${id(1)}"]`)).toBe(failed);
+    expect(screen.getByText("This photo could not be loaded.")).toBeInTheDocument();
   });
 
   it("gives a single photograph no next or previous controls", async () => {
