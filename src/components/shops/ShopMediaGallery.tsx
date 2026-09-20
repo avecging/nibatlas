@@ -21,7 +21,7 @@ export function ShopMediaGallery({shopId}: {shopId:string}) {
   return <section aria-label="Shop images" className={styles.gallery}>
     {[...entries].sort((a,b) => Number(b.kind === 'logo')-Number(a.kind === 'logo')).map(e => <figure key={e.id}>
       <img src={`${mediaPath(shopId,false)}/${e.id}`} alt={e.altText} width={e.width} height={e.height} className={e.kind === 'logo' ? styles.logo : styles.photo} loading="lazy"/>
-      {e.creditText && <figcaption>{e.creditText}</figcaption>}
+      {(e.caption || e.creditText) && <figcaption>{e.caption && <p>{e.caption}</p>}{e.creditText && <p>{e.creditText}</p>}</figcaption>}
     </figure>)}
   </section>;
 }

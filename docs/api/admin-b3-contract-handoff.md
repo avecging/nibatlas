@@ -1,6 +1,6 @@
 # Package B3 — admin editor contract handoff (frontend → backend)
 
-**Status:** open handoff. **Branch:** `claude/nib-atlas-admin-rebuild-20rvho`.
+**Status:** implemented in the Codex B3 integration follow-up; staging/founder acceptance pending. **Branch:** `claude/nib-atlas-admin-rebuild-20rvho`.
 **Baseline inspected:** `main` at `d9f63638c8371ea7c2821e6708fc49f3c19992ae`
 (PR #78 merged; CI run 35486925356 and staging deployment 35486983423 both
 succeeded at that commit; no open pull requests at inspection).
@@ -98,12 +98,11 @@ change needed, the persistence semantics and the integration acceptance cases.
 - **User action:** in *Photos & logo*, set one photo as the cover, reorder the
   rest, and optionally give a photo a public caption; the public shop page shows
   the same cover and order.
-- **Existing endpoint:** as above. `shop_images` has no ordering column;
+- **Existing endpoint:** as above. `shop_images.sort_order` already exists (corrected during integration review);
   `credit_text` is a credit, not a caption; the admin and public projections
   order by `created_at, id`.
 - **Required change:**
-  - Additive columns on `public.shop_images`: `sort_order integer not null default 0`
-    and `caption text null` (≤ 300 characters, nullable, never invented).
+  - Reuse existing `public.shop_images.sort_order`; add `caption text null` (≤ 300 characters, nullable, never invented).
   - New action `arrange` with `{action:'arrange', order:[imageId,…], captions:{imageId:string|null}, revision}`
     where `revision` is a whole-gallery fingerprint, or per-image revisions if
     that is simpler to keep concurrency-safe. Only ids already attached to this
@@ -199,3 +198,17 @@ this session makes to `media-contract.ts`; no validation is relaxed.
   source/claim tokens or commissioned-art requirement is reintroduced.
 - Package A acceptance gaps, M5–M8 obligations and the WP-D desktop feedback
   remain open and are unaffected by this work.
+
+## Integration resolution
+
+Requests A–D are implemented on `agent/codex-admin-b3-integration`, based on PR #79.
+A retains the 50-attachment cap, hides removed bytes in both private/public paths,
+and forbids reattachment. B uses complete per-image `revisions` with `order` and
+`captions`; arrangement controls needed implementation, contrary to the original
+automatic-control claim in C. Only deletion was already wired. SQL had an existing
+ordering column, now reused. D's new type codes required additive public labels
+and compatible decoding/rendering across viewport/detail/nearby/Saved; merely
+creating SQL vocabulary rows would have broken public reads. Localities match
+country plus administrative area and top-level parent, avoiding false merges of
+same-name places. The current API contracts document exact deployed behavior.
+No database reset, production release or staging acceptance is claimed here.

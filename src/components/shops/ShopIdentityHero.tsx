@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { NibAtlasMark } from "@/src/components/brand/NibAtlasMark";
 import { STAMP_MOTIF_PATHS } from "@/src/components/stamps/StampArt";
 import { Icon } from "@/src/components/ui/Icon";
-import { SHOP_TYPE_LABELS, type ShopDetail } from "@/src/domain/shop-detail";
+import { shopTypeLabel, type ShopDetail } from "@/src/domain/shop-detail";
 
 import styles from "./ShopDetailView.module.css";
 
@@ -78,7 +78,7 @@ export function ShopIdentityHero({
         </div>
         <p className={styles.heroPlace}>
           {shop.localityName} ·{" "}
-          {shop.shopTypes.map((type) => SHOP_TYPE_LABELS[type]).join(" · ")}
+          {shop.shopTypes.map((type) => shopTypeLabel(type,shop.shopTypeLabels?.[type])).join(" · ")}
         </p>
       </div>
 

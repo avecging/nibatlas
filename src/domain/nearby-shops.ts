@@ -26,6 +26,7 @@ export interface NearbyShop {
     readonly name: string;
     readonly localityName: string;
     readonly primaryType: ShopType;
+    readonly primaryTypeLabel?: string;
   };
   /** Metres between the two mapped points, or `null` when not measurable. */
   readonly distanceMeters: number | null;

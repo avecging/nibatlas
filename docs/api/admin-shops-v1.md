@@ -175,3 +175,24 @@ Save checks known locality/country and vocabulary references before mutation and
 returns field paths. A fixed allowlist maps known database failures to safe field
 errors; arbitrary provider text remains private. Revision conflicts retain the
 existing reload/review requirement.
+
+## B3 locality and type creation
+
+`POST /options` additionally accepts `{kind:"localities",label,countryCode,adminAreaCode?}`
+and `{kind:"types",label}`. These two kinds require **admin** in HTTP and SQL;
+existing editor permission for brand/specialty creation stays intact. Labels are
+bounded to 300 characters; country is two uppercase ASCII letters; optional
+administrative area is bounded to 100 characters. Create/reuse is serialized.
+Locality identity matches normalized case/whitespace label, country, administrative
+area (case-insensitive) and a top-level parent; it never merges different countries,
+areas or existing child places. Existing rows are not rewritten. Unknown locality
+classification uses `other`, with no invented centroid or location attestation.
+Each vocabulary remains capped at 10,000 rows; only actual insertions create audit
+events. Selecting a newly created item stays in the editor until private save.
+
+New type codes are immutable `type_<UUID with underscores>`. Public projections
+carry `primaryTypeLabel` and detail `shopTypeLabels`, and readers require these
+bounded labels for custom codes. Existing codes and the four approved public
+filter categories remain unchanged. Custom types appear in unfiltered discovery,
+Saved and detail; this slice adds no new filter categories or inferred mapping to
+an existing category. The `test_venue` demo-only boundary remains intact.

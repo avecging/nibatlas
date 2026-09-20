@@ -48,3 +48,9 @@ describe("saved-shop v1 contract", () => {
     })).toThrow(SavedShopContractError);
   });
 });
+
+it('saved custom shop types require and preserve their public labels',()=>{
+  const row={...SAVED_SHOP,primaryType:'type_85000000_0000_4000_8000_000000000002',primaryTypeLabel:'Synthetic custom shop'};
+  expect(decodeSavedShopsV1({savedShopIds:[row.id],shops:[row]}).shops[0]?.primaryTypeLabel).toBe(row.primaryTypeLabel);
+  expect(()=>decodeSavedShopsV1({savedShopIds:[row.id],shops:[{...row,primaryTypeLabel:undefined}]})).toThrow(SavedShopContractError);
+});

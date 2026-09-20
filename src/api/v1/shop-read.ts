@@ -4,7 +4,8 @@ import type { EditorialContent, EditorialReview, ShopStampDesign } from '@/src/d
 import { isCountryCode, type CountryCode, type GeoPoint, type ViewportBounds } from "@/src/domain/geo";
 import { isLanguageTag, type LanguageTag } from "@/src/domain/language";
 import {
-  SHOP_RECORD_TYPES,
+  isShopType,
+  validTypeLabel,
   type MarkerState,
   type OperationalStatus,
   type ShopMapSummary,
@@ -57,6 +58,7 @@ export interface NearbyShopV1 {
   readonly position: GeoPoint;
   readonly positionPrecision: PositionPrecision;
   readonly primaryType: ShopType;
+  readonly primaryTypeLabel?: string;
   readonly operationalStatus: OperationalStatus;
   readonly distanceMeters: number;
 }
@@ -108,6 +110,7 @@ export interface ShopDetailReadV1 extends ShopMapSummary {
   readonly openingHoursNote?: string;
   readonly lastVerifiedAt?: string;
   readonly shopTypes: readonly ShopType[];
+  readonly shopTypeLabels?: Readonly<Record<string,string>>;
   readonly specialties: readonly string[];
   readonly services: readonly PublicShopServiceV1[];
   readonly brands: readonly string[];
@@ -244,6 +247,25 @@ const OPENING_DAYS = [
 ] as const;
 const ACCESS_MODES = ["walk_in", "booking", "send_in", "enquire"] as const satisfies readonly ServiceAccessMode[];
 
+function shopType(value: unknown, at: string): ShopType {
+  if (!isShopType(value)) throw new ShopReadContractError(`${at} is outside the public vocabulary`);
+  return value;
+}
+function primaryTypeLabel(item: JsonRecord): {primaryTypeLabel?: string} {
+  const label=item.primaryTypeLabel;
+  if (label === undefined && !String(item.primaryType).startsWith('type_')) return {};
+  if (!validTypeLabel(label)) throw new ShopReadContractError('Invalid primary type label');
+  return {primaryTypeLabel:label};
+}
+function typeLabels(item: JsonRecord): {shopTypeLabels?: Readonly<Record<string,string>>} {
+  const types = item.shopTypes;
+  if (item.shopTypeLabels === undefined && Array.isArray(types) && !types.some(t=>String(t).startsWith('type_'))) return {};
+  const labels=record(item.shopTypeLabels,'detail.shopTypeLabels');
+  if (!Array.isArray(types) || Object.keys(labels).length>100 || Object.entries(labels).some(([k,v])=>!isShopType(k) || !types.includes(k) || !validTypeLabel(v)) ||
+    types.some(t=>String(t).startsWith('type_') && !validTypeLabel(labels[String(t)]))) throw new ShopReadContractError('Invalid type labels');
+  return {shopTypeLabels:labels as Record<string,string>};
+}
+
 function mapShop(value: unknown, at: string): ShopMapSummary {
   const item = record(value, at);
   const specialty = item["specialtyLine"];
@@ -263,7 +285,8 @@ function mapShop(value: unknown, at: string): ShopMapSummary {
     countryCode: countryCode(item["countryCode"], `${at}.countryCode`),
     localityName: string(item["localityName"], `${at}.localityName`),
     position: point(item["position"], `${at}.position`),
-    primaryType: enumValue(item["primaryType"], SHOP_RECORD_TYPES, `${at}.primaryType`),
+    primaryType: shopType(item["primaryType"], `${at}.primaryType`),
+    ...primaryTypeLabel(item),
     specialtyLine: specialty,
     operationalStatus: enumValue(item["operationalStatus"], OPERATIONAL_STATUSES, `${at}.operationalStatus`),
     markerState: enumValue(item["markerState"], MARKER_STATES, `${at}.markerState`),
@@ -358,11 +381,11 @@ export function decodeNearbyShopsV1(value: unknown): NearbyShopsV1 {
           POSITION_PRECISIONS,
           `nearby.shops[${index}].positionPrecision`,
         ),
-        primaryType: enumValue(
+        primaryType: shopType(
           shop["primaryType"],
-          SHOP_RECORD_TYPES,
           `nearby.shops[${index}].primaryType`,
         ),
+        ...primaryTypeLabel(shop),
         operationalStatus: enumValue(
           shop["operationalStatus"],
           OPERATIONAL_STATUSES,
@@ -482,7 +505,8 @@ export function decodeShopDetailV1(value: unknown): ShopDetailReadV1 | null {
     ...(item.generatedStamp === undefined ? {} : { generatedStamp: decodeGeneratedStamp(item.generatedStamp) }),
     timezone: string(item["timezone"], "detail.timezone"),
     positionPrecision: enumValue(item["positionPrecision"], POSITION_PRECISIONS, "detail.positionPrecision"),
-    shopTypes: arrayOf("shopTypes", (entry, index) => enumValue(entry, SHOP_RECORD_TYPES, `detail.shopTypes[${index}]`)),
+    shopTypes: arrayOf("shopTypes", (entry, index) => shopType(entry, `detail.shopTypes[${index}]`)),
+    ...typeLabels(item),
     specialties: stringArray(item["specialties"], "detail.specialties"),
     services,
     brands: stringArray(item["brands"], "detail.brands"),

@@ -154,6 +154,7 @@ export function projectShopDetail(
     localityName: wire.localityName,
     position: wire.position,
     primaryType: wire.primaryType,
+    ...(wire.primaryTypeLabel === undefined ? {} : {primaryTypeLabel:wire.primaryTypeLabel}),
     specialtyLine: wire.specialtyLine,
     operationalStatus: wire.operationalStatus,
     // Public catalogue responses always begin unvisited. Device-local saved and
@@ -170,6 +171,7 @@ export function projectShopDetail(
     ...(wire.neighbourhood === undefined ? {} : { neighbourhood: wire.neighbourhood }),
     timezone: wire.timezone,
     shopTypes: wire.shopTypes.length === 0 ? [wire.primaryType] : wire.shopTypes,
+    ...(wire.shopTypeLabels === undefined ? {} : {shopTypeLabels:wire.shopTypeLabels}),
     ...(wire.specialties.length === 0 ? {} : { specialties: wire.specialties }),
     ...(wire.services.length === 0 ? {} : { services: wire.services }),
     ...(wire.brands.length === 0 ? {} : { brands: wire.brands }),

@@ -1,4 +1,4 @@
-import { SHOP_TYPE_LABELS, type ShopDetail } from "@/src/domain/shop-detail";
+import { shopTypeLabel, type ShopDetail } from "@/src/domain/shop-detail";
 
 /**
  * The indexed and shared description for a shop page.
@@ -57,7 +57,7 @@ export function shopMetaDescription(shop: ShopDetail): string {
 
   const lead = shop.specialtyLine
     ? `${shop.name} in ${shop.localityName} — ${shop.specialtyLine}.`
-    : `${shop.name}, a ${SHOP_TYPE_LABELS[shop.primaryType].toLowerCase()} in ${shop.localityName}.`;
+    : `${shop.name}, a ${shopTypeLabel(shop.primaryType,shop.primaryTypeLabel).toLowerCase()} in ${shop.localityName}.`;
 
   const facts = presentFacts(shop);
 

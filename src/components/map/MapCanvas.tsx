@@ -18,7 +18,7 @@ import {
   type MarkerCluster,
 } from "@/src/domain/clustering";
 import type { Viewport } from "@/src/domain/geo";
-import { SHOP_TYPE_LABELS } from "@/src/domain/shop-detail";
+import { shopTypeLabel } from "@/src/domain/shop-detail";
 import type { ShopMapSummary } from "@/src/domain/shops";
 import type { MapStyleProvider } from "@/src/features/map/map-style";
 import { configureMapLibreRuntime } from "@/src/features/map/maplibre-runtime";
@@ -111,7 +111,7 @@ function markerLabel(shop: ShopMapSummary): string {
         ? "Saved"
         : "Not visited";
 
-  return `${shop.name}, ${shop.localityName}. ${SHOP_TYPE_LABELS[shop.primaryType]}. ${state}.`;
+  return `${shop.name}, ${shop.localityName}. ${shopTypeLabel(shop.primaryType,shop.primaryTypeLabel)}. ${state}.`;
 }
 
 export function MapCanvas({
