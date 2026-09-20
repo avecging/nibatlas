@@ -105,21 +105,6 @@ const demoEditorial = {
 function detail(shop) {
   return {
     ...shop,
-    ...(shop.slug === "m3-api-demo-shop"
-      ? {
-          editorial: demoEditorial,
-          brands: ["Demo Brand A", "Demo Brand B", "Demo Brand C"],
-          openingHours: [
-            { day: "monday", opens: "10:00", closes: "20:00" },
-            { day: "tuesday", opens: "10:00", closes: "20:00" },
-            { day: "wednesday", opens: "10:00", closes: "20:00" },
-            { day: "thursday", opens: "10:00", closes: "20:00" },
-            { day: "friday", opens: "10:00", closes: "20:00" },
-            { day: "saturday", opens: "10:00", closes: "20:00" },
-            { day: "sunday", opens: "10:00", closes: "19:00" },
-          ],
-        }
-      : {}),
     timezone: shop.countryCode === "SG" ? "Asia/Singapore" : "Asia/Tokyo",
     positionPrecision: "street",
     shopTypes: [shop.primaryType],
@@ -136,6 +121,23 @@ function detail(shop) {
         confirms: ["Name", `Shop type: ${shop.primaryType}`],
       },
     ],
+    // Last, so it wins: the empty defaults above would otherwise overwrite the
+    // demo record's own brands.
+    ...(shop.slug === "m3-api-demo-shop"
+      ? {
+          editorial: demoEditorial,
+          brands: ["Demo Brand A", "Demo Brand B", "Demo Brand C"],
+          openingHours: [
+            { day: "monday", opens: "10:00", closes: "20:00" },
+            { day: "tuesday", opens: "10:00", closes: "20:00" },
+            { day: "wednesday", opens: "10:00", closes: "20:00" },
+            { day: "thursday", opens: "10:00", closes: "20:00" },
+            { day: "friday", opens: "10:00", closes: "20:00" },
+            { day: "saturday", opens: "10:00", closes: "20:00" },
+            { day: "sunday", opens: "10:00", closes: "19:00" },
+          ],
+        }
+      : {}),
   };
 }
 

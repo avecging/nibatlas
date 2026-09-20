@@ -47,6 +47,11 @@ test("published editorial reaches the shop page through the v1 contract", async 
 
   // Unknown and false stay different: a published "no" is shown as a "no".
   await expect(plan.getByText("No appointment is needed.")).toBeVisible();
+
+  // Brands reach the page rather than being overwritten by an empty default.
+  const brands = page.getByRole("list", { name: "Brands" });
+  await expect(brands.getByText("Demo Brand A")).toBeVisible();
+  await expect(brands.getByRole("listitem")).toHaveCount(3);
 });
 
 async function openMap(page: Page) {
