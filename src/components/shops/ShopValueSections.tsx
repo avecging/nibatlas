@@ -25,6 +25,14 @@ import styles from "./ShopDetailView.module.css";
  *
  * Every entry is rendered from a record that named the source backing it. There
  * is no path here that can produce a claim the data does not carry.
+ *
+ * `ShopWhatYouCanDo` no longer ships on the public shop page. The founder's
+ * 20 September decision is that published editorial answers "what can I do
+ * here?" once, under one heading, rather than having this section answer it
+ * again under a second one. It is kept whole — with its access modes,
+ * durations and booking qualifiers — and rendered in the styleguide, because
+ * the data, the evidence rules and the design all survive the page it came off.
+ * `ShopExclusives` and `ShopValueGap` are unaffected and still public.
  */
 
 function ServiceRow({ service }: { readonly service: ShopService }) {
@@ -131,6 +139,13 @@ export function ShopExclusives({ shop }: { readonly shop: ShopDetail }) {
 /**
  * The one caution a material gap earns, and the invitation that follows it.
  *
+ * It carries the same heading the populated editorial section does, so the
+ * question a reader is asking is named the same way on every record whether or
+ * not it is answered. Its condition is deliberately unchanged: a record with
+ * sourced services still counts as having a value layer, so the page stays
+ * silent about them rather than claiming nothing was confirmed when something
+ * was.
+ *
  * Not an explanation of the omission, not a list of the fields that are empty,
  * and not an apology: one sentence saying what is not known, and one asking the
  * person who does know. The mail carries the shop's name so the reply is
@@ -149,7 +164,7 @@ export function ShopValueGap({ shop }: { readonly shop: ShopDetail }) {
       data-testid="shop-value-gap"
     >
       <h2 className={styles.sectionTitle} id="what-you-can-do-unknown">
-        What you can do there
+        What you can do here
       </h2>
       <p className={styles.fact}>
         <Icon name="alert" size={18} />

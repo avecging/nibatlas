@@ -13,7 +13,6 @@ import {
 import {
   ShopExclusives,
   ShopValueGap,
-  ShopWhatYouCanDo,
 } from "@/src/components/shops/ShopValueSections";
 import { Icon } from "@/src/components/ui/Icon";
 import { OperationalStatusBadge } from "@/src/components/ui/StatusBadge";
@@ -139,6 +138,13 @@ interface ShopDetailViewProps {
  * *Plan your visit* has something to say beyond the hours caution, so a thin
  * record is still a short single column rather than a broken layout.
  *
+ * What a visitor can do there is the published editorial section and only that.
+ * The founder's 20 September decision removed WP4's own *What you can do there*
+ * — its Services and In the shop lists — from the public page rather than have
+ * two sections answer the same question under two headings. The domain fields,
+ * their per-claim evidence rules and the specimen are untouched; nothing was
+ * deleted, and `ShopWhatYouCanDo` still renders in the styleguide.
+ *
  * Every section renders only when its source-supported data exists, and an empty
  * subsection heading never renders. Ordinary unsupported fields are omitted in
  * silence; the exceptions are opening hours and the value layer itself, where
@@ -179,8 +185,6 @@ export function ShopDetailView({
    */
   const hasStory =
     Object.keys(shop.editorial ?? {}).length > 0 ||
-    (shop.services?.length ?? 0) > 0 ||
-    (shop.experiences?.length ?? 0) > 0 ||
     (shop.exclusives?.length ?? 0) > 0 ||
     brands.length > 0;
   const hasRail =
@@ -233,7 +237,6 @@ export function ShopDetailView({
         <div className={styles.body} data-columns={columns}>
           <div className={styles.mainColumn}>
             <ShopEditorial content={shop.editorial} />
-            <ShopWhatYouCanDo shop={shop} />
             <ShopValueGap shop={shop} />
             <ShopExclusives shop={shop} />
 

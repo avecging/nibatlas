@@ -30,9 +30,9 @@ test("the page leads with identity, the actions, and what you can do", async ({
   const order = await headings(page);
 
   expect(order[0]).toBe("Ginza Itoya Main Store");
-  // What you can do there comes before the practical detail, whether it is the
-  // sourced list or the one caution standing in for it.
-  expect(order.indexOf("What you can do there")).toBeLessThan(
+  // What you can do here comes before the practical detail, whether it is the
+  // published editorial or the one caution standing in for it.
+  expect(order.indexOf("What you can do here")).toBeLessThan(
     order.indexOf("Plan your visit"),
   );
 
