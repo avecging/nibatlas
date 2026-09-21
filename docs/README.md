@@ -15,7 +15,7 @@ Rules are shared by Astra, Sol and Claude; no model-specific copies are needed.
 | Auth/saves | `docs/runbooks/auth-local-staging.md`; `docs/api/saved-shops-v1.md` |
 | Collection/verification | `docs/api/stamp-verification-v1.md`, `docs/api/collections-v1.md`; operations in `docs/runbooks/stamp-verification.md` |
 | Shop administration | `docs/api/admin-shops-v1.md`, `docs/adr/0012-shop-administration.md`; founder steps in `docs/runbooks/shop-administration.md`; open frontend/backend boundary in `docs/api/admin-b3-contract-handoff.md` |
-| Bulk onboarding / import preview | `docs/api/admin-import-v1.md`; shared validation/publication in `docs/api/admin-shops-v1.md` |
+| Bulk onboarding / private import and resume | `docs/api/admin-import-v1.md`; shared validation/publication in `docs/api/admin-shops-v1.md` |
 | Roles/audit | `docs/runbooks/admin-authorization.md` |
 | Media/uploads | `docs/api/admin-media-v1.md`, `docs/runbooks/media-uploads.md`; illustration guide for artwork |
 | Database | Relevant `DATA-MODEL.md` section, migrations and SQL tests; directory READMEs for execution |

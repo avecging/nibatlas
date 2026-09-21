@@ -23,6 +23,7 @@ test('admin previews 200 synthetic shops, corrects once, filters and downloads s
     const response = await handleImport(new Request('https://example.test/api/v1/admin/import', { method: route.request().method(), ...(body ? { body, headers: { origin: 'https://example.test', 'content-type': 'application/json' } } : {}) }), gateway);
     await route.fulfill({ status: response.status, body: await response.text(), headers: Object.fromEntries(response.headers) });
   });
+  await page.route('**/api/v1/admin/import/batches', route => route.fulfill({ json: [] }));
   await page.goto('/admin/shops/import');
   const rows = Array.from({ length: 200 }, (_, i) => `row-${i},Synthetic ${i},SG,${i % 5 === 2 ? 'My City' : 'Synthetic City'},${i % 5 === 1 ? '999' : '0'},0,00123,Synthetic Brand`);
   await page.getByLabel('CSV or JSON file').setInputFiles({ name: 'synthetic-only.csv', mimeType: 'text/csv', buffer: Buffer.from('row_id,name,country,locality,latitude,longitude,postal_code,brands\n' + rows.join('\n')) });
@@ -50,6 +51,7 @@ test('admin previews 200 synthetic shops, corrects once, filters and downloads s
 test('editor cannot load import data, and signed-out view has no upload control', async ({ page }) => {
   await stubSession(page, { kind: 'signed-in' });
   await page.route('**/api/v1/admin/import', route => route.fulfill({ status: 403, json: { error: { code: 'forbidden' } } }));
+  await page.route('**/api/v1/admin/import/batches', route => route.fulfill({ json: [] }));
   await page.goto('/admin/shops/import');
   await expect(page.getByText('Bulk preview requires a signed-in admin account.')).toBeVisible();
   await expect(page.getByLabel('CSV or JSON file')).toHaveCount(0);

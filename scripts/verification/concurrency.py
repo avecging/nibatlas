@@ -72,3 +72,44 @@ try:
 finally:
     for actor in default_actors:
         sql(f"delete from auth.users where id='{actor}';")
+
+# Package C2: eight HTTP-equivalent execution transactions replay one durable row.
+# These rows deliberately remain in this disposable CI database until teardown;
+# import identity/audit tombstones are not bypassed for cleanup.
+import_actor, import_batch, import_op, import_shop = [str(uuid.uuid4()) for _ in range(4)]
+sql(f"insert into auth.users(id) values('{import_actor}'); select public.assign_profile_role('{import_actor}','admin');")
+
+def import_sql(source):
+    prefix = ("begin; set local role authenticated; "
+              f"select set_config('request.jwt.claims','{{\"sub\":\"{import_actor}\",\"role\":\"authenticated\"}}',true);")
+    return sql(prefix + source + '; commit;').splitlines()[-1]
+
+import_doc = {'shop': {'name': str(uuid.uuid4()), 'slug': 'synthetic-import-' + import_shop,
+                      'operational_status': 'unknown', 'source_quality': 'community_unverified',
+                      'position_precision': 'locality'},
+              **{key: [] for key in ['sources', 'aliases', 'links', 'types', 'services', 'specialties', 'brands', 'experiences']}}
+
+def literal(value):
+    return "'" + json.dumps(value).replace("'", "''") + "'::jsonb"
+
+preview = json.loads(import_sql("select public.admin_import_preview('validate'," + literal([
+    {'rowId': 'concurrent', 'id': import_shop, 'revision': None, 'document': import_doc}]) + ")"))[0]
+assert not preview['issues'], preview
+review_payload = {'row': {'rowId': 'concurrent', 'line': 2, 'cells': {'name': import_doc['shop']['name']},
+                          'issues': [], 'fileDuplicates': []},
+                  'preview': {'action': 'new_private_draft'}, 'targetId': import_shop,
+                  'revision': None, 'document': import_doc, 'reviewKey': preview['reviewKey']}
+import_sql(f"select public.admin_import_operation('review','{import_batch}','{import_op}',{literal(review_payload)})")
+execute_payload = literal({'document': import_doc, 'reviewKey': preview['reviewKey']})
+
+def execute_import(_):
+    return json.loads(import_sql(f"select public.admin_import_operation('execute','{import_batch}','{import_op}',{execute_payload})"))
+
+with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+    outcomes = list(executor.map(execute_import, range(8)))
+assert all(x['status'] == 'imported' and x['targetId'] == import_shop for x in outcomes), outcomes
+assert sql(f"select count(*) from public.shops where id='{import_shop}';") == '1'
+assert sql(f"select count(*) from public.stamps where shop_id='{import_shop}';") == '1'
+assert sql(f"select count(*) from public.import_audit_events where operation_id='{import_op}' and status='imported';") == '1'
+assert sql(f"select count(*) from public.admin_audit_log where entity_id='{import_shop}' and entity_type='shop_working_copies';") == '1'
+print('PASS: eight concurrent import submissions create one private shop/default/save and one completed operation.')

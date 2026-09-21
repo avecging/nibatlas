@@ -6,7 +6,7 @@ vi.mock('@/src/features/account/AccountSessionProvider', () => ({ useAccountSess
 afterEach(() => vi.unstubAllGlobals());
 it('uses the app shell landmark, names controls accessibly and invalidates changed input', async () => {
   const options = { localities: [], types: [], brands: [], specialties: [], services: [] };
-  vi.stubGlobal('fetch', vi.fn(async (_url, init) => Response.json(init?.method === 'POST' ? { version: VERSION, rows: [{ rowId: 'line-2', line: 2, name: 'Synthetic', action: 'new_private_draft', targetId: null, revision: null, issues: [], candidates: [], fileDuplicates: [], changes: [], publicationErrors: [], hasPrivateChanges: false }] } : { options })));
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => String(_url).includes('/batches') ? Response.json([]) : Response.json(init?.method === 'POST' ? { version: VERSION, rows: [{ rowId: 'line-2', line: 2, name: 'Synthetic', action: 'new_private_draft', targetId: null, revision: null, issues: [], candidates: [], fileDuplicates: [], changes: [], publicationErrors: [], hasPrivateChanges: false }] } : { options })));
   render(<main><ImportAdmin /></main>);
   const input = await screen.findByLabelText('CSV or JSON file');
   expect(screen.getAllByRole('main')).toHaveLength(1);
