@@ -2,9 +2,13 @@
 
 C1 shipped in merged PR #85 (`38f2ca7`); main inspected for this checkpoint is
 `bf878ad` after #86. Main CI 35554754848 and C1 merge CI 35538087141 passed.
-The latest successful staging deployment verified at inspection was 35517859183
-at `2721a52`; do not infer the new code is deployed. No open concurrent PR existed
-at start. This checkpoint reserves additive migration `20260921000100`; it touches
+The initial main-branch-only deployment check found 35517859183 at `2721a52`.
+The final cross-branch check corrected that snapshot: C1 deployment 35533530776
+at `9068e77` succeeded. Later run 35539553710 at `60748bc` applied migrations
+and uploaded the Worker, then failed its shop-map smoke test. A failed final
+workflow status does not mean the older Worker remained deployed. Direct runtime
+release inspection timed out, so current served release is unverified. No C2
+deployment was performed. No open concurrent PR existed at start. This checkpoint reserves additive migration `20260921000100`; it touches
 only import UI/routes/contracts, not public map/editor contracts. Map refresh is
 post-MVP #87. Remote Supabase schema/data were not accessible in this session;
 schema claims below derive from repository migrations and isolated tests.
