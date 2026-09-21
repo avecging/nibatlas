@@ -4,7 +4,7 @@ import { decodeOptions, decodeShop, object, UUID } from '@/src/features/admin/sh
 import { BATCH_SIZE, FIELDS, VERSION, type Context, type MappedRow } from '@/src/features/admin/import/contract';
 import { prepareRow, proposedIdentity } from '@/src/features/admin/import/prepare';
 const json = (v: unknown, status = 200) => Response.json(v, { status, headers: ADMIN_HEADERS });
-async function body(request: Request) {
+export async function importBody(request: Request) {
   if (request.headers.get('content-type')?.split(';')[0] !== 'application/json') throw Error();
   const reader = request.body?.getReader(); if (!reader) throw Error();
   const chunks: Uint8Array[] = []; let size = 0;
@@ -12,7 +12,7 @@ async function body(request: Request) {
   const bytes = new Uint8Array(size); let offset = 0; for (const c of chunks) { bytes.set(c, offset); offset += c.length; }
   return object(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)));
 }
-function parseRows(raw: unknown): MappedRow[] {
+export function parseRows(raw: unknown): MappedRow[] {
   if (!Array.isArray(raw) || !raw.length || raw.length > BATCH_SIZE) throw Error();
   const ids = new Set<string>();
   return raw.map(value => {
@@ -35,10 +35,16 @@ export async function handleImport(request: Request, gateway: ShopAdminGateway) 
     if (request.headers.get('origin') !== new URL(request.url).origin) return adminFailure('forbidden');
     let rows: MappedRow[], batchId: string;
     try {
-      const input = await body(request);
+      const input = await importBody(request);
       if (input.version !== VERSION || typeof input.batchId !== 'string' || !UUID.test(input.batchId) || Object.keys(input).some(k => !['version', 'batchId', 'rows'].includes(k))) throw Error();
       rows = parseRows(input.rows); batchId = input.batchId;
     } catch { return json({ error: { code: 'invalid_request' }, message: 'Use at most 25 rows and 256 KiB per preview request. Check row IDs and mapped fields.' }, 400); }
+    const prepared = await prepareImport(rows, batchId, gateway);
+    return json({ version: VERSION, rows: prepared.map(r => r.preview) });
+  } catch (e) { return adminFailure(e instanceof AdminForbiddenError ? 'forbidden' : 'service_unavailable'); }
+}
+
+export async function prepareImport(rows: MappedRow[], batchId: string, gateway: ShopAdminGateway) {
     const options = decodeOptions(await gateway.call('admin_shop_options'));
     const rawContexts = await gateway.call('admin_import_preview', { p_mode: 'context', p_rows: rows.map(r => ({ rowId: r.rowId, id: UUID.test(r.cells.shop_id?.trim() ?? '') ? r.cells.shop_id!.trim() : null, name: r.cells.name?.trim() || null, slug: r.cells.slug?.trim() || null, country: /^[A-Z]{2}$/.test(r.cells.country ?? '') ? r.cells.country : null })) });
     if (!Array.isArray(rawContexts) || rawContexts.length !== rows.length) throw Error();
@@ -68,9 +74,9 @@ export async function handleImport(request: Request, gateway: ShopAdminGateway) 
         for (const issue of r.issues) { if (typeof issue?.path !== 'string' || typeof issue?.message !== 'string') throw Error(); p.issues.push({ path: issue.path, message: issue.message }); }
         if (!r.publicationErrors.every(e => typeof e === 'string')) throw Error();
         p.publicationErrors = r.publicationErrors;
+        if (typeof r.reviewKey === 'string' && /^[a-f0-9]{64}$/.test(r.reviewKey)) p.reviewKey = r.reviewKey;
         if (p.issues.length) p.action = 'blocked';
       });
     }
-    return json({ version: VERSION, rows: prepared.map(r => r.preview) });
-  } catch (e) { return adminFailure(e instanceof AdminForbiddenError ? 'forbidden' : 'service_unavailable'); }
+    return prepared;
 }

@@ -24,7 +24,16 @@ export interface PreviewRow {
   rowId: string; line: number; name: string; targetId: string | null; revision: string | null;
   action: 'new_private_draft' | 'update_private_draft' | 'no_change' | 'review_duplicates' | 'blocked';
   issues: FieldIssue[]; candidates: Candidate[]; fileDuplicates: string[]; changes: Change[];
-  publicationErrors: string[]; hasPrivateChanges: boolean;
+  publicationErrors: string[]; hasPrivateChanges: boolean; reviewKey?: string;
 }
 export interface Prepared { preview: PreviewRow; document: Document | null; proposedId: string }
 export interface Bootstrap { options: Options }
+
+export interface ImportOperation {
+  id: string; row_id: string; operation_revision: number; target_id: string;
+  review_key: string; patch: MappedRow | null; preview: PreviewRow | null;
+  status: 'ready' | 'imported' | 'skipped' | 'conflicted' | 'failed'; reason: string | null;
+}
+export interface ImportBatch { id: string; operations: ImportOperation[] }
+export interface BatchSummary { id: string; createdAt: string; expiresAt: string; rows: number }
+export const eligible = (row: PreviewRow) => !!row.reviewKey && ['new_private_draft', 'update_private_draft'].includes(row.action);

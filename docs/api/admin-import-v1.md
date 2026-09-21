@@ -1,21 +1,23 @@
-# Package C checkpoint 1 — import preview (work in progress)
+# Package C — preview and selected private import
 
-Coordination boundary: based on main `2721a52`, with no open PR at inspection.
-Claude's next map/list checkpoint may proceed independently. This branch adds
-import-only UI/routes/modules and migration `20260920001000_c1_import_preview.sql`.
-The existing editor changes only by adding an admin-only link beside Add a shop.
-No public shop-summary, manual normalization, publication, media, dependency or
-workflow contracts change. Accepted shop-page decisions remain intact.
+C1 shipped in merged PR #85 (`38f2ca7`); main inspected for this checkpoint is
+`bf878ad` after #86. Main CI 35554754848 and C1 merge CI 35538087141 passed.
+The latest successful staging deployment verified at inspection was 35517859183
+at `2721a52`; do not infer the new code is deployed. No open concurrent PR existed
+at start. This checkpoint reserves additive migration `20260921000100`; it touches
+only import UI/routes/contracts, not public map/editor contracts. Map refresh is
+post-MVP #87. Remote Supabase schema/data were not accessible in this session;
+schema claims below derive from repository migrations and isolated tests.
 
-This checkpoint is read-only. Actual private import, vocabulary creation,
-selected publication, durable batches/audit/retention and retry/resume execution
-are later checkpoints; Package C is not complete.
+Package C is not complete. Selected saved-batch review/position confirmation and
+publication remain the next separate checkpoint. This task does not authorize
+merge, deployment or real catalogue imports.
 
 ## Shipped boundary
 
 `/admin/shops/import` is linked beside Add a shop for admins. Its session-keyed
-workspace holds uploads, mappings and results in memory only; sign-out/account
-change unmounts it. `GET /api/v1/admin/import` loads canonical choices;
+workspace holds raw uploads, mappings and preview results in memory; sign-out/account
+change unmounts it. Only explicitly reviewed mapped rows enter the private ledger. `GET /api/v1/admin/import` loads canonical choices;
 `POST` previews `{version:"nibatlas-shops-v1",batchId,rows}`. Both require verified
 cookie identity and current **admin** role. POST additionally requires same
 origin, JSON, no query/extra keys, ≤25 rows and ≤256 KiB. All responses are
@@ -55,9 +57,9 @@ JSON values, wrong JSON version and oversized input fail with correction guidanc
 
 `row_id` is optional but recommended (unique 1–100 letters/numbers/`_.:-`);
 otherwise source line/array position identifies the row. Keep it through source
-corrections. Proposed creation UUIDs derive from session batch UUID + row identity;
-retries within the loaded batch remain stable. A newly selected file starts a new
-preview batch. This is not a persisted resume mechanism.
+corrections. Proposed creation UUIDs derive from batch UUID + row identity. Corrections within
+an opened batch retain those identities. Use **Start a separate new batch** only
+for a distinct import; changing a file does not reset the current batch identity.
 
 Grouped values resolve countries using the existing country selector and
 localities/types/brands/specialties against current canonical IDs. Exact unique
@@ -76,7 +78,7 @@ Name, slug and required status/precision cannot be cleared. Supplied value plus
 clear is rejected. Sources/aliases/experiences/services/opening hours, legacy
 classification/review dates, media, artwork and attestations are not import
 inputs in v1; their existing values survive. Arbitrary image URLs are never
-fetched. No stamp/default creation, publication, visit or audit write occurs.
+fetched. Preview itself creates no stamp/default, publication, visit or audit writes.
 
 The founder can filter/search/paginate results (25 on screen), see actionable
 field errors and source row IDs, inspect duplicates and proposed changes, and
@@ -85,18 +87,91 @@ leading content is neutralized, including leading whitespace/control characters.
 The report contains private admin data: download is explicit, never automatic.
 Correct the source file and rerun; any mapping/file change invalidates old results.
 
+## Selected private import and durable recovery
+
+`/api/v1/admin/import/batches` uses the same request-scoped ordinary client,
+current **admin** authorization, same-origin mutations, bounded JSON body and
+private/no-store responses. GET lists the owner's latest 50 unexpired batches;
+`?batch=<UUID>` reopens the current operation revision for each row (max 500).
+POST accepts exactly one operation, giving each row its own transaction:
+
+- `review`: version, batchId, operationId, previousOperation (or null), mapped row
+  and reviewKey. Re-read current options/record, normalize a complete merged
+  document and validate again. Reject stale/blocked/duplicate proposals. The SQL
+  transaction checks the reviewed SHA-256 binding and current draft/canonical
+  state under the shop lock, then persists the private operation. No shop changes.
+- `execute`: version, batchId and operationId only. Read that single protected
+  operation, reparse its saved mapped input and prepare/validate again. SQL locks
+  current admin authority, batch, operation and shop; compares the document,
+  expected revision and canonical document/publication state against the stored
+  review binding atomically with the save. Check current duplicate candidates
+  again. A mismatch is a durable conflict requiring fresh review.
+
+A preview reviewKey is a content/revision binding, never bearer authorization.
+SQL checks authorization again for replayed successes. All ledger tables have
+RLS enabled and no direct API grants or policies; security-definer functions use
+an empty search path and enforce both current admin and batch ownership. Another
+admin cannot read/execute another owner's batch. No service key is introduced.
+Each environment's existing isolated Supabase project owns its own ledger;
+no client-selected environment or cross-project route exists.
+
+The UI selects only valid new or exact-ID update rows. Invalid and duplicate rows
+remain unresolved; no-change rows are skipped by selection. **Review selected
+rows** persists the selected plans and shows new/update counts and explicit clears.
+**Import selected as drafts** runs exactly the confirmed operation IDs sequentially,
+with per-row progress, partial outcomes and links to successful private drafts.
+Cancellation before this action changes no shop. Publication warnings do not
+block an otherwise valid draft. Existing canonical/public records remain intact.
+
+New rows call the existing atomic `admin_shop_write(create)` generated-default
+initializer and then save the full normalized document inside the same operation
+transaction. Any failure rolls both back. Updates call only private-copy save;
+no default initializer runs for existing shops. Blank/omitted fields, stable URLs,
+legacy provenance, relationships and existing media/artwork/history remain under
+the established merge and save contracts. No vocabulary/image/publication/visit
+side effects are added. Imports serialize duplicate checking against other import
+executions using a transaction advisory lock; the normal shop locks serialize
+manual edits/publication and protect revision checks. No whole-batch transaction.
+
+Persisted UUID operation identities and `(batch,row,operation_revision)` uniqueness
+make repeated requests return the existing result. Completed operations cannot be
+revised. Corrected unresolved rows use a new UUID and incrementing revision,
+require the latest previousOperation ID and fresh preview/review; the superseded
+operation becomes skipped and drops its payload. A failed/interrupted request can
+be reopened after reload: confirmed successful outcomes are never executed twice.
+An unknown transport outcome stops the UI and directs the admin to reopen/recover.
+
+## Access, audit and retention
+
+Only mapped row inputs and the review's before/after projection are persisted;
+raw source files and full private documents are not retained in the ledger or logs.
+The execution hash binds the complete merged document without storing it. Current
+row payloads are available to their creator while that account remains admin, for
+30 days from batch creation. Expired batches immediately deny read/execute/review.
+Operation IDs, target IDs, revision hashes and outcomes remain as private minimal
+idempotency tombstones; reusing an expired batch never starts a new import.
+
+`import_audit_events` records actor, batch, operation/revision, status, review hash
+and time atomically; successful events link to the catalogue save's request ID.
+No raw cells/documents/names enter audit. Update/delete/truncate is denied. Existing
+catalogue and generated-artwork audit still applies. Batch UI does not expose the
+operator audit tables. Account lifecycle/long-term accountability retention remains
+M8, alongside existing admin audit.
+
+After separately authorized deployment, the database operator must schedule daily
+`select public.purge_import_payloads()` in each environment and monitor it. It is
+operator-only and clears at most 500 expired payloads per invocation; repeat until
+caught up for larger backlogs. This task does not install a remote schedule. Logical
+expiry is enforced regardless of cleanup availability. Payload cleanup never runs
+in an import row transaction or removes tombstones/audit/catalogue data.
+
 ## Next checkpoint and launch obligations
 
-Actual selected private import must add durable batch/row/operation identities,
-bounded execution, transaction-bound revision and canonical-fingerprint checks,
-audit/retention, safe retry/resume and honest partial outcomes. It must re-read,
-revalidate and merge patches, never pass partial rows to replacement writes, and
-reuse the existing atomic generated-default initializer only for new shops.
-Names/candidates never select overwrite targets. Selected publication remains a
-separate deliberate review/position attestation against fresh saved revisions.
-No durable mutation API, publication UI or resumable executor is implemented here.
+Next: select already saved rows for a fresh, deliberate batch review, position
+confirmation and publication bound to saved/current revisions, with recoverable
+partial results. Do not treat a draft import, generated default or old preview as
+approval to publish. No selected-publication API/UI exists in this checkpoint.
 
-Package C remains incomplete. Package A acceptance, M5 geography/field testing,
-M7/M8 production/account/backup/monitoring obligations and #68/#70/#71/#72 remain.
-No merge or deployment is authorized by this checkpoint. Staging remains shared
-with Claude's public UI work.
+Package A acceptance, M5 geography/field testing, M7/M8 production/account/backup/
+monitoring obligations and #68/#70/#71/#72 remain. Catalogue research/reconciliation
+and real imports need their own founder scope; no research sheet was created here.

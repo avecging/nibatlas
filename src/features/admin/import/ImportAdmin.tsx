@@ -9,6 +9,7 @@ import { BATCH_SIZE, FIELDS, MAX_BYTES, VERSION, type ColumnMap, type MappedRow,
 import { csvReport, defaultColumns, parseFile, safeCsvCell } from './parse';
 import { mapRows, projectRows, vocabularyGroups, vocabularyOptions } from './mapping';
 import styles from './ImportAdmin.module.css';
+import { PrivateImport } from './PrivateImport';
 
 function download(filename: string, contents: string, type: string) {
   const url = URL.createObjectURL(new Blob([contents], { type }));
@@ -37,7 +38,9 @@ function ImportWorkspace() {
   const [upload, setUpload] = useState<Upload | null>(null), [columns, setColumns] = useState<ColumnMap>({}), [values, setValues] = useState<ValueMap>({});
   const [results, setResults] = useState<PreviewRow[]>([]), [busy, setBusy] = useState(false), [message, setMessage] = useState('Loading catalogue choices…');
   const [filter, setFilter] = useState('all'), [query, setQuery] = useState(''), [page, setPage] = useState(0);
-  const batch = useRef(''), controller = useRef<AbortController | null>(null), generation = useRef(0);
+  const [resumedRows, setResumedRows] = useState<MappedRow[] | null>(null);
+  const [batchId, setBatchId] = useState('');
+  const controller = useRef<AbortController | null>(null), generation = useRef(0);
   const load = () => {
     const c = new AbortController(); controller.current?.abort(); controller.current = c;
     void api(c.signal).then(d => { if (!c.signal.aborted) { setOptions(decodeOptions(d.options)); setMessage(''); } }).catch(e => { if (!c.signal.aborted) { setDenied(e instanceof AccessError); setMessage(e.message); } });
@@ -45,12 +48,12 @@ function ImportWorkspace() {
   useEffect(() => { load(); return () => { controller.current?.abort(); }; }, []);
   const projected = useMemo(() => { try { return { rows: upload ? projectRows(upload.rows, columns) : [], error: '' }; } catch (e) { return { rows: [], error: (e as Error).message }; } }, [upload, columns]);
   const groups = useMemo(() => options ? vocabularyGroups(projected.rows, options, values) : [], [projected, options, values]);
-  const mapped = useMemo(() => options ? mapRows(projected.rows, options, values) : [], [projected, options, values]);
+  const mapped = useMemo(() => resumedRows ?? (options ? mapRows(projected.rows, options, values) : []), [projected, options, values, resumedRows]);
   const unresolved = groups.filter(g => !g.resolved).length;
   const invalidate = () => { generation.current++; controller.current?.abort(); setResults([]); setPage(0); setMessage('Inputs changed. Run preview again.'); };
   async function select(file: File | undefined) {
     if (!file) return;
-    invalidate(); setUpload(null); setColumns({});
+    invalidate(); setUpload(null); setColumns({}); setResumedRows(null);
     const current = generation.current;
     try {
       if (file.size > MAX_BYTES) throw Error('Use a file no larger than 2 MiB.');
@@ -59,7 +62,7 @@ function ImportWorkspace() {
       const text = new TextDecoder('utf-8', { fatal: true }).decode(await file.arrayBuffer());
       const parsed = parseFile(text, format);
       if (current !== generation.current) return;
-      batch.current = crypto.randomUUID(); setUpload(parsed); setColumns(defaultColumns(parsed.columns)); setMessage(`${parsed.rows.length} rows loaded. Check columns and resolve vocabulary once per distinct value.`);
+      if (!batchId) setBatchId(crypto.randomUUID()); setUpload(parsed); setColumns(defaultColumns(parsed.columns)); setMessage(`${parsed.rows.length} rows loaded. Check columns and resolve vocabulary once per distinct value.`);
     } catch (e) { if (current === generation.current) setMessage((e as Error).message); }
   }
   async function preview() {
@@ -76,11 +79,11 @@ function ImportWorkspace() {
             completed.push({ rowId: row.rowId, line: row.line, name: row.cells.name || '', targetId: null, revision: null, action: 'blocked', issues: row.issues, candidates: [], fileDuplicates: row.fileDuplicates, changes: [], publicationErrors: [], hasPrivateChanges: false }); i++; continue;
           }
           const candidate = [...chunk, row];
-          if (new TextEncoder().encode(JSON.stringify({ version: VERSION, batchId: batch.current, rows: candidate })).length > 250000) { if (!chunk.length) throw Error(`Row ${row.rowId} is too large. Shorten the cells or split relationship values.`); break; }
+          if (new TextEncoder().encode(JSON.stringify({ version: VERSION, batchId: batchId, rows: candidate })).length > 250000) { if (!chunk.length) throw Error(`Row ${row.rowId} is too large. Shorten the cells or split relationship values.`); break; }
           chunk.push(row); i++;
         }
         if (chunk.length) {
-          const response = await api(c.signal, { version: VERSION, batchId: batch.current, rows: chunk });
+          const response = await api(c.signal, { version: VERSION, batchId: batchId, rows: chunk });
           if (current !== generation.current) return;
           if (response.version !== VERSION || !Array.isArray(response.rows) || response.rows.length !== chunk.length) throw Error('Invalid preview response. Retry.');
           completed.push(...response.rows);
@@ -99,7 +102,7 @@ function ImportWorkspace() {
   const visible = results.filter(r => (filter === 'all' || r.action === filter) && `${r.rowId} ${r.name} ${r.line}`.toLowerCase().includes(query.toLowerCase()));
   return <div className={styles.main}>
     <Link href="/admin/shops">← Shop administration</Link>
-    <header><p className={styles.eyebrow}>BULK ONBOARDING · PREVIEW ONLY</p><h1>Prepare your shop catalogue</h1><p>Upload a spreadsheet once, map shared values, then review the changes and corrections. This step never saves or publishes shops.</p></header>
+    <header><p className={styles.eyebrow}>BULK ONBOARDING · PRIVATE DRAFTS</p><h1>Prepare your shop catalogue</h1><p>Upload a spreadsheet once, map shared values, then review the changes and corrections. Preview is read-only. Select and confirm rows separately to save private drafts; nothing is published.</p></header>
     <p role="status" aria-live="polite">{message}</p>
     {!options && !denied && <button onClick={load}>Retry loading choices</button>}
     {options && !denied && <>
@@ -115,7 +118,7 @@ function ImportWorkspace() {
           <li>To deliberately remove a value, put its field name in clear_fields, separated by |, and leave the value blank. Clearing brands, specialties or shop_type removes that whole relationship group and its notes; review the before/after carefully.</li>
           <li>Coordinates are decimal latitude/longitude; supply both. Appointment uses true/false; timezone uses an IANA name. Country and locality must agree. No confirmation or verification dates are inferred.</li>
           <li>Only mapped fields are considered. Media URLs, opening-hour structures, sources, aliases and experiences cannot be imported in v1; existing values remain intact.</li>
-          <li>Correct the source file and reselect it to check again. Vocabulary mappings are reused during this signed-in session. Nothing is retained after leaving or signing out.</li>
+          <li>Correct the source file and reselect it to check again. Vocabulary mappings are reused during this signed-in session. Only reviewed rows are retained privately for recovery; raw files are not uploaded or retained.</li>
         </ul></details>
         <label className={styles.field}>CSV or JSON file<input type="file" accept=".csv,.json" disabled={busy} onChange={e => { void select(e.target.files?.[0]); e.target.value = ''; }} /></label>
       </section>
@@ -124,7 +127,8 @@ function ImportWorkspace() {
         {projected.error && <p role="alert">{projected.error}</p>}
       </section><section aria-labelledby="values-heading"><h2 id="values-heading">3. Resolve shared values</h2><p>{groups.length} distinct values · {unresolved} unresolved. One mapping applies to every matching row. Resolve countries before localities.</p>
         <div className={styles.grid}>{groups.map(g => { const choices = vocabularyOptions(g.kind, options, g.country); return <div key={g.key} className={styles.mapping}><SearchSelect label={`${g.kind}: ${g.raw} (${g.count} rows)`} path={g.key} value={g.resolved ?? ''} valueLabel={choices.find(c => c.id === g.resolved)?.label ?? ''} search={q => choices.filter(c => `${c.label} ${c.id}`.toLowerCase().includes(q.toLowerCase())).slice(0, 60)} onChange={id => { invalidate(); setValues({ ...values, [g.key]: id ?? '' }); }} listLabel={`Existing ${g.kind} choices`} placeholder="Find an existing choice" clearLabel="Leave unresolved" disabled={busy} error={g.resolved ? undefined : 'Choose a canonical value; missing or ambiguous matches need review.'} /><small>{g.country && `Country: ${g.country}. `}{!choices.length && 'No matching choices exist. Correct the source or prepare the vocabulary separately.'}</small></div>; })}</div>
-      </section><section aria-labelledby="preview-heading"><h2 id="preview-heading">4. Check the proposed changes</h2><p>Validation checks draft fields and reports publication requirements separately. Every proposal needs a fresh review before any future import.</p><button disabled={busy || !!projected.error || !mapped.length} onClick={() => void preview()}>{busy ? 'Checking rows…' : 'Run dry-run preview'}</button></section></>}
+      </section><section aria-labelledby="preview-heading"><h2 id="preview-heading">4. Check the proposed changes</h2><p>Validation checks draft fields and reports publication requirements separately. Every proposal needs a fresh review before import.</p><button disabled={busy || !!projected.error || !mapped.length} onClick={() => void preview()}>{busy ? 'Checking rows…' : 'Run dry-run preview'}</button></section></>}
+      {resumedRows && <section><h2>Continue reopened batch</h2><p>{resumedRows.length} unresolved rows loaded. Run a fresh preview, or load corrections with the same row IDs.</p><button disabled={busy || !resumedRows.length} onClick={() => void preview()}>Run dry-run preview</button></section>}
       {!!results.length && <section aria-labelledby="results-heading"><h2 id="results-heading">Preview results</h2><div className={styles.totals}>{Object.entries(actionLabel).map(([action, label]) => <span key={action}><strong>{results.filter(r => r.action === action).length}</strong> {label}</span>)}</div>
         <div className={styles.actions}><button onClick={() => download(`${VERSION}-corrections.csv`, csvReport(results), 'text/csv;charset=utf-8')}>Download correction report</button><div><label htmlFor="import-filter">Show</label><select id="import-filter" value={filter} onChange={e => { setFilter(e.target.value); setPage(0); }}><option value="all">All rows</option>{Object.entries(actionLabel).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div><div><label htmlFor="import-search">Find row or shop</label><input id="import-search" value={query} onChange={e => { setQuery(e.target.value); setPage(0); }} /></div></div>
         <p>{visible.length} matching rows · page {page + 1} of {Math.max(1, Math.ceil(visible.length / 25))}</p>
@@ -135,10 +139,16 @@ function ImportWorkspace() {
           {!!r.candidates.length && <ul>{r.candidates.map(c => <li key={c.id}><Link href={`/admin/shops/${c.id}`}>{c.name}</Link> — {c.reason}. ID: {c.id}</li>)}</ul>}
           {!!r.changes.length && <><h3>Before → proposed after</h3><dl>{r.changes.map(change => <div key={change.field} className={styles.change}><dt>{change.field}{change.clear ? ' · EXPLICIT CLEAR' : ''}</dt><dd><pre>{JSON.stringify(change.before, null, 2)}</pre><span>→</span><pre>{JSON.stringify(change.after, null, 2)}</pre></dd></div>)}</dl></>}
           {!!r.publicationErrors.length && <><h3>Before publication, later</h3><ul>{r.publicationErrors.map(e => <li key={e}>{e}</li>)}</ul></>}
-          <p>Correct this row in the source file, reselect it, and rerun preview. No import action is available in this checkpoint.</p>
+          <p>Correct this row in the source file, reselect it, and rerun preview. Eligible rows can be selected below.</p>
         </details>)}
         <div className={styles.actions}><button disabled={page === 0} onClick={() => setPage(page - 1)}>Previous rows</button><button disabled={(page + 1) * 25 >= visible.length} onClick={() => setPage(page + 1)}>Next rows</button></div>
       </section>}
+      <PrivateImport blocked={busy} onBusyChange={setBusy} batchId={batchId} rows={mapped} previews={results} onResume={saved => {
+        invalidate(); setBatchId(saved.id); setUpload(null); setColumns({});
+        setResumedRows(saved.operations.filter(o => o.status !== 'imported' && o.status !== 'skipped' && o.patch).map(o => o.patch!));
+        setMessage('Batch reopened. Completed outcomes are retained. Preview unresolved rows before making corrections.');
+      }} />
+      <button disabled={busy} onClick={() => { invalidate(); setBatchId(''); setUpload(null); setResumedRows(null); }}>Start a separate new batch</button>
     </>}
   </div>;
 }

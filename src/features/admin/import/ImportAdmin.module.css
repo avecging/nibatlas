@@ -27,3 +27,5 @@
 .change dd { display: flex; flex-wrap: wrap; gap: 10px; margin: 6px 0; }
 .change pre { flex: 1 1 220px; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; padding: 10px; background: var(--bg-base); border: 1px solid var(--border-default); border-radius: 5px; }
 @media(max-width: 600px) { .main { padding-inline: 12px; } .main section { padding: 16px; } }
+
+.main input[type="checkbox"] { width: 22px; min-height: 22px; height: 22px; margin-right: 8px; vertical-align: middle; }
