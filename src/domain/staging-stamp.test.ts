@@ -11,10 +11,10 @@ it('keeps the staging venue preview and issued artwork aligned', () => {
   expect(ink).toBe(design.ink);
 });
 
-it('publishes the fixture only after the compatible Worker is deployed', () => {
+it('keeps routine staging deployment free of demo catalogue mutations', () => {
   const workflow = readFileSync('.github/workflows/deploy-staging.yml', 'utf8');
-  const publish = workflow.indexOf('run: bash scripts/publish-staging-phone-fixture.sh');
-  expect(publish).toBeGreaterThan(workflow.indexOf('pnpm deploy:staging'));
-  expect(publish).toBeLessThan(workflow.indexOf('pnpm exec playwright test --project=staging-catalogue'));
-  expect(workflow.slice(0, workflow.indexOf('pnpm deploy:staging'))).not.toContain('staging-phone-location.sql');
+  expect(workflow).not.toContain('--include-seed');
+  expect(workflow).not.toContain('publish-staging-phone-fixture.sh');
+  expect(workflow).not.toContain('staging-phone-location.sql');
+  expect(workflow).toContain('supabase db push --db-url');
 });
