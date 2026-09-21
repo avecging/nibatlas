@@ -1,6 +1,30 @@
 import { render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+/*
+ * The location preview renders here wherever a tile key is stubbed, and its
+ * renderer arrives through a dynamic import. Left unmocked, these cases pull
+ * the real MapLibre module into jsdom and pass only because the unmount wins
+ * the race. Mocked, they are deterministic.
+ */
+vi.mock("maplibre-gl", () => ({
+  Map: class {
+    painter = {};
+    on() {}
+    remove() {}
+  },
+  Marker: class {
+    setLngLat() {
+      return this;
+    }
+    addTo() {
+      return this;
+    }
+  },
+  NavigationControl: class {},
+  setWorkerUrl: vi.fn(),
+}));
+
 import { ShopDetailView } from "@/src/components/shops/ShopDetailView";
 import { ShopWhatYouCanDo } from "@/src/components/shops/ShopValueSections";
 import { nearbyPenShops, type NearbyShop } from "@/src/domain/nearby-shops";
@@ -262,6 +286,12 @@ describe("Plan your visit", () => {
   });
 
   it("renders no heading over a subsection with nothing in it", () => {
+    /*
+     * SKB has a link and unpublished hours, and no address, station, floor note
+     * or catalogue neighbour in reach — but it does have a coordinate, and the
+     * location preview is itself something *Getting there* has to say. A record
+     * with neither a mappable point nor a written address still gets no heading.
+     */
     // SKB has a link and unpublished hours, and no address, station, floor note
     // or catalogue neighbour in reach.
     const sparse = findPrototypeShop("skb-kaohsiung")!;
@@ -270,7 +300,44 @@ describe("Plan your visit", () => {
 
     expect(screen.getByRole("heading", { name: "Plan your visit" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Before you go" })).toBeInTheDocument();
+    /*
+     * The heading follows what the record says in words, never the tile key: a
+     * build without one still inlines nothing into the client bundle, and a
+     * heading whose content depended on that would be empty exactly when the
+     * two disagreed.
+     */
     expect(screen.queryByRole("heading", { name: "Getting there" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("shop-location-map")).not.toBeInTheDocument();
+  });
+
+  it("puts the location preview above the address it illustrates", () => {
+    const itoya = findPrototypeShop("ginza-itoya-main-store")!;
+
+    renderShop(itoya, []);
+
+    const gettingThere = screen.getByRole("heading", { name: "Getting there" }).parentElement!;
+    const page = document.body.textContent ?? "";
+
+    expect(within(gettingThere).getByTestId("shop-location-map")).toBeInTheDocument();
+    expect(page.indexOf("Get directions")).toBeLessThan(page.indexOf("2-7-15 Ginza"));
+
+    // Directions stay reachable whatever the renderer does with the picture.
+    expect(
+      within(gettingThere).getByRole("link", { name: /get directions/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the address when the record has no coordinate to draw", () => {
+    const unplaced: ShopDetail = {
+      ...findPrototypeShop("ginza-itoya-main-store")!,
+      position: { latitude: 0, longitude: 0 },
+    };
+
+    renderShop(unplaced, []);
+
+    expect(screen.getByRole("heading", { name: "Getting there" })).toBeInTheDocument();
+    expect(screen.queryByTestId("shop-location-map")).not.toBeInTheDocument();
+    expect(screen.getByText("2-7-15 Ginza, Chūō-ku, Tokyo 104-0061")).toBeInTheDocument();
   });
 
   it("says nothing about an appointment that is not required", () => {

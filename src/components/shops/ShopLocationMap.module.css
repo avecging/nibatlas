@@ -1,0 +1,59 @@
+/*
+ * The location preview: a framed still of the map, then the way out to a real
+ * one. Paper stock, the same restrained border every card on this page uses, and
+ * no shadow — it is a picture of a place, not a widget.
+ */
+.location {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+
+.frame {
+  position: relative;
+  width: 100%;
+  height: 11rem;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-warm);
+}
+
+@media (min-width: 1024px) {
+  .frame {
+    height: 12rem;
+  }
+}
+
+.canvas {
+  width: 100%;
+  height: 100%;
+}
+
+/*
+ * A renderer that will not start says so, quietly, in the space the picture
+ * would have used. The address and the directions link are unaffected.
+ */
+.unavailable {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background: var(--bg-surface-warm);
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+  text-align: center;
+}
+
+/* The catalogue's own unvisited marker, at the size the map screen draws it. */
+.pin {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  color: var(--state-unvisited);
+}

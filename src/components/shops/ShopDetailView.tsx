@@ -4,6 +4,7 @@ import { ShopCorrection } from "@/src/components/shops/ShopCorrection";
 import { ShopEditorial } from "@/src/components/shops/ShopEditorial";
 import { ShopIdentityHero } from "@/src/components/shops/ShopIdentityHero";
 import { ShopMediaGallery } from "@/src/components/shops/ShopMediaGallery";
+import { ShopLocationMap } from "@/src/components/shops/ShopLocationMap";
 import { ShopMediaProvider } from "@/src/components/shops/ShopMediaProvider";
 import { ShopNearby } from "@/src/components/shops/ShopNearby";
 import {
@@ -160,6 +161,24 @@ export function ShopDetailView({
    * empty subsection, and no reserved space where a section would have been.
    */
   const facts = shopVisitFacts(shop);
+  /*
+   * Deliberately decided without reading the tile key.
+   *
+   * Two reasons, and the product one is the stronger. A heading called
+   * *Getting there* over nothing but a picture and a button says a record has
+   * a shopfront to get to; `skb-kaohsiung` carries a coordinate precisely
+   * because its source does *not* confirm one, so the preview must be an
+   * addition to a subsection the record has earned in words, never something
+   * that can conjure the subsection by itself.
+   *
+   * The second is that this is a server component while `ShopLocationMap` is a
+   * client one, and whether `process.env.NEXT_PUBLIC_MAPTILER_KEY` is inlined
+   * at build time on both sides or read live on one is a property of the
+   * bundler and the command. Turbopack currently inlines it into the server
+   * chunk too, so the two agree — but `next dev` reads it live, and a heading
+   * that depends on the two never diverging is a silent empty heading waiting
+   * for the day they do.
+   */
   const hasGettingThere = facts.gettingThere.length > 0 || nearby.length > 0;
 
   /*
@@ -276,6 +295,13 @@ export function ShopDetailView({
                   <h3 className={styles.subheading} id="getting-there">
                     Getting there
                   </h3>
+                  {/*
+                    The picture first, then the address in words, then the way
+                    out to a real map — the order someone works out where a place
+                    is in. Everything below it renders whether or not the preview
+                    does.
+                  */}
+                  <ShopLocationMap shop={shop} />
                   <FactList facts={facts.gettingThere} />
 
                   {/*
