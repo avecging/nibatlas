@@ -70,26 +70,26 @@ test("renders real MapTiler geography through the static MapLibre worker", async
 test("draws a shop's location preview from real MapTiler geography", async ({
   page,
 }, testInfo) => {
+  const successfulMapTilerResponses = new Set<string>();
   const failedMapTilerResponses = new Map<string, number>();
 
   page.on("response", (response) => {
-    if (response.url().includes("api.maptiler.com") && !response.ok()) {
-      failedMapTilerResponses.set(new URL(response.url()).pathname, response.status());
+    if (response.url().includes("api.maptiler.com")) {
+      const path = new URL(response.url()).pathname;
+      if (response.ok()) successfulMapTilerResponses.add(path);
+      else failedMapTilerResponses.set(path, response.status());
     }
   });
 
-  await page.goto("/");
-  await expect(page.getByTestId("map-canvas")).toBeVisible();
-
-  const dismiss = page.getByRole("button", { name: "Dismiss introduction" });
-  if (await dismiss.isVisible().catch(() => false)) await dismiss.click();
-
-  await expect(page.getByTestId("explore")).toHaveAttribute("data-explore-status", "idle");
-
-  const card = page.getByRole("article", { name: "M2 Tokyo Demo Fixture" });
-  await expect(card).toBeVisible();
-  await card.getByRole("link", { name: "M2 Tokyo Demo Fixture" }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  // Deployment publishes this staging-only fixture before the smoke checks.
+  // Unlike the addressless Tokyo demo, it earns a Getting there section.
+  // Load detail directly so map-screen traffic cannot satisfy this map's checks.
+  await page.goto("/shops/location-test-fairprice-compassvale-link");
+  await expect(page.getByRole("heading", {
+    level: 1, name: "Location test — FairPrice Compassvale Link",
+  })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Plan your visit" })
+    .getByText("277C Compassvale Link, #01-13 Aspella, Singapore 543277")).toBeVisible();
 
   const preview = page.getByTestId("shop-location-map");
   await preview.scrollIntoViewIfNeeded();
@@ -99,6 +99,9 @@ test("draws a shop's location preview from real MapTiler geography", async ({
   await expect(preview.locator(".maplibregl-ctrl-attrib")).toContainText("MapTiler");
   await expect(preview.locator(".maplibregl-ctrl-attrib")).toContainText("OpenStreetMap");
   await expect(preview.locator(".maplibregl-canvas")).toBeVisible();
+  await expect.poll(() => successfulMapTilerResponses.size, {
+    message: "The shop preview should load real MapTiler style and geography",
+  }).toBeGreaterThan(2);
   // Every handler is off, so the renderer never claims the interactive class.
   await expect(preview.locator(".maplibregl-map")).not.toHaveClass(/maplibregl-interactive/);
 
@@ -107,10 +110,12 @@ test("draws a shop's location preview from real MapTiler geography", async ({
   const before = await page.evaluate(() => window.scrollY);
 
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.wheel(0, 400);
-  await page.waitForTimeout(500);
-
-  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(before);
+  // A short detail page can already be at its bottom after revealing the map.
+  // Scroll toward available space, then verify the wheel escapes the preview.
+  const delta = before > 0 ? -400 : 400;
+  await page.mouse.wheel(0, delta);
+  await expect.poll(async () => (await page.evaluate(() => window.scrollY)) - before)
+    [delta < 0 ? "toBeLessThan" : "toBeGreaterThan"](0);
 
   await expect(page.getByRole("link", { name: /get directions/i })).toBeVisible();
 

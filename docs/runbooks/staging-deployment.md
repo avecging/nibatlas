@@ -95,6 +95,27 @@ Staging success does not merge or promote the branch. The final PR remains open
 until its normal CI and controlled staging checks pass. Production deployment is
 out of scope for this workflow.
 
+## Package C2 deployment — 21 September 2026
+
+PR #88 merged at `c573e45de06420285389fad47945768e0056f093`; final PR CI
+35558416121 and main CI 35571405337 passed all six jobs. Staging deployment
+35573185161 applied migration `20260921000100` and deployed Worker version
+`098b5506-d64a-47cb-9f65-60a0f9815054`. Its final status was failed: the shop-map
+smoke expected a location preview on the addressless Tokyo demo, where the
+Getting there section is correctly omitted. The correction uses the existing
+staging phone fixture with an address, published by the workflow before smoke.
+The failed smoke did not roll back the application or migration.
+
+The staging Supabase dashboard confirms `c2_private_import` as the latest
+migration. Its existing Cron integration now has active job
+`nibatlas-import-payload-retention`, calling `SELECT public.purge_import_payloads()`
+daily at `15 19 * * *` UTC (03:15 Singapore). Its first scheduled run is
+22 September 2026, 03:15 Singapore; execution success is not yet established.
+Inspect that job's run history and expired-payload backlog during operations.
+Each call clears at most 500 expired payloads; repeat bounded operator calls if
+the backlog exceeds that. Identity/outcome tombstones remain. Production was
+not configured by this staging task.
+
 ## Package A stability checkpoint — 20 September 2026 (Singapore)
 
 The unchanged baseline is main `3732018a0ca023a2dc7e8ae0eef7a26061e8470a`
