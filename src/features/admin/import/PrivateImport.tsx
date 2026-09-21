@@ -27,6 +27,7 @@ export function PrivateImport({ batchId, rows, previews, onResume, onBusyChange,
   const [selected, setSelected] = useState<string[]>([]), [message, setMessage] = useState(''), [working, setBusy] = useState(false);
   const busy = working || blocked;
   const [confirmationIds, setConfirmationIds] = useState<string[]>([]);
+  const [savedPage, setSavedPage] = useState(0);
   const [page, setPage] = useState(0), [confirmation, setConfirmation] = useState(false);
   const controller = useRef<AbortController | null>(null), operationIds = useRef(new Map<string, string>());
   const current = useRef(true);
@@ -50,7 +51,7 @@ export function PrivateImport({ batchId, rows, previews, onResume, onBusyChange,
   const open = async (id: string, signal: AbortSignal) => {
     const data = await request(signal, id) as ImportBatch;
     if (signal.aborted) return data;
-    setSaved(data); setConfirmation(false); onResume(data); return data;
+    setSaved(data); setSavedPage(0); setConfirmation(false); onResume(data); return data;
   };
   const review = () => run(async signal => {
     for (let i = 0; i < chosen.length; i++) {
@@ -99,10 +100,12 @@ export function PrivateImport({ batchId, rows, previews, onResume, onBusyChange,
     {saved && <>
       <h3>Saved batch · {saved.id.slice(0, 8)}</h3>
       <p>{saved.operations.filter(o => o.status === 'imported').length} imported · {saved.operations.filter(o => o.status === 'conflicted').length} conflicted · {saved.operations.filter(o => o.status === 'failed').length} failed · {saved.operations.filter(o => o.status === 'skipped').length} skipped · {saved.operations.filter(o => o.status === 'ready').length} pending</p>
-      {saved.operations.map(o => <details key={o.id} className={styles.row}><summary>{o.preview?.name || o.row_id} · {o.status} · revision {o.operation_revision}</summary>
+      {saved.operations.slice(savedPage * 25, (savedPage + 1) * 25).map(o => <details key={o.id} className={styles.row}><summary>{o.preview?.name || o.row_id} · {o.status} · revision {o.operation_revision}</summary>
         {o.reason && <p>{o.reason}</p>}{o.status === 'imported' && <Link href={`/admin/shops/${o.target_id}`}>Open successful draft</Link>}
         {o.preview?.changes.map(c => <p key={c.field}>{c.field}{c.clear ? ' · EXPLICIT CLEAR' : ''}: <code>{JSON.stringify(c.before)}</code> → <code>{JSON.stringify(c.after)}</code></p>)}
       </details>)}
+      <p>Saved rows {savedPage * 25 + 1}–{Math.min((savedPage + 1) * 25, saved.operations.length)} of {saved.operations.length}</p>
+      <div className={styles.actions}><button disabled={busy || savedPage === 0} onClick={() => setSavedPage(savedPage - 1)}>Previous saved rows</button><button disabled={busy || (savedPage + 1) * 25 >= saved.operations.length} onClick={() => setSavedPage(savedPage + 1)}>Next saved rows</button></div>
       {!!pending.length && !confirmation && <button disabled={busy} onClick={() => { setConfirmationIds(pending.map(o => o.id)); setConfirmation(true); }}>Review remaining import</button>}
       {confirmation && <div role="region" aria-label="Confirm private import" className={styles.row}>
         <h3>Import selected as drafts?</h3><p>{confirmed.filter(o => !o.preview?.targetId).length} new shops and {confirmed.filter(o => o.preview?.targetId).length} private updates. Nothing becomes public. Existing published pages stay unchanged.</p>

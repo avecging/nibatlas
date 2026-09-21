@@ -24,7 +24,7 @@ insert into import_before values('media',(select coalesce(jsonb_agg(to_jsonb(m) 
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"93000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
 -- 200 rows: 100 new, 100 updates (including one genuine seeded published record).
--- Names are marked synthetic with hash variation to avoid accidental fuzzy peers.
+-- Synthetic slugs and isolated fixtures use hash names to avoid accidental fuzzy peers.
 select public.admin_shop_write('create',('94000000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid,null,
  jsonb_build_object('name',md5('existing-'||i),'slug','synthetic-existing-'||i)) from generate_series(101,200) i;
 insert into import_work(i,id,op,payload)
@@ -49,11 +49,27 @@ select public.admin_shop_write('save',(select id from import_work where i=101),(
  jsonb_set((select payload->'document' from import_work where i=101),'{shop,internal_notes}','"concurrent editor"'));
 select public.admin_shop_write('create','96000000-0000-4000-8000-000000000102',null,
  jsonb_build_object('name',(select payload->'document'->'shop'->>'name' from import_work where i=102),'slug','synthetic-duplicate'));
+-- Inject a recoverable database failure for one row; the following rows still run.
+reset role;
+create function pg_temp.fail_one_import() returns trigger language plpgsql as $$
+begin
+ if new.shop_id='94000000-0000-4000-8000-000000000103' then raise exception 'Synthetic failure' using errcode='23514'; end if;
+ return new;
+end; $$;
+create trigger synthetic_import_failure before insert or update on public.shop_working_copies for each row execute function pg_temp.fail_one_import();
+set local role authenticated;
 update import_work set result=pg_temp.ledger(i,'execute',jsonb_build_object('document',payload->'document','reviewKey',payload->>'reviewKey')) where i>100;
 select is((select result->>'status' from import_work where i=101),'conflicted','stale private revision conflicts');
 select is((select result->>'status' from import_work where i=102),'conflicted','new duplicate requires review');
-select is(count(*)::integer,198,'other 198 rows complete despite per-row conflicts') from import_work where result->>'status'='imported';
-insert into import_before values('replay',jsonb_agg(public.admin_shop_read(id) order by i)) from import_work;
+select is((select result->>'status' from import_work where i=103),'failed','isolated database failure reports failed');
+select is(count(*)::integer,197,'other rows complete despite per-row conflicts and failure') from import_work where result->>'status'='imported';
+reset role;
+drop trigger synthetic_import_failure on public.shop_working_copies;
+set local role authenticated;
+update import_work set result=pg_temp.ledger(i,'execute',jsonb_build_object('document',payload->'document','reviewKey',payload->>'reviewKey')) where i=103;
+select is((select result->>'status' from import_work where i=103),'imported','failed transaction retries after recovery');
+select is(count(*)::integer,198,'198 imports after recoverable retry') from import_work where result->>'status'='imported';
+insert into import_before select 'replay',jsonb_agg(public.admin_shop_read(id) order by i) from import_work;
 select is(pg_temp.ledger(i,'execute','{}')->>'status',result->>'status','replay stable outcome '||i) from import_work order by i;
 select is((select jsonb_agg(public.admin_shop_read(id) order by i) from import_work),(select v from import_before where k='replay'),'retries do not change revisions');
 -- Correction creates a distinct revision. Completed rows may not be revised.
@@ -76,10 +92,13 @@ select public.admin_import_operation('review','93000000-0000-4000-8000-000000000
  pg_temp.payload(201,((select v from import_before where k='published-id')#>>'{}')::uuid,
  public.admin_shop_read(((select v from import_before where k='published-id')#>>'{}')::uuid)->>'revision',
  jsonb_set(public.admin_shop_read(((select v from import_before where k='published-id')#>>'{}')::uuid)->'document','{shop,internal_notes}','"private only"')));
-select public.admin_import_operation('execute','93000000-0000-4000-8000-000000000010','96000000-0000-4000-8000-000000000201',
+select is(public.admin_import_operation('execute','93000000-0000-4000-8000-000000000010','96000000-0000-4000-8000-000000000201',
  jsonb_build_object('document',jsonb_set(public.admin_shop_read(((select v from import_before where k='published-id')#>>'{}')::uuid)->'document','{shop,internal_notes}','"private only"'),
- 'reviewKey',public.admin_import_operation_read('93000000-0000-4000-8000-000000000010','96000000-0000-4000-8000-000000000201')->>'review_key'));
+ 'reviewKey',public.admin_import_operation_read('93000000-0000-4000-8000-000000000010','96000000-0000-4000-8000-000000000201')->>'review_key'))->>'status','imported','published target import succeeds');
+select is(public.admin_shop_read(((select v from import_before where k='published-id')#>>'{}')::uuid)->'document'->'shop'->>'internal_notes','private only','published target actually receives a private draft');
 -- Other admins, ordinary users, revocation, direct-table and expired access.
+select set_config('request.jwt.claims','{"sub":"93000000-0000-4000-8000-000000000003","role":"authenticated"}',true);
+select throws_ok($$select public.admin_import_batches()$$,'42501','Admin access denied','ordinary user cannot list batches');
 select set_config('request.jwt.claims','{"sub":"93000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
 select throws_ok($$select public.admin_import_batches('93000000-0000-4000-8000-000000000010')$$,'42501','Batch unavailable','another admin cannot read private batch');
 select throws_ok($$select pg_temp.ledger(1,'execute','{}')$$,'42501','Batch unavailable','another admin cannot execute batch');

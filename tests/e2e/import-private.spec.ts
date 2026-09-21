@@ -46,6 +46,8 @@ test('200 rows: selected private import, lost response, reload and durable resum
  await page.getByRole('button', { name: 'Select all eligible rows (200)' }).click();
  await page.getByRole('button', { name: 'Review selected rows' }).click();
  await expect(page.getByRole('region', { name: 'Confirm private import' })).toContainText('200 new shops and 0 private updates');
+ await page.getByRole('region', { name: 'Confirm private import' }).scrollIntoViewIfNeeded();
+ await page.screenshot({ path: testInfo.outputPath('admin-private-import-confirm.png') });
  expect(writes.size).toBe(0);
  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
  await page.getByRole('checkbox', { name: 'Synthetic 1 · row-1 · New draft', exact: true }).uncheck();
@@ -67,7 +69,8 @@ test('200 rows: selected private import, lost response, reload and durable resum
  await expect(page.getByRole('button', { name: 'Select all eligible rows (1)' })).toBeVisible();
  await expect(page.locator('body')).toHaveJSProperty('scrollWidth', await page.evaluate(() => window.innerWidth));
  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
- await page.screenshot({ path: testInfo.outputPath('admin-private-import-resume.png'), fullPage: true });
+ await page.getByRole('heading', { name: /Saved batch/ }).scrollIntoViewIfNeeded();
+ await page.screenshot({ path: testInfo.outputPath('admin-private-import-resume.png') });
  await page.getByRole('button', { name: 'Start a separate new batch' }).click();
  await expect(page.getByRole('heading', { name: /Saved batch/ })).toHaveCount(0);
  await expect(page.getByRole('button', { name: 'Import selected as drafts', exact: true })).toHaveCount(0);
