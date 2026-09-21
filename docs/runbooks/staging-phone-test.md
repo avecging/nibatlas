@@ -43,10 +43,12 @@ floor/unit detection or universal indoor/mall reliability.
 - Generated navy ink-bottle test template, explicitly named as a test stamp; no
   commissioned art or reuse of the supermarket's branding.
 - Separate `supabase/fixtures/staging-phone-location.sql`, excluded from default
-  seed and migrations. Deployment verifies the project name `nibatlas-staging`
-  before applying it atomically with an explicit staging-only opt-in, **after**
-  the compatible Worker has deployed. A failed build never publishes the venue.
-- Repeat deployment preserves approved artwork and immutable collections.
+  seed and migrations. Routine deployment no longer inserts or publishes this
+  venue. If another field test is explicitly authorized, the operator may run
+  `scripts/publish-staging-phone-fixture.sh` after a compatible Worker deployment;
+  that script verifies project `nibatlas-staging` and requires its existing
+  staging-only opt-in. Do not run it during clean catalogue preparation.
+- Ordinary deployments preserve approved artwork and immutable collections.
 - Production uses its separate database, imports must exclude all demo records,
   and production API mode rejects demo detail. This fixture must never be part
   of a production seed/import. A test venue cannot be relabelled as sourced.
@@ -55,8 +57,10 @@ floor/unit detection or universal indoor/mall reliability.
   this test venue through trusted SQL before restoring an older Worker. Keep all
   collected history; do not delete the venue or impressions.
 
-After merge, run **Actions → Deploy staging → Run workflow → main**. Wait for
-success, then open the route above using the URL in the deployment summary.
+A deployment alone does not make this fixture available. Confirm that its explicit
+setup was authorized and completed before opening the route above. The founder
+authorized disposal of the original staging test records on 21 September 2026; see
+the one-time reset procedure in `staging-deployment.md` for that bounded exception.
 
 ## Accounts and order — issue last
 

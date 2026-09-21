@@ -65,17 +65,17 @@ After deployment, a Playwright staging check verifies:
 - MapTiler and OpenStreetMap attribution is rendered;
 - multiple MapTiler style/geography resources return successfully;
 - the browser reports no console or page errors; and
-- the deterministic demo database projection completes marker → card → detail →
-  Back through the public v1 boundary;
-- the returned detail is visibly identified as demo data;
+- an existing published shop completes card → detail → Back through the public
+  v1 boundary, or an empty catalogue renders the empty state;
 - Near Me sends its coordinates in POST JSON, never in its URL; and
 - a 1440 × 900 screenshot is retained as workflow evidence for one day.
 
 The staging projects disable Playwright traces because browser request URLs
 contain the browser-visible MapTiler key. Evidence uploads contain only rendered
 screenshots and never traces, network archives, POST bodies, or environment
-files. The catalogue smoke uses a published demo shop's coordinate, not a user's
-position, and asserts no latitude or longitude appears in a request URL.
+files. The catalogue smoke uses an existing public shop coordinate or a fixed Singapore
+point for empty data, never a user's position, and asserts no latitude or longitude
+appears in a request URL.
 
 The normal PR CI remains authoritative for the complete breakpoint,
 accessibility, reduced-motion, database-reset, and Cloudflare-build suites.
@@ -102,8 +102,9 @@ PR #88 merged at `c573e45de06420285389fad47945768e0056f093`; final PR CI
 35573185161 applied migration `20260921000100` and deployed Worker version
 `098b5506-d64a-47cb-9f65-60a0f9815054`. Its final status was failed: the shop-map
 smoke expected a location preview on the addressless Tokyo demo, where the
-Getting there section is correctly omitted. The correction uses the existing
-staging phone fixture with an address, published by the workflow before smoke.
+Getting there section is correctly omitted. The initial correction used the existing
+staging phone fixture with an address, then published by the workflow before smoke.
+The founder-managed catalogue change below replaces that fixture dependency.
 The failed smoke did not roll back the application or migration.
 
 The staging Supabase dashboard confirms `c2_private_import` as the latest
@@ -204,3 +205,70 @@ partial/throwing MapLibre doubles; the E2E regression disables WebGL contexts to
 exercise the actual locked constructor and preserve the list/navigation. Feature
 remote acceptance remains in `media-uploads.md`; preserve previously accepted
 PNG/phone/draft results and all historical impressions.
+
+
+## Founder-managed catalogue and one-time disposable reset
+
+Routine staging deployment applies forward migrations only. It no longer runs
+`seed.sql` or publishes the phone fixture. Local database CI still seeds its
+isolated database. The existing phone fixture setup script is an explicit manual
+test tool; do not run it during catalogue preparation or routine deployment.
+
+Staging smoke reads the existing public catalogue. With shops, it checks a selected
+shop/detail/Back and Nearby. With no published shops, it checks the empty map and
+empty Nearby response. The basemap/worker check still runs. The detail-map check
+reads at most 20 existing published shops; if none has getting-there facts, it
+reports an explicit skip. This is a coverage gap until an eligible shop is
+published, not evidence that detail maps were tested against an empty catalogue.
+
+The founder requested a fresh start from disposable staging test data on
+21 September 2026 and confirmed all four collecting logins are theirs. Account
+removal is separate; retain all auth users/profiles, roles, canonical vocabulary,
+append-only audits and R2 objects. This exception does not change the application's
+immutable-history contract or permit production deletion. It is not a schema reset.
+
+The operator tool is `scripts/maintenance/reset-staging-catalogue.sql`, never a
+migration or deployment step. Before running it:
+
+1. Independently verify the actual selected destination before the snapshot:
+   the Supabase dashboard URL must contain `/project/xgyzsdrugtwqlpnkutfw/`
+   and its project header must show `nibatlas-staging`. For a direct connection,
+   verify its project ref against the authenticated Supabase project API response
+   with that ref and name. If identity cannot be verified, do not run either tool.
+   Snapshot project labels are descriptive constants, not identity evidence;
+   fingerprints bind retained data but cannot distinguish copied databases.
+   Retain the external verification evidence with the recovery record. Stop
+   concurrent catalogue editing/imports and deploy the no-seed workflow change.
+   Check that no older staging job is queued.
+2. Execute `scripts/maintenance/snapshot-staging-catalogue.sql` read-only and retain
+   its complete `recovery_backup` JSON outside Supabase. It exports catalogue,
+   working copies, media references, stamps/collections/saves, import recovery
+   state, audit records and shop verification policy. It does not export auth
+   credentials, ephemeral verification secrets or image bytes. Keep R2 untouched.
+   A data export is not a completed restore drill.
+3. Review the exact shop/account-linked scope and obtain action-time approval for
+   temporarily suspending the three data-immutability guards. This does not grant
+   permission to weaken RLS/authentication or delete accounts/audits.
+4. Immediately before reset, repeat the external destination check in step 1;
+   do not infer it from the snapshot or a previous connection/session. In one SQL
+   transaction, set a 5-second local lock timeout and 30-second local
+   statement timeout. Create temporary `catalogue_reset_expected(snapshot jsonb)`
+   and insert the retained JSON. Set local `nibatlas.catalogue_reset_confirmation`
+   to `RESET DISPOSABLE NIBATLAS STAGING CATALOGUE`, run the operator SQL and commit.
+   Never split the transaction or disable guards manually outside this tool.
+
+The reset checks exact row fingerprints under locks and accepts only 1–20 shops;
+a mismatch aborts and requires a fresh retained backup. It removes the inspected
+shops and linked disposable collections/saves/media manifests/artwork, with ordinary
+row auditing/FKs still active. It expires private import batches and clears their
+payloads while retaining operation identities, outcomes and audits to prevent replay.
+It suspends only `shop_media_immutable`, `media_upload_immutable` and
+`stamp_artwork_versions_protect_approved` under exclusive locks, restores them before
+commit, and rolls back everything on failure. Auth accounts and profiles stay intact.
+Ephemeral shop verification nonces cascade away; account rate limits remain.
+
+Afterwards verify zero shops/collections/saves, retained accounts/audits, enabled
+immutability guards, admin empty state, and public empty map/API/old-slug 404.
+Record the actual reset receipt separately; these instructions do not claim the
+reset or a restore drill has happened. Images remain private stored objects available
+for recovery; deleting them is a separate operation.

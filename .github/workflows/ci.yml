@@ -142,6 +142,8 @@ jobs:
           mkdir -p supabase/tests/fixtures
           cp supabase/fixtures/staging-phone-location.sql supabase/tests/fixtures/staging-phone-location.inc
       - run: supabase test db
+      - name: Verify disposable catalogue reset and rollback
+        run: python3 scripts/test-staging-catalogue-reset.py
       - name: Concurrent stamp issuance
         run: python3 scripts/verification/concurrency.py
       - name: Read performance (50k synthetic shops)
