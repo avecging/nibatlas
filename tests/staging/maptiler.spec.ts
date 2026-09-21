@@ -88,7 +88,8 @@ test("draws a shop's location preview from real MapTiler geography", async ({
   await expect(page.getByRole("heading", {
     level: 1, name: "Location test — FairPrice Compassvale Link",
   })).toBeVisible();
-  await expect(page.getByText("277C Compassvale Link, #01-13 Aspella, Singapore 543277", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Plan your visit" })
+    .getByText("277C Compassvale Link, #01-13 Aspella, Singapore 543277")).toBeVisible();
 
   const preview = page.getByTestId("shop-location-map");
   await preview.scrollIntoViewIfNeeded();
