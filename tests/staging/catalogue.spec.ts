@@ -1,49 +1,44 @@
 import { expect, test } from "@playwright/test";
+import { decodeNearbyShopsV1 } from "@/src/api/v1/shop-read";
+import { stagingCatalogue } from "./catalogue-data";
 
-test("reads the demo database through v1 and preserves the map-detail return", async ({
-  page,
-  request,
+test("reads the current catalogue and preserves map-detail return, or renders empty", async ({
+  page, request,
 }, testInfo) => {
+  const catalogue = await stagingCatalogue(request);
+  const shop = catalogue.shops[0];
   const browserRequestUrls: string[] = [];
   page.on("request", (entry) => browserRequestUrls.push(entry.url()));
-
-  await page.goto("/");
+  await page.goto(shop ? `/?shop=${encodeURIComponent(shop.slug)}` : "/");
   await expect(page.getByTestId("map-canvas")).toBeVisible();
-
   const dismiss = page.getByRole("button", { name: "Dismiss introduction" });
   if (await dismiss.isVisible().catch(() => false)) await dismiss.click();
-
   await expect(page.getByTestId("explore")).toHaveAttribute("data-explore-status", "idle");
 
-  const marker = page.getByRole("button", { name: /^M2 Tokyo Demo Fixture, Tokyo\./ });
-  await expect(marker).toBeVisible();
-  await marker.click();
+  if (shop) {
+    const card = page.getByRole("article", { name: shop.name, exact: true });
+    await expect(card).toHaveAttribute("data-selected", "true");
+    await card.getByRole("link", { name: shop.name, exact: true }).click();
+    await expect(page.getByRole("heading", { level: 1, name: shop.name, exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "Back to map" }).click();
+    await expect(page.getByRole("article", { name: shop.name, exact: true }))
+      .toHaveAttribute("data-selected", "true");
+  } else {
+    expect(catalogue.truncated).toBe(false);
+    await expect(page.getByText(/No shops match this area and these filters/)).toBeVisible();
+    await expect(page.getByRole("article")).toHaveCount(0);
+  }
 
-  const card = page.getByRole("article", { name: "M2 Tokyo Demo Fixture" });
-  await expect(card).toHaveAttribute("data-selected", "true");
-  await card.getByRole("link", { name: "M2 Tokyo Demo Fixture" }).click();
-
-  await expect(page.getByRole("heading", { level: 1, name: "M2 Tokyo Demo Fixture" })).toBeVisible();
-  await expect(page.getByText(/demo fixture evidence/i)).toBeVisible();
-
-  await page.getByRole("link", { name: "Back to map" }).click();
-  await expect(page.getByRole("article", { name: "M2 Tokyo Demo Fixture" })).toHaveAttribute(
-    "data-selected",
-    "true",
-  );
-
-  // Exercise Near Me with a published demo-shop coordinate, not a user's
-  // location. Coordinates belong in the POST body and therefore never in the
-  // request URL captured by ordinary edge access logs.
+  // Existing public shop coordinates, or a fixed Singapore point for empty data.
+  // Never a user's position, and never placed in a request URL.
   const nearby = await request.post("/api/v1/shops/nearby", {
-    data: { latitude: 35.681236, longitude: 139.767125, radiusMeters: 5000, limit: 5 },
+    data: { latitude: shop?.position.latitude ?? 1.3521,
+      longitude: shop?.position.longitude ?? 103.8198, radiusMeters: 5000, limit: 5 },
   });
   expect(nearby.ok()).toBe(true);
+  const nearbyData = decodeNearbyShopsV1(await nearby.json());
+  if (!shop) expect(nearbyData.shops).toHaveLength(0);
   expect(new URL(nearby.url()).search).toBe("");
   expect(browserRequestUrls.some((url) => /[?&](latitude|longitude)=/.test(url))).toBe(false);
-
-  await page.screenshot({
-    path: testInfo.outputPath("catalogue-api-demo.png"),
-    animations: "disabled",
-  });
+  await page.screenshot({ path: testInfo.outputPath("catalogue-api-demo.png"), animations: "disabled" });
 });

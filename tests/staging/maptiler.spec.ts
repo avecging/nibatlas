@@ -1,4 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { decodeShopDetailV1 } from "@/src/api/v1/shop-read";
+import { projectShopDetail } from "@/src/features/shops/shop-detail-projection";
+import { shopVisitFacts } from "@/src/features/shops/shop-visit-facts";
+import { stagingCatalogue } from "./catalogue-data";
 
 test("renders real MapTiler geography through the static MapLibre worker", async ({
   page,
@@ -68,7 +72,7 @@ test("renders real MapTiler geography through the static MapLibre worker", async
  * the preview's own frame rather than only on the map screen.
  */
 test("draws a shop's location preview from real MapTiler geography", async ({
-  page,
+  page, request,
 }, testInfo) => {
   const successfulMapTilerResponses = new Set<string>();
   const failedMapTilerResponses = new Map<string, number>();
@@ -81,15 +85,25 @@ test("draws a shop's location preview from real MapTiler geography", async ({
     }
   });
 
-  // Deployment publishes this staging-only fixture before the smoke checks.
-  // Unlike the addressless Tokyo demo, it earns a Getting there section.
+  const catalogue = await stagingCatalogue(request);
+  let selected: { slug: string; name: string; fact: string } | undefined;
+  // Bounded read-only discovery. Missing eligible data is an explicit coverage
+  // gap, never a reason to publish a fixture into the founder's catalogue.
+  for (const candidate of catalogue.shops.slice(0, 20)) {
+    const response = await request.get(`/api/v1/shops/${encodeURIComponent(candidate.slug)}`);
+    expect(response.ok()).toBe(true);
+    const detail = decodeShopDetailV1(await response.json());
+    expect(detail).not.toBeNull();
+    const projected = projectShopDetail(detail!, { demoRecords: true });
+    const fact = shopVisitFacts(projected).gettingThere[0];
+    if (fact) { selected = { slug: candidate.slug, name: candidate.name, fact: fact.value }; break; }
+  }
+  test.skip(!selected, "No eligible published shop among the first 20 staging records; location-preview coverage pending catalogue publication.");
   // Load detail directly so map-screen traffic cannot satisfy this map's checks.
-  await page.goto("/shops/location-test-fairprice-compassvale-link");
-  await expect(page.getByRole("heading", {
-    level: 1, name: "Location test — FairPrice Compassvale Link",
-  })).toBeVisible();
+  await page.goto(`/shops/${encodeURIComponent(selected!.slug)}`);
+  await expect(page.getByRole("heading", { level: 1, name: selected!.name, exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Plan your visit" })
-    .getByText("277C Compassvale Link, #01-13 Aspella, Singapore 543277")).toBeVisible();
+    .getByText(selected!.fact)).toBeVisible();
 
   const preview = page.getByTestId("shop-location-map");
   await preview.scrollIntoViewIfNeeded();
