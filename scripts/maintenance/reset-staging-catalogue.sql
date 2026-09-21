@@ -33,8 +33,10 @@ BEGIN
     OR NOT (expected->'fingerprints' ?& names) THEN
     RAISE EXCEPTION 'Unexpected project or incomplete snapshot';
   END IF;
-  -- The operator must verify the dashboard/connection project independently.
-  -- Matching exact row fingerprints also rejects a different database's data.
+  -- The operator must verify the actual dashboard URL/project or authenticated
+  -- connection project independently immediately before execution (runbook).
+  -- Snapshot labels are descriptive, not trusted database identity. Fingerprints
+  -- bind this reset to retained data only; copied data can have identical hashes.
   FOREACH t IN ARRAY names LOOP
     EXECUTE format('LOCK TABLE public.%I IN ACCESS EXCLUSIVE MODE',t);
   END LOOP;

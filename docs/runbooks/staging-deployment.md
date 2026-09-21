@@ -230,9 +230,16 @@ immutable-history contract or permit production deletion. It is not a schema res
 The operator tool is `scripts/maintenance/reset-staging-catalogue.sql`, never a
 migration or deployment step. Before running it:
 
-1. Independently verify the destination is project `nibatlas-staging`
-   (`xgyzsdrugtwqlpnkutfw`), stop concurrent catalogue editing/imports, and deploy
-   the no-seed workflow change. Check that no older staging job is queued.
+1. Independently verify the actual selected destination before the snapshot:
+   the Supabase dashboard URL must contain `/project/xgyzsdrugtwqlpnkutfw/`
+   and its project header must show `nibatlas-staging`. For a direct connection,
+   verify its project ref against the authenticated Supabase project API response
+   with that ref and name. If identity cannot be verified, do not run either tool.
+   Snapshot project labels are descriptive constants, not identity evidence;
+   fingerprints bind retained data but cannot distinguish copied databases.
+   Retain the external verification evidence with the recovery record. Stop
+   concurrent catalogue editing/imports and deploy the no-seed workflow change.
+   Check that no older staging job is queued.
 2. Execute `scripts/maintenance/snapshot-staging-catalogue.sql` read-only and retain
    its complete `recovery_backup` JSON outside Supabase. It exports catalogue,
    working copies, media references, stamps/collections/saves, import recovery
@@ -242,7 +249,9 @@ migration or deployment step. Before running it:
 3. Review the exact shop/account-linked scope and obtain action-time approval for
    temporarily suspending the three data-immutability guards. This does not grant
    permission to weaken RLS/authentication or delete accounts/audits.
-4. In one SQL transaction, set a 5-second local lock timeout and 30-second local
+4. Immediately before reset, repeat the external destination check in step 1;
+   do not infer it from the snapshot or a previous connection/session. In one SQL
+   transaction, set a 5-second local lock timeout and 30-second local
    statement timeout. Create temporary `catalogue_reset_expected(snapshot jsonb)`
    and insert the retained JSON. Set local `nibatlas.catalogue_reset_confirmation`
    to `RESET DISPOSABLE NIBATLAS STAGING CATALOGUE`, run the operator SQL and commit.
