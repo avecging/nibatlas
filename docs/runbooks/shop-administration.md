@@ -338,3 +338,43 @@ Founder acceptance after a separately authorized preview/deployment:
 
 This is not import/publication acceptance. No catalogue dataset or synthetic test
 rows have been imported. Existing launch obligations and deferrals are unchanged.
+
+
+## Package C2+C3 combined founder staging acceptance
+
+C2 is merged; C3 is implemented on its PR branch. C3 deployment is not authorized
+by implementation or technical review. After an explicitly authorized migration
+and Worker deployment, use disposable clearly labelled synthetic shops first.
+No founder acceptance has been recorded for this combined flow.
+
+1. Preview a mixed CSV/JSON file. Select new drafts and explicit updates, inspect
+   preserved blank fields and deliberate clears, deselect a row and import
+   privately. Public pages/media/stamps must remain unchanged.
+2. Refresh, reopen the saved batch and finish remaining private imports. Completed
+   rows must retain their shop IDs and must not import again.
+3. Choose **Load publication review**. Check new/private-update/already-published
+   and unresolved rows. Search, filter and change pages; selection starts empty.
+4. Inspect saved/public content in the batch, including hours/relationships and
+   private notes, without reopening each editor. Use correction links as needed.
+   Select the intended rows, check the total, and **Mark selected reviewed**.
+5. **Confirm selected positions** only after checking saved addresses/coordinates.
+   Check the second confirmation list; cancel once, then confirm deliberately.
+   Incomplete rows must retain precise blockers and prevent their publication.
+6. Select only publishable rows, deselect one, then **Publish selected rows**.
+   Check the exact count/list before confirming. Follow public links and verify
+   stable URLs, expected content and private-field exclusion. Media/artwork
+   activation and existing collections must remain unchanged.
+7. Change a reviewed draft in another tab. Publication must conflict and require
+   fresh review. Coordinate/address changes must require fresh confirmation.
+   A public-base conflict requires reconciling the editor copy before review.
+8. Interrupt/reload while publishing. Reload publication review, verify successful
+   rows, and select only remaining eligible rows. Failed rows can retry after
+   recovery; stale/corrected rows must be reviewed again. No successful write is
+   repeated. Verify latest outcome/time and the resulting shop links.
+9. Repeat key steps on a phone: labels/checkboxes/counts/confirmation lists,
+   keyboard focus, comparison readability and no horizontal overflow. Another
+   admin must not access your batch; ordinary/editor/revoked accounts are denied.
+
+Record founder observations separately from automated test evidence and the
+actual deployment SHA. Production promotion, Package D polish, catalogue research,
+main map #87 and other launch/field acceptance remain out of scope.
