@@ -31,7 +31,7 @@ create function pg_temp.pub(i integer,action text,rev integer default 1) returns
 $$;
 create function pg_temp.edit(i integer,field text,value jsonb) returns jsonb language sql as $$
  select public.admin_shop_write('save',w.id,public.admin_shop_read(w.id)->>'revision',
- jsonb_set(public.admin_shop_read(w.id)->'document',array['shop',field],value)) from import_work w where w.i=i;
+ jsonb_set(public.admin_shop_read(w.id)->'document',array['shop',field],value)) from import_work w where w.i=$1;
 $$;
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"a3000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
@@ -60,6 +60,8 @@ select is(public.admin_import_publication_read('a3000000-0000-4000-8000-00000000
 select is(public.admin_import_publication_read('a3000000-0000-4000-8000-000000000010',175)->'nextOffset','null'::jsonb,'last page ends at 200');
 select throws_ok($$select public.admin_import_publication_read('a3000000-0000-4000-8000-000000000010',500)$$,'22023','Invalid offset','bounded offset enforced');
 select pg_temp.edit(3,'address_line_1','null');
+select is(pg_temp.state(3)->'record'->'document'->'shop'->'address_line_1','null'::jsonb,'incomplete fixture targets row 3 only');
+select is(pg_temp.state(1)->'record'->'document'->'shop'->>'address_line_1','Synthetic C3 address','neighboring fixture remains unchanged');
 -- Row 2 is deliberately deselected; every other row gets an exact revision review.
 select is(pg_temp.pub(i,'review')->>'reviewed','true','deliberate review '||i) from import_work where i<>2;
 select is(pg_temp.pub(1,'review')->'publication'->>'operation_revision','1','lost review response replays identity');

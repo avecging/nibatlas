@@ -40,7 +40,7 @@ export function BatchPublication({ batchId, blocked, onBusyChange }: {
     const c = new AbortController(); controller.current?.abort(); controller.current = c;
     setWorking(true); onBusyChange(true); setMessage(''); setDecision(null);
     try { await work(c.signal); } catch (e) {
-      if (!c.signal.aborted) { setRecover(true); setSelected([]); setMessage((e as Error).message); }
+      if (!c.signal.aborted) { setRecover(true); setSelected([]); setMessage(`${(e as Error).message} Reload publication review before continuing.`); }
     } finally { if (current.current && !c.signal.aborted) { setWorking(false); onBusyChange(false); } }
   };
   const load = () => run(async signal => {
@@ -115,7 +115,7 @@ export function BatchPublication({ batchId, blocked, onBusyChange }: {
       {visible.slice(page * 25, (page + 1) * 25).map(row => <article key={row.importId} className={styles.row}>
         <label className={styles.field}><input type="checkbox" disabled={busy || recover || !row.canReview} checked={selected.includes(row.importId)} onChange={e => { setSelected(s => e.target.checked ? [...s, row.importId] : s.filter(id => id !== row.importId)); setDecision(null); }} />{row.name} · {row.rowId}</label>
         <p>{stateLabel(row)} · {row.kind === 'private_update' ? 'Private update to existing shop' : row.kind === 'new_draft' ? 'New private draft' : row.kind.replaceAll('_', ' ')}</p>
-        <p>{row.coordinates.address || 'Address unknown'} · Coordinates: {row.coordinates.latitude ?? 'unknown'}, {row.coordinates.longitude ?? 'unknown'} · Position {row.positionConfirmed ? 'confirmed' : 'not confirmed'} · {row.reviewed ? 'Saved revision reviewed' : 'Review required'}</p>
+        <p>{row.coordinates.address || 'Address unknown'} · Coordinates: {row.coordinates.latitude ?? 'unknown'}, {row.coordinates.longitude ?? 'unknown'} · Position {row.positionConfirmed ? 'confirmed' : 'not confirmed'} · {row.publication?.status === 'published' ? 'Batch publication complete' : row.kind === 'already_published' ? 'No pending private changes' : row.reviewed ? 'Saved revision reviewed' : 'Review required'}</p>
         {!!row.blockers.length && <ul aria-label={`Blockers for ${row.rowId}`}>{row.blockers.map((b, i) => <li key={i}>{b}</li>)}</ul>}
         {row.publication && <p>Last attempt: {row.publication.status} · {row.publication.published_at ?? row.publication.created_at}{row.publication.reason && ` · ${row.publication.reason}`}</p>}
         <div className={styles.actions}>

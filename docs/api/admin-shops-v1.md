@@ -196,3 +196,15 @@ bounded labels for custom codes. Existing codes and the four approved public
 filter categories remain unchanged. Custom types appear in unfiltered discovery,
 Saved and detail; this slice adds no new filter categories or inferred mapping to
 an existing category. The `test_venue` demo-only boundary remains intact.
+
+
+## C3 saved-batch publication reuse
+
+Package C3 adds owner-private batch review/publication operations around these
+same saved-document, `confirm_position` and `publish` rules. The manual writer
+and location invalidation contract are unchanged. The batch ledger binds exact
+private and canonical state, records recoverable per-row outcomes and requires
+fresh review after a change; imported drafts are never implicitly approved.
+See `admin-import-v1.md` for the bounded wire contract and retention. Media and
+artwork remain separately published/activated. C3 technical acceptance,
+deployment and founder acceptance are tracked separately in its PR/runbook.

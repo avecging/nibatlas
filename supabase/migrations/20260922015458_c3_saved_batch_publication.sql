@@ -126,7 +126,7 @@ begin
   if p.status='published' or p.id<>latest.id then return public.import_publication_state(p_import); end if;
  end if;
  perform 1 from public.shops where id=o.target_id for update;
- state:=public.import_publication_state(p_import,true);
+ state:=public.import_publication_state(p_import);
  if p_action='review' then
   if latest.id is distinct from (p_payload->>'previousOperation')::uuid or not (state->>'canReview')::boolean
    or state->>'reviewKey' is distinct from p_payload->>'reviewKey' then raise exception 'Review changed' using errcode='40001'; end if;
