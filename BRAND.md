@@ -405,7 +405,12 @@ must respect applicable national rules, copyright and personality rights.
 
 ## Iconography
 
-- Simple 1.75–2 px strokes at 24 px.
+- Utility icons use simple 1.75–2 px strokes at 24 px.
+- Experience icons use a custom curved family with 1.5 px strokes at 24 px,
+  rounded caps/joins and restrained detail that also reads at 18 px. The ink
+  bottle takes its broad rounded cut-glass silhouette from Mitasanshodo’s bottle.
+  The picker and public experience cards share this family; utility icons keep
+  their existing treatment.
 - Rounded joins but not cartoonishly soft.
 - Recognizable utility icons for search, locate, filter, save, directions, accessibility, and hours.
 - Custom nib/stamp icons only where they clarify a pen-specific concept.

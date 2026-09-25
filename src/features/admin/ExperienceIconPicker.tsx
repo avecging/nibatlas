@@ -1,12 +1,12 @@
 'use client';
 
 import { useId } from 'react';
-import { Icon } from '@/src/components/ui/Icon';
-import { DEFAULT_EXPERIENCE_ICON, EXPERIENCE_ICONS, type ExperienceIcon } from '@/src/domain/experience-icons';
+import { ExperienceIcon } from '@/src/components/ui/ExperienceIcon';
+import { DEFAULT_EXPERIENCE_ICON, EXPERIENCE_ICONS, type ExperienceIcon as ExperienceIconName } from '@/src/domain/experience-icons';
 import styles from './ExperienceIconPicker.module.css';
 
 export function ExperienceIconPicker({value, change, path, error}: {
-  value: unknown; change: (value: ExperienceIcon) => void; path: string; error?: string | undefined;
+  value: unknown; change: (value: ExperienceIconName) => void; path: string; error?: string | undefined;
 }) {
   const id = useId();
   return <fieldset className={styles.picker} role="radiogroup" aria-invalid={error ? true : undefined}
@@ -18,7 +18,7 @@ export function ExperienceIconPicker({value, change, path, error}: {
         <input type="radio" name={id} value={key} checked={(value ?? DEFAULT_EXPERIENCE_ICON) === key}
           onChange={() => change(key)} data-field-path={path}
           aria-describedby={error ? `${id}-error` : undefined}/>
-        <Icon name={key} size={24}/><span>{label}</span>
+        <ExperienceIcon name={key} size={24}/><span>{label}</span>
       </label>)}
     </div>
     {error && <p id={`${id}-error`} className={styles.error} role="alert">{error}</p>}

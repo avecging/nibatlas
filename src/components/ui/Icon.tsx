@@ -32,19 +32,9 @@ export type IconName =
   | "train"
   | "card"
   | "globe"
-  | "camera"
-  | "nib" | "ink" | "swatch" | "paper" | "tools" | "gift" | "workshop" | "chat";
+  | "camera";
 
 const PATHS: Record<IconName, readonly string[]> = {
-  nib: ["M12 3 5 14l3 7h8l3-7-7-11Z", "M12 3v9", "M12 12a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z", "M8 18h8"],
-  ink: ["M8 3h8v4H8Z", "M8 7v3l-3 3v7h14v-7l-3-3V7", "M8 15h8v3H8Z"],
-  swatch: ["M4 4h16v16H4Z", "M7 8h10", "M7 12h7", "M7 16h4"],
-  paper: ["M6 3h9l4 4v14H6Z", "M15 3v5h4", "M9 12h7", "M9 16h7"],
-  tools: ["M14 4a5 5 0 0 0-6 6l-5 5a3 3 0 0 0 4 4l5-5a5 5 0 0 0 6-6l-3 3-3-3 2-4Z"],
-  gift: ["M3 8h18v4H3Z", "M5 12v9h14v-9", "M12 8v13", "M12 8C4 8 5 1 9 3c2 1 3 5 3 5Z", "M12 8c8 0 7-7 3-5-2 1-3 5-3 5Z"],
-  workshop: ["M4 4h16v11H4Z", "M12 15v6", "m8 21 4-3 4 3", "m8 11 3-4 5 4"],
-  chat: ["M4 4h16v12H9l-5 4V4Z", "M8 8h8", "M8 12h5"],
-
   /* The two Passport modes. The list is rules and rows; the book is a spread
      with a spine, so the pair reads as one choice rather than two features. */
   list: ["M4.5 7h15", "M4.5 12h15", "M4.5 17h10"],
