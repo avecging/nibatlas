@@ -9,18 +9,16 @@ insert into public.localities
 values
   ('00000000-0000-4000-8000-000000000201','SG','Singapore','city','singapore',
    extensions.st_setsrid(extensions.st_makepoint(103.8198,1.3521),4326))
+where not exists (
+  select 1 from public.localities where country_code='SG' and lower(name)='singapore'
+)
 on conflict (id) do nothing;
 
 do $$
 declare item record; existing_id uuid; matches integer;
 begin
-  -- Fail visibly on conflicting geography instead of silently offering a wrong
-  -- country-scoped mapping.
-  if not exists (
-    select 1 from public.localities
-    where id='00000000-0000-4000-8000-000000000201'
-      and country_code='SG' and name='Singapore' and slug='singapore'
-  ) then raise exception 'Singapore locality identity conflicts with existing data'; end if;
+  -- Reuse a pre-existing Singapore locality under its original UUID. Fail
+  -- visibly if no canonical choice is available or names are ambiguous.
   if (select count(*) from public.localities where country_code='SG' and lower(name)='singapore')<>1
   then raise exception 'Ambiguous Singapore locality'; end if;
 
