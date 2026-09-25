@@ -34,6 +34,7 @@ export interface Option {
   id: string;
   label: string;
   countryCode?: string;
+  code?: string;
 }
 export type Options = Record<string, Option[]>;
 export type Field = {
@@ -398,6 +399,7 @@ export function decodeOptions(value: unknown): Options {
       return {
         id,
         label: text(o.label),
+        ...((k === "types" || k === "services" || k === "specialties") && o.code != null ? { code: text(o.code) } : {}),
         ...(k === "localities" ? { countryCode: text(o.countryCode) } : {}),
       };
     });

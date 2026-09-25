@@ -70,6 +70,20 @@ reselecting a corrected file in the same signed-in workspace. Nothing creates
 vocabulary. Brands/specialties use `|`-separated cells and add/reuse relationships;
 shop_type sets the primary type while retaining other type rows and legacy notes.
 
+Canonical shop-type codes (for example `nib_repair_services`) resolve from the
+existing database `shop_types.code` via the admin options response, as do
+unique UUIDs and display labels. The importer never creates a missing choice.
+The forward migration `20260925000100_singapore_import_vocabulary.sql` supplies
+the five reviewed brands in the first Singapore batch and the Singapore
+locality for fresh environments. It reuses an existing brand with the same
+case-insensitive normalized name rather than replacing its UUID or creating a
+duplicate. `LAMY` and `Lamy` therefore resolve to the same row; Graf von
+Faber-Castell and Faber-Castell remain distinct brand entries. Beste is the
+distributor/service operator, not a brand entry. Other brand names require
+separate review and canonical creation before import. Specialties are also
+controlled choices; services are outside the v1 import file. Existing shop
+links, sources, notes and publication rules are unaffected.
+
 Blank/omitted/null cells preserve existing values. `clear_fields` contains
 `|`-separated supported field names, deliberately clears scalars or the whole
 selected relationship group, and appears as EXPLICIT CLEAR with before/after.

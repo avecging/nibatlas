@@ -37,6 +37,29 @@ describe('bounded import file contract', () => {
   });
 });
 describe('mapping and safe merged previews', () => {
+  it('maps canonical type codes and reviewed brand names without creating choices', () => {
+    const canonical: Options = {
+      localities: [{ id: local, label: 'Singapore (SG)', countryCode: 'SG' }],
+      types: [
+        { id, label: 'Fountain Pen Specialist', code: 'fountain_pen_specialist' },
+        { id: '60000000-0000-4000-8000-000000000004', label: 'Stationery Store', code: 'stationery_store' },
+        { id: '60000000-0000-4000-8000-000000000005', label: 'Nib / Repair Services', code: 'nib_repair_services' },
+      ],
+      brands: ['Waterman', 'LAMY', 'Graf von Faber-Castell', 'Faber-Castell', 'Kaweco']
+        .map((label, index) => ({ id: `60000000-0000-4000-8000-0000000000${10 + index}`, label })),
+      specialties: [], services: [],
+    };
+    const rows = parse([
+      { row_id: 'sg-1', country: 'Singapore', locality: 'Singapore', shop_type: 'nib_repair_services', brands: 'Waterman' },
+      { row_id: 'sg-2', country: 'SG', locality: 'Singapore', shop_type: 'fountain_pen_specialist', brands: 'Lamy|Graf von Faber-Castell' },
+      { row_id: 'sg-3', country: 'SG', locality: 'Singapore', shop_type: 'stationery_store', brands: 'Faber-Castell|Kaweco' },
+    ]);
+    expect(vocabularyGroups(rows, canonical, {}).filter(group => !group.resolved)).toEqual([]);
+    const mapped = mapRows(rows, canonical, {});
+    expect(mapped.every(row => row.issues.length === 0 && row.cells.locality === local)).toBe(true);
+    expect(mapped.map(row => row.cells.shop_type)).toEqual([canonical.types![2]!.id, canonical.types![0]!.id, canonical.types![1]!.id]);
+    expect(mapped[1]!.cells.brands).toBe(`${canonical.brands![1]!.id}|${canonical.brands![2]!.id}`);
+  });
   it('maps distinct ambiguous locality once and country-scopes it', () => {
     const ambiguous = { ...options, localities: [...options.localities!, { id, label: 'Synthetic City (SG)', countryCode: 'SG' }] };
     const rows = parse([{ name: 'One', country: 'Singapore', locality: 'Synthetic City' }, { name: 'Two', country: 'SG', locality: 'Synthetic City' }]);
