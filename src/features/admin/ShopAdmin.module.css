@@ -494,3 +494,11 @@
 .admin [aria-invalid="true"] {
   border: 2px solid var(--error);
 }
+
+.comparisonValue { white-space: pre-wrap; overflow-wrap: anywhere; }
+.previewColumns { display: grid; gap: 24px; }
+.previewColumns > div { min-width: 0; }
+@media (min-width: 900px) {
+  .previewColumns { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+  .previewMobile .previewColumns { grid-template-columns: minmax(0, 1fr); }
+}

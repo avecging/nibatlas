@@ -342,10 +342,11 @@ rows have been imported. Existing launch obligations and deferrals are unchanged
 
 ## Package C2+C3 combined founder staging acceptance
 
-C2 is merged; C3 is implemented on its PR branch. C3 deployment is not authorized
-by implementation or technical review. After an explicitly authorized migration
-and Worker deployment, use disposable clearly labelled synthetic shops first.
-No founder acceptance has been recorded for this combined flow.
+C2 and C3 are merged. C3 is main `64243cf` from PR #93; post-merge CI
+35680370585 and staging deployment 35702964089 succeeded. This is deployed
+implementation, not founder acceptance. Combined C2+C3 founder testing remains
+pending and is handled separately from Package D. Use disposable clearly labelled
+synthetic shops for acceptance; D does not authorize any hosted mutations.
 
 1. Preview a mixed CSV/JSON file. Select new drafts and explicit updates, inspect
    preserved blank fields and deliberate clears, deselect a row and import
@@ -378,3 +379,55 @@ No founder acceptance has been recorded for this combined flow.
 Record founder observations separately from automated test evidence and the
 actual deployment SHA. Production promotion, Package D polish, catalogue research,
 main map #87 and other launch/field acceptance remain out of scope.
+
+## D1 editor polish — PR only, not deployed or founder-accepted
+
+- **Visit details:** Unknown, Open and Closed are distinct. Add one entry per
+  opening period; duplicate weekdays preserve split hours. An earlier closing time
+  is labelled next day. Open without recorded times remains supported. Copy a day
+  carries every period/note and asks before replacing existing destination entries.
+  Clear all hours deliberately sets the weekly document to null; the separate
+  holiday note remains. Simply opening the editor does not materialize empty days.
+  Date-specific information can still use the holiday note in prose; structured
+  exceptions remain a later D slice, not an unsupported input silently discarded.
+- **Photos & logo:** arrangement/captions save separately. The first approved
+  photo is identified as the public cover; a private first photo is not claimed
+  as live. For an unpublished shop, approved images are marked for publication.
+  A failed caption save keeps typed text after the latest gallery loads. If the
+  saved caption differs, compare it and explicitly replace it or use saved text.
+  Existing upload retry, immutable attachments, metadata safeguards and admin-only
+  media actions are unchanged.
+- **Review:** the desktop/mobile surface is explicitly a saved shop-text preview.
+  It excludes unsaved edits and does not claim full live-page parity. Photos,
+  map and artwork have separate review controls. Private notes/reference links
+  never appear in that content preview. Published content remains unchanged by
+  draft saves; review/publication and artwork activation remain separate.
+- **Failed save:** local edits remain in the editor. Compare latest saved version
+  reads the newest content without changing the editor or its original revision.
+  This cannot silently rebase a full-document write over someone else's changes.
+  Discard local edits and reload is explicit. After a lost response, comparison
+  may show identical content; reload to recover the current revision. No private
+  drafts are persisted to browser storage.
+
+### Founder checklist — only after a separately authorized later deployment
+
+1. Reopen a synthetic draft with paragraphs, relationship rows, private notes,
+   weekly notes and split/overnight hours. Edit/save/reopen; verify all survive.
+2. Enter an invalid time, save, follow the field error, correct it and save. Copy
+   a day, cancel/accept replacement, and verify every span/note. Clear weekly hours
+   deliberately and verify holiday notes remain. Unknown must not become closed.
+3. Change a caption, provoke a second-tab conflict, and check your text survives.
+   Compare the saved value before explicit replacement. Reorder/cover/save/reopen;
+   verify stable images and private/public boundaries, including an unpublished shop.
+4. With unsaved shop text, open Review: preview must show the saved text and say
+   edits are excluded. Save privately; check public content/artwork is unchanged.
+5. Save against a stale revision; compare without losing local edits or changing
+   the revision. Reload only deliberately. Check leaving with dirty text/caption
+   or pending upload asks first, keyboard focus, labels and narrow-screen overflow.
+6. Change saved coordinates: confirmation must invalidate; previously reviewed C3
+   rows require re-review. Saving text or arranging media never publishes a shop,
+   activates artwork or changes collected impressions. Existing role denial remains.
+
+Technical evidence belongs in the D1 PR. Full dated hours, actual public-renderer
+preview and integrated pending-media/artwork review remain in Package D. Combined
+C2+C3 founder testing continues independently; it is not implied by CI.

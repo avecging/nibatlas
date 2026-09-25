@@ -1,4 +1,6 @@
 "use client";
+import { RevisionComparison } from "./RevisionComparison";
+import { HoursEditor } from "./HoursEditor";
 import { publicationFix } from "./publication-fix";
 import { useHasPendingUploads } from "./use-pending-upload";
 import { ShopEditorial, ShopEditorialVisit } from "@/src/components/shops/ShopEditorial";
@@ -334,6 +336,8 @@ function Workspace({ id }: { id: string | null }) {
   const pendingUploads = useHasPendingUploads();
   const controller = useRef<AbortController | null>(null),
     noticeRef = useRef<HTMLDivElement>(null);
+  const [latest, setLatest] = useState<ShopRecord | null>(null);
+  const [saveFailed, setSaveFailed] = useState(false);
   const [record, setRecord] = useState<ShopRecord | null>(null),
     [draft, setDraft] = useState<Document | null>(null),
     [options, setOptions] = useState<Options>({}),
@@ -542,6 +546,7 @@ function Workspace({ id }: { id: string | null }) {
     setConfirmation(null);
     try {
       await action();
+      return true;
     } catch (e) {
       if (controller.current?.signal.aborted) return;
       if (
@@ -577,6 +582,7 @@ function Workspace({ id }: { id: string | null }) {
         },
         !target,
       );
+      return false;
     } finally {
       if (!controller.current?.signal.aborted) setBusy(false);
     }
@@ -584,7 +590,7 @@ function Workspace({ id }: { id: string | null }) {
   const signal = () => controller.current!.signal;
 
   async function mutate(action: string, destination: "stay" | "review" = "stay") {
-    await run(async () => {
+    const succeeded = await run(async () => {
       const value = decodeShop(
         await api(`/${id}`, signal(), {
           action,
@@ -596,6 +602,8 @@ function Workspace({ id }: { id: string | null }) {
       );
       setRecord(value);
       setDraft(value.document);
+      setLatest(null);
+      setSaveFailed(false);
       if (action === "save" && destination === "review") go("review");
       announce({
         tone: "ok",
@@ -603,7 +611,7 @@ function Workspace({ id }: { id: string | null }) {
           action === "save"
             ? destination === "review"
               ? "Saved privately. This is the saved version, ready to review."
-              : "Saved privately. Nothing is public until you publish."
+              : "Saved privately. The public listing is unchanged. Choose Review and publish when ready."
             : action === "confirm_position"
               ? "Saved position confirmed."
               : action === "publish"
@@ -615,6 +623,7 @@ function Workspace({ id }: { id: string | null }) {
                     : "Operational status updated. Collected impressions are preserved.",
       });
     });
+    if (action === "save" && succeeded === false) setSaveFailed(true);
   }
 
   const viewOptions: Options = {
@@ -628,8 +637,8 @@ function Workspace({ id }: { id: string | null }) {
   /** Clearing the stale error for a field the editor is fixing right now. */
   const clearError = (path: string) =>
     setFieldErrors((current) =>
-      current.length && current.some((e) => e.path === path)
-        ? current.filter((e) => e.path !== path)
+      current.length && current.some((e) => e.path === path || e.path.startsWith(`${path}.`))
+        ? current.filter((e) => e.path !== path && !e.path.startsWith(`${path}.`))
         : current,
     );
   const setShop = (key: string, v: Value) => {
@@ -1038,6 +1047,22 @@ function Workspace({ id }: { id: string | null }) {
 
       <NoticeBar notice={notice} busy={busy} inner={noticeRef} />
 
+      {saveFailed && <section className={styles.box} aria-label="Save recovery">
+        <p>Your edits are kept. After a lost response or revision conflict, compare the latest saved content before trying again.</p>
+        <button type="button" disabled={busy} onClick={() => void run(async () => {
+          setLatest(decodeShop(await api(`/${id}`, signal())));
+          announce({tone:"ok",text:"Latest saved content loaded for comparison. Your editor and its revision are unchanged."});
+        })}>Compare latest saved version</button>
+        <button type="button" disabled={busy} onClick={() => {
+          if (window.confirm("Discard your unsaved edits and reload the saved version?")) void run(async () => {
+            const current = decodeShop(await api(`/${id}`, signal()));
+            setRecord(current); setDraft(current.document); setLatest(null); setSaveFailed(false);
+            announce({tone:"ok",text:"Loaded the saved version. You can now edit from this revision."});
+          });
+        }}>Discard local edits and reload</button>
+        {latest && <RevisionComparison mine={draft} latest={latest.document}/>}
+      </section>}
+
       {fieldErrors.length > 0 && (
         <ul className={styles.fieldErrors} aria-label="Fields to correct">
           {fieldErrors.map((error, index) => (
@@ -1125,6 +1150,7 @@ function Workspace({ id }: { id: string | null }) {
                   const r = decodeShop(await api(`/${id}`, signal()));
                   setRecord(r);
                   setDraft(r.document);
+                  setLatest(null); setSaveFailed(false);
                   announce({ tone: "ok", text: "Loaded the saved version." });
                 });
             }}
@@ -1195,7 +1221,16 @@ function Workspace({ id }: { id: string | null }) {
                 </div>
               )}
 
-              {section === "visit" && <HoursEditor draft={draft} errors={fieldErrors} setShop={setShop} />}
+              {section === "visit" && <HoursEditor value={draft.shop.opening_hours} errors={fieldErrors} onChange={value => {
+                const next = {...draft, shop:{...draft.shop, opening_hours:value}};
+                setDraft(next);
+                setFieldErrors(current => {
+                  if (!current.some(e => e.path.startsWith("shop.opening_hours"))) return current;
+                  const other = current.filter(e => !e.path.startsWith("shop.opening_hours"));
+                  try { normalizeShopDocument(next, options); return other; }
+                  catch (e) { return e instanceof ShopValidationError ? [...other, ...e.issues.filter(issue => issue.path.startsWith("shop.opening_hours"))] : current; }
+                });
+              }} />}
 
               {SECTION_GROUPS[section].map((key) => groupEditor(key))}
 
@@ -1220,7 +1255,7 @@ function Workspace({ id }: { id: string | null }) {
           {busy
             ? "Working…"
             : dirty
-              ? "Unsaved changes"
+              ? saveFailed ? "Not saved · edits kept" : "Unsaved changes"
               : record.hasChanges
                 ? "Saved privately"
                 : "All details saved"}
@@ -1282,87 +1317,6 @@ function NoticeBar({
         {notice?.text ||
           (busy ? "Working…" : "Enter what you know. Leave unknown information blank.")}
       </p>
-    </div>
-  );
-}
-
-function HoursEditor({
-  draft,
-  errors,
-  setShop,
-}: {
-  draft: Document;
-  errors: FieldIssue[];
-  setShop: (key: string, value: Value) => void;
-}) {
-  const hours = (draft.shop.opening_hours as Row | null) ?? {};
-  const entries = (hours.entries ?? []) as Row[];
-  return (
-    <div className={styles.box} data-field-path="shop.opening_hours" tabIndex={-1}>
-      <h3>Opening hours</h3>
-      <p className={styles.help}>
-        Record only hours you have checked. A day with no entry stays unknown, which is
-        different from closed. Split and overnight spans are kept: add more than one
-        entry for the same day.
-      </p>
-      <div className={styles.field}>
-        <label htmlFor="hours-summary">Hours summary · optional</label>
-        <input
-          id="hours-summary"
-          data-field-path="shop.opening_hours.note"
-          value={String(hours.note ?? "")}
-          onChange={(e) =>
-            setShop("opening_hours", { ...hours, note: e.target.value || null })
-          }
-        />
-      </div>
-      {entries.map((r, i) => (
-        <div className={styles.card} key={i}>
-          <div className={styles.grid}>
-            {HOURS_FIELDS.map((field) => (
-              <Input
-                key={field.key}
-                field={field}
-                path={`shop.opening_hours.entries.${i}.${field.key}`}
-                errors={errors}
-                value={r[field.key]}
-                options={{}}
-                prefix=""
-                change={(v) =>
-                  setShop("opening_hours", {
-                    ...hours,
-                    entries: entries.map((x, n) => (n === i ? { ...x, [field.key]: v } : x)),
-                  })
-                }
-              />
-            ))}
-          </div>
-          <button
-            type="button"
-            className={styles.quiet}
-            onClick={() =>
-              setShop("opening_hours", {
-                ...hours,
-                entries: entries.filter((_, n) => n !== i),
-              })
-            }
-          >
-            Remove hours {i + 1}
-          </button>
-        </div>
-      ))}
-      <button
-        type="button"
-        className={styles.quiet}
-        onClick={() =>
-          setShop("opening_hours", {
-            ...hours,
-            entries: [...entries, emptyRow(HOURS_FIELDS)],
-          })
-        }
-      >
-        Add hours
-      </button>
     </div>
   );
 }
@@ -1459,7 +1413,7 @@ function ReviewSection({
       </div>
 
       <div className={styles.previewHead}>
-        <h3>Public page preview</h3>
+        <h3>Saved content preview</h3>
         <div className={styles.toggle} role="group" aria-label="Preview width">
           {(["desktop", "mobile"] as const).map((v) => (
             <button
@@ -1473,6 +1427,8 @@ function ReviewSection({
           ))}
         </div>
       </div>
+      <p className={styles.help}>Saved shop text only; unsaved edits are excluded. This is a content preview, not the live public page. Photos, the map and stamp artwork are reviewed in their own sections.</p>
+      <p className={styles.help}>{record.publicationStatus === "published" ? record.hasChanges ? "The public page still shows the previously published version." : "The saved shop details match the published version." : "This shop has no public page."}</p>
       <div className={previewWidth === "mobile" ? styles.previewMobile : undefined}>
         <Preview document={record.document} options={options} />
       </div>
@@ -1629,7 +1585,7 @@ function Preview({
   return (
     <article className={styles.preview} aria-label="Public page preview">
       <p>
-        <strong>Private catalogue preview</strong> · Unpublished changes are visible only
+        <strong>Saved private content</strong> · Unpublished changes are visible only
         to editors and admins.
       </p>
       <h2>{String(d.shop.name)}</h2>
@@ -1642,9 +1598,12 @@ function Preview({
           </p>
         ))}
       {d.shop.short_description && <p>{String(d.shop.short_description)}</p>}
+      <div className={styles.previewColumns}><div>
       <ShopEditorial
         content={decodeEditorialContent({ ...d.shop, experiences: d.experiences })}
       />
+      </div><div>
+      <h3>Plan your visit</h3>
       <ShopEditorialVisit
         content={decodeEditorialContent({ ...d.shop, experiences: d.experiences })}
       />
@@ -1696,7 +1655,7 @@ function Preview({
           {(((d.shop.opening_hours as Row).entries as Row[]) ?? []).map((r, i) => (
             <p key={i}>
               {String(r.day)}:{" "}
-              {r.closed ? "Closed" : r.opens ? `${r.opens}–${r.closes}` : "Hours not recorded"}
+              {r.closed ? "Closed" : r.opens ? `${r.opens}–${r.closes}${String(r.closes) < String(r.opens) ? " (next day)" : ""}` : r.closed === false ? "Open · times not recorded" : "Hours unknown"}
               {r.note ? ` · ${r.note}` : ""}
             </p>
           ))}
@@ -1705,6 +1664,7 @@ function Preview({
           )}
         </section>
       )}
+      </div></div>
       {d.sources.length > 0 && (
         <>
           <h3>Sources</h3>

@@ -66,10 +66,10 @@ const save = (page: Page) => page.getByRole("button", { name: "Save", exact: tru
 const saveAndReview = (page: Page) =>
   page.getByRole("button", { name: "Save and review", exact: true }).click();
 
-async function setup(page: Page) {
+async function setup(page: Page, initial?: ShopRecord) {
   await stubSession(page, { kind: "signed-in" });
   await page.route("**/api/v1/admin/access",route=>route.fulfill({json:{role:"admin"}}));
-  let record = fixture();
+  let record = initial ?? fixture();
   let oldDocument = structuredClone(record.document);
   const actions: string[] = [];
   let conflict = false;
@@ -160,6 +160,7 @@ async function setup(page: Page) {
   });
   return {
     actions,
+    current: () => structuredClone(record),
     conflict: () => {
       conflict = true;
     },
@@ -467,7 +468,7 @@ test('photos save privately, states are explicit and removal is honest', async (
   const dialog=page.getByRole('alertdialog');
   await expect(dialog).toContainText('not published yet');
   await dialog.getByRole('button',{name:'Show on public page'}).click();
-  await expect(section.getByRole('figure').getByText('On the public page',{exact:true})).toBeVisible();
+  await expect(section.getByRole('figure').getByText('Shown when shop is published',{exact:true})).toBeVisible();
   await section.getByRole('button',{name:'Remove from public page'}).click();
   await expect(page.getByRole('alertdialog')).toContainText('stays saved in this draft');
   await page.getByRole('alertdialog').getByRole('button',{name:'Remove from public page'}).click();
@@ -808,7 +809,7 @@ test('empty brand and specialty choices offer add/reuse and become selectable @s
   }
   await page.screenshot({path:info.outputPath('admin-choice-recovery.png'),fullPage:true});
   await saveAndReview(page);
-  await expect(page.getByText('Private catalogue preview',{exact:true})).toBeVisible();
+  await expect(page.getByText('Saved private content',{exact:true})).toBeVisible();
 });
 
 test('country is a searchable selector that stores the code @short',async({page})=>{
@@ -966,7 +967,7 @@ test('a refused image change closes the dialog and reports it @short', async ({p
   // The retry now carries the reloaded revision, so it succeeds.
   await section.getByRole('button',{name:'Show on public page'}).click();
   await page.getByRole('alertdialog').getByRole('button',{name:'Show on public page'}).click();
-  await expect(section.getByRole('figure').getByText('On the public page',{exact:true})).toBeVisible();
+  await expect(section.getByRole('figure').getByText('Shown when shop is published',{exact:true})).toBeVisible();
   expect(posts).toBe(2);
 });
 
@@ -1169,4 +1170,98 @@ test('oversized PNG logo is rejected before preview decoding or upload @short',a
   await expect(media.getByRole('alert')).toContainText('8192 px');
   await expect(media.getByAltText('Selected logo for M6 Demo shop')).toHaveCount(0);
   expect(uploads).toBe(0);
+});
+
+test('D hours preserve existing data, validate and survive copy/save/reopen @short', async ({page},info)=>{
+  const initial=fixture();
+  initial.document.shop.opening_hours={note:'Call first\nHoliday times vary',entries:[
+    {day:'monday',opens:'09:00',closes:'12:00',closed:false,note:'Morning'},
+    {day:'monday',opens:'22:00',closes:'02:00',closed:null,note:'Late'},
+    {day:'sunday',closed:true,note:'Closed for rest'},
+    {day:'wednesday',closed:false,note:'Times to confirm'},
+  ]};
+  initial.document.shop.holiday_note='Synthetic holiday note';
+  const originalSources=structuredClone(initial.document.sources), originalTypes=structuredClone(initial.document.types);
+  const state=await setup(page,initial);
+  await page.goto(`/admin/shops/${id}`); await open(page,'Visit details');
+  await expect(page.getByText('Closes the following day.')).toBeVisible();
+  await page.getByLabel('Opens',{exact:true}).first().fill('25:00');
+  await page.getByLabel('Closes',{exact:true}).nth(1).fill('26:00'); await save(page);
+  await expect(page.getByLabel('Opens',{exact:true}).first()).toBeFocused();
+  await expect(page.getByLabel('Opens',{exact:true}).first()).toHaveAttribute('aria-invalid','true');
+  await page.getByLabel('Opens',{exact:true}).first().fill('09:00');
+  await expect(page.getByLabel('Opens',{exact:true}).first()).not.toHaveAttribute('aria-invalid');
+  await expect(page.getByLabel('Closes',{exact:true}).nth(1)).toHaveAttribute('aria-invalid','true');
+  await page.getByLabel('Closes',{exact:true}).nth(1).fill('02:00');
+  await page.getByRole('button',{name:'Copy hours',exact:true}).click();
+  await saveAndReview(page);
+  const saved=state.current();
+  expect(saved.document.shop.opening_hours).toEqual(expect.objectContaining({note:'Call first\nHoliday times vary'}));
+  expect((saved.document.shop.opening_hours as {entries:{day:string}[]}).entries.map(r=>r.day)).toEqual(['monday','monday','tuesday','tuesday','wednesday','sunday']);
+  expect(saved.document.sources).toEqual(originalSources);
+  expect(saved.document.types).toEqual(originalTypes);
+  expect(state.actions).toEqual(['save']); // invalid local input never submitted
+  await expect(page.getByRole('heading',{name:'Saved content preview'})).toBeVisible();
+  await expect(page.getByRole('article',{name:'Public page preview'}).getByText('monday: 22:00–02:00 (next day) · Late')).toBeVisible();
+  await expect(page.getByRole('article',{name:'Public page preview'}).getByText('wednesday: Open · times not recorded · Times to confirm')).toBeVisible();
+  await page.reload(); await open(page,'Visit details');
+  await expect(page.getByLabel('Hours summary · optional')).toHaveValue('Call first\nHoliday times vary');
+  await expect(page.getByLabel('Hours state')).toHaveCount(6);
+  await expect(page.getByLabel('Hours note',{exact:true}).nth(1)).toHaveValue('Late');
+  const scan=await new AxeBuilder({page}).include('main').analyze(); expect(scan.violations).toEqual([]);
+  expect(await page.evaluate(()=>window.document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({path:info.outputPath('admin-d-hours.png'),fullPage:true});
+  page.once('dialog',d=>d.accept()); await page.getByRole('button',{name:'Clear all hours'}).click(); await save(page);
+  await page.reload(); await open(page,'Visit details');
+  expect(state.current().document.shop.opening_hours).toBeNull();
+  await expect(page.getByLabel('Holiday note',{exact:true})).toHaveValue('Synthetic holiday note');
+});
+
+test('D preview excludes unsaved changes and failed-save comparison does not silently rebase @short',async({page})=>{
+  const initial=fixture(); initial.publicationStatus='published';
+  const state=await setup(page,initial);
+  await page.goto(`/admin/shops/${id}`); await page.getByLabel('Shop name').fill('Unsaved synthetic name');
+  await open(page,'Review');
+  const preview=page.getByRole('article',{name:'Public page preview'});
+  await expect(preview.getByRole('heading',{name:'M6 Demo shop',exact:true})).toBeVisible();
+  await expect(preview.getByText('Unsaved synthetic name')).toHaveCount(0);
+  await expect(page.getByText(/You have unsaved edits/)).toBeVisible();
+  await expect(page.getByRole('button',{name:'Publish saved changes'})).toBeDisabled();
+  await open(page,'Shop & story'); state.conflict(); await save(page);
+  await page.getByRole('button',{name:'Compare latest saved version'}).click();
+  const comparison=page.getByRole('region',{name:'Compare with latest saved version'});
+  await expect(comparison.getByText('Unsaved synthetic name',{exact:true})).toBeVisible();
+  await expect(comparison.getByText('M6 Demo shop',{exact:true})).toBeVisible();
+  await expect(page.getByLabel('Shop name')).toHaveValue('Unsaved synthetic name');
+  await save(page); // still uses the conflicted base: comparison cannot authorize overwriting
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('changed in another session');
+  expect(state.current().document.shop.name).toBe('M6 Demo shop');
+  expect(state.actions).toEqual(['save','save']);
+});
+
+test('D gallery stale caption preserves local text through refresh and deliberate retry @short',async({page})=>{
+  await setup(page);
+  const photo='85000000-0000-4000-8000-000000000001';
+  let entry={id:photo,kind:'photo',width:2,height:2,altText:'Synthetic photo',creditText:null,status:'draft',revision:'a'.repeat(32),caption:'Original'};
+  let fail=true; const requests:Record<string,unknown>[]=[];
+  await page.route(`**/api/v1/admin/shops/${id}/media`,async route=>{
+    if(route.request().method()==='POST') {
+      const body=route.request().postDataJSON(); requests.push(body);
+      if(fail) { fail=false;entry={...entry,caption:'Changed in another tab',revision:'b'.repeat(32)};await route.fulfill({status:409,json:{error:{code:'revision_conflict'}}});return; }
+      expect(body.revisions).toEqual({[photo]:'b'.repeat(32)});
+      entry={...entry,caption:body.captions[photo],revision:'c'.repeat(32)};
+    }
+    await route.fulfill({json:{entries:[entry],capabilities:['arrange','remove']}});
+  });
+  await page.route(`**/api/v1/admin/shops/${id}/media/${photo}`,r=>r.fulfill({contentType:'image/png',body:makePng()}));
+  await page.goto(`/admin/shops/${id}`); await open(page,'Photos & logo');
+  await page.getByLabel('Photo caption · optional').fill('My caption to keep');
+  await page.getByRole('button',{name:'Save caption',exact:true}).click();
+  await expect(page.getByLabel('Photo caption · optional')).toHaveValue('My caption to keep');
+  await expect(page.getByText(/Saved caption: Changed in another tab/)).toBeVisible();
+  await page.getByRole('button',{name:'Replace saved caption with my text'}).click();
+  await expect(page.getByRole('button',{name:'Save caption',exact:true})).toBeDisabled();
+  await page.reload(); await open(page,'Photos & logo');
+  await expect(page.getByLabel('Photo caption · optional')).toHaveValue('My caption to keep');
+  expect(requests.map(r=>r.action)).toEqual(['arrange','arrange']); expect(entry.status).toBe('draft');
 });
