@@ -1269,6 +1269,7 @@ test('D gallery stale caption preserves local text through refresh and deliberat
 
 test('D3 real viewport preview preserves public layout and excludes private media @short',async({page},info)=>{
   const initial=fixture();
+  initial.revision='72000000-0000-4000-8000-000000000001';
   Object.assign(initial.document.shop,{field_note_body:'Synthetic saved story',address_line_1:'Synthetic address',internal_notes:'D3 PRIVATE NOTE',reference_links:'https://example.test/private'});
   const state=await setup(page,initial);
   const photo='85000000-0000-4000-8000-000000000001', privatePhoto='85000000-0000-4000-8000-000000000002',logo='85000000-0000-4000-8000-000000000003';

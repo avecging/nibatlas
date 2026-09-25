@@ -15,8 +15,8 @@ function install(overrides:{status?:number;revision?:string}={}) {
   const fetch=vi.fn(async(path:string)=>new Response(JSON.stringify(path.endsWith('/options')?options:path.endsWith('/media')?{entries:[{id:type,kind:'photo',width:2,height:2,altText:'Private photo',creditText:null,status:'draft',revision}]}:{...record,revision:overrides.revision??revision}),{status:overrides.status??200}));
   vi.stubGlobal('fetch',fetch);return fetch;
 }
-it('reads the exact saved revision with GET only and excludes private images',async()=>{
-  const fetch=install();render(<SavedPublicPreview id={id} revision={revision}/>);
+it.each([revision,'72000000-0000-4000-8000-000000000001'])('reads the exact saved revision %s with GET only and excludes private images',async(savedRevision)=>{
+  const fetch=install({revision:savedRevision});render(<SavedPublicPreview id={id} revision={savedRevision}/>);
   expect(await screen.findByText('Saved synthetic')).toBeTruthy();expect(screen.queryByText('Private photo')).toBeNull();
   expect(fetch).toHaveBeenCalledTimes(3);
   for(const [,init] of fetch.mock.calls as unknown as [string,RequestInit][]) {expect(init.method).toBeUndefined();expect(init.cache).toBe('no-store');}

@@ -5,7 +5,7 @@ import { ShopDetailView } from '@/src/components/shops/ShopDetailView';
 import { Button } from '@/src/components/ui/Button';
 import { Icon } from '@/src/components/ui/Icon';
 import { useAccountSession } from '@/src/features/account/AccountSessionProvider';
-import { decodeShop, decodeOptions, UUID, type ShopRecord } from './shop-contract';
+import { decodeShop, decodeOptions, UUID, SHOP_REVISION, type ShopRecord } from './shop-contract';
 import { decodeShopMedia, mediaPath, type ShopMedia } from './media-contract';
 import { projectSavedShopPreview } from './public-preview';
 import actionStyles from '@/src/components/shops/ShopActions.module.css';
@@ -26,7 +26,7 @@ function AuthorizedPreview({id,revision}: {id:string;revision:string}) {
   const key = `${id}:${revision}`;
   useEffect(() => {
     const controller = new AbortController();
-    if (!UUID.test(id) || !/^[a-f0-9]{32}$/.test(revision)) return;
+    if (!UUID.test(id) || !SHOP_REVISION.test(revision)) return;
     const read = async (path:string) => {
       const response = await fetch(path, {signal:controller.signal,cache:'no-store',credentials:'same-origin'});
       if (!response.ok) throw Error(response.status === 401 || response.status === 403 ? 'Sign in with current editor or admin access to view this preview.' : 'The saved preview could not load. Refresh the preview to try again.');
@@ -50,7 +50,7 @@ function AuthorizedPreview({id,revision}: {id:string;revision:string}) {
     });
     return () => controller.abort();
   }, [id,revision,key]);
-  if (!UUID.test(id) || !/^[a-f0-9]{32}$/.test(revision)) return <p role="alert">Invalid preview link.</p>;
+  if (!UUID.test(id) || !SHOP_REVISION.test(revision)) return <p role="alert">Invalid preview link.</p>;
   const current = result?.key === key ? result : null;
   if (current?.error) return <p role="alert">{current.error}</p>;
   if (!current?.snapshot) return <p role="status">Loading saved public-page preview…</p>;
