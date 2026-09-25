@@ -260,6 +260,8 @@ export const HOURS_EXCEPTION_FIELDS: Field[] = [
 ];
 export const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Public-document fingerprints and private-working-copy UUIDs are both opaque revisions.
+export const SHOP_REVISION = /^([a-f0-9]{32}|[a-f0-9-]{36})$/i;
 export function object(v: unknown): Record<string, unknown> {
   if (!v || typeof v !== "object" || Array.isArray(v))
     throw Error("Invalid contract");
@@ -361,7 +363,7 @@ export function decodeShop(value: unknown): ShopRecord {
     publicationStatus = text(r.publicationStatus);
   if (
     !UUID.test(id) ||
-    !/^([a-f0-9]{32}|[a-f0-9-]{36})$/i.test(revision) ||
+    !SHOP_REVISION.test(revision) ||
     !["draft", "published", "archived"].includes(publicationStatus) ||
     typeof r.hasChanges !== "boolean"
   )

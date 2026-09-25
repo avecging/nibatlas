@@ -251,3 +251,39 @@ mutation document or a deliberate reload. The saved-text preview is labelled as
 such and excludes unsaved/private maintenance content; full public rendering and
 pending-media/artwork review integration remain D follow-ups. Catalogue save
 continues to advance private state and invalidate C3 bindings as specified above.
+
+
+## D3 saved public-renderer preview
+
+`/admin/shops/[id]/preview?revision=<opaque revision>` is a private client shell,
+not a public preview token. It embeds no catalogue data in initial HTML and uses
+only the existing authorized, private/no-store shop, options and media GETs. It
+rejects a mismatched saved revision rather than silently previewing newer content.
+Unsigned/ordinary accounts remain denied by those existing server boundaries.
+Changing accounts unmounts the in-memory snapshot. Preview routes never mount the
+normal saved-shop/collection providers, so opening a preview cannot trigger a
+local-save import or pending account action. No new mutation endpoint is added.
+
+The editor embeds this route at real 360/1280 px viewport widths. A public-field
+allowlist feeds the same public decoder/adapter and `ShopDetailView` used on the
+shop page. It previews the saved content as it would look after editorial
+publication; unsaved form values, private notes/references, evidence notes and
+actor metadata never enter the rendered model. Incomplete required identity,
+location/timezone/type data produce an incomplete-preview notice, not invented
+facts. Weekly split/overnight/open-unknown labels now share the actual renderer.
+
+The frame shows only approved images in their saved order, through authenticated
+private delivery (also for unpublished shops). Draft images and stamp activation
+choices are excluded. This is a current media snapshot, not revision-bound media
+publication approval; refresh to reread. Gallery/zoom interactions work. Account
+actions are inert and link activation is suppressed within the frame. Nearby
+recommendations, account state and the future editorial review date are not
+invented. Stamp art remains in its own review section, matching the current public
+page's absence of a stamp identity header. Private save/publish/activation APIs,
+audit, C3 review bindings and historical impressions are unchanged.
+
+Migration `20260925083746_d3_public_preview_option_order.sql` only adds the public
+projection's `code` tie-break after `sort_order` to type/service/specialty options.
+It changes no rows, IDs, labels, grants or current-role checks; grouped import
+mapping retains exactly the same vocabulary. Deploy it before claiming ordering
+parity. Integrated pending media/artwork review remains the next D checkpoint.
