@@ -448,3 +448,38 @@ The import picker displays the successfully loaded filename independently of its
 cleared native file input, so the same filename can be reselected after editing.
 Selecting a replacement updates the display; starting a new batch or reopening
 another batch restores “No file chosen”. Import mapping and publication are unchanged.
+
+
+## D3 saved public-page preview — PR checkpoint
+
+D2 is merged in #96 and founder-reported generally working. D3 replaces the
+separate text mockup with the public shop renderer, including approved gallery
+and logo, in a real Mobile (360 px) or Desktop (1280 px) viewport. On a narrow
+screen the desktop frame scrolls sideways; it does not widen the editor. Refresh
+preview rereads the saved revision and current approved images. A changed saved
+revision requires reloading/reviewing the shop. This action does not save, publish
+or activate anything. Optional private images remain in Photos & logo, and stamp
+choices remain in Stamp. Combined pending-media review/publication is still D work.
+
+After a separately authorized deployment:
+
+1. Open a synthetic shop with complete saved location/timezone/type and story,
+   multiple experiences, split/overnight/dated hours, one approved photo/logo and
+   one private photo. Choose Review, then Mobile and Desktop. Check the familiar
+   public layout, approved gallery and logo, full images/captions and readable
+   hours. Open/close a photo with keyboard and Escape; the editor should fit your
+   phone. Nearby/account state and the future review date are explicitly omitted.
+2. Keep a text change unsaved, then open Review. The frame must show saved text;
+   save privately to include it. Public content/artwork must remain unchanged.
+3. Confirm internal notes/reference links/evidence notes and private images are
+   absent in the frame. Save/Collect/Directions do not act from this preview.
+4. Save a newer revision in a second tab, then Refresh preview in the old tab.
+   Expect the changed-version notice, with no silent rebase or publication.
+5. A name-only draft shows its saved name and an incomplete-preview explanation.
+   Use the existing Fix actions to complete known facts; do not fabricate them.
+6. Sign out or use an ordinary account: direct preview links reveal no private
+   content. Image delivery retains its existing live editor/admin check.
+
+A small read-only vocabulary ordering migration is included, with no catalogue
+row changes. It has not been applied to hosted projects by this work. Map tiles
+reported by the founder are tracked separately in #97; D3 makes no map-fix claim.

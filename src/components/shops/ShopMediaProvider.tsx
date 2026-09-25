@@ -138,3 +138,15 @@ export function ShopMediaProvider({
 
   return <ShopMediaContext.Provider value={value}>{children}</ShopMediaContext.Provider>;
 }
+
+/** An already authorized snapshot, used only by the private saved preview. */
+export function ShopMediaSnapshotProvider({shopId,entries,children}: {
+  shopId:string; entries:readonly ShopMedia[]; children:ReactNode;
+}) {
+  const value = useMemo<ShopMediaValue>(() => ({
+    status:'ready', ...splitShopMedia(entries),
+    srcFor:(id:string) => `${mediaPath(shopId)}/${id}`,
+    retry:() => {},
+  }), [shopId,entries]);
+  return <ShopMediaContext.Provider value={value}>{children}</ShopMediaContext.Provider>;
+}
