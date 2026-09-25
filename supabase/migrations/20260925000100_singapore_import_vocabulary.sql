@@ -6,9 +6,9 @@ begin;
 
 insert into public.localities
   (id,country_code,name,locality_type,slug,centroid)
-values
-  ('00000000-0000-4000-8000-000000000201','SG','Singapore','city','singapore',
-   extensions.st_setsrid(extensions.st_makepoint(103.8198,1.3521),4326))
+select
+  '00000000-0000-4000-8000-000000000201','SG','Singapore','city','singapore',
+   extensions.st_setsrid(extensions.st_makepoint(103.8198,1.3521),4326)
 where not exists (
   select 1 from public.localities where country_code='SG' and lower(name)='singapore'
 )
