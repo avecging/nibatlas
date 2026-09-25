@@ -1659,6 +1659,9 @@ function Preview({
               {r.note ? ` · ${r.note}` : ""}
             </p>
           ))}
+          {(((d.shop.opening_hours as Row).exceptions as Row[]) ?? []).map((r, i) => (
+            <p key={`exception-${i}`}>Date-specific {String(r.date)}: {r.closed ? 'Closed' : r.opens ? `${r.opens}–${r.closes}${String(r.closes) < String(r.opens) ? ' (next day)' : ''}` : r.closed === false ? 'Open · times not recorded' : 'Hours unknown'}{r.note ? ` · ${r.note}` : ''}</p>
+          ))}
           {(d.shop.opening_hours as Row).note && (
             <p>{String((d.shop.opening_hours as Row).note)}</p>
           )}

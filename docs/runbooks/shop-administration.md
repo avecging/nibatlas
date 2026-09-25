@@ -388,8 +388,8 @@ main map #87 and other launch/field acceptance remain out of scope.
   carries every period/note and asks before replacing existing destination entries.
   Clear all hours deliberately sets the weekly document to null; the separate
   holiday note remains. Simply opening the editor does not materialize empty days.
-  Date-specific information can still use the holiday note in prose; structured
-  exceptions remain a later D slice, not an unsupported input silently discarded.
+  Date-specific information could use the holiday note in prose in D1; D2 adds
+  structured date exceptions without changing older saved notes.
 - **Photos & logo:** arrangement/captions save separately. The first approved
   photo is identified as the public cover; a private first photo is not claimed
   as live. For an unpublished shop, approved images are marked for publication.
@@ -428,6 +428,23 @@ main map #87 and other launch/field acceptance remain out of scope.
    rows require re-review. Saving text or arranging media never publishes a shop,
    activates artwork or changes collected impressions. Existing role denial remains.
 
-Technical evidence belongs in the D1 PR. Full dated hours, actual public-renderer
+Technical evidence belongs in the D1 PR. Actual public-renderer
 preview and integrated pending-media/artwork review remain in Package D. Combined
 C2+C3 founder testing continues independently; it is not implied by CI.
+
+## D2 dated hours and import file feedback — PR only
+
+The Visit details editor accepts dated exception rows alongside weekly hours.
+Enter a shop-local date, choose Unknown/Open/Closed, and optionally enter paired
+24-hour times and a note. Two open rows on one date create split periods; an
+earlier closing time means the following day. A closed date stands alone. The
+weekly rows, general holiday note and pre-existing shop records remain intact.
+Save privately, then deliberately publish the shop text for the date entries to
+appear under “Before you go” on the public detail. The read-only saved-text
+preview and C3 saved/public comparison include exceptions; public-renderer parity
+and integrated media/artwork review remain separate D work.
+
+The import picker displays the successfully loaded filename independently of its
+cleared native file input, so the same filename can be reselected after editing.
+Selecting a replacement updates the display; starting a new batch or reopening
+another batch restores “No file chosen”. Import mapping and publication are unchanged.

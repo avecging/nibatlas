@@ -29,6 +29,7 @@ export type OpeningHoursEntry = {
   readonly closed?: boolean;
   readonly note?: string;
 };
+export type OpeningHoursException = Omit<OpeningHoursEntry, 'day'> & { readonly date: string };
 
 export interface ShopLink {
   readonly label: string;
@@ -229,6 +230,7 @@ export interface ShopDetail extends ShopMapSummary {
   readonly practical?: ShopPracticalInfo;
   readonly brands?: readonly string[];
   readonly openingHours?: readonly OpeningHoursEntry[];
+  readonly openingHoursExceptions?: readonly OpeningHoursException[];
   readonly openingHoursNote?: string;
   readonly links?: readonly ShopLink[];
   readonly positionPrecision: PositionPrecision;

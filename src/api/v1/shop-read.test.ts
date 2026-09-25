@@ -45,6 +45,15 @@ function detail() {
 }
 
 describe("v1 shop read runtime contract", () => {
+  it('decodes bounded local date exceptions and rejects impossible dates', () => {
+    const exceptions = [{date:'2026-12-25',closed:true,note:'Holiday'},{date:'2026-12-31',opens:'22:00',closes:'02:00'}];
+    expect(decodeShopDetailV1({...detail(),openingHoursExceptions:exceptions})?.openingHoursExceptions).toEqual(exceptions);
+    expect(() => decodeShopDetailV1({...detail(),openingHoursExceptions:[{date:'2026-02-30'}]})).toThrow(ShopReadContractError);
+    expect(() => decodeShopDetailV1({...detail(),openingHoursExceptions:{date:'2026-12-25'}})).toThrow(ShopReadContractError);
+    expect(() => decodeShopDetailV1({...detail(),openingHoursExceptions:[{date:'2026-12-25',opens:'25:00',closes:'12:00'}]})).toThrow(ShopReadContractError);
+    expect(() => decodeShopDetailV1({...detail(),openingHoursExceptions:[{date:'2026-12-25',opens:'09:00'}]})).toThrow(ShopReadContractError);
+    expect(() => decodeShopDetailV1({...detail(),openingHoursExceptions:[{date:'2026-12-25',closed:true,opens:'09:00',closes:'12:00'}]})).toThrow(ShopReadContractError);
+  });
   it("preserves explicit-null specialtyLine", () => {
     const decoded = decodeViewportShopsV1({
       shops: [MAP_SHOP],

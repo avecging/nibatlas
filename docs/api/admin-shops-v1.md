@@ -215,8 +215,18 @@ The hours UI writes the same `opening_hours: null | {note?,entries?}` document.
 Rows still contain only day/opens/closes/closed/note; split/overnight rows and
 unknown flags survive. Day copy preserves every source row/note and explicitly
 replaces only the chosen destination. Whole-hours clear writes null; clearing a
-summary does not clear entries or the separate `holiday_note`. Structured dated
-exceptions are not part of this contract. Manual/import normalization is unchanged.
+summary does not clear entries or the separate `holiday_note`.
+
+The D2 addition is `opening_hours.exceptions?: {date,opens?,closes?,closed?,note?}[]`
+on the same complete shop document. Dates are real ISO `YYYY-MM-DD` shop-local
+calendar dates; at most 100 rows. A date can have multiple open periods, including
+overnight spans, or one closed row. Open and closed rows cannot coexist on a date;
+times come in pairs and a closed row has no times. Unknown remains distinct from
+closed. Missing exceptions decode as empty and do not alter old weekly rows or
+holiday prose. Shared manual/import normalization and the SQL writer enforce the
+same shape; v1 CSV/JSON import does not accept exceptions as a mapped column and
+preserves existing hours. The published detail returns `openingHoursExceptions`
+only from the published revision. A private save never publishes these entries.
 
 Failed-save comparison uses the existing GET and never swaps in its revision for
 local unsaved edits. A current revision is adopted only with the returned saved

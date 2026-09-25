@@ -36,6 +36,7 @@ export function ImportAdmin() {
 function ImportWorkspace() {
   const [options, setOptions] = useState<Options | null>(null), [denied, setDenied] = useState(false);
   const [upload, setUpload] = useState<Upload | null>(null), [columns, setColumns] = useState<ColumnMap>({}), [values, setValues] = useState<ValueMap>({});
+  const [selectedFilename, setSelectedFilename] = useState('');
   const [results, setResults] = useState<PreviewRow[]>([]), [busy, setBusy] = useState(false), [message, setMessage] = useState('Loading catalogue choices…');
   const [filter, setFilter] = useState('all'), [query, setQuery] = useState(''), [page, setPage] = useState(0);
   const [resumedRows, setResumedRows] = useState<MappedRow[] | null>(null);
@@ -53,7 +54,7 @@ function ImportWorkspace() {
   const invalidate = () => { generation.current++; controller.current?.abort(); setResults([]); setPage(0); setMessage('Inputs changed. Run preview again.'); };
   async function select(file: File | undefined) {
     if (!file) return;
-    invalidate(); setUpload(null); setColumns({}); setResumedRows(null);
+    invalidate(); setUpload(null); setSelectedFilename(''); setColumns({}); setResumedRows(null);
     const current = generation.current;
     try {
       if (file.size > MAX_BYTES) throw Error('Use a file no larger than 2 MiB.');
@@ -62,7 +63,7 @@ function ImportWorkspace() {
       const text = new TextDecoder('utf-8', { fatal: true }).decode(await file.arrayBuffer());
       const parsed = parseFile(text, format);
       if (current !== generation.current) return;
-      if (!batchId) setBatchId(crypto.randomUUID()); setUpload(parsed); setColumns(defaultColumns(parsed.columns)); setMessage(`${parsed.rows.length} rows loaded. Check columns and resolve vocabulary once per distinct value.`);
+      if (!batchId) setBatchId(crypto.randomUUID()); setUpload(parsed); setSelectedFilename(file.name); setColumns(defaultColumns(parsed.columns)); setMessage(`${parsed.rows.length} rows loaded. Check columns and resolve vocabulary once per distinct value.`);
     } catch (e) { if (current === generation.current) setMessage((e as Error).message); }
   }
   async function preview() {
@@ -94,7 +95,7 @@ function ImportWorkspace() {
       completed.sort((a, b) => a.line - b.line); setResults(completed); setMessage(`Preview complete: ${completed.length} rows checked. Nothing has been saved or published.`);
     } catch (e) {
       if (!c.signal.aborted) {
-        if (e instanceof AccessError) { setDenied(true); setOptions(null); setUpload(null); setValues({}); }
+        if (e instanceof AccessError) { setDenied(true); setOptions(null); setUpload(null); setSelectedFilename(''); setValues({}); }
         setMessage((e as Error).message); setResults([]);
       }
     } finally { if (current === generation.current) setBusy(false); }
@@ -120,7 +121,10 @@ function ImportWorkspace() {
           <li>Only mapped fields are considered. Media URLs, opening-hour structures, sources, aliases and experiences cannot be imported in v1; existing values remain intact.</li>
           <li>Correct the source file and reselect it to check again. Vocabulary mappings are reused during this signed-in session. Only reviewed rows are retained privately for recovery; raw files are not uploaded or retained.</li>
         </ul></details>
-        <label className={styles.field}>CSV or JSON file<input type="file" accept=".csv,.json" disabled={busy} onChange={e => { void select(e.target.files?.[0]); e.target.value = ''; }} /></label>
+        <label className={`${styles.field} ${styles.filePicker}`}>CSV or JSON file
+          <span className={styles.fileSelection}><span className={styles.fileButton}>Choose file</span><span id="selected-import-file" className={styles.fileName} aria-live="polite">{selectedFilename || 'No file chosen'}</span></span>
+          <input className={styles.fileInput} type="file" accept=".csv,.json" aria-label="CSV or JSON file" aria-describedby="selected-import-file" disabled={busy} onChange={e => { void select(e.target.files?.[0]); e.target.value = ''; }} />
+        </label>
       </section>
       {upload && <><section aria-labelledby="columns-heading"><h2 id="columns-heading">2. Match your columns</h2><p>{upload.rows.length} rows · {upload.columns.length} columns. Ignored columns will not be included.</p>
         <div className={styles.grid}>{upload.columns.map((column, index) => <div className={styles.field} key={column}><label htmlFor={`column-${index}`}>{column}</label><select id={`column-${index}`} disabled={busy} value={columns[column] ?? ''} onChange={e => { invalidate(); setColumns({ ...columns, [column]: e.target.value }); }}><option value="">Ignore this column</option>{FIELDS.map(f => <option key={f} value={f}>{f}</option>)}</select><small>Example: {upload.rows.find(r => r.cells[column])?.cells[column]?.slice(0, 70) || '(blank)'}</small></div>)}</div>
@@ -144,11 +148,11 @@ function ImportWorkspace() {
         <div className={styles.actions}><button disabled={page === 0} onClick={() => setPage(page - 1)}>Previous rows</button><button disabled={(page + 1) * 25 >= visible.length} onClick={() => setPage(page + 1)}>Next rows</button></div>
       </section>}
       <PrivateImport blocked={busy} onBusyChange={setBusy} batchId={batchId} rows={mapped} previews={results} onResume={saved => {
-        invalidate(); setBatchId(saved.id); setUpload(null); setColumns({});
+        invalidate(); setBatchId(saved.id); setUpload(null); setSelectedFilename(''); setColumns({});
         setResumedRows(saved.operations.filter(o => o.status !== 'imported' && o.status !== 'skipped' && o.patch).map(o => o.patch!));
         setMessage('Batch reopened. Completed outcomes are retained. Preview unresolved rows before making corrections.');
       }} />
-      <button disabled={busy} onClick={() => { invalidate(); setBatchId(''); setUpload(null); setResumedRows(null); }}>Start a separate new batch</button>
+      <button disabled={busy} onClick={() => { invalidate(); setBatchId(''); setUpload(null); setSelectedFilename(''); setColumns({}); setResumedRows(null); }}>Start a separate new batch</button>
     </>}
   </div>;
 }

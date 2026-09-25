@@ -354,6 +354,18 @@ export function ShopDetailView({
                     </p>
                   </>
                 )}
+                {!!shop.openingHoursExceptions?.length && <div className={styles.hours}>
+                  <h4>Date-specific hours</h4>
+                  {[...shop.openingHoursExceptions].sort((a, b) => a.date.localeCompare(b.date)).map((entry, index) => (
+                    <p className={styles.hourRow} key={`${entry.date}-${index}`}>
+                      <span>{entry.date}</span>
+                      <span>{entry.closed ? 'Closed' : entry.opens && entry.closes
+                        ? `${entry.opens}–${entry.closes}${entry.closes < entry.opens ? ' (next day)' : ''}`
+                        : entry.closed === false ? 'Open · times not recorded' : 'Hours unknown'}
+                        {entry.note ? ` · ${entry.note}` : ''}</span>
+                    </p>
+                  ))}
+                </div>}
 
                 <FactList facts={facts.beforeYouGo} />
 
