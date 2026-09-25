@@ -408,7 +408,11 @@ must respect applicable national rules, copyright and personality rights.
 - Utility icons use simple 1.75–2 px strokes at 24 px.
 - Experience icons use a custom curved family with 1.5 px strokes at 24 px,
   rounded caps/joins and restrained detail that also reads at 18 px. The ink
-  bottle takes its broad rounded cut-glass silhouette from Mitasanshodo’s bottle.
+  bottle follows the founder’s Mitasanshodo-inspired sketch: broad cap, rounded
+  body, wavy ink line and simplified diamond cuts. Centre each drawing optically
+  with an approximately 18.5 px longest edge inside the 24 px canvas; the slender
+  nib can reach 20 px to balance its smaller area. Check the entire set together
+  at both 24 px and 18 px, including stroke clearance.
   The picker and public experience cards share this family; utility icons keep
   their existing treatment.
 - Rounded joins but not cartoonishly soft.
