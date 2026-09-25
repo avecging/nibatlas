@@ -1,4 +1,5 @@
 "use client";
+import { ExperienceIconPicker } from './ExperienceIconPicker';
 import { RevisionComparison } from "./RevisionComparison";
 import { HoursEditor } from "./HoursEditor";
 import { publicationFix } from "./publication-fix";
@@ -217,6 +218,9 @@ function Input({
         .filter(Boolean)
         .join(" ") || undefined,
   };
+  if (field.key === 'icon' && path.startsWith('experiences.')) {
+    return <ExperienceIconPicker value={value} change={change} path={path} error={error}/>;
+  }
   return (
     <div className={styles.field}>
       <label htmlFor={id}>

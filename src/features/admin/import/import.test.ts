@@ -104,6 +104,7 @@ describe('mapping and safe merged previews', () => {
     base.document.sources[0]!.claims = [' Name '];
     base.document.sources[0]!.evidence_note = '  private evidence  ';
     base.document.shop.internal_notes = '  private note  ';
+    base.document.experiences = [{id,category:'nib_testing',title:'Try nibs',icon:'nib'}];
     const row = mapRows(parse([{ shop_id: id }]), options, {})[0]!;
     const result = prepareRow(row, { ...context(), record: base }, options, id);
     expect(result.preview.action).toBe('no_change'); expect(result.preview.changes).toEqual([]);

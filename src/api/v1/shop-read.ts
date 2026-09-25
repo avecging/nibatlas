@@ -1,3 +1,4 @@
+import { EXPERIENCE_ICON_KEYS } from '@/src/domain/experience-icons';
 import { STAMP_MOTIFS } from '@/src/domain/stamp-design';
 import { STAMP_INK_LABELS } from '@/src/domain/stamp-palette';
 import type { EditorialContent, EditorialReview, ShopStampDesign } from '@/src/domain/shop-detail';
@@ -597,7 +598,8 @@ export function decodeEditorialContent(value: unknown): EditorialContent {
       if (!title.trim() || title.length > 4000 || (description?.length ?? 0) > 4000) throw new ShopReadContractError('Invalid experience');
       return { id: uuid(e.id, 'experience.id'), title,
         category: enumValue(e.category, ['fountain_pens','inks_paper','nib_testing','gifts','repairs','other'], 'experience.category'),
-        ...(description ? { description } : {}) };
+        ...(description ? { description } : {}),
+        ...(e.icon == null ? {} : { icon: enumValue(e.icon, EXPERIENCE_ICON_KEYS, 'experience.icon') }) };
     });
   }
   return result as EditorialContent;
