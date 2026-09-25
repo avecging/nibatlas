@@ -157,10 +157,12 @@ function DocumentComparison({ saved, published, options }: { saved: Document; pu
     const h = d?.shop.opening_hours;
     if (!h || typeof h !== 'object' || Array.isArray(h)) return 'Unknown / not supplied';
     const entries = Array.isArray(h.entries) ? h.entries : [];
+    const exceptions = Array.isArray(h.exceptions) ? h.exceptions : [];
     return [h.note ? `Note: ${String(h.note)}` : '', ...entries.map(entry => {
       if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return '';
       return HOURS_FIELDS.filter(f => entry[f.key] !== null && entry[f.key] !== undefined).map(f => `${f.label}: ${display(entry[f.key], f, options)}`).join(' · ');
-    })].filter(Boolean).join('\n') || 'No hours recorded';
+    }), ...exceptions.map(entry => entry && typeof entry === 'object' && !Array.isArray(entry)
+      ? `Date-specific ${String(entry.date)}: ${entry.closed ? 'Closed' : entry.opens ? `${entry.opens}–${entry.closes}` : entry.closed === false ? 'Open · times not recorded' : 'Unknown'}${entry.note ? ` · ${entry.note}` : ''}` : '')].filter(Boolean).join('\n') || 'No hours recorded';
   };
   return <dl>{compare('Opening hours', hours(published), hours(saved))}{SHOP_FIELDS.map(f => compare(f.label, display(published?.shop[f.key], f, options), display(saved.shop[f.key], f, options)))}
     {GROUPS.map(g => {

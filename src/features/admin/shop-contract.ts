@@ -249,6 +249,13 @@ export const HOURS_FIELDS: Field[] = [
   f("closed", "Closed", { kind: "boolean" }),
   f("note", "Hours note"),
 ];
+export const HOURS_EXCEPTION_FIELDS: Field[] = [
+  f("date", "Date", { required: true }),
+  f("opens", "Opens"),
+  f("closes", "Closes"),
+  f("closed", "Closed", { kind: "boolean" }),
+  f("note", "Exception note"),
+];
 export const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function object(v: unknown): Record<string, unknown> {
@@ -318,12 +325,15 @@ export function document(value: unknown): Document {
   shop.opening_hours = null;
   if (hours !== null && hours !== undefined) {
     const h = object(hours);
-    if (Object.keys(h).some((k) => k !== "entries" && k !== "note"))
+    if (Object.keys(h).some((k) => k !== "entries" && k !== "note" && k !== "exceptions"))
       throw Error("Invalid hours");
     shop.opening_hours = {
       ...(h.note ? { note: text(h.note) } : {}),
       ...(h.entries
         ? { entries: rows(h.entries).map((r) => fields(r, HOURS_FIELDS)) }
+        : {}),
+      ...(h.exceptions
+        ? { exceptions: rows(h.exceptions).map((r) => fields(r, HOURS_EXCEPTION_FIELDS)) }
         : {}),
     };
   }

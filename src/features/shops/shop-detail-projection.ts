@@ -178,6 +178,9 @@ export function projectShopDetail(
     ...(wire.openingHours === undefined || wire.openingHours.length === 0
       ? {}
       : { openingHours: wire.openingHours }),
+    ...(wire.openingHoursExceptions === undefined || wire.openingHoursExceptions.length === 0
+      ? {}
+      : { openingHoursExceptions: wire.openingHoursExceptions }),
     ...(wire.openingHoursNote === undefined
       ? {}
       : { openingHoursNote: wire.openingHoursNote }),

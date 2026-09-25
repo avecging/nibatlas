@@ -107,6 +107,7 @@ export interface ShopDetailReadV1 extends ShopMapSummary {
   readonly phone?: string;
   readonly websiteUrl?: string;
   readonly openingHours?: readonly OpeningHoursEntry[];
+  readonly openingHoursExceptions?: readonly import('@/src/domain/shop-detail').OpeningHoursException[];
   readonly openingHoursNote?: string;
   readonly lastVerifiedAt?: string;
   readonly shopTypes: readonly ShopType[];
@@ -418,6 +419,24 @@ function openingHours(value: unknown): readonly OpeningHoursEntry[] {
     };
   });
 }
+function openingHoursExceptions(value: unknown): readonly import('@/src/domain/shop-detail').OpeningHoursException[] {
+  if (!Array.isArray(value) || value.length > 100) throw new ShopReadContractError('detail.openingHoursExceptions must be a bounded array');
+  return value.map((entry, index) => {
+    const item = record(entry, `detail.openingHoursExceptions[${index}]`);
+    const date = string(item.date, `detail.openingHoursExceptions[${index}].date`);
+    const parsed = new Date(`${date}T00:00:00Z`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date)
+      throw new ShopReadContractError(`detail.openingHoursExceptions[${index}].date must be a real YYYY-MM-DD date`);
+    const opens = optionalString(item.opens, `detail.openingHoursExceptions[${index}].opens`);
+    const closes = optionalString(item.closes, `detail.openingHoursExceptions[${index}].closes`);
+    const note = optionalString(item.note, `detail.openingHoursExceptions[${index}].note`);
+    const closed = item.closed === undefined || item.closed === null ? undefined : boolean(item.closed, `detail.openingHoursExceptions[${index}].closed`);
+    if ((opens === undefined) !== (closes === undefined) || (closed === true && opens !== undefined)
+      || (opens !== undefined && (!/^([01]\d|2[0-3]):[0-5]\d$/.test(opens) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(closes!))))
+      throw new ShopReadContractError(`detail.openingHoursExceptions[${index}] has invalid hours`);
+    return {date, ...(opens === undefined ? {} : {opens}), ...(closes === undefined ? {} : {closes}), ...(note === undefined ? {} : {note}), ...(closed === undefined ? {} : {closed})};
+  });
+}
 
 export function decodeShopDetailV1(value: unknown): ShopDetailReadV1 | null {
   if (value === null) {
@@ -434,6 +453,7 @@ export function decodeShopDetailV1(value: unknown): ShopDetailReadV1 | null {
   const optional = (key: string) => optionalString(item[key], `detail.${key}`);
   const addressLines = item["addressLines"] === undefined ? undefined : stringArray(item["addressLines"], "detail.addressLines");
   const hours = item["openingHours"] === undefined ? undefined : openingHours(item["openingHours"]);
+  const exceptions = item["openingHoursExceptions"] === undefined ? undefined : openingHoursExceptions(item["openingHoursExceptions"]);
   const shortDescription = optional("shortDescription");
   const postalCode = optional("postalCode");
   const neighbourhood = optional("neighbourhood");
@@ -528,6 +548,7 @@ export function decodeShopDetailV1(value: unknown): ShopDetailReadV1 | null {
     ...(phone === undefined ? {} : { phone }),
     ...(websiteUrl === undefined ? {} : { websiteUrl }),
     ...(hours === undefined ? {} : { openingHours: hours }),
+    ...(exceptions === undefined ? {} : { openingHoursExceptions: exceptions }),
     ...(openingHoursNote === undefined ? {} : { openingHoursNote }),
     ...(lastVerifiedAt === undefined ? {} : { lastVerifiedAt }),
   };

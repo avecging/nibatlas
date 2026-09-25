@@ -23,6 +23,19 @@ function Harness({initial=hours as Value}:{initial?:Value}) {
 }
 const result = () => JSON.parse(screen.getByTestId('hours-value').textContent!);
 describe('weekly hours editor',()=>{
+  it('edits, saves and clears a date-specific closure without altering weekly periods',()=>{
+    render(<Harness/>);
+    fireEvent.click(screen.getByRole('button',{name:'Add date exception'}));
+    const row=within(screen.getByRole('group',{name:'Exception 1'}));
+    fireEvent.change(row.getByLabelText('Date'),{target:{value:'2026-12-25'}});
+    fireEvent.change(row.getByLabelText('Exception state'),{target:{value:'closed'}});
+    fireEvent.change(row.getByLabelText('Exception note'),{target:{value:'Holiday'}});
+    fireEvent.click(screen.getByText('Save and reopen'));
+    expect(result().exceptions[0]).toMatchObject({date:'2026-12-25',closed:true,note:'Holiday'});
+    expect(result().entries).toHaveLength(4);
+    fireEvent.click(row.getByRole('button',{name:'Remove exception 1'}));
+    expect(result().exceptions).toEqual([]);
+  });
   it('retains split/overnight, unknown/closed and multiline notes through save and reopen',()=>{
     render(<Harness/>);
     expect(screen.getAllByLabelText('Hours state').map(e=>(e as HTMLSelectElement).value)).toEqual(['open','open','closed','unknown']);

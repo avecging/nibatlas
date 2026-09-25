@@ -13,11 +13,13 @@ export function HoursEditor({value, errors, onChange}: {
 }) {
   const hours = (value as Row | null) ?? {};
   const entries = (hours.entries ?? []) as Row[];
+  const exceptions = (hours.exceptions ?? []) as Row[];
   const [copyFrom, setCopyFrom] = useState('monday');
   const [copyTo, setCopyTo] = useState('tuesday');
   const [notice, setNotice] = useState('');
   const id = useId();
   const change = (next: Row[]) => onChange({...hours, entries: next});
+  const changeException = (index: number, patch: Row) => onChange({...hours, exceptions: exceptions.map((r, i) => i === index ? {...r, ...patch} : r)});
   const fieldError = (path: string) => errors.find(e => e.path === path)?.message;
   const input = (row: Row, index: number, key: 'opens' | 'closes' | 'note') => {
     const path = `shop.opening_hours.entries.${index}.${key}`;
@@ -96,10 +98,47 @@ export function HoursEditor({value, errors, onChange}: {
         change(next); setNotice(`Copied ${label(copyFrom)} to ${label(copyTo)}. Save to keep these edits.`);
       }}>Copy hours</button>
     </fieldset>
+    <h4>Date-specific exceptions</h4>
+    <p className={styles.help}>These dates override the weekly hours on that date. Add separate periods for a split day. An earlier closing time means the next day. Dates and times are local to the shop.</p>
+    {exceptions.map((row, index) => {
+      const path = `shop.opening_hours.exceptions.${index}`;
+      const state = row.closed === true ? 'closed' : row.closed === false || row.opens || row.closes ? 'open' : 'unknown';
+      const control = (key: 'date' | 'opens' | 'closes' | 'note', type = 'text') => {
+        const field = `${id}-exception-${index}-${key}`, error = fieldError(`${path}.${key}`);
+        return <div className={styles.field} key={key}><label htmlFor={field}>{key === 'note' ? 'Exception note' : key[0]!.toUpperCase() + key.slice(1)}</label>
+          <input id={field} type={type} data-field-path={`${path}.${key}`} value={String(row[key] ?? '')}
+            maxLength={key === 'note' ? 4000 : key === 'date' ? 10 : 5}
+            aria-invalid={!!error || undefined} aria-describedby={error ? `${field}-error` : undefined}
+            onChange={e => changeException(index, {[key]: e.target.value || null})}/>
+          {error && <small id={`${field}-error`} className={styles.inlineError}>{error}</small>}</div>;
+      };
+      return <fieldset key={index} className={styles.card}><legend>Exception {index + 1}</legend><div className={styles.grid}>
+        {control('date', 'date')}
+        <div className={styles.field}><label htmlFor={`${id}-exception-${index}-state`}>Exception state</label>
+          <select id={`${id}-exception-${index}-state`} data-field-path={`${path}.closed`} value={state}
+            aria-invalid={!!fieldError(`${path}.closed`) || undefined}
+            aria-describedby={fieldError(`${path}.closed`) ? `${id}-exception-${index}-state-error` : undefined}
+            onChange={e => {
+              const next = e.target.value;
+              if (next !== 'open' && (row.opens || row.closes) && !window.confirm('Clear the times for this exception? Its note will be kept.')) return;
+              changeException(index, {closed: next === 'unknown' ? null : next === 'closed', ...(next !== 'open' ? {opens:null, closes:null} : {})});
+            }}><option value="unknown">Unknown</option><option value="open">Open · times optional</option><option value="closed">Closed</option></select>
+          {fieldError(`${path}.closed`) && <small id={`${id}-exception-${index}-state-error`} className={styles.inlineError}>{fieldError(`${path}.closed`)}</small>}
+        </div>
+        {state !== 'closed' && <>{control('opens')}{control('closes')}</>}
+        {control('note')}
+      </div>
+      {row.opens && row.closes && String(row.closes) < String(row.opens) && <p className={styles.help}>Closes the following day.</p>}
+      <button type="button" className={styles.quiet} onClick={e => {
+        onChange({...hours, exceptions: exceptions.filter((_, i) => i !== index)});
+        e.currentTarget.closest('[data-field-path="shop.opening_hours"]')?.querySelector<HTMLElement>('[data-add-exception]')?.focus();
+      }}>Remove exception {index + 1}</button></fieldset>;
+    })}
+    <button type="button" data-add-exception disabled={exceptions.length >= 100} onClick={() => onChange({...hours, exceptions: [...exceptions, {date:null,opens:null,closes:null,closed:null,note:null}]})}>Add date exception</button>
     <button type="button" className={styles.quiet} disabled={value == null} onClick={() => {
-      if (window.confirm('Clear all weekly hours and the hours summary? The separate holiday note will be kept. Save to apply this change.')) { onChange(null); setNotice('Hours cleared in this editor. Save to keep the change.'); }
+      if (window.confirm('Clear weekly hours, date exceptions and the hours summary? The separate holiday note will be kept. Save to apply this change.')) { onChange(null); setNotice('Hours cleared in this editor. Save to keep the change.'); }
     }}>Clear all hours</button>
     <p role="status">{notice}</p>
-    <p className={styles.help}>Use the holiday note above for dated information in prose. Structured date exceptions are not supported by this editor yet.</p>
+    <p className={styles.help}>Use the holiday note above for general holiday guidance. Save and publish shop text to make date exceptions public.</p>
   </div>;
 }
