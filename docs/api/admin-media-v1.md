@@ -346,3 +346,9 @@ only becomes that cover if explicitly shown; private photos stay private. New
 attachments append after existing positions. Captions and ordering on approved
 images change the public gallery immediately. Captions render as escaped text,
 separately from preserved credit. Normal catalogue saves still publish no media.
+
+D1 changes only editor recovery/presentation: stable image IDs key caption inputs.
+A gallery refresh retains unsaved caption text; a changed saved caption is shown
+alongside it and replacement is deliberate. Arrange still binds every latest
+image revision and never grants publication. No API, schema, retention, upload
+metadata or authorization changes are introduced by this UI slice.

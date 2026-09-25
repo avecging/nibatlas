@@ -107,7 +107,7 @@ export function ShopMediaAdmin({shopId,shopName,published,archived,role,onSummar
     </p>
     <div ref={feedback} tabIndex={-1} className={styles.feedback}>
       {error ? <p role="alert" className={styles.error}>{error}</p> : null}
-      <p role="status" aria-live="polite">{notice || (busy ? 'Working…' : loaded ? `${entries.length} saved · ${live} on the public page` : 'Loading images…')}</p>
+      <p role="status" aria-live="polite">{notice || (busy ? 'Working…' : loaded ? `${entries.length} saved · ${live} ${published ? "on the public page" : "marked for publication"}` : 'Loading images…')}</p>
     </div>
 
     {canArrange && <p className={styles.help}>Cover, order and caption changes save separately. Changes to images already on the public page are visible immediately; private images stay private.</p>}
@@ -124,7 +124,7 @@ export function ShopMediaAdmin({shopId,shopName,published,archived,role,onSummar
             <img className={kind === 'logo' ? styles.logo : styles.photo} src={`${path}/${entry.id}`} alt={entry.altText} width={entry.width} height={entry.height}/>
             <figcaption>
               <span className={entry.status === 'approved' ? styles.statePublic : styles.statePrivate}>
-                {entry.status === 'approved' ? 'On the public page' : 'Private to this draft'}
+                {entry.status === 'approved' ? published ? 'On the public page' : 'Shown when shop is published' : 'Private to this draft'}
               </span>
               <span className={styles.meta}>
                 {kind === 'logo' ? 'Logo' : `Photo ${index + 1}`} · {entry.width}×{entry.height}
@@ -132,8 +132,8 @@ export function ShopMediaAdmin({shopId,shopName,published,archived,role,onSummar
               </span>
             </figcaption>
             {canArrange && kind === 'photo' && <>
-              <p className={styles.help}>{index === 0 ? 'First photo · gallery cover when public' : `Gallery position ${index+1}`}</p>
-              <CaptionEditor key={`${entry.id}:${entry.caption ?? ""}`} value={entry.caption ?? ''} disabled={busy || archived}
+              <p className={styles.help}>{index === 0 ? 'First photo in saved gallery' : `Gallery position ${index+1}`} · {entry.id === photos.find(photo => photo.status === 'approved')?.id ? published ? 'Current public cover' : 'Cover when shop is published' : entry.status === 'draft' ? 'Private — not a public cover' : 'Public gallery photo'}</p>
+              <CaptionEditor key={entry.id} value={entry.caption ?? ''} disabled={busy || archived}
                 save={caption => arrange(entries,{[entry.id]:caption || null})} />
               <div className={styles.cardActions}>
                 <button type="button" disabled={busy || archived || index === 0} onClick={() => arrange([entry,...entries.filter(e => e.id !== entry.id)])}>Make cover</button>
@@ -199,14 +199,28 @@ export function ShopMediaAdmin({shopId,shopName,published,archived,role,onSummar
   </section>;
 }
 
-function CaptionEditor({value,disabled,save}: {value:string;disabled:boolean;save:(caption:string)=>void}) {
-  const [caption,setCaption] = useState(value);
-  usePendingUpload(caption !== value);
+export function CaptionEditor({value,disabled,save}: {value:string;disabled:boolean;save:(caption:string)=>void}) {
+  // A refreshed revision must never remount or replace unsaved caption text.
+  const [draft,setDraft] = useState<{text:string;base:string}|null>(null);
+  const [seenValue,setSeenValue] = useState(value);
+  const caption = draft?.text ?? value;
+  // Match PostgreSQL btrim(text): ordinary surrounding spaces, not all Unicode whitespace.
+  const canonical = caption.replace(/^ +| +$/g, '');
+  const dirty = canonical !== value;
+  const conflict = dirty && draft?.base !== value;
+  usePendingUpload(dirty);
+  if (seenValue !== value) {
+    setSeenValue(value);
+    if (draft && canonical === value) setDraft(null);
+  }
   return <div className={styles.picker}>
     <label>Photo caption · optional
-      <textarea value={caption} maxLength={300} disabled={disabled} onChange={e => setCaption(e.target.value)} />
+      <textarea value={caption} maxLength={300} disabled={disabled} onChange={e => setDraft({text:e.target.value,base:draft?.base ?? value})} />
     </label>
-    <button type="button" disabled={disabled || caption === value} onClick={() => save(caption)}>Save caption</button>
+    {conflict && <p role="status">The saved caption changed. Your text is kept above. Saved caption: {value || '(empty)'}. Review both before replacing it.</p>}
+    {dirty && <p className={styles.help}>Unsaved caption · save separately from shop details.</p>}
+    <button type="button" disabled={disabled || !dirty} onClick={() => save(caption)}>{conflict ? 'Replace saved caption with my text' : 'Save caption'}</button>
+    {dirty && <button type="button" disabled={disabled} onClick={() => setDraft(null)}>Use saved caption</button>}
   </div>;
 }
 

@@ -208,3 +208,19 @@ fresh review after a change; imported drafts are never implicitly approved.
 See `admin-import-v1.md` for the bounded wire contract and retention. Media and
 artwork remain separately published/activated. C3 technical acceptance,
 deployment and founder acceptance are tracked separately in its PR/runbook.
+
+## D1 editor behavior (no wire/schema change)
+
+The hours UI writes the same `opening_hours: null | {note?,entries?}` document.
+Rows still contain only day/opens/closes/closed/note; split/overnight rows and
+unknown flags survive. Day copy preserves every source row/note and explicitly
+replaces only the chosen destination. Whole-hours clear writes null; clearing a
+summary does not clear entries or the separate `holiday_note`. Structured dated
+exceptions are not part of this contract. Manual/import normalization is unchanged.
+
+Failed-save comparison uses the existing GET and never swaps in its revision for
+local unsaved edits. A current revision is adopted only with the returned saved
+mutation document or a deliberate reload. The saved-text preview is labelled as
+such and excludes unsaved/private maintenance content; full public rendering and
+pending-media/artwork review integration remain D follow-ups. Catalogue save
+continues to advance private state and invalidate C3 bindings as specified above.
