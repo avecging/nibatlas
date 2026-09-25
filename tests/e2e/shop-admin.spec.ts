@@ -589,6 +589,30 @@ test('stamp draft upload previews and explicit activation preserve earlier versi
   await section.screenshot({path:testInfo.outputPath('admin-stamp-preview.png')});
 });
 
+test('curated experience icons survive private save and reopen @short', async ({page}, info) => {
+  const initial=fixture();
+  initial.document.experiences=[{id:source,category:'nib_testing',title:'Synthetic nib testing',description:'Try a selection.'}];
+  const state=await setup(page,initial);
+  await page.goto(`/admin/shops/${id}`); await open(page,'Experiences');
+  const picker=page.getByRole('radiogroup',{name:'Experience icon',exact:true});
+  await expect(picker.getByRole('radio',{name:'Writing',exact:true})).toBeChecked();
+  await expect(picker.getByRole('radio')).toHaveCount(10);
+  await picker.getByRole('radio',{name:'Ink bottles',exact:true}).check();
+  await expect(picker.getByRole('radio',{name:'Ink bottles',exact:true})).toBeChecked();
+  expect(state.current().document.experiences[0]?.icon ?? null).toBeNull();
+  await page.screenshot({path:info.outputPath('admin-experience-icons.png'),fullPage:true});
+  await save(page);
+  await expect.poll(()=>state.current().document.experiences[0]?.icon).toBe('ink');
+  expect(state.current().publicationStatus).toBe('draft');
+  expect(state.actions).toEqual(['save']);
+  await page.reload(); await open(page,'Experiences');
+  await expect(picker.getByRole('radio',{name:'Ink bottles',exact:true})).toBeChecked();
+  await picker.getByRole('radio',{name:'Ink bottles',exact:true}).press('ArrowRight');
+  await expect(picker.getByRole('radio',{name:'Ink swatching',exact:true})).toBeChecked();
+  expect(await page.evaluate(()=>window.document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect((await new AxeBuilder({page}).include('main').analyze()).violations).toEqual([]);
+});
+
 test('infrastructure HTML keeps unsaved edits and media reload recovery usable', async ({page}, info) => {
   await setup(page);
   let failMedia = true;
@@ -1264,29 +1288,4 @@ test('D gallery stale caption preserves local text through refresh and deliberat
   await page.reload(); await open(page,'Photos & logo');
   await expect(page.getByLabel('Photo caption · optional')).toHaveValue('My caption to keep');
   expect(requests.map(r=>r.action)).toEqual(['arrange','arrange']); expect(entry.status).toBe('draft');
-});
-
-
-test('curated experience icons survive private save and reopen @short', async ({page}, info) => {
-  const initial=fixture();
-  initial.document.experiences=[{id:source,category:'nib_testing',title:'Synthetic nib testing',description:'Try a selection.'}];
-  const state=await setup(page,initial);
-  await page.goto(`/admin/shops/${id}`); await open(page,'Experiences');
-  const picker=page.getByRole('radiogroup',{name:'Experience icon',exact:true});
-  await expect(picker.getByRole('radio',{name:'Writing',exact:true})).toBeChecked();
-  await expect(picker.getByRole('radio')).toHaveCount(10);
-  await picker.getByRole('radio',{name:'Ink bottles',exact:true}).check();
-  await expect(picker.getByRole('radio',{name:'Ink bottles',exact:true})).toBeChecked();
-  expect(state.current().document.experiences[0]?.icon ?? null).toBeNull();
-  await page.screenshot({path:info.outputPath('admin-experience-icons.png'),fullPage:true});
-  await save(page);
-  await expect.poll(()=>state.current().document.experiences[0]?.icon).toBe('ink');
-  expect(state.current().publicationStatus).toBe('draft');
-  expect(state.actions).toEqual(['save']);
-  await page.reload(); await open(page,'Experiences');
-  await expect(picker.getByRole('radio',{name:'Ink bottles',exact:true})).toBeChecked();
-  await picker.getByRole('radio',{name:'Ink bottles',exact:true}).press('ArrowRight');
-  await expect(picker.getByRole('radio',{name:'Ink swatching',exact:true})).toBeChecked();
-  expect(await page.evaluate(()=>window.document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  expect((await new AxeBuilder({page}).include('main').analyze()).violations).toEqual([]);
 });
