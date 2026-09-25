@@ -143,7 +143,7 @@ The complete document adds optional scalar shop fields: `feature_headline`,
 and `reference_links`. Text is bounded to 4,000 characters per field. Reference
 links are one HTTP(S) URL per line. `short_description` remains the short intro;
 paragraphs survive in the separate field-note body. `experiences` is an ordered
-array of at most 100 `{id,category,title,description?}` rows; categories are
+array of at most 100 `{id,category,title,description?,icon?}` rows; categories are
 `fountain_pens`, `inks_paper`, `nib_testing`, `gifts`, `repairs`, `other`.
 Existing appointment/accessibility/phone/postcode fields have public mappings.
 Unknown appointment stays null; false remains No. Legacy documents without new
@@ -161,6 +161,23 @@ and D's full public preview/media choices remain. C must invoke position review
 and publication deliberately against reviewed revisions, not copy attestations
 from CSV cells. Omitted/blank import values preserve data; explicit clears and
 safe merge/preview happen before this complete-document save contract.
+
+
+## Curated experience icons
+
+An experience may carry an optional `icon` key: `pen`, `nib`, `ink`, `swatch`,
+`paper`, `book`, `tools`, `gift`, `workshop`, or `chat`. These are presentation
+choices independent of category. The editor shows labelled native radio choices;
+old entries with absent/null icons still render the existing Writing (`pen`) icon.
+Arbitrary SVG, URLs and unknown icon names are rejected in the shared normalizer,
+SQL validator and public decoder. The public renderer and both saved preview
+implementations use the same icon component.
+
+The icon follows the existing complete-document private save, revision conflict,
+explicit publication and audit contracts. It is not a media upload or stamp-artwork
+choice. Import v1 still does not accept experiences; safe updates preserve existing
+experience rows and their icons. The additive validator migration changes no stored
+catalogue/draft rows, fingerprints, grants or artwork history.
 
 ## Mobile acceptance correction
 

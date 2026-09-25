@@ -380,6 +380,23 @@ Record founder observations separately from automated test evidence and the
 actual deployment SHA. Production promotion, Package D polish, catalogue research,
 main map #87 and other launch/field acceptance remain out of scope.
 
+
+## Experience icon picker — founder follow-up
+
+In **Experiences**, choose one of ten labelled hobby icons for each experience.
+Writing is the unchanged default for old entries. Icons are independent of the
+experience category, and save/publish with the text through the existing controls.
+No image upload or artwork activation is involved.
+
+After a separately authorized deployment/migration, check on mobile and desktop:
+1. Open an older experience: Writing is selected and its content is intact.
+2. Choose Ink bottles or Nib testing, save privately, and reopen the shop. The
+   selection survives; the live shop remains unchanged until explicit publication.
+3. Review the saved preview, publish deliberately, and check the public card uses
+   the same icon while retaining its title/category/description.
+4. Use Tab and arrow keys to choose an icon. Labels and visible focus must remain
+   clear; the picker should fit a narrow phone without page overflow.
+
 ## D1 editor polish — PR only, not deployed or founder-accepted
 
 - **Visit details:** Unknown, Open and Closed are distinct. Add one entry per

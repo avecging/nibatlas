@@ -198,6 +198,14 @@ describe('B2 trusted editorial public contract', () => {
   it('retains legacy sources and their dates when a listing receives editorial review', () => {
     expect(decodeShopDetailV1({ ...detail(), review })?.sources).toEqual(detail().sources);
   });
+  it('reads curated experience icons without requiring them on legacy entries', () => {
+    const experience = { id: OTHER_SOURCE_ID, category: 'nib_testing', title: 'Testing' };
+    const decode = (icon?: unknown) => decodeShopDetailV1({...detail(),editorial:{experiences:[{...experience,icon}]}});
+    expect(decode()?.editorial?.experiences?.[0]?.icon).toBeUndefined();
+    expect(decode(null)?.editorial?.experiences?.[0]?.icon).toBeUndefined();
+    expect(decode('ink')?.editorial?.experiences?.[0]?.icon).toBe('ink');
+    expect(()=>decode('<svg/>')).toThrow(ShopReadContractError);
+  });
 });
 
 it('custom catalogue types retain labels across map, detail, nearby and reject missing labels',()=>{

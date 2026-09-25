@@ -96,6 +96,13 @@ describe('B2 editorial input', () => {
       experiences: [{ id, category: 'unsupported', title: '' }] }).map(e => e.path))
       .toEqual(expect.arrayContaining(['shop.reference_links', 'experiences.0.category', 'experiences.0.title']));
   });
+  it('preserves curated icons and rejects arbitrary icon payloads at the exact field', () => {
+    const experience = { id, category: 'nib_testing', title: 'Try nibs', icon: 'nib' };
+    expect(normalizeShopDocument({...base(), experiences:[experience]}).experiences[0]?.icon).toBe('nib');
+    for (const icon of ['unknown', '<svg/>', 'https://example.test/icon.svg']) {
+      expect(errors({...base(), experiences:[{...experience,icon}]}).map(e=>e.path)).toContain('experiences.0.icon');
+    }
+  });
   it('rejects import/manual attempts to assert review or confirmation in data', () => {
     for (const key of ['reviewed_by','reviewed_at','position_confirmation'])
       expect(errors({ ...base(), shop: { ...base().shop, [key]: 'forged' } })).toContainEqual({ path: 'shop', message: 'Remove unsupported fields.' });

@@ -1,3 +1,4 @@
+import { DEFAULT_EXPERIENCE_ICON } from '@/src/domain/experience-icons';
 import type { EditorialContent } from '@/src/domain/shop-detail';
 import { Icon } from '@/src/components/ui/Icon';
 import styles from './ShopDetailView.module.css';
@@ -25,7 +26,7 @@ export function ShopEditorial({ content: c }: { content?: EditorialContent | und
       <h2 className={styles.sectionTitle} id="what-you-can-do-here">What you can do here</h2>
       <ul className={styles.experienceGrid}>
         {c.experiences.map(e => <li key={e.id} className={styles.experienceCard}>
-          <Icon name="pen" size={18} />
+          <Icon name={e.icon ?? DEFAULT_EXPERIENCE_ICON} size={18} />
           <div>
             <p className={styles.experienceCategory}>{e.category.replaceAll('_', ' ')}</p>
             <h3 className={styles.experienceTitle}>{e.title}</h3>

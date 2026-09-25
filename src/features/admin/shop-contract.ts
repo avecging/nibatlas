@@ -1,3 +1,4 @@
+import { EXPERIENCE_ICON_KEYS } from '@/src/domain/experience-icons';
 /** M6 WP2 contract: catalogue fields only; no stamp, media or import writes. */
 export type Value =
   string | number | boolean | null | Value[] | { [key: string]: Value };
@@ -128,6 +129,7 @@ export const GROUPS: {
   { key: "experiences", label: "Experiences", fields: [
     f("category", "Category", { required: true, choices: ["fountain_pens", "inks_paper", "nib_testing", "gifts", "repairs", "other"] }),
     f("title", "Public title", { required: true }), f("description", "Experience description", { kind: "long" }),
+    f("icon", "Experience icon", { choices: EXPERIENCE_ICON_KEYS }),
   ] },
   {
     key: "sources",

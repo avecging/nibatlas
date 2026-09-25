@@ -1,0 +1,26 @@
+.picker {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.picker legend { font-weight: 600; }
+.hint { margin: .5rem 0; color: var(--text-secondary); font-size: .875rem; }
+.choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: .5rem; }
+.choice {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  min-height: 3rem;
+  padding: .5rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: .875rem;
+}
+.choice input { flex: none; width: 1rem; height: 1rem; margin: 0; accent-color: var(--action-primary); }
+.choice svg { flex: none; }
+.choice:has(input:checked) { border-color: var(--action-primary); background: var(--bg-surface-warm); }
+.choice:focus-within { outline: 2px solid var(--action-primary); outline-offset: 2px; }
+.error { color: var(--text-primary); }
