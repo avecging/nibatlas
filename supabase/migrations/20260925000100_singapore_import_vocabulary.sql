@@ -15,7 +15,7 @@ where not exists (
 on conflict (id) do nothing;
 
 do $$
-declare item record; existing_id uuid; matches integer;
+declare item record; matches integer;
 begin
   -- Reuse a pre-existing Singapore locality under its original UUID. Fail
   -- visibly if no canonical choice is available or names are ambiguous.
@@ -31,7 +31,7 @@ begin
   ) as v(id,slug,name) loop
     -- A brand created by the admin UI may have a UUID-based slug and a
     -- different case. Preserve that identity and its existing relationships.
-    select count(*),min(id) into matches,existing_id
+    select count(*) into matches
       from public.brands
       where lower(btrim(regexp_replace(name,'[[:space:]]+',' ','g')))=lower(item.name);
     if matches>1 then raise exception 'Ambiguous canonical brand: %',item.name; end if;
