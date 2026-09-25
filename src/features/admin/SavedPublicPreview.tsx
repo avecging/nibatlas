@@ -32,10 +32,14 @@ function AuthorizedPreview({id,revision}: {id:string;revision:string}) {
       if (!response.ok) throw Error(response.status === 401 || response.status === 403 ? 'Sign in with current editor or admin access to view this preview.' : 'The saved preview could not load. Refresh the preview to try again.');
       return response.json();
     };
-    void Promise.all([read(`/api/v1/admin/shops/${id}`),read('/api/v1/admin/shops/options'),read(mediaPath(id))]).then(([raw, choices, media]) => {
+    void Promise.all([read(`/api/v1/admin/shops/${id}`),read('/api/v1/admin/shops/options')]).then(async ([raw, choices]) => {
       const record = decodeShop(raw);
       if (record.id !== id || record.revision !== revision) throw Error('This saved version has changed. Reload the saved shop in the editor and review it again.');
-      const snapshot = {record,shop:projectSavedShopPreview(record,decodeOptions(choices)),media:decodeShopMedia(media.entries,true).filter(m => m.status === 'approved')};
+      const shop = projectSavedShopPreview(record,decodeOptions(choices));
+      // Incomplete drafts have no public-page layout or gallery to render.
+      // Their field guidance must not depend on the separate media service.
+      const media = shop ? decodeShopMedia((await read(mediaPath(id))).entries,true).filter(m => m.status === 'approved') : [];
+      const snapshot = {record,shop,media};
       if (!controller.signal.aborted) setResult({key,snapshot});
     }).catch(error => {
       if (!controller.signal.aborted) setResult({key,error:error instanceof Error && [

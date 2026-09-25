@@ -25,6 +25,22 @@ it('rejects stale revisions without displaying the newer content',async()=>{
   install({revision:'b'.repeat(32)});render(<SavedPublicPreview id={id} revision={revision}/>);
   expect(await screen.findByRole('alert')).toHaveTextContent('saved version has changed');expect(screen.queryByText('Saved synthetic')).toBeNull();
 });
+it('shows incomplete draft guidance without depending on media availability',async()=>{
+  const fetch=vi.fn(async(path:string)=>{
+    if(path.endsWith('/media')) throw Error('Media unavailable');
+    return new Response(JSON.stringify(path.endsWith('/options')?options:{...record,document:{...record.document,shop:{...record.document.shop,name:'Incomplete saved draft',latitude:null,longitude:null,timezone:null}}}));
+  });
+  vi.stubGlobal('fetch',fetch);render(<SavedPublicPreview id={id} revision={revision}/>);
+  expect(await screen.findByRole('region',{name:'Incomplete preview'})).toHaveTextContent('Incomplete saved draft');
+  expect(fetch).toHaveBeenCalledTimes(2);
+});
+it('does not present a complete layout as accurate when its media cannot load',async()=>{
+  const fetch=install();
+  fetch.mockImplementation(async(path:string)=>path.endsWith('/media')?new Response(null,{status:503}):new Response(JSON.stringify(path.endsWith('/options')?options:record)));
+  render(<SavedPublicPreview id={id} revision={revision}/>);
+  expect(await screen.findByRole('alert')).toHaveTextContent('saved preview could not load');
+  expect(screen.queryByText('Saved synthetic')).toBeNull();
+});
 it('denies ordinary accounts and drops loaded content when the session changes',async()=>{
   install();const view=render(<SavedPublicPreview id={id} revision={revision}/>);
   await screen.findByText('Saved synthetic');
