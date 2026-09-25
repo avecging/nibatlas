@@ -447,3 +447,16 @@ describe("what the page never becomes", () => {
     }
   });
 });
+
+it('renders split/overnight weekly hours with truthful unknown and open states',()=>{
+  const shop=findPrototypeShop('ginza-itoya-main-store')!;
+  renderShop({...shop,openingHours:[
+    {day:'monday',opens:'09:00',closes:'12:00'},
+    {day:'monday',opens:'22:00',closes:'02:00',note:'Late'},
+    {day:'tuesday',closed:false}, {day:'wednesday'},
+  ]});
+  expect(screen.getByText('09:00–12:00')).toBeVisible();
+  expect(screen.getByText('22:00–02:00 (next day) · Late')).toBeVisible();
+  expect(screen.getByText('Open · times not recorded')).toBeVisible();
+  expect(screen.getByText('Hours unknown')).toBeVisible();
+});

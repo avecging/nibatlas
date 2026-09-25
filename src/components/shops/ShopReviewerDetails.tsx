@@ -96,14 +96,7 @@ export function ShopProvenance({ shop }: { readonly shop: ShopDetail }) {
 
   const reviewLine = shop.review ? `Listing reviewed by Nib Atlas on ${formatCheckedOn(shop.review.reviewedAt.slice(0, 10))}. This is an editorial review, not independent verification of every detail.` : null;
   if (!reviewer) {
-    const sentence = provenanceSentence(shop.sources);
-
-    // A record with no source gets no line at all. A vague claim of provenance
-    // would be worse than none.
-    return reviewLine || sentence ? <div className={styles.provenanceLine}>
-      {reviewLine && <p>{reviewLine}</p>}
-      {sentence && <p>{reviewLine ? `Retained source history: ${sentence}` : sentence}</p>}
-    </div> : null;
+    return <ShopProvenanceLine shop={shop} />;
   }
 
   return (
@@ -147,4 +140,16 @@ export function ShopProvenance({ shop }: { readonly shop: ShopDetail }) {
       </div>
     </section>
   );
+}
+
+/** Shared normal-reader attribution; a preview never invents a review event. */
+export function ShopProvenanceLine({shop,pendingReview=false}: {shop:ShopDetail;pendingReview?:boolean}) {
+  const reviewLine = pendingReview
+    ? 'Publication will record the actual editorial review date. This preview does not record a review.'
+    : shop.review ? `Listing reviewed by Nib Atlas on ${formatCheckedOn(shop.review.reviewedAt.slice(0, 10))}. This is an editorial review, not independent verification of every detail.` : null;
+  const sentence = provenanceSentence(shop.sources);
+  return reviewLine || sentence ? <div className={styles.provenanceLine}>
+    {reviewLine && <p>{reviewLine}</p>}
+    {sentence && <p>{reviewLine ? `Retained source history: ${sentence}` : sentence}</p>}
+  </div> : null;
 }

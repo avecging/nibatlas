@@ -61,6 +61,7 @@ function fixture(): ShopRecord {
 /** Section nav is the editor's only navigation; every test reaches fields this way. */
 const open = (page: Page, title: string) =>
   page.getByRole("navigation", { name: "Editor sections" }).getByRole("button", { name: title }).click();
+const publicPreview = (page: Page) => page.frameLocator('iframe[title="Saved public-page preview"]');
 const bar = (page: Page) => page.locator("main").getByRole("button", { name: /^(Save|Save and review|Review and publish|Saving…|Working…)$/ });
 const save = (page: Page) => page.getByRole("button", { name: "Save", exact: true }).click();
 const saveAndReview = (page: Page) =>
@@ -83,7 +84,7 @@ async function setup(page: Page, initial?: ShopRecord) {
         localities: [
           { id: locality, label: "Singapore (SG)", countryCode: "SG" },
         ],
-        types: [{ id: type, label: "Fountain Pen Specialist" }],
+        types: [{ id: type, label: "Fountain Pen Specialist", code: "fountain_pen_specialist" }],
         services: [],
         specialties: [],
         brands: [],
@@ -213,12 +214,12 @@ test("founder edits, reviews, publishes, closes and archives @short", async ({
   );
   await expect(page.getByRole("heading", { level: 2, name: "Review", exact: true })).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "M6 Revised demo shop" }).first(),
+    publicPreview(page).getByRole("heading", { name: "M6 Revised demo shop" }).first(),
   ).toBeVisible();
-  const preview = page.getByRole("article", { name: "Public page preview" });
+  const preview = publicPreview(page).getByRole("article", { name: "Public page preview" });
   await expect(preview.getByText("Private internal note")).toHaveCount(0);
-  await expect(preview.getByText("Postal code: 012345", { exact: true })).toBeVisible();
-  await expect(preview.getByText("Phone: +65 0000 0000", { exact: true })).toBeVisible();
+  await expect(preview.getByText("012345", { exact: false })).toBeVisible();
+  await expect(preview.getByText("+65 0000 0000", { exact: false })).toBeVisible();
   expect(
     (
       await new AxeBuilder({ page })
@@ -730,8 +731,8 @@ test('B2 private notes, shared editorial preview and deliberate position review 
   // Position confirmation now sits beside the coordinates it attests to.
   await expect(page.getByRole('button', { name: 'Confirm saved shop position', exact: true })).toBeDisabled();
   await saveAndReview(page);
-  await expect(page.getByText('First paragraph.', { exact: true })).toBeVisible();
-  await expect(page.getByText('第二段。', { exact: true })).toBeVisible();
+  await expect(publicPreview(page).getByText('First paragraph.', { exact: true })).toBeVisible();
+  await expect(publicPreview(page).getByText('第二段。', { exact: true })).toBeVisible();
   await expect(page.getByText('B2 PRIVATE SENTINEL', { exact: true })).toHaveCount(0);
   await expect(page.getByText('https://example.test/private-maintenance', { exact: true })).toHaveCount(0);
   await open(page, 'Location');
@@ -754,7 +755,7 @@ test('save and review opens the saved review state and keeps a failed save @shor
   await page.getByLabel('Shop name').fill('Mobile review test shop');
   await saveAndReview(page);
   await expect(page.getByRole('heading', { level: 2, name: 'Review', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading',{name:'Mobile review test shop'}).first()).toBeVisible();
+  await expect(publicPreview(page).getByRole('heading',{name:'Mobile review test shop'}).first()).toBeVisible();
   await expect(page.getByLabel('Shop name',{exact:true})).toHaveCount(0);
   expect(state.actions).toEqual(['save']);
   await page.screenshot({path:info.outputPath('admin-save-review.png'),fullPage:true});
@@ -788,7 +789,7 @@ test('publication blockers lead to the section that fixes them @short', async ({
 
 test('empty brand and specialty choices offer add/reuse and become selectable @short', async ({page},info) => {
   await setup(page);
-  const options = {localities:[{id:locality,label:'Singapore',countryCode:'SG'}],types:[{id:type,label:'Fountain Pen Specialist'}],services:[],brands:[] as {id:string;label:string}[],specialties:[] as {id:string;label:string}[]};
+  const options = {localities:[{id:locality,label:'Singapore',countryCode:'SG'}],types:[{id:type,label:'Fountain Pen Specialist',code:'fountain_pen_specialist'}],services:[],brands:[] as {id:string;label:string}[],specialties:[] as {id:string;label:string}[]};
   await page.route('**/api/v1/admin/shops/options',async route => {
     if(route.request().method()==='POST') {
       const {kind,label}=route.request().postDataJSON() as {kind:'brands'|'specialties';label:string};
@@ -809,7 +810,7 @@ test('empty brand and specialty choices offer add/reuse and become selectable @s
   }
   await page.screenshot({path:info.outputPath('admin-choice-recovery.png'),fullPage:true});
   await saveAndReview(page);
-  await expect(page.getByText('Saved private content',{exact:true})).toBeVisible();
+  await expect(publicPreview(page).getByText('Saved private content · Public-page layout preview',{exact:true})).toBeVisible();
 });
 
 test('country is a searchable selector that stores the code @short',async({page})=>{
@@ -1071,14 +1072,14 @@ test('an unknown role never exposes admin-only image controls @short',async({pag
 test('admin can create missing localities and types then save their selection @short',async({page},info)=>{
   const state=await setup(page);
   const newLocality='85000000-0000-4000-8000-000000000001',newType='85000000-0000-4000-8000-000000000002';
-  const options={localities:[{id:locality,label:'Singapore (SG)',countryCode:'SG'}],types:[{id:type,label:'Fountain Pen Specialist'}],services:[],brands:[],specialties:[]};
+  const options={localities:[{id:locality,label:'Singapore (SG)',countryCode:'SG'}],types:[{id:type,label:'Fountain Pen Specialist',code:'fountain_pen_specialist'}],services:[],brands:[],specialties:[]};
   await page.route('**/api/v1/admin/shops/options',async route=>{
     if(route.request().method()==='POST') {
       const body=route.request().postDataJSON();
       if(body.kind==='localities') {
         expect(body.countryCode).toBe('SG');
         options.localities.push({id:newLocality,label:`${body.label} (SG)`,countryCode:'SG'});
-      } else options.types.push({id:newType,label:body.label});
+      } else options.types.push({id:newType,label:body.label,code:`type_${newType.replaceAll('-','_')}`});
       await route.fulfill({json:{id:body.kind==='localities'?newLocality:newType,options}});
     } else await route.fulfill({json:options});
   });
@@ -1201,9 +1202,9 @@ test('D hours preserve existing data, validate and survive copy/save/reopen @sho
   expect(saved.document.sources).toEqual(originalSources);
   expect(saved.document.types).toEqual(originalTypes);
   expect(state.actions).toEqual(['save']); // invalid local input never submitted
-  await expect(page.getByRole('heading',{name:'Saved content preview'})).toBeVisible();
-  await expect(page.getByRole('article',{name:'Public page preview'}).getByText('monday: 22:00–02:00 (next day) · Late')).toBeVisible();
-  await expect(page.getByRole('article',{name:'Public page preview'}).getByText('wednesday: Open · times not recorded · Times to confirm')).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Saved public-page preview'})).toBeVisible();
+  await expect(publicPreview(page).getByRole('article',{name:'Public page preview'}).getByText('22:00–02:00 (next day) · Late',{exact:true}).first()).toBeVisible();
+  await expect(publicPreview(page).getByRole('article',{name:'Public page preview'}).getByText('Open · times not recorded · Times to confirm',{exact:true})).toBeVisible();
   await page.reload(); await open(page,'Visit details');
   await expect(page.getByLabel('Hours summary · optional')).toHaveValue('Call first\nHoliday times vary');
   await expect(page.getByLabel('Hours state')).toHaveCount(6);
@@ -1222,7 +1223,7 @@ test('D preview excludes unsaved changes and failed-save comparison does not sil
   const state=await setup(page,initial);
   await page.goto(`/admin/shops/${id}`); await page.getByLabel('Shop name').fill('Unsaved synthetic name');
   await open(page,'Review');
-  const preview=page.getByRole('article',{name:'Public page preview'});
+  const preview=publicPreview(page).getByRole('article',{name:'Public page preview'});
   await expect(preview.getByRole('heading',{name:'M6 Demo shop',exact:true})).toBeVisible();
   await expect(preview.getByText('Unsaved synthetic name')).toHaveCount(0);
   await expect(page.getByText(/You have unsaved edits/)).toBeVisible();
@@ -1264,4 +1265,52 @@ test('D gallery stale caption preserves local text through refresh and deliberat
   await page.reload(); await open(page,'Photos & logo');
   await expect(page.getByLabel('Photo caption · optional')).toHaveValue('My caption to keep');
   expect(requests.map(r=>r.action)).toEqual(['arrange','arrange']); expect(entry.status).toBe('draft');
+});
+
+test('D3 real viewport preview preserves public layout and excludes private media @short',async({page},info)=>{
+  const initial=fixture();
+  Object.assign(initial.document.shop,{field_note_body:'Synthetic saved story',address_line_1:'Synthetic address',internal_notes:'D3 PRIVATE NOTE',reference_links:'https://example.test/private'});
+  const state=await setup(page,initial);
+  const photo='85000000-0000-4000-8000-000000000001', privatePhoto='85000000-0000-4000-8000-000000000002',logo='85000000-0000-4000-8000-000000000003';
+  const entries=[{id:photo,kind:'photo',width:2,height:2,altText:'Approved synthetic photo',creditText:null,caption:'Approved cover',status:'approved',revision:'a'.repeat(32)},{id:privatePhoto,kind:'photo',width:2,height:2,altText:'PRIVATE PHOTO',creditText:null,status:'draft',revision:'b'.repeat(32)},{id:logo,kind:'logo',width:2,height:2,altText:'Approved logo',creditText:null,status:'approved',revision:'c'.repeat(32)}];
+  const writes:string[]=[];
+  page.on('request',r=>{if(r.method()!=='GET') writes.push(r.url());});
+  await page.route(`**/api/v1/admin/shops/${id}/media`,route=>route.fulfill({json:{entries}}));
+  await page.route(`**/api/v1/admin/shops/${id}/media/*`,route=>route.fulfill({contentType:'image/png',body:makePng()}));
+  await page.goto(`/admin/shops/${id}`); await open(page,'Review');
+  const preview=publicPreview(page);
+  await expect(preview.getByRole('heading',{name:'M6 Demo shop',exact:true})).toBeVisible();
+  await expect(preview.getByText('Approved cover',{exact:true})).toBeVisible();
+  await expect(preview.getByRole('button',{name:/Open photo 1 of 1/})).toBeVisible();
+  await expect(preview.getByAltText('Approved logo')).toBeVisible();
+  await expect(preview.locator('body')).not.toContainText('D3 PRIVATE NOTE');
+  await expect(preview.locator('body')).not.toContainText('PRIVATE PHOTO');
+  await expect(preview.locator('a[href="https://example.test/private"]')).toHaveCount(0);
+  const body=preview.locator('[data-columns="two"]').last();
+  expect(await body.evaluate(e=>getComputedStyle(e).gridTemplateColumns.split(' ').length)).toBe(2);
+  await page.getByRole('button',{name:'Mobile',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Mobile',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect.poll(()=>body.evaluate(e=>getComputedStyle(e).gridTemplateColumns.split(' ').length)).toBe(1);
+  expect(await preview.locator('html').evaluate(e=>e.scrollWidth <= e.clientWidth)).toBe(true);
+  await preview.getByRole('button',{name:/Open photo 1 of 1/}).click();
+  await expect(preview.getByRole('dialog')).toBeVisible(); await page.keyboard.press('Escape');
+  await expect(preview.getByRole('dialog')).toHaveCount(0);
+  await expect(preview.getByRole('button',{name:/Collect Stamp/})).toBeDisabled();
+  await page.screenshot({path:info.outputPath('admin-d3-public-preview.png'),fullPage:true});
+  expect(state.actions).toEqual([]); expect(writes).toEqual([]);
+  expect(await page.evaluate(()=>window.document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('D3 preview refuses changed revisions and denied readers',async({page})=>{
+  const state=await setup(page); await page.goto(`/admin/shops/${id}`); await open(page,'Review');
+  await expect(publicPreview(page).getByRole('heading',{name:'M6 Demo shop',exact:true})).toBeVisible();
+  const changed=state.current(); changed.revision='e'.repeat(32); changed.document.shop.name='Unreviewed change';
+  await page.route(`**/api/v1/admin/shops/${id}`,route=>route.fulfill({json:changed}));
+  await page.getByRole('button',{name:'Refresh preview',exact:true}).click();
+  await expect(publicPreview(page).getByRole('main').getByRole('alert')).toContainText('This saved version has changed');
+  await expect(publicPreview(page).getByText('Unreviewed change')).toHaveCount(0);
+  await page.route(`**/api/v1/admin/shops/${id}`,route=>route.fulfill({status:403,json:{error:{code:'forbidden'}}}));
+  await page.getByRole('button',{name:'Refresh preview',exact:true}).click();
+  await expect(publicPreview(page).getByRole('main').getByRole('alert')).toContainText('current editor or admin access');
+  expect(state.actions).toEqual([]);
 });
