@@ -287,3 +287,30 @@ projection's `code` tie-break after `sort_order` to type/service/specialty optio
 It changes no rows, IDs, labels, grants or current-role checks; grouped import
 mapping retains exactly the same vocabulary. Deploy it before claiming ordering
 parity. Integrated pending media/artwork review remains the next D checkpoint.
+
+
+## D4a saved media/artwork comparison
+
+Review includes a separate read-only comparison of saved photo/logo attachments
+and active or uploaded draft stamp versions. It uses existing private/no-store
+shop, media and stamp GETs. The shop ID and opaque saved revision must match both
+before and after the separate media reads; any failed, denied or malformed read
+withholds the whole comparison. The existing account-keyed editor unmounts this
+memory on account change/sign-out. No browser storage, public token, mutation,
+new endpoint, provider key or private source field is introduced.
+
+Approved photos stay included; optional draft photos retain saved gallery order.
+One logo is selected, initially the approved logo. Stamp choices default to the
+active version and allow uploaded drafts only after their PNG has been saved.
+Historical inactive approvals are not offered for reactivation. Existing exact
+private bytes and creator credits are reused; generated previews use stored
+template/ink and saved known labels. Missing artwork is not substituted.
+
+Comparison choices reset on reload, leaving Review or a changed saved revision.
+The selected gallery reuses the public gallery/zoom renderer, but it is separate
+from D3's unchanged approved-only public-page frame. Choosing or publishing the
+shop does not publish those media choices or activate artwork. Each existing
+mutation still requires its own explicit confirmation and server revision check.
+Media can change after these independent reads; this is not an atomic snapshot,
+a durable review receipt or combined publication approval. Those execution and
+recovery semantics remain the next D increment.

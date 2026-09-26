@@ -500,3 +500,33 @@ After a separately authorized deployment:
 A small read-only vocabulary ordering migration is included, with no catalogue
 row changes. It has not been applied to hosted projects by this work. Map tiles
 reported by the founder are tracked separately in #97; D3 makes no map-fix claim.
+
+
+## D4a media/artwork comparison — PR checkpoint
+
+Open **Review → Compare saved images and artwork**. Approved photos start included;
+select private photos to compare in saved gallery order, one logo and an active
+or PNG-ready draft stamp. Inspect gallery zoom/captions and the existing three
+stamp sizes. The generated default remains a valid choice. Choices are temporary,
+with no catalogue, media, stamp or collection writes. The saved public-page frame
+below continues to show approved images only.
+
+**Manage photos & logo** and **Manage stamp artwork** open the established tools
+for explicit publication/activation. Leaving Review, reloading the comparison or
+saving a new shop revision resets comparison choices. Reload after changes in
+another tab. A changed saved shop requires **Reload saved version** before another
+comparison; failed or denied reads show an error with no partial content.
+
+After a separately authorized deployment, check on mobile and desktop:
+1. Try private photos and a replacement logo, open/close gallery zoom, then inspect
+   a saved stamp PNG and its credit. Confirm approved/default art is preserved.
+2. Confirm choices make no public changes, and D3's public-page frame excludes
+   the private choices. Save/publish shop and artwork activation remain separate.
+3. Reload or leave/reopen Review: choices reset to approved/current selections.
+4. Save in a second tab before reloading the comparison: expect a stale-version
+   notice and deliberate reload of the saved shop. Denied/failed media reads must
+   not show a partial gallery as a completed comparison.
+5. Check keyboard labels/focus, image failure messages and narrow-screen overflow.
+
+Combined publication, durable revision-bound media/artwork decisions and recovery
+remain within Package D. This checkpoint does not claim hosted/founder acceptance.

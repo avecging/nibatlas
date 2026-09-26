@@ -148,7 +148,7 @@ function ArtworkPicker({shopId,version,disabled,run,attached}:{shopId:string;ver
   </div>;
 }
 
-function StampPreview({shopId,entry}:{shopId:string;entry:AdminStampVersion}) {
+export function StampPreview({shopId,entry}:{shopId:string;entry:AdminStampVersion}) {
   const src=`${stampAdminPath(shopId)}/${entry.id}`;
   return <div className={styles.preview} aria-label="Stamp size previews">
     <div><span>List</span><img className={styles.list} src={src} alt="List-size stamp preview"/></div>
