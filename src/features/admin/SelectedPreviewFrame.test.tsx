@@ -15,7 +15,10 @@ it('sends intent only to its exact same-origin iframe after readiness, never thr
   send(frame.contentWindow!);
   expect(post).toHaveBeenCalledWith({type:'nibatlas-preview-selection',userId:'one',selection},window.location.origin);
   expect(frame.src).not.toContain(selection.photos[0]);expect(frame.src).not.toContain(selection.fingerprint);
+  const viewport=screen.getByRole('region',{name:'Selected preview viewport'});
+  viewport.scrollLeft=200;
   fireEvent.click(screen.getByRole('button',{name:'Selected desktop'}));expect(screen.getByTitle('Selected public-page preview')).toBe(frame);
+  expect(viewport.scrollLeft).toBe(0);
 });
 it('remounts for new choices and drops the frame on sign-out',()=>{
   const view=render(<SelectedPreviewFrame selection={selection}/>);

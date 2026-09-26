@@ -1466,6 +1466,7 @@ test('D4b integrates selected private images and exact credited artwork in real 
   expect(await page.evaluate(()=>window.document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await panel.screenshot({path:info.outputPath('admin-d4b-selected-preview-desktop.png')});
   await panel.getByRole('button',{name:'Selected mobile',exact:true}).click();
+  expect(await panel.getByRole('region',{name:'Selected preview viewport',exact:true}).evaluate(e=>e.scrollLeft)).toBe(0);
   await panel.screenshot({path:info.outputPath('admin-d4b-selected-preview-mobile.png')});
   // Remounting for new choices must clear gallery failures/zoom and old images.
   await panel.getByRole('checkbox',{name:/Private selected photo/}).uncheck();
