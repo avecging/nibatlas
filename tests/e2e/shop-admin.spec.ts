@@ -1363,6 +1363,7 @@ test('D4 private media comparison is read-only, keyboard accessible and resets o
   const panel=page.getByRole('region',{name:'Compare saved images and artwork'});
   const checkbox=panel.getByRole('checkbox',{name:/Private comparison photo/});
   await checkbox.focus();await page.keyboard.press('Space');await expect(checkbox).toBeChecked();
+  await expect(checkbox).toHaveCSS('width','18px');await expect(checkbox).toHaveCSS('height','18px');
   await panel.getByRole('radio',{name:/Private replacement logo/}).check();
   await panel.getByRole('radio',{name:/Design v2/}).check();
   const gallery=panel.getByLabel('Selected gallery comparison');
