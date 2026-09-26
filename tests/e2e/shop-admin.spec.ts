@@ -1408,3 +1408,90 @@ test('D4 private media comparison is read-only, keyboard accessible and resets o
   await open(page,'Review');await expect(checkbox).not.toBeChecked();
   expect(state.actions).toEqual([]);expect(writes).toEqual([]);
 });
+
+
+async function selectedPreviewFixture(page: Page) {
+  const initial=fixture();
+  Object.assign(initial.document.shop,{field_note_body:'Selected preview saved story',address_line_1:'Synthetic address',internal_notes:'D4b PRIVATE NOTE',reference_links:'https://example.test/private'});
+  const state=await setup(page,initial);
+  const ids=Array.from({length:6},(_,n)=>`87000000-0000-4000-8000-${String(n+1).padStart(12,'0')}`);
+  const entries=[
+    {id:ids[0],kind:'photo',altText:'Private selected photo',status:'draft',caption:'Saved selected caption'},
+    {id:ids[1],kind:'photo',altText:'Approved selected photo',status:'approved',caption:'Approved caption'},
+    {id:ids[2],kind:'logo',altText:'Private selected logo',status:'draft',caption:null},
+  ].map((m,n)=>({...m,width:20,height:12,creditText:null,revision:'a'.repeat(32),sortOrder:n}));
+  const stamps=[{id:ids[3],stampId:ids[4],designVersion:2,kind:'uploaded',origin:'founder_created',status:'draft',active:false,hasArtwork:true,ink:'teal',creatorName:'Synthetic Artist',creatorUrl:'https://example.test/artist',revision:'b'.repeat(32)}];
+  const writes:string[]=[];
+  page.on('request',r=>{if(r.method()!=='GET')writes.push(r.url());});
+  await page.route(`**/api/v1/admin/shops/${id}/media`,r=>r.fulfill({json:{entries}}));
+  await page.route(`**/api/v1/admin/shops/${id}/stamp`,r=>r.fulfill({json:{entries:stamps}}));
+  await page.route(`**/api/v1/admin/shops/${id}/media/*`,r=>r.fulfill({contentType:'image/png',body:makePng(20,12)}));
+  await page.route(`**/api/v1/admin/shops/${id}/stamp/*`,r=>r.fulfill({contentType:'image/png',body:makePng(1200,800)}));
+  await page.goto(`/admin/shops/${id}`);await open(page,'Review');
+  const panel=page.getByRole('region',{name:'Compare saved images and artwork'});
+  await panel.getByRole('checkbox',{name:/Private selected photo/}).check();
+  await panel.getByRole('radio',{name:/Private selected logo/}).check();
+  await panel.getByRole('radio',{name:/Design v2/}).check();
+  await panel.getByRole('button',{name:'Preview these choices on the page'}).click();
+  const selected=page.frameLocator('iframe[title="Selected public-page preview"]');
+  await expect(selected.getByText('Saved selected caption',{exact:true})).toBeVisible();
+  return {state,ids,entries,stamps,writes,panel,selected};
+}
+
+test('D4b integrates selected private images and exact credited artwork in real viewports without writes @short',async({page},info)=>{
+  const {ids,panel,selected,writes,state}=await selectedPreviewFixture(page);
+  await expect(selected.getByAltText('Private selected logo')).toBeVisible();
+  await expect(selected.getByRole('heading',{name:'M6 Demo shop',exact:true})).toBeVisible();
+  await expect(selected.locator('body')).not.toContainText('D4b PRIVATE NOTE');
+  await expect(selected.locator('a[href="https://example.test/private"]')).toHaveCount(0);
+  const art=selected.getByRole('region',{name:'Selected collection artwork'});
+  await expect(art.getByRole('link',{name:'Synthetic Artist'})).toHaveAttribute('href','https://example.test/artist');
+  await expect(art.getByAltText('Detail-size stamp preview')).toHaveAttribute('src',`/api/v1/admin/shops/${id}/stamp/${ids[3]}`);
+  await expect(art.getByAltText('Detail-size stamp preview')).toHaveCSS('object-fit','contain');
+  expect(await selected.locator('html').evaluate(e=>e.scrollWidth <= e.clientWidth)).toBe(true);
+  const body=selected.locator('[data-columns="two"]').last();
+  expect(await body.evaluate(e=>getComputedStyle(e).gridTemplateColumns.split(' ').length)).toBe(1);
+  await panel.getByRole('button',{name:'Selected desktop',exact:true}).click();
+  await expect.poll(()=>body.evaluate(e=>getComputedStyle(e).gridTemplateColumns.split(' ').length)).toBe(2);
+  await selected.getByRole('button',{name:/Open photo 1 of 2: Private selected photo/}).click();
+  await expect(selected.getByRole('dialog')).toContainText('Saved selected caption');
+  await page.keyboard.press('Escape');await expect(selected.getByRole('dialog')).toHaveCount(0);
+  await expect(selected.getByRole('button',{name:/Collect Stamp/})).toBeDisabled();
+  await expect(publicPreview(page).getByAltText('Private selected logo')).toHaveCount(0);
+  await expect(publicPreview(page).getByRole('button',{name:/Open photo 1 of 1: Approved selected photo/})).toBeVisible();
+  // IDs/credits/private selections never enter the iframe URL or browser storage.
+  const src=await page.locator('iframe[title="Selected public-page preview"]').getAttribute('src');
+  expect(src).not.toContain(ids[0]);expect(src).not.toContain(ids[3]);
+  expect(await page.evaluate(()=>JSON.stringify({...localStorage,...sessionStorage}))).not.toContain('87000000');
+  expect(await page.evaluate(()=>window.document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await panel.screenshot({path:info.outputPath('admin-d4b-selected-preview-desktop.png')});
+  await panel.getByRole('button',{name:'Selected mobile',exact:true}).click();
+  await panel.screenshot({path:info.outputPath('admin-d4b-selected-preview-mobile.png')});
+  // Remounting for new choices must clear gallery failures/zoom and old images.
+  await panel.getByRole('checkbox',{name:/Private selected photo/}).uncheck();
+  await expect(selected.getByRole('button',{name:/Open photo 1 of 1: Approved selected photo/})).toBeVisible();
+  await panel.getByRole('radio',{name:'No logo in comparison'}).check();
+  await expect(selected.getByAltText('Private selected logo')).toHaveCount(0);
+  await panel.getByRole('button',{name:'Reload media comparison'}).click();
+  await expect(page.locator('iframe[title="Selected public-page preview"]')).toHaveCount(0);
+  expect(writes).toEqual([]);expect(state.actions).toEqual([]);
+});
+
+test('D4b refuses changed media or stamp snapshots and denied reads without silently refreshing selections',async({page})=>{
+  const {entries,stamps,panel,selected,writes}=await selectedPreviewFixture(page);
+  entries[0]!.caption='Concurrent caption'; // same shop revision, even same image token
+  await panel.getByRole('button',{name:'Refresh selected preview'}).click();
+  await expect(selected.getByRole('main').getByRole('alert')).toContainText('Saved images or artwork have changed');
+  await expect(selected.getByText('M6 Demo shop',{exact:true})).toHaveCount(0);
+  await expect(selected.getByRole('img')).toHaveCount(0);
+  await panel.getByRole('button',{name:'Reload media comparison'}).click();
+  await panel.getByRole('button',{name:'Preview these choices on the page'}).click();
+  await expect(selected.getByText('M6 Demo shop',{exact:true})).toBeVisible();
+  stamps[0]!.active=true;
+  await panel.getByRole('button',{name:'Refresh selected preview'}).click();
+  await expect(selected.getByRole('main').getByRole('alert')).toContainText('Saved images or artwork have changed');
+  await page.route(`**/api/v1/admin/shops/${id}/stamp`,r=>r.fulfill({status:403,json:{error:{code:'forbidden'}}}));
+  await panel.getByRole('button',{name:'Refresh selected preview'}).click();
+  await expect(selected.getByRole('main').getByRole('alert')).toContainText('current editor or admin access');
+  expect(writes).toEqual([]);
+});
