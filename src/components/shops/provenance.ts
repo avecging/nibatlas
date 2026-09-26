@@ -39,6 +39,10 @@ const SOURCE_ORDER: readonly ShopSourceRef["kind"][] = [
   "demo_fixture",
 ];
 
+// Reuse only locale configuration, never shop data. Constructing an ICU
+// formatter for every source date adds CPU work to each public page render.
+let checkedOnFormatter: Intl.DateTimeFormat | undefined;
+
 /** Formats an ISO date as the plain English the copy uses: `26 August 2026`. */
 export function formatCheckedOn(retrievedOn: string): string | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(retrievedOn.trim());
@@ -60,12 +64,14 @@ export function formatCheckedOn(retrievedOn: string): string | null {
     return null;
   }
 
-  return new Intl.DateTimeFormat("en-GB", {
+  checkedOnFormatter ??= new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: "long",
     year: "numeric",
     timeZone: "UTC",
-  }).format(parsed);
+  });
+
+  return checkedOnFormatter.format(parsed);
 }
 
 /** The distinct source kinds a record rests on, strongest first. */
