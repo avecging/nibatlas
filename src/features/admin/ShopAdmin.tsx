@@ -457,7 +457,7 @@ function Workspace({ id }: { id: string | null }) {
       if (
         window.confirm(
           pendingUploads
-            ? "Changes in Photos & logo have not finished saving. Leave without them or any unsaved edits?"
+            ? "Media changes have not finished saving. Leave without them or any unsaved edits?"
             : "Leave without saving your edits?",
         )
       ) {
@@ -521,20 +521,20 @@ function Workspace({ id }: { id: string | null }) {
   // something the editor has already reached for.
   const go = useCallback(
     (next: SectionId) => {
-      // Leaving Photos unmounts the uploader and aborts an upload in flight,
+      // Leaving a media section unmounts its uploader and aborts work in flight,
       // so this gets the same warning as leaving the page by a link.
       if (
-        next !== "photos" &&
+        next !== section &&
         pendingUploads &&
         !window.confirm(
-          "Changes in Photos & logo have not finished saving. Leaving this section discards unsaved work. Leave anyway?",
+          "Media changes have not finished saving. Leaving this section discards unsaved work. Leave anyway?",
         )
       )
         return;
       setSection(next);
       setHeadingFocus((n) => n + 1);
     },
-    [pendingUploads],
+    [pendingUploads, section],
   );
   useEffect(() => {
     if (!headingFocus) return;
@@ -1258,9 +1258,11 @@ function Workspace({ id }: { id: string | null }) {
             ? "Working…"
             : dirty
               ? saveFailed ? "Not saved · edits kept" : "Unsaved changes"
-              : record.hasChanges
-                ? "Saved privately"
-                : "All details saved"}
+              : pendingUploads
+                ? "Shop details saved · media changes not saved"
+                : record.hasChanges
+                  ? "Saved privately"
+                  : "All details saved"}
         </p>
         <div className={styles.actionButtons}>
           {dirty && !archived && (

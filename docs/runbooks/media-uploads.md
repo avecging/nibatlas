@@ -110,11 +110,15 @@ individual observations were supplied. Keep failed manifests and audit intact.
 Choose an ordinary `.jpg`/`.jpeg` photo in the same harness, up to **5 MiB**,
 **8192 px per axis** and **24 million pixels**. Supported: 8-bit, three-component
 baseline and progressive JPEG, EXIF orientations 1–8, and bounded ICC profiles.
+Supported two-image phone HDR JPEGs are saved using their ordinary primary image;
+the gain map is discarded, so the saved photo is standard dynamic range. This is
+a bounded subset, not support for every camera multi-image export. See the API
+contract for the exact structural constraints.
 Adobe-tagged RGB and YCbCr exports are supported; their colour interpretation is
 retained only for decoding, not in the stored PNG.
 EXIF/GPS, XMP, IPTC, comments and other APP metadata do not reach R2.
 Unsupported: HEIC/HEIF, JPEG XL, CMYK/YCCK, grayscale JPEG, lossless/arithmetic/
-12-bit JPEG, multiple-picture/MPO files, malformed EXIF orientation/ICC chunk
+12-bit JPEG, general multiple-picture/MPO and motion-photo files, malformed EXIF orientation/ICC chunk
 sequences, truncated files and appended bytes. Export those as ordinary RGB JPEG;
 no manual PNG conversion is needed for supported photos.
 
@@ -304,3 +308,26 @@ is wrong, and fits wide logos without forcing 2:1 or cropping. After this fix is
 deployed, retest the supplied logo and a transparent 2:1 PNG: private save, reload,
 explicit show on public page, full proportions/transparency, then removal. No
 need to repeat the six otherwise-passed checks solely because of this fix.
+
+## Phone HDR and shared picker acceptance
+
+1. Select a supported phone HDR JPEG within 5 MiB / 24 MP / 8192 px per side.
+   Check the filename, saving state and saved private photo. JPEG previews appear
+   after server validation. Confirm orientation, proportions and natural colours;
+   HDR screen brightness is not retained in the standard saved image.
+2. Try an unsupported/oversized file. Its error must appear beside its filename,
+   and the footer must not imply media is saved. Clear it or select another file.
+3. Interrupt a transfer and retry the same file. A lost attachment/finalization
+   response must not produce duplicate media or regenerate different stamp bytes.
+4. Compare photo, logo and stamp controls: consistent choose/filename/help/error/
+   clear/retry, keyboard focus and 44px targets. Leaving failed/pending stamp work
+   for Photos must warn, just as leaving Photos does.
+5. Check importer replacement/clear and invalid-file feedback. CSV/JSON stays local
+   until the existing reviewed import operation; image rules do not apply to it.
+
+Local regression evidence includes synthetic RGB/grayscale gain maps, both MPF
+byte orders, version-only auxiliary attributes, malformed indexes and exact-output
+comparison through Images emulation. The founder's reported photo was processed
+locally to 768 × 1024 with only IHDR/IDAT/IEND output chunks; neither the source nor
+its metadata is committed. Hosted phone acceptance still requires a separately
+authorized deployment and retest. Existing publication/activation steps remain.

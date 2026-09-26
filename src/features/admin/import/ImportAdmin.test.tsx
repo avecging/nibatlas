@@ -41,3 +41,20 @@ it('shows the loaded filename, replaces it and clears it when starting a new bat
   choose('second.csv', 'name\nSecond');
   await screen.findByText('second.csv');
 });
+
+it('keeps a rejected filename beside its error and clears an in-flight local read safely',async()=>{
+  vi.stubGlobal('fetch',vi.fn(async()=>Response.json({options:{localities:[],types:[],brands:[],specialties:[],services:[]}})));
+  render(<ImportAdmin />);
+  const input=await screen.findByLabelText('CSV or JSON file');
+  fireEvent.change(input,{target:{files:[{name:'wrong.jpg',size:10}]}});
+  expect(await screen.findByRole('alert')).toHaveTextContent('Choose a .csv or .json file.');
+  expect(screen.getByText('wrong.jpg')).toBeInTheDocument();
+  expect(input).toHaveAttribute('aria-invalid','true');
+  let finish!:(bytes:ArrayBuffer)=>void;
+  fireEvent.change(input,{target:{files:[{name:'slow.csv',size:10,arrayBuffer:()=>new Promise<ArrayBuffer>(resolve=>{finish=resolve;})}]}});
+  fireEvent.click(screen.getByRole('button',{name:'Clear selected file'}));
+  finish(new TextEncoder().encode('name\nSynthetic').buffer);
+  await waitFor(()=>expect(screen.getByText('No file chosen')).toBeInTheDocument());
+  expect(screen.queryByRole('heading',{name:'2. Match your columns'})).not.toBeInTheDocument();
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});

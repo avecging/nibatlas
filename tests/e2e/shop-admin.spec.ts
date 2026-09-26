@@ -454,9 +454,12 @@ test('photos save privately, states are explicit and removal is honest', async (
   await section.getByLabel('Choose a photo').setInputFiles({name:'demo-photo.png',mimeType:'image/png',buffer:png});
   // The first attempt fails; the chosen file stays on screen with a retry.
   await expect(section.getByAltText('Selected photo for M6 Demo shop')).toBeVisible();
-  await expect(section.getByRole('alert')).toContainText('Choose the file again');
+  await expect(section.getByRole('alert')).toContainText('Try again');
+  await expect(page.getByRole('status').filter({hasText:'Shop details saved · media changes not saved'})).toBeVisible();
+  await expect(section.getByText('demo-photo.png',{exact:true})).toBeVisible();
+  expect((await new AxeBuilder({page}).include('[aria-label="Shop photos and logo"]').analyze()).violations).toEqual([]);
   await section.getByRole('button',{name:'Retry saving this photo'}).click();
-  await expect(section.getByRole('status')).toContainText('Saved privately');
+  await expect(section.getByRole('status').filter({hasText:/^Saved privately\./})).toContainText('Saved privately');
   expect(initiations).toBe(2);
   expect(operations).toEqual(['attach']);
   await expect(section.getByAltText('Photo of M6 Demo shop')).toBeVisible();
@@ -569,10 +572,16 @@ test('stamp draft upload previews and explicit activation preserve earlier versi
   await section.getByLabel('Stamp PNG').setInputFiles({name:'wrong-type.jpg',mimeType:'image/jpeg',buffer:Buffer.from('invalid')});
   await expect(section.getByRole('alert')).toContainText('transparent PNG up to 5 MiB');
   expect(initiations).toBe(0);
+  await expect(page.getByRole('status').filter({hasText:'Shop details saved · media changes not saved'})).toBeVisible();
+  page.once('dialog',dialog=>dialog.dismiss());
+  await open(page,'Photos & logo');
+  await expect(section.getByLabel('Stamp PNG')).toBeVisible();
+  await section.getByRole('button',{name:'Clear selected file'}).click();
+  await expect(section.getByText('No file chosen')).toBeVisible();
   await section.getByLabel('Stamp PNG').setInputFiles({name:'demo-stamp.png',mimeType:'image/png',buffer:png});
   await expect(section.getByRole('alert')).toContainText('Save again');
   await section.getByRole('button',{name:'Save PNG privately'}).click();
-  await expect(section.getByRole('status')).toContainText('Stamp PNG attached privately');
+  await expect(section.getByRole('status').filter({hasText:'Stamp PNG attached privately'})).toContainText('Stamp PNG attached privately');
   expect(initiations).toBe(2);
   for(const label of ['List','Passport','Detail']) await expect(section.getByAltText(`${label}-size stamp preview`)).toBeVisible();
   await expect(section.getByRole('link',{name:'Gin + AI'})).toHaveAttribute('href','https://example.test/gin');
@@ -1176,7 +1185,7 @@ for (const format of ['jpeg-disguised-as-png','wide-transparent-png','small-tran
       await expect(media.getByRole('alert')).toContainText('Media service is unavailable');
       await media.getByRole('button',{name:'Retry saving this logo'}).click();
     }
-    await expect(media.getByRole('status')).toContainText('Saved privately');
+    await expect(media.getByRole('status').filter({hasText:/^Saved privately\./})).toContainText('Saved privately');
     await expect(media.getByRole('figure').getByText('Private to this draft',{exact:true})).toBeVisible();
     await expect(media.getByAltText('Synthetic test logo')).toHaveCSS('object-fit','contain');
     expect(attachments).toBe(1);expect(initiations).toBe(1);expect(puts).toBe(isPng?2:1);
