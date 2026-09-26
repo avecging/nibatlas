@@ -530,3 +530,29 @@ After a separately authorized deployment, check on mobile and desktop:
 
 Combined publication, durable revision-bound media/artwork decisions and recovery
 remain within Package D. This checkpoint does not claim hosted/founder acceptance.
+
+## D4b selected page and collection-artwork preview
+
+Within **Review → Compare saved images and artwork**, choose the photos, logo
+and saved stamp, then **Preview these choices on the page**. This opens the real
+shop-page layout with those images. Use **Selected mobile / Selected desktop**
+and scroll inside the frame. The stamp appears separately below the page with
+its existing List / Passport / Detail views and credit; it is not added to the
+public header. The approved-only preview remains below for comparison.
+
+After a separately approved deployment, check:
+1. Select a private photo, replacement logo and PNG-ready stamp. Open the selected
+   preview; inspect the saved caption, gallery zoom/Escape, logo proportions and
+   exact stamp/credit in both widths. No unsaved shop text or internal notes appear.
+2. Change a photo/logo choice: the selected frame updates. The approved-only frame
+   and actual public shop stay unchanged. Save/publish/activate remain separate.
+3. Change a saved caption, media status or active stamp in another tab. **Refresh
+   selected preview** must show a changed-media notice, without newer/partial
+   content. **Reload media comparison**, inspect again and deliberately reselect.
+4. Reload or leave Review: temporary choices and the selected frame reset. Sign
+   out: private content disappears. A standalone selected-preview link cannot
+   recover these in-memory choices.
+
+No hosted migration is required. Durable revision-bound review and recoverable
+combined publication remain within Package D. Technical checks do not establish
+founder phone acceptance of this preview or #104's HDR upload support.
