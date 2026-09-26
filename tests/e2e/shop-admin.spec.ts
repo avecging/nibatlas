@@ -300,8 +300,16 @@ test("draft editor is accessible and preserves unknown information @short", asyn
       "main button:visible,main input:visible,main select:visible,main summary:visible",
     )
     .all()) {
-    const b = await control.boundingBox();
-    expect(b?.height).toBeGreaterThanOrEqual(44);
+    // Checkbox/radio labels are the clickable target; the native glyph can
+    // remain compact within that target.
+    const height = await control.evaluate((element) => {
+      const target = element instanceof HTMLInputElement &&
+        (element.type === "checkbox" || element.type === "radio")
+        ? element.labels?.[0] ?? element
+        : element;
+      return target.getBoundingClientRect().height;
+    });
+    expect(height).toBeGreaterThanOrEqual(44);
   }
   await open(page, "Shop & story");
   await page.getByLabel("Shop name").focus();
@@ -1347,4 +1355,56 @@ test('D3 preview refuses changed revisions and denied readers',async({page})=>{
   await page.getByRole('button',{name:'Refresh preview',exact:true}).click();
   await expect(publicPreview(page).getByRole('main').getByRole('alert')).toContainText('current editor or admin access');
   expect(state.actions).toEqual([]);
+});
+
+test('D4 private media comparison is read-only, keyboard accessible and resets on reload @short', async ({page},info) => {
+  const state = await setup(page);
+  const ids = Array.from({length:7},(_,n)=>`86000000-0000-4000-8000-${String(n+1).padStart(12,'0')}`);
+  const entries = [
+    {id:ids[0],kind:'photo',altText:'Private comparison photo',status:'draft',caption:'Saved private caption'},
+    {id:ids[1],kind:'photo',altText:'Approved comparison photo',status:'approved',caption:'Saved approved caption'},
+    {id:ids[2],kind:'logo',altText:'Approved comparison logo',status:'approved'},
+    {id:ids[3],kind:'logo',altText:'Private replacement logo',status:'draft'},
+  ].map((e,n)=>({...e,width:20,height:12,creditText:null,revision:'a'.repeat(32),sortOrder:n}));
+  const stamps = [
+    {id:ids[4],stampId:ids[6],designVersion:1,kind:'generated_template',origin:'generated_template',status:'approved',active:true,hasArtwork:false,templateData:{tier:'shop',motif:'nib'}},
+    {id:ids[5],stampId:ids[6],designVersion:2,kind:'uploaded',origin:'founder_created',status:'draft',active:false,hasArtwork:true},
+  ].map(e=>({...e,ink:'teal',creatorName:null,creatorUrl:null,revision:'b'.repeat(32)}));
+  const writes:string[]=[];
+  page.on('request',r=>{if(r.method()!=='GET')writes.push(r.url());});
+  await page.route(`**/api/v1/admin/shops/${id}/media`,r=>r.fulfill({json:{entries}}));
+  await page.route(`**/api/v1/admin/shops/${id}/stamp`,r=>r.fulfill({json:{entries:stamps}}));
+  await page.route(`**/api/v1/admin/shops/${id}/media/*`,r=>r.fulfill({contentType:'image/png',body:makePng(20,12)}));
+  await page.route(`**/api/v1/admin/shops/${id}/stamp/*`,r=>r.fulfill({contentType:'image/png',body:makePng(1200,800)}));
+  await page.goto(`/admin/shops/${id}`);await open(page,'Review');
+  const panel=page.getByRole('region',{name:'Compare saved images and artwork'});
+  const checkbox=panel.getByRole('checkbox',{name:/Private comparison photo/});
+  await checkbox.focus();await page.keyboard.press('Space');await expect(checkbox).toBeChecked();
+  await expect(checkbox).toHaveCSS('width','18px');await expect(checkbox).toHaveCSS('height','18px');
+  const photoLabel=checkbox.locator('..');
+  const target=await photoLabel.boundingBox();
+  expect(target?.height).toBeGreaterThanOrEqual(44);
+  // Click the label below the 18px glyph to verify the full touch target.
+  await photoLabel.click({position:{x:8,y:40}});await expect(checkbox).not.toBeChecked();
+  await photoLabel.click({position:{x:8,y:40}});await expect(checkbox).toBeChecked();
+  await panel.getByRole('radio',{name:/Private replacement logo/}).check();
+  await panel.getByRole('radio',{name:/Design v2/}).check();
+  const gallery=panel.getByLabel('Selected gallery comparison');
+  await expect(gallery.getByAltText('Private replacement logo')).toBeVisible();
+  await gallery.getByRole('button',{name:/Open photo 1 of 2: Private comparison photo/}).click();
+  await expect(page.getByRole('dialog')).toContainText('Saved private caption');
+  await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(panel.getByLabel('Selected stamp comparison').getByAltText('List-size stamp preview')).toBeVisible();
+  await expect(panel.getByLabel('Selected stamp comparison').getByAltText('Detail-size stamp preview')).toHaveCSS('object-fit','contain');
+  await expect(publicPreview(page).getByRole('button',{name:/Open photo 1 of 1: Approved comparison photo/})).toBeVisible();
+  await expect(publicPreview(page).getByAltText('Private replacement logo')).toHaveCount(0);
+  const scan=await new AxeBuilder({page}).include('[aria-label="Compare saved images and artwork"]').analyze();expect(scan.violations).toEqual([]);
+  expect(await page.evaluate(()=>window.document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await panel.screenshot({path:info.outputPath('admin-d4-media-comparison.png')});
+  await panel.getByRole('button',{name:'Reload media comparison'}).click();await expect(checkbox).not.toBeChecked();
+  await expect(panel.getByRole('radio',{name:/Design v1/})).toBeChecked();
+  await checkbox.check();await panel.getByRole('button',{name:'Manage stamp artwork'}).click();
+  await expect(page.getByRole('region',{name:'Atlas Stamp artwork'})).toBeVisible();
+  await open(page,'Review');await expect(checkbox).not.toBeChecked();
+  expect(state.actions).toEqual([]);expect(writes).toEqual([]);
 });

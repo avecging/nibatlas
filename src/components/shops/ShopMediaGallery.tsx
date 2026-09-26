@@ -75,7 +75,7 @@ function PhotoTile({
  * preview is `object-fit: contain` on the page's own warm surface rather than a
  * crop this component invented.
  */
-export function ShopMediaGallery({ shopName }: { readonly shopName: string }) {
+export function ShopMediaGallery({ shopName, ariaLabel }: { readonly shopName: string; readonly ariaLabel?: string }) {
   const { status, photos, srcFor, retry } = useShopMedia();
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
 
@@ -122,7 +122,7 @@ export function ShopMediaGallery({ shopName }: { readonly shopName: string }) {
   ];
 
   return (
-    <section className={styles.gallery} aria-label={`Photos of ${shopName}`}>
+    <section className={styles.gallery} aria-label={ariaLabel ?? `Photos of ${shopName}`}>
       <ul className={styles.grid} data-count={Math.min(photos.length, PREVIEW_COUNT)}>
         <li className={styles.coverCell}>
           <PhotoTile

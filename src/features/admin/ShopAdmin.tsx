@@ -5,6 +5,7 @@ import { HoursEditor } from "./HoursEditor";
 import { publicationFix } from "./publication-fix";
 import { useHasPendingUploads } from "./use-pending-upload";
 import { PublicPreviewFrame } from "./PublicPreviewFrame";
+import { MediaReview } from "./MediaReview";
 import { readAdminResponse } from "./read-response";
 import {
   normalizeShopDocument,
@@ -1145,6 +1146,9 @@ function Workspace({ id }: { id: string | null }) {
             }}
             onConfirm={setConfirmation}
             onOpenPhotos={() => go("photos")}
+            mediaComparison={<MediaReview record={record}
+              localityName={options.localities?.find(o => o.id === record.document.shop.locality_id)?.label.replace(/ \([A-Z]{2}\)$/, "") ?? ""}
+              onOpenPhotos={() => go("photos")} onOpenStamp={() => go("stamp")}/>}
             onRecheckMedia={() => setMediaCheck("pending")}
             onReload={() => {
               if (!dirty || window.confirm("Discard your unsaved edits and reload?"))
@@ -1338,6 +1342,7 @@ function ReviewSection({
   onReload,
   onOpenPhotos,
   onRecheckMedia,
+  mediaComparison,
   legacy,
 }: {
   record: ShopRecord;
@@ -1352,6 +1357,7 @@ function ReviewSection({
   onReload: () => void;
   onOpenPhotos: () => void;
   onRecheckMedia: () => void;
+  mediaComparison: ReactNode;
   legacy: ReactNode;
 }) {
   const archived = record.publicationStatus === "archived";
@@ -1413,6 +1419,8 @@ function ReviewSection({
           Go to Photos &amp; logo
         </button>
       </div>
+
+      {mediaComparison}
 
       <div className={styles.previewHead}>
         <h3>Saved public-page preview</h3>
