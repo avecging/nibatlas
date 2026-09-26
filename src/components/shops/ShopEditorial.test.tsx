@@ -12,6 +12,15 @@ describe('editorial rendering', () => {
     expect(screen.getByText('<script>private()</script>')).toBeVisible();
     expect(container.querySelector('script')).toBeNull();
   });
+  it('renders the selected icon and keeps the Writing icon for legacy entries', () => {
+    const experience = {id:'one',category:'nib_testing',title:'Try nibs'};
+    const {container,rerender}=render(<ShopEditorial content={{experiences:[experience]}}/>);
+    const original=container.querySelector('svg')?.innerHTML;
+    expect(original).toBeTruthy();
+    rerender(<ShopEditorial content={{experiences:[{...experience,icon:'ink'}]}}/>);
+    expect(container.querySelector('svg')?.innerHTML).not.toBe(original);
+    expect(screen.getByRole('heading',{name:'Try nibs'})).toBeVisible();
+  });
   it('omits unknown practical fields and shows known No in the private admin preview', () => {
     // The admin draft preview lists what an editor typed; the public page
     // resolves the same fields against the sourced blocks in shop-visit-facts.

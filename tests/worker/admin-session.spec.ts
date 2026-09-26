@@ -83,7 +83,7 @@ for (const role of ["admin", "editor"] as const) {
     await page.reload();
     await expect(page.getByLabel(/^Shop name(?: \*)?$/)).toHaveValue("Edited Worker test draft");
     await page.getByRole("navigation", { name: "Editor sections" }).getByRole("button", { name: "Review" }).click();
-    await expect(page.getByRole("article", { name: "Public page preview" })
+    await expect(page.frameLocator('iframe[title="Saved public-page preview"]').getByRole("region", { name: "Incomplete preview" })
       .getByRole("heading", { name: "Edited Worker test draft", exact: true })).toBeVisible();
     expect(sql(`select publication_status='draft' from public.shops where id='${id}';`)).toBe("t");
     expect(sql(`select count(*)>=1 and bool_and(actor_user_id='${actor}' and actor_kind='account') from public.admin_audit_log where entity_id='${id}' and action='catalogue_insert';`)).toBe("t");

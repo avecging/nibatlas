@@ -5,7 +5,7 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { inspectJpeg, processJpeg, orientPhoto, type PhotoImages, digest } from './jpeg';
-import { jpeg, progressiveJpeg, largeJpeg, profiledJpeg, adobeRgbJpeg, awkwardRatioJpeg, awkwardPortraitJpeg } from './jpeg.fixture';
+import { hdrJpeg, grayGainMap, withGainMapAttribute, jpeg, progressiveJpeg, largeJpeg, profiledJpeg, adobeRgbJpeg, awkwardRatioJpeg, awkwardPortraitJpeg } from './jpeg.fixture';
 import { validatePng, MAX_MEDIA_BYTES } from './png';
 import { png } from './png.fixture';
 
@@ -24,6 +24,34 @@ function pixels(bytes:Uint8Array) {
   const m=validatePng(bytes,false), p=new Uint8Array(m.width*m.height*4);validatePng(bytes,false,p);return {p,...m};
 }
 describe('JPEG preflight and pixel orientation',()=>{
+  it.each([false,true])('extracts only the primary from a bounded HDR JPEG (little-endian %s)',little=>{
+    const ordinary=withExif(jpeg,6), result=inspectJpeg(hdrJpeg(ordinary,jpeg,little));
+    expect(result.bytes).toEqual(inspectJpeg(ordinary).bytes);
+    expect(result).toMatchObject({width:24,height:16,orientation:6});
+    for(const marker of ['MPF','hdr-gain-map','Exif','GPS','private'])expect(result.bytes.includes(Buffer.from(marker))).toBe(false);
+  });
+  it.each([false,true])('accepts a grayscale gain map with only an MP version attribute (%s)',little=>{
+    expect(inspectJpeg(hdrJpeg(jpeg,withGainMapAttribute(grayGainMap,little),little)).bytes).toEqual(inspectJpeg(jpeg).bytes);
+    expect(()=>inspectJpeg(grayGainMap)).toThrow(); // Grayscale primary still unsupported.
+    const malformed=withGainMapAttribute(grayGainMap,little);
+    malformed[malformed.indexOf(Buffer.from('0100'))]=50;
+    expect(()=>inspectJpeg(hdrJpeg(jpeg,malformed))).toThrow();
+    expect(()=>inspectJpeg(hdrJpeg(jpeg,withGainMapAttribute(withGainMapAttribute(grayGainMap))))).toThrow();
+  });
+  it('rejects malformed HDR indexes, overlaps, gaps, additional pictures and non-HDR MPO',()=>{
+    const valid=hdrJpeg(), tiff=valid.indexOf(Buffer.from('MPF\0'))+4;
+    const corrupt=(offset:number,value:number)=>{const b=Buffer.from(valid);b.writeUInt32BE(value,tiff+offset);return b;};
+    for(const b of [corrupt(4,0xffffffff),corrupt(30,3),corrupt(42,0xfffffff0),
+      corrupt(54,1),corrupt(74,1),corrupt(74,valid.readUInt32BE(tiff+74)+1),
+      corrupt(70,0xffffffff),corrupt(58,1),corrupt(62,1),corrupt(66,0x30000),
+      valid.subarray(0,-1),Buffer.concat([valid,jpeg]),Buffer.concat([jpeg,jpeg]),
+      Buffer.from(valid.toString('latin1').replaceAll('hdr-gain-map','not-gain-map'),'latin1')]) expect(()=>inspectJpeg(b)).toThrow();
+  });
+  it('rejects oversized auxiliary frames and nested MPF indexes',()=>{
+    expect(()=>inspectJpeg(hdrJpeg(jpeg,largeJpeg))).toThrow();
+    expect(()=>inspectJpeg(hdrJpeg(jpeg,hdrJpeg()))).toThrow();
+    expect(()=>inspectJpeg(hdrJpeg(largeJpeg,Buffer.alloc(MAX_MEDIA_BYTES)))).toThrow();
+  });
   it.each([[1024,340],[1024,341]])('uses validated decoder dimensions %s x %s',async(width,height)=>{
     let options:unknown;
     const images:PhotoImages={input:()=>({transform:value=>{options=value;return {output:async()=>({response:()=>new Response(png(width,height),{headers:{'content-type':'image/png'}})})};}})};
@@ -111,6 +139,13 @@ describe('actual local Cloudflare Images binding',()=>{
     for(const text of ['Exif','GPS','XMP','IPTC','secret','private']) expect(result.bytes.includes(Buffer.from(text))).toBe(false);
     // Top-left after clockwise rotation was the original blue bottom-left.
     const p=pixels(result.bytes).p;expect(p[2]).toBeGreaterThan(240);expect(p[0]).toBeLessThan(15);
+  });
+  it('decodes HDR primary pixels identically, preserving orientation and removing the gain map',async()=>{
+    const ordinary=withExif(jpeg,6);
+    const output=await processJpeg(hdrJpeg(ordinary),images);
+    expect(output.bytes).toEqual((await processJpeg(ordinary,images)).bytes);
+    expect(output.checked).toMatchObject({width:16,height:24});
+    expect(output.bytes.includes(Buffer.from('hdr-gain-map'))).toBe(false);
   });
   it.each([0,1])('preserves Adobe transform %s colours and strips the marker from output',async transform=>{
     const marker=app(0xee,Buffer.from([65,100,111,98,101,0,100,0,0,0,0,transform]));

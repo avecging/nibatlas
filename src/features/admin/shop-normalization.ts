@@ -1,4 +1,4 @@
-import { document, GROUPS, HOURS_FIELDS, SHOP_FIELDS, UUID, type Document, type Field, type Row, type Options } from './shop-contract';
+import { document, GROUPS, HOURS_FIELDS, HOURS_EXCEPTION_FIELDS, SHOP_FIELDS, UUID, type Document, type Field, type Row, type Options } from './shop-contract';
 
 export interface FieldIssue { path: string; message: string }
 export class ShopValidationError extends Error {
@@ -80,7 +80,7 @@ export function normalizeShopDocument(input: unknown, options?: Options): Docume
   shop.opening_hours = null;
   if (rawShop.opening_hours != null) {
     const h = obj(rawShop.opening_hours, 'shop.opening_hours');
-    const note = parse(h, [{ key: 'note', label: 'Hours summary' }], 'shop.opening_hours', ['entries']);
+    const note = parse(h, [{ key: 'note', label: 'Hours summary' }], 'shop.opening_hours', ['entries', 'exceptions']);
     const entries = h.entries === undefined ? [] : list(h.entries, 'shop.opening_hours.entries').map((v, i) => {
       const at = `shop.opening_hours.entries.${i}`, r = parse(v, HOURS_FIELDS, at);
       for (const key of ['opens', 'closes']) {
@@ -91,7 +91,25 @@ export function normalizeShopDocument(input: unknown, options?: Options): Docume
       // Split and overnight spans remain valid; never discard them.
       return r;
     });
-    shop.opening_hours = { ...(note.note ? { note: note.note } : {}), entries };
+    const exceptions = h.exceptions === undefined ? [] : list(h.exceptions, 'shop.opening_hours.exceptions').map((v, i) => {
+      const at = `shop.opening_hours.exceptions.${i}`, r = parse(v, HOURS_EXCEPTION_FIELDS, at);
+      if (typeof r.date === 'string' && !/^\d{4}-\d{2}-\d{2}$/.test(r.date)) issue(`${at}.date`, 'Use a real YYYY-MM-DD date.');
+      else if (typeof r.date === 'string' && !validCalendarDate(r.date)) issue(`${at}.date`, 'Use a real YYYY-MM-DD date.');
+      for (const key of ['opens', 'closes'] as const) {
+        if (r[key] != null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(String(r[key]))) issue(`${at}.${key}`, 'Use 24-hour HH:MM.');
+        if (r[key] == null && r[key === 'opens' ? 'closes' : 'opens'] != null) issue(`${at}.${key}`, 'Supply both opening and closing times.');
+      }
+      if (r.closed === true && (r.opens != null || r.closes != null)) issue(`${at}.closed`, 'Remove times or choose No for closed.');
+      return r;
+    });
+    const byDate = new Map<string, { closed: boolean; count: number }>();
+    exceptions.forEach((r, i) => {
+      if (typeof r.date !== 'string') return;
+      const previous = byDate.get(r.date), closed = r.closed === true;
+      if (previous && (closed || previous.closed)) issue(`shop.opening_hours.exceptions.${i}.date`, 'A closed date cannot have another exception period.');
+      byDate.set(r.date, { closed: closed || !!previous?.closed, count: (previous?.count ?? 0) + 1 });
+    });
+    shop.opening_hours = { ...(note.note ? { note: note.note } : {}), entries, exceptions };
   }
   const result = { shop } as Document;
   for (const g of GROUPS) {
@@ -167,6 +185,11 @@ function validDate(value: string): boolean {
   const match = /^(\d{4}-\d{2}-\d{2})(?:T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2}))?$/.exec(value);
   if (!match || !Number.isFinite(Date.parse(value)) || Date.parse(value) > Date.now()) return false;
   return new Date(`${match[1]}T00:00:00Z`).toISOString().slice(0, 10) === match[1];
+}
+function validCalendarDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
 /** Names are never used to regenerate existing slugs. Called only on creation. */

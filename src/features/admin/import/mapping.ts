@@ -11,7 +11,7 @@ export function vocabularyOptions(kind: Vocabulary, options: Options, country = 
 export function resolveValue(kind: Vocabulary, raw: string, options: Options, values: ValueMap, country = ''): string | null {
   const choices = vocabularyOptions(kind, options, country), explicit = values[mappingKey(kind, raw, country)];
   if (explicit !== undefined) return choices.some(c => c.id === explicit) ? explicit : null;
-  const matches = choices.filter(c => comparable(c.id) === comparable(raw) || comparable(c.label) === comparable(raw) || (kind === 'locality' && comparable(c.label.replace(/ \([A-Z]{2}\)$/, '')) === comparable(raw)));
+  const matches = choices.filter(c => comparable(c.id) === comparable(raw) || (c.code !== undefined && comparable(c.code) === comparable(raw)) || comparable(c.label) === comparable(raw) || (kind === 'locality' && comparable(c.label.replace(/ \([A-Z]{2}\)$/, '')) === comparable(raw)));
   return matches.length === 1 ? matches[0]!.id : null;
 }
 export function projectRows(rows: InputRow[], columns: ColumnMap): InputRow[] {

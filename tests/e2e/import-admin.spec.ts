@@ -48,6 +48,25 @@ test('admin previews 200 synthetic shops, corrects once, filters and downloads s
   await page.getByLabel('name', { exact: true }).selectOption('short_description');
   await expect(page.getByRole('heading', { name: 'Preview results' })).toHaveCount(0);
 });
+test('file selection feedback updates on replacement and batch reset', async ({ page }) => {
+  await stubSession(page, { kind: 'signed-in' });
+  await page.route('**/api/v1/admin/import', route => route.fulfill({ json: { options } }));
+  await page.route('**/api/v1/admin/import/batches', route => route.fulfill({ json: [] }));
+  await page.goto('/admin/shops/import');
+  const picker = page.getByLabel('CSV or JSON file');
+  await expect(page.getByText('No file chosen')).toBeVisible();
+  await picker.setInputFiles({ name: 'first.csv', mimeType: 'text/csv', buffer: Buffer.from('name\nFirst') });
+  await expect(page.getByText('first.csv')).toBeVisible();
+  await picker.setInputFiles({ name: 'second.csv', mimeType: 'text/csv', buffer: Buffer.from('name\nSecond') });
+  await expect(page.getByText('second.csv')).toBeVisible();
+  await expect(page.getByText('first.csv')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Start a separate new batch' }).click();
+  await expect(page.getByText('No file chosen')).toBeVisible();
+  await picker.focus();
+  await expect(page.locator('label').filter({ has: picker })).toHaveCSS('cursor', 'pointer');
+  await expect(page.locator('body')).toHaveJSProperty('scrollWidth', await page.evaluate(() => window.innerWidth));
+  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+});
 test('editor cannot load import data, and signed-out view has no upload control', async ({ page }) => {
   await stubSession(page, { kind: 'signed-in' });
   await page.route('**/api/v1/admin/import', route => route.fulfill({ status: 403, json: { error: { code: 'forbidden' } } }));

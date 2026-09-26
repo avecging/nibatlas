@@ -1,5 +1,8 @@
 -- Read-only data recovery export; excludes auth credentials and ephemeral nonces.
 -- Media bytes remain in R2; this snapshot includes their manifests/references.
+-- Project labels below are descriptive, not database identity verification.
+-- Before snapshot AND reset, independently verify the actual dashboard URL/ref
+-- and project name, or authenticated connection project, as the runbook requires.
 with backup as (select jsonb_build_object(
   'shops',(select coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),'[]'::jsonb) from public.shops r),
   'shop_working_copies',(select coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),'[]'::jsonb) from public.shop_working_copies r),

@@ -338,3 +338,195 @@ Founder acceptance after a separately authorized preview/deployment:
 
 This is not import/publication acceptance. No catalogue dataset or synthetic test
 rows have been imported. Existing launch obligations and deferrals are unchanged.
+
+
+## Package C2+C3 combined founder staging acceptance
+
+C2 and C3 are merged. C3 is main `64243cf` from PR #93; post-merge CI
+35680370585 and staging deployment 35702964089 succeeded. This is deployed
+implementation, not founder acceptance. Combined C2+C3 founder testing remains
+pending and is handled separately from Package D. Use disposable clearly labelled
+synthetic shops for acceptance; D does not authorize any hosted mutations.
+
+1. Preview a mixed CSV/JSON file. Select new drafts and explicit updates, inspect
+   preserved blank fields and deliberate clears, deselect a row and import
+   privately. Public pages/media/stamps must remain unchanged.
+2. Refresh, reopen the saved batch and finish remaining private imports. Completed
+   rows must retain their shop IDs and must not import again.
+3. Choose **Load publication review**. Check new/private-update/already-published
+   and unresolved rows. Search, filter and change pages; selection starts empty.
+4. Inspect saved/public content in the batch, including hours/relationships and
+   private notes, without reopening each editor. Use correction links as needed.
+   Select the intended rows, check the total, and **Mark selected reviewed**.
+5. **Confirm selected positions** only after checking saved addresses/coordinates.
+   Check the second confirmation list; cancel once, then confirm deliberately.
+   Incomplete rows must retain precise blockers and prevent their publication.
+6. Select only publishable rows, deselect one, then **Publish selected rows**.
+   Check the exact count/list before confirming. Follow public links and verify
+   stable URLs, expected content and private-field exclusion. Media/artwork
+   activation and existing collections must remain unchanged.
+7. Change a reviewed draft in another tab. Publication must conflict and require
+   fresh review. Coordinate/address changes must require fresh confirmation.
+   A public-base conflict requires reconciling the editor copy before review.
+8. Interrupt/reload while publishing. Reload publication review, verify successful
+   rows, and select only remaining eligible rows. Failed rows can retry after
+   recovery; stale/corrected rows must be reviewed again. No successful write is
+   repeated. Verify latest outcome/time and the resulting shop links.
+9. Repeat key steps on a phone: labels/checkboxes/counts/confirmation lists,
+   keyboard focus, comparison readability and no horizontal overflow. Another
+   admin must not access your batch; ordinary/editor/revoked accounts are denied.
+
+Record founder observations separately from automated test evidence and the
+actual deployment SHA. Production promotion, Package D polish, catalogue research,
+main map #87 and other launch/field acceptance remain out of scope.
+
+
+## Experience icon picker — founder follow-up
+
+In **Experiences**, choose one of ten labelled hobby icons for each experience.
+Writing is the unchanged default for old entries. Icons are independent of the
+experience category, and save/publish with the text through the existing controls.
+No image upload or artwork activation is involved.
+
+After a separately authorized deployment/migration, check on mobile and desktop:
+1. Open an older experience: Writing is selected and its content is intact.
+2. Choose Ink bottles or Nib testing, save privately, and reopen the shop. The
+   selection survives; the live shop remains unchanged until explicit publication.
+3. Review the saved preview, publish deliberately, and check the public card uses
+   the same icon while retaining its title/category/description.
+4. Use Tab and arrow keys to choose an icon. Labels and visible focus must remain
+   clear; the picker should fit a narrow phone without page overflow.
+
+## D1 editor polish — PR only, not deployed or founder-accepted
+
+- **Visit details:** Unknown, Open and Closed are distinct. Add one entry per
+  opening period; duplicate weekdays preserve split hours. An earlier closing time
+  is labelled next day. Open without recorded times remains supported. Copy a day
+  carries every period/note and asks before replacing existing destination entries.
+  Clear all hours deliberately sets the weekly document to null; the separate
+  holiday note remains. Simply opening the editor does not materialize empty days.
+  Date-specific information could use the holiday note in prose in D1; D2 adds
+  structured date exceptions without changing older saved notes.
+- **Photos & logo:** arrangement/captions save separately. The first approved
+  photo is identified as the public cover; a private first photo is not claimed
+  as live. For an unpublished shop, approved images are marked for publication.
+  A failed caption save keeps typed text after the latest gallery loads. If the
+  saved caption differs, compare it and explicitly replace it or use saved text.
+  Existing upload retry, immutable attachments, metadata safeguards and admin-only
+  media actions are unchanged.
+- **Review:** the desktop/mobile surface is explicitly a saved shop-text preview.
+  It excludes unsaved edits and does not claim full live-page parity. Photos,
+  map and artwork have separate review controls. Private notes/reference links
+  never appear in that content preview. Published content remains unchanged by
+  draft saves; review/publication and artwork activation remain separate.
+- **Failed save:** local edits remain in the editor. Compare latest saved version
+  reads the newest content without changing the editor or its original revision.
+  This cannot silently rebase a full-document write over someone else's changes.
+  Discard local edits and reload is explicit. After a lost response, comparison
+  may show identical content; reload to recover the current revision. No private
+  drafts are persisted to browser storage.
+
+### Founder checklist — only after a separately authorized later deployment
+
+1. Reopen a synthetic draft with paragraphs, relationship rows, private notes,
+   weekly notes and split/overnight hours. Edit/save/reopen; verify all survive.
+2. Enter an invalid time, save, follow the field error, correct it and save. Copy
+   a day, cancel/accept replacement, and verify every span/note. Clear weekly hours
+   deliberately and verify holiday notes remain. Unknown must not become closed.
+3. Change a caption, provoke a second-tab conflict, and check your text survives.
+   Compare the saved value before explicit replacement. Reorder/cover/save/reopen;
+   verify stable images and private/public boundaries, including an unpublished shop.
+4. With unsaved shop text, open Review: preview must show the saved text and say
+   edits are excluded. Save privately; check public content/artwork is unchanged.
+5. Save against a stale revision; compare without losing local edits or changing
+   the revision. Reload only deliberately. Check leaving with dirty text/caption
+   or pending upload asks first, keyboard focus, labels and narrow-screen overflow.
+6. Change saved coordinates: confirmation must invalidate; previously reviewed C3
+   rows require re-review. Saving text or arranging media never publishes a shop,
+   activates artwork or changes collected impressions. Existing role denial remains.
+
+Technical evidence belongs in the D1 PR. Actual public-renderer
+preview and integrated pending-media/artwork review remain in Package D. Combined
+C2+C3 founder testing continues independently; it is not implied by CI.
+
+## D2 dated hours and import file feedback — PR only
+
+The Visit details editor accepts dated exception rows alongside weekly hours.
+Enter a shop-local date, choose Unknown/Open/Closed, and optionally enter paired
+24-hour times and a note. Two open rows on one date create split periods; an
+earlier closing time means the following day. A closed date stands alone. The
+weekly rows, general holiday note and pre-existing shop records remain intact.
+Save privately, then deliberately publish the shop text for the date entries to
+appear under “Before you go” on the public detail. The read-only saved-text
+preview and C3 saved/public comparison include exceptions; public-renderer parity
+and integrated media/artwork review remain separate D work.
+
+The import picker displays the successfully loaded filename independently of its
+cleared native file input, so the same filename can be reselected after editing.
+Selecting a replacement updates the display; starting a new batch or reopening
+another batch restores “No file chosen”. Import mapping and publication are unchanged.
+
+
+## D3 saved public-page preview — PR checkpoint
+
+D2 is merged in #96 and founder-reported generally working. D3 replaces the
+separate text mockup with the public shop renderer, including approved gallery
+and logo, in a real Mobile (360 px) or Desktop (1280 px) viewport. On a narrow
+screen the desktop frame scrolls sideways; it does not widen the editor. Refresh
+preview rereads the saved revision and current approved images. A changed saved
+revision requires reloading/reviewing the shop. This action does not save, publish
+or activate anything. Optional private images remain in Photos & logo, and stamp
+choices remain in Stamp. Combined pending-media review/publication is still D work.
+
+After a separately authorized deployment:
+
+1. Open a synthetic shop with complete saved location/timezone/type and story,
+   multiple experiences, split/overnight/dated hours, one approved photo/logo and
+   one private photo. Choose Review, then Mobile and Desktop. Check the familiar
+   public layout, approved gallery and logo, full images/captions and readable
+   hours. Open/close a photo with keyboard and Escape; the editor should fit your
+   phone. Nearby/account state and the future review date are explicitly omitted.
+2. Keep a text change unsaved, then open Review. The frame must show saved text;
+   save privately to include it. Public content/artwork must remain unchanged.
+3. Confirm internal notes/reference links/evidence notes and private images are
+   absent in the frame. Save/Collect/Directions do not act from this preview.
+4. Save a newer revision in a second tab, then Refresh preview in the old tab.
+   Expect the changed-version notice, with no silent rebase or publication.
+5. A name-only draft shows its saved name and an incomplete-preview explanation.
+   Use the existing Fix actions to complete known facts; do not fabricate them.
+6. Sign out or use an ordinary account: direct preview links reveal no private
+   content. Image delivery retains its existing live editor/admin check.
+
+A small read-only vocabulary ordering migration is included, with no catalogue
+row changes. It has not been applied to hosted projects by this work. Map tiles
+reported by the founder are tracked separately in #97; D3 makes no map-fix claim.
+
+
+## D4a media/artwork comparison — PR checkpoint
+
+Open **Review → Compare saved images and artwork**. Approved photos start included;
+select private photos to compare in saved gallery order, one logo and an active
+or PNG-ready draft stamp. Inspect gallery zoom/captions and the existing three
+stamp sizes. The generated default remains a valid choice. Choices are temporary,
+with no catalogue, media, stamp or collection writes. The saved public-page frame
+below continues to show approved images only.
+
+**Manage photos & logo** and **Manage stamp artwork** open the established tools
+for explicit publication/activation. Leaving Review, reloading the comparison or
+saving a new shop revision resets comparison choices. Reload after changes in
+another tab. A changed saved shop requires **Reload saved version** before another
+comparison; failed or denied reads show an error with no partial content.
+
+After a separately authorized deployment, check on mobile and desktop:
+1. Try private photos and a replacement logo, open/close gallery zoom, then inspect
+   a saved stamp PNG and its credit. Confirm approved/default art is preserved.
+2. Confirm choices make no public changes, and D3's public-page frame excludes
+   the private choices. Save/publish shop and artwork activation remain separate.
+3. Reload or leave/reopen Review: choices reset to approved/current selections.
+4. Save in a second tab before reloading the comparison: expect a stale-version
+   notice and deliberate reload of the saved shop. Denied/failed media reads must
+   not show a partial gallery as a completed comparison.
+5. Check keyboard labels/focus, image failure messages and narrow-screen overflow.
+
+Combined publication, durable revision-bound media/artwork decisions and recovery
+remain within Package D. This checkpoint does not claim hosted/founder acceptance.

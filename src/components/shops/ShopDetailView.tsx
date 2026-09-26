@@ -5,11 +5,12 @@ import { ShopEditorial } from "@/src/components/shops/ShopEditorial";
 import { ShopIdentityHero } from "@/src/components/shops/ShopIdentityHero";
 import { ShopMediaGallery } from "@/src/components/shops/ShopMediaGallery";
 import { ShopLocationMap } from "@/src/components/shops/ShopLocationMap";
-import { ShopMediaProvider } from "@/src/components/shops/ShopMediaProvider";
+import { ShopMediaSnapshotProvider, ShopMediaProvider } from "@/src/components/shops/ShopMediaProvider";
 import { ShopNearby } from "@/src/components/shops/ShopNearby";
 import {
   ShopPositionDiagnostic,
   ShopProvenance,
+  ShopProvenanceLine,
 } from "@/src/components/shops/ShopReviewerDetails";
 import {
   ShopExclusives,
@@ -24,6 +25,8 @@ import {
 } from "@/src/domain/shop-detail";
 import { shopVisitFacts, type VisitFact } from "@/src/features/shops/shop-visit-facts";
 import { readCatalogueMode } from "@/src/features/catalogue/catalogue-mode";
+
+import type { ShopMedia } from "@/src/features/admin/media-contract";
 
 import styles from "./ShopDetailView.module.css";
 
@@ -92,6 +95,8 @@ function FactList({ facts }: { readonly facts: readonly VisitFact[] }) {
 }
 
 interface ShopDetailViewProps {
+  /** Defined only in the private saved preview; never a public API override. */
+  readonly previewMedia?: readonly ShopMedia[];
   readonly shop: ShopDetail;
   /** Other catalogue shops in reach, already derived and ordered. */
   readonly nearby: readonly NearbyShop[];
@@ -147,6 +152,7 @@ export function ShopDetailView({
   actions,
   statusBadges,
   back,
+  previewMedia,
 }: ShopDetailViewProps) {
   const specialties = shop.specialties ?? [];
   const brands = shop.brands ?? [];
@@ -206,8 +212,8 @@ export function ShopDetailView({
     hours.length > 0;
   const columns = hasStory && hasRail ? "two" : "one";
 
-  return (
-    <ShopMediaProvider key={shop.id} shopId={shop.id}>
+  const preview = previewMedia !== undefined;
+  const content = (
       <div className={styles.page} data-columns={columns}>
         {back}
 
@@ -240,7 +246,7 @@ export function ShopDetailView({
         <ShopMediaGallery shopName={shop.name} />
         {/* Only the fixture catalogue promises future photos. API records with
             no published media and misconfigured builds make no such promise. */}
-        {readCatalogueMode().mode !== "fixture" ? null : (
+        {preview || readCatalogueMode().mode !== "fixture" ? null : (
           <p className={styles.photosPending}>
             <Icon name="camera" size={16} />
             <span>Photos coming soon</span>
@@ -333,13 +339,14 @@ export function ShopDetailView({
                 ) : (
                   <>
                     <div className={styles.hours}>
-                      {hours.map((entry) => (
-                        <p className={styles.hourRow} key={entry.day}>
+                      {hours.map((entry, index) => (
+                        <p className={styles.hourRow} key={`${entry.day}-${index}`}>
                           <span>{DAY_LABELS[entry.day]}</span>
                           <span>
                             {entry.closed
                               ? "Closed"
-                              : `${entry.opens ?? "—"}–${entry.closes ?? "—"}`}
+                              : entry.opens && entry.closes ? `${entry.opens}–${entry.closes}${entry.closes < entry.opens ? " (next day)" : ""}`
+                              : entry.closed === false ? "Open · times not recorded" : "Hours unknown"}
                             {entry.note ? ` · ${entry.note}` : ""}
                           </span>
                         </p>
@@ -354,6 +361,18 @@ export function ShopDetailView({
                     </p>
                   </>
                 )}
+                {!!shop.openingHoursExceptions?.length && <div className={styles.hours}>
+                  <h4>Date-specific hours</h4>
+                  {[...shop.openingHoursExceptions].sort((a, b) => a.date.localeCompare(b.date)).map((entry, index) => (
+                    <p className={styles.hourRow} key={`${entry.date}-${index}`}>
+                      <span>{entry.date}</span>
+                      <span>{entry.closed ? 'Closed' : entry.opens && entry.closes
+                        ? `${entry.opens}–${entry.closes}${entry.closes < entry.opens ? ' (next day)' : ''}`
+                        : entry.closed === false ? 'Open · times not recorded' : 'Hours unknown'}
+                        {entry.note ? ` · ${entry.note}` : ''}</span>
+                    </p>
+                  ))}
+                </div>}
 
                 <FactList facts={facts.beforeYouGo} />
 
@@ -391,15 +410,16 @@ export function ShopDetailView({
                 not disappear with the subsection. It renders nothing for a normal
                 tester.
               */}
-              <ShopPositionDiagnostic shop={shop} />
+              {!preview && <ShopPositionDiagnostic shop={shop} />}
             </section>
           </div>
         </div>
 
         {/* 5 — quiet provenance, then the correction route. */}
-        <ShopProvenance shop={shop} />
+        {preview ? <ShopProvenanceLine shop={shop} pendingReview /> : <ShopProvenance shop={shop} />}
         <ShopCorrection shopSlug={shop.slug} />
       </div>
-    </ShopMediaProvider>
   );
+  return preview ? <ShopMediaSnapshotProvider shopId={shop.id} entries={previewMedia}>{content}</ShopMediaSnapshotProvider>
+    : <ShopMediaProvider key={shop.id} shopId={shop.id}>{content}</ShopMediaProvider>;
 }

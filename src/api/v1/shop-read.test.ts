@@ -45,6 +45,15 @@ function detail() {
 }
 
 describe("v1 shop read runtime contract", () => {
+  it('decodes bounded local date exceptions and rejects impossible dates', () => {
+    const exceptions = [{date:'2026-12-25',closed:true,note:'Holiday'},{date:'2026-12-31',opens:'22:00',closes:'02:00'}];
+    expect(decodeShopDetailV1({...detail(),openingHoursExceptions:exceptions})?.openingHoursExceptions).toEqual(exceptions);
+    expect(() => decodeShopDetailV1({...detail(),openingHoursExceptions:[{date:'2026-02-30'}]})).toThrow(ShopReadContractError);
+    expect(() => decodeShopDetailV1({...detail(),openingHoursExceptions:{date:'2026-12-25'}})).toThrow(ShopReadContractError);
+    expect(() => decodeShopDetailV1({...detail(),openingHoursExceptions:[{date:'2026-12-25',opens:'25:00',closes:'12:00'}]})).toThrow(ShopReadContractError);
+    expect(() => decodeShopDetailV1({...detail(),openingHoursExceptions:[{date:'2026-12-25',opens:'09:00'}]})).toThrow(ShopReadContractError);
+    expect(() => decodeShopDetailV1({...detail(),openingHoursExceptions:[{date:'2026-12-25',closed:true,opens:'09:00',closes:'12:00'}]})).toThrow(ShopReadContractError);
+  });
   it("preserves explicit-null specialtyLine", () => {
     const decoded = decodeViewportShopsV1({
       shops: [MAP_SHOP],
@@ -188,6 +197,14 @@ describe('B2 trusted editorial public contract', () => {
   });
   it('retains legacy sources and their dates when a listing receives editorial review', () => {
     expect(decodeShopDetailV1({ ...detail(), review })?.sources).toEqual(detail().sources);
+  });
+  it('reads curated experience icons without requiring them on legacy entries', () => {
+    const experience = { id: OTHER_SOURCE_ID, category: 'nib_testing', title: 'Testing' };
+    const decode = (icon?: unknown) => decodeShopDetailV1({...detail(),editorial:{experiences:[{...experience,icon}]}});
+    expect(decode()?.editorial?.experiences?.[0]?.icon).toBeUndefined();
+    expect(decode(null)?.editorial?.experiences?.[0]?.icon).toBeUndefined();
+    expect(decode('ink')?.editorial?.experiences?.[0]?.icon).toBe('ink');
+    expect(()=>decode('<svg/>')).toThrow(ShopReadContractError);
   });
 });
 

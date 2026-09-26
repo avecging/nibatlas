@@ -110,7 +110,7 @@ small-image size, without crop/stretch/upscale. The canvas export removes source
 metadata; the server independently checks the exported PNG. The upload checksum
 and size identify this prepared PNG, cached for retries, not the source file.
 The selected PNG preview uses those prepared bytes only after bounded decoding.
-JPEG logos use the server pipeline below; their preview appears after processing
+JPEG photos and logos use the server pipeline below; their preview appears after processing
 and private attachment. Both admin and public logo displays use `object-fit: contain`.
 This preparation does not run for photos or stamp artwork; exact stamp dimensions,
 transparency, validation, immutable version identity and activation remain intact.
@@ -120,7 +120,7 @@ transparency, validation, immutable version identity and activation remain intac
 JPEG is permitted for `shop_photo` and `shop_logo`, never `artwork_png`. Input manifest `sha256`, `byteSize` and
 `contentType` describe the exact original bytes. Input remains at most 5 MiB.
 Preflight checks JPEG markers/segment and entropy boundaries, exact EOI (no
-trailing bytes), one 8-bit baseline/progressive three-component frame, at most
+unindexed trailing bytes), one 8-bit baseline/progressive three-component primary frame, at most
 8192 px per axis / 24 million decoded pixels, 4096 markers and 128 scans.
 The Cloudflare Images binding performs actual decoding, not signature-only
 acceptance. No native Node decoder runs in the Worker.
@@ -132,7 +132,20 @@ Adobe transform 0 (RGB) and 1 (YCbCr) are supported for three-component frames;
 original version/flags are discarded. Duplicate, malformed, unsupported or
 post-scan Adobe declarations are rejected. The decoder needs this hint before
 the first scan; it never enters the stored PNG.
-Multiple-picture/MPO, CMYK/YCCK,
+A bounded phone HDR JPEG subset is also accepted: a CIPA MP Index with exactly
+one primary and one contiguous auxiliary JPEG, exact sizes/offsets covering the
+whole file, no dependencies or next IFD, and the Adobe HDR gain-map XMP namespace
+in both images. The auxiliary may have one or three components, must fit within
+the primary dimensions, and may contain one fixed version-only MP Attribute IFD.
+Nested indexes, additional pictures, gaps, overlaps and appended bytes are rejected.
+Both frames receive structural/resource preflight; only the ordinary primary is
+sent to Images. The auxiliary and all gain-map metadata are discarded. This stores
+a standard-range photo, not an HDR rendition. The original 5 MiB / 24 MP / 8192-axis
+primary limits and output limits remain unchanged. The discarded auxiliary is not
+decoded or persisted; its marker/scan limits are bounded separately.
+See [Android's format specification](https://developer.android.com/media/platform/hdr-image-format)
+for the primary/auxiliary layout. This is not general MPO or motion-photo support.
+Other multiple-picture/MPO, CMYK/YCCK,
 grayscale, lossless/arithmetic/12-bit exports, malformed orientation/ICC sequences
 and non-JPEG formats are unsupported. Ordinary baseline/progressive RGB JPEG
 exports are supported. See the runbook for plain-language export guidance.
@@ -346,3 +359,30 @@ only becomes that cover if explicitly shown; private photos stay private. New
 attachments append after existing positions. Captions and ordering on approved
 images change the public gallery immediately. Captions render as escaped text,
 separately from preserved credit. Normal catalogue saves still publish no media.
+
+D1 changes only editor recovery/presentation: stable image IDs key caption inputs.
+A gallery refresh retains unsaved caption text; a changed saved caption is shown
+alongside it and replacement is deliberate. Arrange still binds every latest
+image revision and never grants publication. No API, schema, retention, upload
+metadata or authorization changes are introduced by this UI slice.
+
+## Shared upload field and recovery
+
+Photos, logos, stamp PNGs and CSV/JSON selection share `UploadField`. Private media
+transfers share `usePrivateUpload`: purpose-specific preparation and attachment
+remain separate. Stamp bytes are never normalized; MIME is detected from PNG bytes.
+The visible filename is owned by the field, with named help/error feedback,
+preparing/saving/saved states, clear and retry. No fake percentage is shown.
+Local previews are limited to PNGs with an IHDR bounded to 2048 px per axis;
+JPEG previews use the saved server-validated image. Logo PNG normalization remains
+unchanged. CSV/JSON is parsed locally, has separate size/format rules and never
+uses the image transfer hook.
+
+A selected media file remains pending until attachment succeeds. Prepared bytes
+and the immutable upload ID survive a retry; finalization is attempted before any
+repeat PUT. Expired/conflicting sessions start a new ID with the same prepared
+bytes. Replacement/clear is disabled during transfer. Unmount aborts transport,
+and a late preparation result cannot start an upload. The shop footer identifies
+unsaved media separately from saved shop fields, and leaving either media section
+warns before discarding pending work. Upload/attachment never publishes an image
+or activates stamp artwork.

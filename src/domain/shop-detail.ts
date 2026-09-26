@@ -1,3 +1,4 @@
+import type { ExperienceIcon } from '@/src/domain/experience-icons';
 import type { ShopMapSummary, ShopType } from "@/src/domain/shops";
 import type { StampInk } from "@/src/domain/stamp-palette";
 
@@ -29,6 +30,7 @@ export type OpeningHoursEntry = {
   readonly closed?: boolean;
   readonly note?: string;
 };
+export type OpeningHoursException = Omit<OpeningHoursEntry, 'day'> & { readonly date: string };
 
 export interface ShopLink {
   readonly label: string;
@@ -199,7 +201,7 @@ export interface EditorialContent {
   readonly holiday_note?: string;
   readonly accessibility_notes?: string;
   readonly appointment_required?: boolean;
-  readonly experiences?: readonly { readonly id: string; readonly category: string; readonly title: string; readonly description?: string }[];
+  readonly experiences?: readonly { readonly id: string; readonly category: string; readonly title: string; readonly description?: string; readonly icon?: ExperienceIcon }[];
 }
 export interface ShopDetail extends ShopMapSummary {
   readonly review?: EditorialReview;
@@ -229,6 +231,7 @@ export interface ShopDetail extends ShopMapSummary {
   readonly practical?: ShopPracticalInfo;
   readonly brands?: readonly string[];
   readonly openingHours?: readonly OpeningHoursEntry[];
+  readonly openingHoursExceptions?: readonly OpeningHoursException[];
   readonly openingHoursNote?: string;
   readonly links?: readonly ShopLink[];
   readonly positionPrecision: PositionPrecision;

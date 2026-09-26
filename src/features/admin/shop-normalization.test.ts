@@ -36,6 +36,23 @@ describe('shared full-document normalization',()=>{
     const result=errors({...base(),shop:{...base().shop,opening_hours:{entries:[{day:'tuesday',opens:'25:00',closed:true}]}}});
     expect(result.map(e=>e.path)).toEqual(expect.arrayContaining(['shop.opening_hours.entries.0.opens','shop.opening_hours.entries.0.closes','shop.opening_hours.entries.0.closed']));
   });
+  it('preserves dated split and overnight exceptions without changing weekly hours',()=>{
+    const opening_hours={entries:[{day:'monday',opens:'10:00',closes:'18:00'}],exceptions:[
+      {date:'2026-12-25',closed:true,note:'Holiday'},
+      {date:'2026-12-31',opens:'10:00',closes:'12:00',closed:false},
+      {date:'2026-12-31',opens:'22:00',closes:'02:00',closed:false,note:'Next day'},
+    ]};
+    const result=normalizeShopDocument({...base(),shop:{...base().shop,opening_hours}});
+    expect(result.shop.opening_hours).toMatchObject(opening_hours);
+    expect(normalizeShopDocument(result)).toEqual(result);
+  });
+  it('rejects impossible dates, missing times, closed conflicts and excessive exceptions',()=>{
+    const check=(exceptions:unknown[])=>errors({...base(),shop:{...base().shop,opening_hours:{entries:[],exceptions}}}).map(e=>e.path);
+    expect(check([{date:'2026-02-30'}])).toContain('shop.opening_hours.exceptions.0.date');
+    expect(check([{date:'2026-12-25',opens:'25:00'}])).toEqual(expect.arrayContaining(['shop.opening_hours.exceptions.0.opens','shop.opening_hours.exceptions.0.closes']));
+    expect(check([{date:'2026-12-25',closed:true},{date:'2026-12-25',opens:'09:00',closes:'12:00'}])).toContain('shop.opening_hours.exceptions.1.date');
+    expect(check(Array.from({length:101},()=>({date:'2026-12-25'})))).toContain('shop.opening_hours.exceptions');
+  });
   it('preserves source identities and historical timestamps while cleaning claim line breaks',()=>{
     const d=normalizeShopDocument({...base(),sources:[{id,label:'Legacy',source_type:'official',source_url:'https://example.test',checked_at:'2026-09-01T12:34:56.123456+08:00',reliability:'primary',status:'active',claims:['Name','  ',' Name '],evidence_note:'Private\n\nnotes'}]});
     expect(d.sources[0]).toMatchObject({id,checked_at:'2026-09-01T12:34:56.123456+08:00',claims:['Name'],evidence_note:'Private\n\nnotes'});
@@ -78,6 +95,13 @@ describe('B2 editorial input', () => {
     expect(errors({ ...base(), shop: { ...base().shop, reference_links: 'https://example.test\njavascript:alert(1)' },
       experiences: [{ id, category: 'unsupported', title: '' }] }).map(e => e.path))
       .toEqual(expect.arrayContaining(['shop.reference_links', 'experiences.0.category', 'experiences.0.title']));
+  });
+  it('preserves curated icons and rejects arbitrary icon payloads at the exact field', () => {
+    const experience = { id, category: 'nib_testing', title: 'Try nibs', icon: 'nib' };
+    expect(normalizeShopDocument({...base(), experiences:[experience]}).experiences[0]?.icon).toBe('nib');
+    for (const icon of ['unknown', '<svg/>', 'https://example.test/icon.svg']) {
+      expect(errors({...base(), experiences:[{...experience,icon}]}).map(e=>e.path)).toContain('experiences.0.icon');
+    }
   });
   it('rejects import/manual attempts to assert review or confirmation in data', () => {
     for (const key of ['reviewed_by','reviewed_at','position_confirmation'])

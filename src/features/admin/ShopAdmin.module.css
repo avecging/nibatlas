@@ -494,3 +494,15 @@
 .admin [aria-invalid="true"] {
   border: 2px solid var(--error);
 }
+
+.comparisonValue { white-space: pre-wrap; overflow-wrap: anywhere; }
+.previewColumns { display: grid; gap: 24px; }
+.previewColumns > div { min-width: 0; }
+@media (min-width: 900px) {
+  .previewColumns { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+  .previewMobile .previewColumns { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* The embedded document has a real viewport, so public media queries apply. */
+.previewScroll { max-width: 100%; overflow: auto; border: 1px solid var(--border-default); }
+.previewFrame { display: block; height: 720px; max-width: none; border: 0; background: var(--bg-canvas); }

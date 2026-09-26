@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { readAdminResponse } from '../read-response';
 import { VERSION, eligible, type BatchSummary, type ImportBatch, type MappedRow, type PreviewRow } from './contract';
 import styles from './ImportAdmin.module.css';
+import { BatchPublication } from './BatchPublication';
 async function request(signal: AbortSignal, batchId?: string, payload?: unknown) {
   const response = await fetch(`/api/v1/admin/import/batches${!payload && batchId ? `?batch=${batchId}` : ''}`, {
     method: payload ? 'POST' : 'GET', signal, cache: 'no-store', credentials: 'same-origin',
@@ -114,5 +115,6 @@ export function PrivateImport({ batchId, rows, previews, onResume, onBusyChange,
       </div>}
       <p>For corrections, reopen this batch, load a corrected file with the same row_id values, then preview and review again. Completed rows are never repeated. Reload or refresh saved batches after an interrupted request.</p>
     </>}
+    {saved && <BatchPublication key={`${saved.id}:${saved.operations.filter(o => o.status === 'imported').length}`} batchId={saved.id} blocked={busy} onBusyChange={onBusyChange} />}
   </section>;
 }

@@ -30,15 +30,52 @@ function exifOrientation(b: Buffer): number {
   return orientation;
 }
 
+// Bounded CIPA MP Index subset used by two-image Ultra HDR JPEGs. Offsets are
+// relative to the MP TIFF header (except the primary's required zero offset).
+// No arbitrary IFD traversal, gaps, overlap, extra pictures or trailing bytes.
+function hdrPrimaryEnd(payload: Buffer, tiffStart: number, total: number): number {
+  const t=payload.subarray(4), little=t.toString('ascii',0,2)==='II';
+  if(!little && t.toString('ascii',0,2)!=='MM') return invalid();
+  const u16=(at:number) => { if(at<0 || at+2>t.length) return invalid(); return little?t.readUInt16LE(at):t.readUInt16BE(at); };
+  const u32=(at:number) => { if(at<0 || at+4>t.length) return invalid(); return little?t.readUInt32LE(at):t.readUInt32BE(at); };
+  if(u16(2)!==42) return invalid();
+  const ifd=u32(4), count=u16(ifd), tags=new Map<number,number>();
+  if(ifd<8 || count<3 || count>16 || ifd+2+count*12+4>t.length || u32(ifd+2+count*12)!==0) return invalid();
+  for(let i=0;i<count;i++) {
+    const at=ifd+2+i*12, tag=u16(at);
+    if(tags.has(tag)) return invalid();
+    tags.set(tag,at);
+  }
+  const version=tags.get(0xb000), number=tags.get(0xb001), entries=tags.get(0xb002);
+  if(version===undefined || number===undefined || entries===undefined ||
+    u16(version+2)!==7 || u32(version+4)!==4 || t.toString('ascii',version+8,version+12)!=='0100' ||
+    u16(number+2)!==4 || u32(number+4)!==1 || u32(number+8)!==2 ||
+    u16(entries+2)!==7 || u32(entries+4)!==32) return invalid();
+  const at=u32(entries+8);
+  if(at<ifd+2+count*12+4 || at+32>t.length) return invalid();
+  const primarySize=u32(at+4), secondarySize=u32(at+20), secondaryStart=tiffStart+u32(at+24);
+  // Some phone encoders omit the representative-image bit. Both forms identify
+  // an ordinary primary, paired with one undefined-type auxiliary JPEG.
+  if(![0x00030000,0x20030000].includes(u32(at)) || u32(at+8)!==0 || u32(at+12)!==0 ||
+    u32(at+16)!==0 || u32(at+28)!==0 || primarySize<4 || secondarySize<4 ||
+    secondaryStart!==primarySize || primarySize+secondarySize!==total) return invalid();
+  return primarySize;
+}
+
 /** Structural/resource preflight, not a substitute for the Images decoder.
  * Remove APP/COM metadata before sending pixels to the decoder, retaining
  * orientation only in memory, bounded ICC chunks and canonical Adobe colour
  * interpretation for decoding. Accept 8-bit baseline/progressive, three components.
  */
 export function inspectJpeg(bytes: Uint8Array) {
+  return inspectFrame(bytes, false);
+}
+
+function inspectFrame(bytes: Uint8Array, gainMap: boolean): {width:number;height:number;orientation:number;bytes:Buffer;hdr:boolean} {
   const b=Buffer.from(bytes);
   if(b.length<4 || b.length>MAX_MEDIA_BYTES || b.readUInt16BE(0)!==0xffd8) return invalid();
   const parts=[b.subarray(0,2)];
+  let primaryEnd=b.length, mpf=false, auxiliaryMpf=false, hdr=false;
   let p=2,width=0,height=0,orientation=1,exif=false,adobe=false,scans=0,markers=0,iccCount=0;
   const iccSeen=new Set<number>();
   while(p<b.length) {
@@ -47,16 +84,22 @@ export function inspectJpeg(bytes: Uint8Array) {
     while(b[p]===255) p++;
     const marker=b[p++];
     if(marker===0xd9) {
-      if(!width || !scans || p!==b.length || iccSeen.size!==iccCount) return invalid();
+      if(!width || !scans || p!==primaryEnd || iccSeen.size!==iccCount) return invalid();
       parts.push(Buffer.from([255,217]));
-      return {width,height,orientation,bytes:Buffer.concat(parts)};
+      if(mpf) {
+        if(!hdr) return invalid();
+        const auxiliary=inspectFrame(b.subarray(primaryEnd),true);
+        if(!auxiliary.hdr || auxiliary.width>width || auxiliary.height>height) return invalid();
+      }
+      return {width,height,orientation,bytes:Buffer.concat(parts),hdr};
     }
     if(marker===undefined || ![0xc0,0xc2,0xc4,0xdb,0xdd,0xda,0xfe,...Array.from({length:16},(_,i)=>0xe0+i)].includes(marker) || p+2>b.length) return invalid();
     const size=b.readUInt16BE(p), end=p+size;
-    if(size<2 || end>b.length) return invalid();
+    if(size<2 || end>primaryEnd) return invalid();
     const payload=b.subarray(p+2,end);
     if(marker===0xc0 || marker===0xc2) {
-      if(width || payload.length!==15 || payload[0]!==8 || payload[5]!==3) return invalid();
+      const components=payload[5];
+      if(width || payload[0]!==8 || (components!==3 && !(gainMap && components===1)) || payload.length!==6+3*components) return invalid();
       height=payload.readUInt16BE(1); width=payload.readUInt16BE(3);
       if(!width || !height || width>MAX_JPEG_AXIS || height>MAX_JPEG_AXIS || width*height>MAX_JPEG_PIXELS) return invalid();
     }
@@ -72,7 +115,29 @@ export function inspectJpeg(bytes: Uint8Array) {
       if(payload.length<15 || !seq || !count || seq>count || (iccCount && iccCount!==count) || iccSeen.has(seq)) return invalid();
       iccCount=count;iccSeen.add(seq);
     }
-    if(marker===0xe2 && payload.subarray(0,4).toString()==='MPF\0') return invalid();
+    if(marker===0xe1 && payload.subarray(0,29).toString()==='http://ns.adobe.com/xap/1.0/\0') {
+      // Only identify the supported gain-map family; no XML is evaluated and no
+      // HDR parameters are consumed. The ordinary SDR primary is decoded alone.
+      hdr ||= payload.includes(Buffer.from('http://ns.adobe.com/hdr-gain-map/1.0/'));
+    }
+    if(marker===0xe2 && payload.subarray(0,4).toString()==='MPF\0') {
+      if(mpf || auxiliaryMpf || scans) return invalid();
+      if(gainMap) {
+        // Phones may repeat a version-only MP Attribute IFD in the gain map.
+        // It cannot index another image or point at another IFD.
+        const t=payload.subarray(4), little=t.toString('ascii',0,2)==='II';
+        if(t.length!==26 || (!little && t.toString('ascii',0,2)!=='MM')) return invalid();
+        const u16=(at:number)=>little?t.readUInt16LE(at):t.readUInt16BE(at);
+        const u32=(at:number)=>little?t.readUInt32LE(at):t.readUInt32BE(at);
+        if(u16(2)!==42 || u32(4)!==8 || u16(8)!==1 || u16(10)!==0xb000 ||
+          u16(12)!==7 || u32(14)!==4 || t.toString('ascii',18,22)!=='0100' || u32(22)!==0) return invalid();
+        auxiliaryMpf=true;
+      } else {
+        primaryEnd=hdrPrimaryEnd(payload,p+6,b.length);
+        if(end>primaryEnd) return invalid();
+        mpf=true;
+      }
+    }
     if(marker===0xee && payload.subarray(0,5).toString()==='Adobe') {
       if(adobe || scans>0 || payload.length!==12 || (payload[11]!==0 && payload[11]!==1)) return invalid();
       adobe=true;
@@ -86,13 +151,13 @@ export function inspectJpeg(bytes: Uint8Array) {
     if(marker===0xda) {
       if(!width || ++scans>128 || payload.length<6) return invalid();
       const entropy=p;
-      while(p<b.length) {
+      while(p<primaryEnd) {
         if(b[p++]!==255) continue;
         const m=b[p];
         if(m===0 || (m!==undefined && m>=0xd0 && m<=0xd7)) {p++;continue;}
         p--;break;
       }
-      if(p===entropy || p>=b.length) return invalid();
+      if(p===entropy || p>=primaryEnd) return invalid();
       parts.push(b.subarray(entropy,p));
     }
   }

@@ -16,13 +16,12 @@ test("reads the current catalogue and preserves map-detail return, or renders em
   await expect(page.getByTestId("explore")).toHaveAttribute("data-explore-status", "idle");
 
   if (shop) {
-    const card = page.getByRole("article", { name: shop.name, exact: true });
+    const card = page.locator(`article[data-shop-id="${shop.id}"]`);
     await expect(card).toHaveAttribute("data-selected", "true");
     await card.getByRole("link", { name: shop.name, exact: true }).click();
     await expect(page.getByRole("heading", { level: 1, name: shop.name, exact: true })).toBeVisible();
     await page.getByRole("link", { name: "Back to map" }).click();
-    await expect(page.getByRole("article", { name: shop.name, exact: true }))
-      .toHaveAttribute("data-selected", "true");
+    await expect(card).toHaveAttribute("data-selected", "true");
   } else {
     expect(catalogue.truncated).toBe(false);
     await expect(page.getByText(/No shops match this area and these filters/)).toBeVisible();

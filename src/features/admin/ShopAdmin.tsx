@@ -1,8 +1,11 @@
 "use client";
+import { ExperienceIconPicker } from './ExperienceIconPicker';
+import { RevisionComparison } from "./RevisionComparison";
+import { HoursEditor } from "./HoursEditor";
 import { publicationFix } from "./publication-fix";
 import { useHasPendingUploads } from "./use-pending-upload";
-import { ShopEditorial, ShopEditorialVisit } from "@/src/components/shops/ShopEditorial";
-import { decodeEditorialContent } from "@/src/api/v1/shop-read";
+import { PublicPreviewFrame } from "./PublicPreviewFrame";
+import { MediaReview } from "./MediaReview";
 import { readAdminResponse } from "./read-response";
 import {
   normalizeShopDocument,
@@ -216,6 +219,9 @@ function Input({
         .filter(Boolean)
         .join(" ") || undefined,
   };
+  if (field.key === 'icon' && path.startsWith('experiences.')) {
+    return <ExperienceIconPicker value={value} change={change} path={path} error={error}/>;
+  }
   return (
     <div className={styles.field}>
       <label htmlFor={id}>
@@ -334,6 +340,8 @@ function Workspace({ id }: { id: string | null }) {
   const pendingUploads = useHasPendingUploads();
   const controller = useRef<AbortController | null>(null),
     noticeRef = useRef<HTMLDivElement>(null);
+  const [latest, setLatest] = useState<ShopRecord | null>(null);
+  const [saveFailed, setSaveFailed] = useState(false);
   const [record, setRecord] = useState<ShopRecord | null>(null),
     [draft, setDraft] = useState<Document | null>(null),
     [options, setOptions] = useState<Options>({}),
@@ -450,7 +458,7 @@ function Workspace({ id }: { id: string | null }) {
       if (
         window.confirm(
           pendingUploads
-            ? "Changes in Photos & logo have not finished saving. Leave without them or any unsaved edits?"
+            ? "Media changes have not finished saving. Leave without them or any unsaved edits?"
             : "Leave without saving your edits?",
         )
       ) {
@@ -514,20 +522,20 @@ function Workspace({ id }: { id: string | null }) {
   // something the editor has already reached for.
   const go = useCallback(
     (next: SectionId) => {
-      // Leaving Photos unmounts the uploader and aborts an upload in flight,
+      // Leaving a media section unmounts its uploader and aborts work in flight,
       // so this gets the same warning as leaving the page by a link.
       if (
-        next !== "photos" &&
+        next !== section &&
         pendingUploads &&
         !window.confirm(
-          "Changes in Photos & logo have not finished saving. Leaving this section discards unsaved work. Leave anyway?",
+          "Media changes have not finished saving. Leaving this section discards unsaved work. Leave anyway?",
         )
       )
         return;
       setSection(next);
       setHeadingFocus((n) => n + 1);
     },
-    [pendingUploads],
+    [pendingUploads, section],
   );
   useEffect(() => {
     if (!headingFocus) return;
@@ -542,6 +550,7 @@ function Workspace({ id }: { id: string | null }) {
     setConfirmation(null);
     try {
       await action();
+      return true;
     } catch (e) {
       if (controller.current?.signal.aborted) return;
       if (
@@ -577,6 +586,7 @@ function Workspace({ id }: { id: string | null }) {
         },
         !target,
       );
+      return false;
     } finally {
       if (!controller.current?.signal.aborted) setBusy(false);
     }
@@ -584,7 +594,7 @@ function Workspace({ id }: { id: string | null }) {
   const signal = () => controller.current!.signal;
 
   async function mutate(action: string, destination: "stay" | "review" = "stay") {
-    await run(async () => {
+    const succeeded = await run(async () => {
       const value = decodeShop(
         await api(`/${id}`, signal(), {
           action,
@@ -596,6 +606,8 @@ function Workspace({ id }: { id: string | null }) {
       );
       setRecord(value);
       setDraft(value.document);
+      setLatest(null);
+      setSaveFailed(false);
       if (action === "save" && destination === "review") go("review");
       announce({
         tone: "ok",
@@ -603,7 +615,7 @@ function Workspace({ id }: { id: string | null }) {
           action === "save"
             ? destination === "review"
               ? "Saved privately. This is the saved version, ready to review."
-              : "Saved privately. Nothing is public until you publish."
+              : "Saved privately. The public listing is unchanged. Choose Review and publish when ready."
             : action === "confirm_position"
               ? "Saved position confirmed."
               : action === "publish"
@@ -615,6 +627,7 @@ function Workspace({ id }: { id: string | null }) {
                     : "Operational status updated. Collected impressions are preserved.",
       });
     });
+    if (action === "save" && succeeded === false) setSaveFailed(true);
   }
 
   const viewOptions: Options = {
@@ -628,8 +641,8 @@ function Workspace({ id }: { id: string | null }) {
   /** Clearing the stale error for a field the editor is fixing right now. */
   const clearError = (path: string) =>
     setFieldErrors((current) =>
-      current.length && current.some((e) => e.path === path)
-        ? current.filter((e) => e.path !== path)
+      current.length && current.some((e) => e.path === path || e.path.startsWith(`${path}.`))
+        ? current.filter((e) => e.path !== path && !e.path.startsWith(`${path}.`))
         : current,
     );
   const setShop = (key: string, v: Value) => {
@@ -1038,6 +1051,22 @@ function Workspace({ id }: { id: string | null }) {
 
       <NoticeBar notice={notice} busy={busy} inner={noticeRef} />
 
+      {saveFailed && <section className={styles.box} aria-label="Save recovery">
+        <p>Your edits are kept. After a lost response or revision conflict, compare the latest saved content before trying again.</p>
+        <button type="button" disabled={busy} onClick={() => void run(async () => {
+          setLatest(decodeShop(await api(`/${id}`, signal())));
+          announce({tone:"ok",text:"Latest saved content loaded for comparison. Your editor and its revision are unchanged."});
+        })}>Compare latest saved version</button>
+        <button type="button" disabled={busy} onClick={() => {
+          if (window.confirm("Discard your unsaved edits and reload the saved version?")) void run(async () => {
+            const current = decodeShop(await api(`/${id}`, signal()));
+            setRecord(current); setDraft(current.document); setLatest(null); setSaveFailed(false);
+            announce({tone:"ok",text:"Loaded the saved version. You can now edit from this revision."});
+          });
+        }}>Discard local edits and reload</button>
+        {latest && <RevisionComparison mine={draft} latest={latest.document}/>}
+      </section>}
+
       {fieldErrors.length > 0 && (
         <ul className={styles.fieldErrors} aria-label="Fields to correct">
           {fieldErrors.map((error, index) => (
@@ -1104,7 +1133,6 @@ function Workspace({ id }: { id: string | null }) {
         ) : section === "review" ? (
           <ReviewSection
             record={record}
-            options={options}
             media={media}
             mediaCheck={mediaCheck}
             busy={busy}
@@ -1118,6 +1146,9 @@ function Workspace({ id }: { id: string | null }) {
             }}
             onConfirm={setConfirmation}
             onOpenPhotos={() => go("photos")}
+            mediaComparison={<MediaReview record={record}
+              localityName={options.localities?.find(o => o.id === record.document.shop.locality_id)?.label.replace(/ \([A-Z]{2}\)$/, "") ?? ""}
+              onOpenPhotos={() => go("photos")} onOpenStamp={() => go("stamp")}/>}
             onRecheckMedia={() => setMediaCheck("pending")}
             onReload={() => {
               if (!dirty || window.confirm("Discard your unsaved edits and reload?"))
@@ -1125,6 +1156,7 @@ function Workspace({ id }: { id: string | null }) {
                   const r = decodeShop(await api(`/${id}`, signal()));
                   setRecord(r);
                   setDraft(r.document);
+                  setLatest(null); setSaveFailed(false);
                   announce({ tone: "ok", text: "Loaded the saved version." });
                 });
             }}
@@ -1195,7 +1227,16 @@ function Workspace({ id }: { id: string | null }) {
                 </div>
               )}
 
-              {section === "visit" && <HoursEditor draft={draft} errors={fieldErrors} setShop={setShop} />}
+              {section === "visit" && <HoursEditor value={draft.shop.opening_hours} errors={fieldErrors} onChange={value => {
+                const next = {...draft, shop:{...draft.shop, opening_hours:value}};
+                setDraft(next);
+                setFieldErrors(current => {
+                  if (!current.some(e => e.path.startsWith("shop.opening_hours"))) return current;
+                  const other = current.filter(e => !e.path.startsWith("shop.opening_hours"));
+                  try { normalizeShopDocument(next, options); return other; }
+                  catch (e) { return e instanceof ShopValidationError ? [...other, ...e.issues.filter(issue => issue.path.startsWith("shop.opening_hours"))] : current; }
+                });
+              }} />}
 
               {SECTION_GROUPS[section].map((key) => groupEditor(key))}
 
@@ -1220,10 +1261,12 @@ function Workspace({ id }: { id: string | null }) {
           {busy
             ? "Working…"
             : dirty
-              ? "Unsaved changes"
-              : record.hasChanges
-                ? "Saved privately"
-                : "All details saved"}
+              ? saveFailed ? "Not saved · edits kept" : "Unsaved changes"
+              : pendingUploads
+                ? "Shop details saved · media changes not saved"
+                : record.hasChanges
+                  ? "Saved privately"
+                  : "All details saved"}
         </p>
         <div className={styles.actionButtons}>
           {dirty && !archived && (
@@ -1286,90 +1329,8 @@ function NoticeBar({
   );
 }
 
-function HoursEditor({
-  draft,
-  errors,
-  setShop,
-}: {
-  draft: Document;
-  errors: FieldIssue[];
-  setShop: (key: string, value: Value) => void;
-}) {
-  const hours = (draft.shop.opening_hours as Row | null) ?? {};
-  const entries = (hours.entries ?? []) as Row[];
-  return (
-    <div className={styles.box} data-field-path="shop.opening_hours" tabIndex={-1}>
-      <h3>Opening hours</h3>
-      <p className={styles.help}>
-        Record only hours you have checked. A day with no entry stays unknown, which is
-        different from closed. Split and overnight spans are kept: add more than one
-        entry for the same day.
-      </p>
-      <div className={styles.field}>
-        <label htmlFor="hours-summary">Hours summary · optional</label>
-        <input
-          id="hours-summary"
-          data-field-path="shop.opening_hours.note"
-          value={String(hours.note ?? "")}
-          onChange={(e) =>
-            setShop("opening_hours", { ...hours, note: e.target.value || null })
-          }
-        />
-      </div>
-      {entries.map((r, i) => (
-        <div className={styles.card} key={i}>
-          <div className={styles.grid}>
-            {HOURS_FIELDS.map((field) => (
-              <Input
-                key={field.key}
-                field={field}
-                path={`shop.opening_hours.entries.${i}.${field.key}`}
-                errors={errors}
-                value={r[field.key]}
-                options={{}}
-                prefix=""
-                change={(v) =>
-                  setShop("opening_hours", {
-                    ...hours,
-                    entries: entries.map((x, n) => (n === i ? { ...x, [field.key]: v } : x)),
-                  })
-                }
-              />
-            ))}
-          </div>
-          <button
-            type="button"
-            className={styles.quiet}
-            onClick={() =>
-              setShop("opening_hours", {
-                ...hours,
-                entries: entries.filter((_, n) => n !== i),
-              })
-            }
-          >
-            Remove hours {i + 1}
-          </button>
-        </div>
-      ))}
-      <button
-        type="button"
-        className={styles.quiet}
-        onClick={() =>
-          setShop("opening_hours", {
-            ...hours,
-            entries: [...entries, emptyRow(HOURS_FIELDS)],
-          })
-        }
-      >
-        Add hours
-      </button>
-    </div>
-  );
-}
-
 function ReviewSection({
   record,
-  options,
   media,
   mediaCheck,
   busy,
@@ -1381,10 +1342,10 @@ function ReviewSection({
   onReload,
   onOpenPhotos,
   onRecheckMedia,
+  mediaComparison,
   legacy,
 }: {
   record: ShopRecord;
-  options: Options;
   media: MediaSummary | null;
   mediaCheck: "pending" | "failed";
   busy: boolean;
@@ -1396,6 +1357,7 @@ function ReviewSection({
   onReload: () => void;
   onOpenPhotos: () => void;
   onRecheckMedia: () => void;
+  mediaComparison: ReactNode;
   legacy: ReactNode;
 }) {
   const archived = record.publicationStatus === "archived";
@@ -1458,8 +1420,10 @@ function ReviewSection({
         </button>
       </div>
 
+      {mediaComparison}
+
       <div className={styles.previewHead}>
-        <h3>Public page preview</h3>
+        <h3>Saved public-page preview</h3>
         <div className={styles.toggle} role="group" aria-label="Preview width">
           {(["desktop", "mobile"] as const).map((v) => (
             <button
@@ -1473,9 +1437,8 @@ function ReviewSection({
           ))}
         </div>
       </div>
-      <div className={previewWidth === "mobile" ? styles.previewMobile : undefined}>
-        <Preview document={record.document} options={options} />
-      </div>
+      <p className={styles.help}>{record.publicationStatus === "published" ? record.hasChanges ? "The public page still shows the previously published version." : "The saved shop details match the published version." : "This shop has no public page."}</p>
+      <PublicPreviewFrame record={record} width={previewWidth} />
 
       <section className={styles.operations} id="shop-publication" tabIndex={-1}>
         <h3>Publish</h3>
@@ -1614,120 +1577,6 @@ function ConfirmDialog({
         </div>
       </div>
     </div>
-  );
-}
-
-function Preview({
-  document: d,
-  options,
-}: {
-  document: Document;
-  options: Options;
-}) {
-  const name = (group: string, id: Value | undefined) =>
-    options[group]?.find((o) => o.id === id)?.label;
-  return (
-    <article className={styles.preview} aria-label="Public page preview">
-      <p>
-        <strong>Private catalogue preview</strong> · Unpublished changes are visible only
-        to editors and admins.
-      </p>
-      <h2>{String(d.shop.name)}</h2>
-      <p>{String(d.shop.operational_status).replaceAll("_", " ")}</p>
-      {d.aliases
-        .filter((a) => a.alias_type === "local_name")
-        .map((a) => (
-          <p key={String(a.id)} lang={String(a.language_tag)}>
-            {String(a.alias)}
-          </p>
-        ))}
-      {d.shop.short_description && <p>{String(d.shop.short_description)}</p>}
-      <ShopEditorial
-        content={decodeEditorialContent({ ...d.shop, experiences: d.experiences })}
-      />
-      <ShopEditorialVisit
-        content={decodeEditorialContent({ ...d.shop, experiences: d.experiences })}
-      />
-      {d.shop.phone && <p>Phone: {String(d.shop.phone)}</p>}
-      {d.shop.postal_code && <p>Postal code: {String(d.shop.postal_code)}</p>}
-      {d.shop.position_precision === "locality" && (
-        <p>Approximate area only. Check the shop’s address before travelling.</p>
-      )}
-      <p>
-        {name("localities", d.shop.locality_id) ??
-          String(d.shop.city_display ?? d.shop.country_code ?? "Place not yet recorded")}
-      </p>
-      {[d.shop.address_line_1, d.shop.address_line_2].filter(Boolean).map((a, i) => (
-        <p key={i}>{String(a)}</p>
-      ))}
-      <dl>
-        {["types", "specialties", "brands"].map((k) => {
-          const key = k as "types" | "specialties" | "brands",
-            idKey = {
-              types: "shop_type_id",
-              specialties: "specialty_id",
-              brands: "brand_id",
-            }[key];
-          return d[key].length ? (
-            <div key={k}>
-              <dt>{k === "types" ? "Shop types" : k}</dt>
-              <dd>{d[key].map((r) => name(k, r[idKey])).join(", ")}</dd>
-            </div>
-          ) : null;
-        })}
-      </dl>
-      {d.services.map((r) => (
-        <p key={String(r.service_id)}>
-          {name("services", r.service_id)}
-          {r.note ? ` — ${r.note}` : ""}
-        </p>
-      ))}
-      {d.shop.website_url && <p>{String(d.shop.website_url)}</p>}
-      {d.links
-        .filter((r) => r.is_official)
-        .map((r) => (
-          <p key={String(r.id)}>
-            {String(r.label ?? r.link_type)}: {String(r.url)}
-          </p>
-        ))}
-      {d.shop.opening_hours && (
-        <section>
-          <h3>Recorded hours</h3>
-          {(((d.shop.opening_hours as Row).entries as Row[]) ?? []).map((r, i) => (
-            <p key={i}>
-              {String(r.day)}:{" "}
-              {r.closed ? "Closed" : r.opens ? `${r.opens}–${r.closes}` : "Hours not recorded"}
-              {r.note ? ` · ${r.note}` : ""}
-            </p>
-          ))}
-          {(d.shop.opening_hours as Row).note && (
-            <p>{String((d.shop.opening_hours as Row).note)}</p>
-          )}
-        </section>
-      )}
-      {d.sources.length > 0 && (
-        <>
-          <h3>Sources</h3>
-          {d.sources.map((r) => (
-            <section key={String(r.id)}>
-              <h4>{String(r.label)}</h4>
-              <p>
-                {String(r.source_type).replaceAll("_", " ")} · Checked{" "}
-                {String(r.checked_at).slice(0, 10)}
-              </p>
-              {r.source_url && <p>{String(r.source_url)}</p>}
-              <p>{((r.claims as string[]) ?? []).join(" · ")}</p>
-            </section>
-          ))}
-        </>
-      )}
-      {d.shop.source_quality === "demo" && <p>Demo data — not a verified shop listing.</p>}
-      <p>
-        Private notes and references are omitted here. Publication records an editorial
-        review, not independent verification of every field. Photos, logo and stamp
-        artwork have their own controls and are not published by saving this page.
-      </p>
-    </article>
   );
 }
 

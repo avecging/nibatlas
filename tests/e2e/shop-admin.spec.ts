@@ -61,15 +61,16 @@ function fixture(): ShopRecord {
 /** Section nav is the editor's only navigation; every test reaches fields this way. */
 const open = (page: Page, title: string) =>
   page.getByRole("navigation", { name: "Editor sections" }).getByRole("button", { name: title }).click();
+const publicPreview = (page: Page) => page.frameLocator('iframe[title="Saved public-page preview"]');
 const bar = (page: Page) => page.locator("main").getByRole("button", { name: /^(Save|Save and review|Review and publish|Saving…|Working…)$/ });
 const save = (page: Page) => page.getByRole("button", { name: "Save", exact: true }).click();
 const saveAndReview = (page: Page) =>
   page.getByRole("button", { name: "Save and review", exact: true }).click();
 
-async function setup(page: Page) {
+async function setup(page: Page, initial?: ShopRecord) {
   await stubSession(page, { kind: "signed-in" });
   await page.route("**/api/v1/admin/access",route=>route.fulfill({json:{role:"admin"}}));
-  let record = fixture();
+  let record = initial ?? fixture();
   let oldDocument = structuredClone(record.document);
   const actions: string[] = [];
   let conflict = false;
@@ -83,7 +84,7 @@ async function setup(page: Page) {
         localities: [
           { id: locality, label: "Singapore (SG)", countryCode: "SG" },
         ],
-        types: [{ id: type, label: "Fountain Pen Specialist" }],
+        types: [{ id: type, label: "Fountain Pen Specialist", code: "fountain_pen_specialist" }],
         services: [],
         specialties: [],
         brands: [],
@@ -160,6 +161,7 @@ async function setup(page: Page) {
   });
   return {
     actions,
+    current: () => structuredClone(record),
     conflict: () => {
       conflict = true;
     },
@@ -212,12 +214,12 @@ test("founder edits, reviews, publishes, closes and archives @short", async ({
   );
   await expect(page.getByRole("heading", { level: 2, name: "Review", exact: true })).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "M6 Revised demo shop" }).first(),
+    publicPreview(page).getByRole("heading", { name: "M6 Revised demo shop" }).first(),
   ).toBeVisible();
-  const preview = page.getByRole("article", { name: "Public page preview" });
+  const preview = publicPreview(page).getByRole("article", { name: "Public page preview" });
   await expect(preview.getByText("Private internal note")).toHaveCount(0);
-  await expect(preview.getByText("Postal code: 012345", { exact: true })).toBeVisible();
-  await expect(preview.getByText("Phone: +65 0000 0000", { exact: true })).toBeVisible();
+  await expect(preview.getByText("012345", { exact: false })).toBeVisible();
+  await expect(preview.getByText("+65 0000 0000", { exact: false })).toBeVisible();
   expect(
     (
       await new AxeBuilder({ page })
@@ -298,8 +300,16 @@ test("draft editor is accessible and preserves unknown information @short", asyn
       "main button:visible,main input:visible,main select:visible,main summary:visible",
     )
     .all()) {
-    const b = await control.boundingBox();
-    expect(b?.height).toBeGreaterThanOrEqual(44);
+    // Checkbox/radio labels are the clickable target; the native glyph can
+    // remain compact within that target.
+    const height = await control.evaluate((element) => {
+      const target = element instanceof HTMLInputElement &&
+        (element.type === "checkbox" || element.type === "radio")
+        ? element.labels?.[0] ?? element
+        : element;
+      return target.getBoundingClientRect().height;
+    });
+    expect(height).toBeGreaterThanOrEqual(44);
   }
   await open(page, "Shop & story");
   await page.getByLabel("Shop name").focus();
@@ -452,9 +462,12 @@ test('photos save privately, states are explicit and removal is honest', async (
   await section.getByLabel('Choose a photo').setInputFiles({name:'demo-photo.png',mimeType:'image/png',buffer:png});
   // The first attempt fails; the chosen file stays on screen with a retry.
   await expect(section.getByAltText('Selected photo for M6 Demo shop')).toBeVisible();
-  await expect(section.getByRole('alert')).toContainText('Choose the file again');
+  await expect(section.getByRole('alert')).toContainText('Try again');
+  await expect(page.getByRole('status').filter({hasText:'Shop details saved · media changes not saved'})).toBeVisible();
+  await expect(section.getByText('demo-photo.png',{exact:true})).toBeVisible();
+  expect((await new AxeBuilder({page}).include('[aria-label="Shop photos and logo"]').analyze()).violations).toEqual([]);
   await section.getByRole('button',{name:'Retry saving this photo'}).click();
-  await expect(section.getByRole('status')).toContainText('Saved privately');
+  await expect(section.getByRole('status').filter({hasText:/^Saved privately\./})).toContainText('Saved privately');
   expect(initiations).toBe(2);
   expect(operations).toEqual(['attach']);
   await expect(section.getByAltText('Photo of M6 Demo shop')).toBeVisible();
@@ -467,7 +480,7 @@ test('photos save privately, states are explicit and removal is honest', async (
   const dialog=page.getByRole('alertdialog');
   await expect(dialog).toContainText('not published yet');
   await dialog.getByRole('button',{name:'Show on public page'}).click();
-  await expect(section.getByRole('figure').getByText('On the public page',{exact:true})).toBeVisible();
+  await expect(section.getByRole('figure').getByText('Shown when shop is published',{exact:true})).toBeVisible();
   await section.getByRole('button',{name:'Remove from public page'}).click();
   await expect(page.getByRole('alertdialog')).toContainText('stays saved in this draft');
   await page.getByRole('alertdialog').getByRole('button',{name:'Remove from public page'}).click();
@@ -567,10 +580,16 @@ test('stamp draft upload previews and explicit activation preserve earlier versi
   await section.getByLabel('Stamp PNG').setInputFiles({name:'wrong-type.jpg',mimeType:'image/jpeg',buffer:Buffer.from('invalid')});
   await expect(section.getByRole('alert')).toContainText('transparent PNG up to 5 MiB');
   expect(initiations).toBe(0);
+  await expect(page.getByRole('status').filter({hasText:'Shop details saved · media changes not saved'})).toBeVisible();
+  page.once('dialog',dialog=>dialog.dismiss());
+  await open(page,'Photos & logo');
+  await expect(section.getByLabel('Stamp PNG')).toBeVisible();
+  await section.getByRole('button',{name:'Clear selected file'}).click();
+  await expect(section.getByText('No file chosen')).toBeVisible();
   await section.getByLabel('Stamp PNG').setInputFiles({name:'demo-stamp.png',mimeType:'image/png',buffer:png});
   await expect(section.getByRole('alert')).toContainText('Save again');
   await section.getByRole('button',{name:'Save PNG privately'}).click();
-  await expect(section.getByRole('status')).toContainText('Stamp PNG attached privately');
+  await expect(section.getByRole('status').filter({hasText:'Stamp PNG attached privately'})).toContainText('Stamp PNG attached privately');
   expect(initiations).toBe(2);
   for(const label of ['List','Passport','Detail']) await expect(section.getByAltText(`${label}-size stamp preview`)).toBeVisible();
   await expect(section.getByRole('link',{name:'Gin + AI'})).toHaveAttribute('href','https://example.test/gin');
@@ -586,6 +605,30 @@ test('stamp draft upload previews and explicit activation preserve earlier versi
   expect(await page.evaluate(()=>globalThis.document.documentElement.scrollWidth<=globalThis.document.documentElement.clientWidth)).toBe(true);
   expect((await new AxeBuilder({page}).include('[aria-label="Atlas Stamp artwork"]').analyze()).violations).toEqual([]);
   await section.screenshot({path:testInfo.outputPath('admin-stamp-preview.png')});
+});
+
+test('curated experience icons survive private save and reopen @short', async ({page}, info) => {
+  const initial=fixture();
+  initial.document.experiences=[{id:source,category:'nib_testing',title:'Synthetic nib testing',description:'Try a selection.'}];
+  const state=await setup(page,initial);
+  await page.goto(`/admin/shops/${id}`); await open(page,'Experiences');
+  const picker=page.getByRole('radiogroup',{name:'Experience icon',exact:true});
+  await expect(picker.getByRole('radio',{name:'Writing',exact:true})).toBeChecked();
+  await expect(picker.getByRole('radio')).toHaveCount(10);
+  await picker.getByRole('radio',{name:'Ink bottles',exact:true}).check();
+  await expect(picker.getByRole('radio',{name:'Ink bottles',exact:true})).toBeChecked();
+  expect(state.current().document.experiences[0]?.icon ?? null).toBeNull();
+  await page.screenshot({path:info.outputPath('admin-experience-icons.png'),fullPage:true});
+  await save(page);
+  await expect.poll(()=>state.current().document.experiences[0]?.icon).toBe('ink');
+  expect(state.current().publicationStatus).toBe('draft');
+  expect(state.actions).toEqual(['save']);
+  await page.reload(); await open(page,'Experiences');
+  await expect(picker.getByRole('radio',{name:'Ink bottles',exact:true})).toBeChecked();
+  await picker.getByRole('radio',{name:'Ink bottles',exact:true}).press('ArrowRight');
+  await expect(picker.getByRole('radio',{name:'Ink swatching',exact:true})).toBeChecked();
+  expect(await page.evaluate(()=>window.document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect((await new AxeBuilder({page}).include('main').analyze()).violations).toEqual([]);
 });
 
 test('infrastructure HTML keeps unsaved edits and media reload recovery usable', async ({page}, info) => {
@@ -729,8 +772,8 @@ test('B2 private notes, shared editorial preview and deliberate position review 
   // Position confirmation now sits beside the coordinates it attests to.
   await expect(page.getByRole('button', { name: 'Confirm saved shop position', exact: true })).toBeDisabled();
   await saveAndReview(page);
-  await expect(page.getByText('First paragraph.', { exact: true })).toBeVisible();
-  await expect(page.getByText('第二段。', { exact: true })).toBeVisible();
+  await expect(publicPreview(page).getByText('First paragraph.', { exact: true })).toBeVisible();
+  await expect(publicPreview(page).getByText('第二段。', { exact: true })).toBeVisible();
   await expect(page.getByText('B2 PRIVATE SENTINEL', { exact: true })).toHaveCount(0);
   await expect(page.getByText('https://example.test/private-maintenance', { exact: true })).toHaveCount(0);
   await open(page, 'Location');
@@ -753,7 +796,7 @@ test('save and review opens the saved review state and keeps a failed save @shor
   await page.getByLabel('Shop name').fill('Mobile review test shop');
   await saveAndReview(page);
   await expect(page.getByRole('heading', { level: 2, name: 'Review', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading',{name:'Mobile review test shop'}).first()).toBeVisible();
+  await expect(publicPreview(page).getByRole('heading',{name:'Mobile review test shop'}).first()).toBeVisible();
   await expect(page.getByLabel('Shop name',{exact:true})).toHaveCount(0);
   expect(state.actions).toEqual(['save']);
   await page.screenshot({path:info.outputPath('admin-save-review.png'),fullPage:true});
@@ -787,7 +830,7 @@ test('publication blockers lead to the section that fixes them @short', async ({
 
 test('empty brand and specialty choices offer add/reuse and become selectable @short', async ({page},info) => {
   await setup(page);
-  const options = {localities:[{id:locality,label:'Singapore',countryCode:'SG'}],types:[{id:type,label:'Fountain Pen Specialist'}],services:[],brands:[] as {id:string;label:string}[],specialties:[] as {id:string;label:string}[]};
+  const options = {localities:[{id:locality,label:'Singapore',countryCode:'SG'}],types:[{id:type,label:'Fountain Pen Specialist',code:'fountain_pen_specialist'}],services:[],brands:[] as {id:string;label:string}[],specialties:[] as {id:string;label:string}[]};
   await page.route('**/api/v1/admin/shops/options',async route => {
     if(route.request().method()==='POST') {
       const {kind,label}=route.request().postDataJSON() as {kind:'brands'|'specialties';label:string};
@@ -808,7 +851,7 @@ test('empty brand and specialty choices offer add/reuse and become selectable @s
   }
   await page.screenshot({path:info.outputPath('admin-choice-recovery.png'),fullPage:true});
   await saveAndReview(page);
-  await expect(page.getByText('Private catalogue preview',{exact:true})).toBeVisible();
+  await expect(publicPreview(page).getByText('Saved private content · Public-page layout preview',{exact:true})).toBeVisible();
 });
 
 test('country is a searchable selector that stores the code @short',async({page})=>{
@@ -966,7 +1009,7 @@ test('a refused image change closes the dialog and reports it @short', async ({p
   // The retry now carries the reloaded revision, so it succeeds.
   await section.getByRole('button',{name:'Show on public page'}).click();
   await page.getByRole('alertdialog').getByRole('button',{name:'Show on public page'}).click();
-  await expect(section.getByRole('figure').getByText('On the public page',{exact:true})).toBeVisible();
+  await expect(section.getByRole('figure').getByText('Shown when shop is published',{exact:true})).toBeVisible();
   expect(posts).toBe(2);
 });
 
@@ -1070,14 +1113,14 @@ test('an unknown role never exposes admin-only image controls @short',async({pag
 test('admin can create missing localities and types then save their selection @short',async({page},info)=>{
   const state=await setup(page);
   const newLocality='85000000-0000-4000-8000-000000000001',newType='85000000-0000-4000-8000-000000000002';
-  const options={localities:[{id:locality,label:'Singapore (SG)',countryCode:'SG'}],types:[{id:type,label:'Fountain Pen Specialist'}],services:[],brands:[],specialties:[]};
+  const options={localities:[{id:locality,label:'Singapore (SG)',countryCode:'SG'}],types:[{id:type,label:'Fountain Pen Specialist',code:'fountain_pen_specialist'}],services:[],brands:[],specialties:[]};
   await page.route('**/api/v1/admin/shops/options',async route=>{
     if(route.request().method()==='POST') {
       const body=route.request().postDataJSON();
       if(body.kind==='localities') {
         expect(body.countryCode).toBe('SG');
         options.localities.push({id:newLocality,label:`${body.label} (SG)`,countryCode:'SG'});
-      } else options.types.push({id:newType,label:body.label});
+      } else options.types.push({id:newType,label:body.label,code:`type_${newType.replaceAll('-','_')}`});
       await route.fulfill({json:{id:body.kind==='localities'?newLocality:newType,options}});
     } else await route.fulfill({json:options});
   });
@@ -1150,7 +1193,7 @@ for (const format of ['jpeg-disguised-as-png','wide-transparent-png','small-tran
       await expect(media.getByRole('alert')).toContainText('Media service is unavailable');
       await media.getByRole('button',{name:'Retry saving this logo'}).click();
     }
-    await expect(media.getByRole('status')).toContainText('Saved privately');
+    await expect(media.getByRole('status').filter({hasText:/^Saved privately\./})).toContainText('Saved privately');
     await expect(media.getByRole('figure').getByText('Private to this draft',{exact:true})).toBeVisible();
     await expect(media.getByAltText('Synthetic test logo')).toHaveCSS('object-fit','contain');
     expect(attachments).toBe(1);expect(initiations).toBe(1);expect(puts).toBe(isPng?2:1);
@@ -1169,4 +1212,199 @@ test('oversized PNG logo is rejected before preview decoding or upload @short',a
   await expect(media.getByRole('alert')).toContainText('8192 px');
   await expect(media.getByAltText('Selected logo for M6 Demo shop')).toHaveCount(0);
   expect(uploads).toBe(0);
+});
+
+test('D hours preserve existing data, validate and survive copy/save/reopen @short', async ({page},info)=>{
+  const initial=fixture();
+  initial.document.shop.opening_hours={note:'Call first\nHoliday times vary',entries:[
+    {day:'monday',opens:'09:00',closes:'12:00',closed:false,note:'Morning'},
+    {day:'monday',opens:'22:00',closes:'02:00',closed:null,note:'Late'},
+    {day:'sunday',closed:true,note:'Closed for rest'},
+    {day:'wednesday',closed:false,note:'Times to confirm'},
+  ]};
+  initial.document.shop.holiday_note='Synthetic holiday note';
+  const originalSources=structuredClone(initial.document.sources), originalTypes=structuredClone(initial.document.types);
+  const state=await setup(page,initial);
+  await page.goto(`/admin/shops/${id}`); await open(page,'Visit details');
+  await expect(page.getByText('Closes the following day.')).toBeVisible();
+  await page.getByLabel('Opens',{exact:true}).first().fill('25:00');
+  await page.getByLabel('Closes',{exact:true}).nth(1).fill('26:00'); await save(page);
+  await expect(page.getByLabel('Opens',{exact:true}).first()).toBeFocused();
+  await expect(page.getByLabel('Opens',{exact:true}).first()).toHaveAttribute('aria-invalid','true');
+  await page.getByLabel('Opens',{exact:true}).first().fill('09:00');
+  await expect(page.getByLabel('Opens',{exact:true}).first()).not.toHaveAttribute('aria-invalid');
+  await expect(page.getByLabel('Closes',{exact:true}).nth(1)).toHaveAttribute('aria-invalid','true');
+  await page.getByLabel('Closes',{exact:true}).nth(1).fill('02:00');
+  await page.getByRole('button',{name:'Copy hours',exact:true}).click();
+  await saveAndReview(page);
+  const saved=state.current();
+  expect(saved.document.shop.opening_hours).toEqual(expect.objectContaining({note:'Call first\nHoliday times vary'}));
+  expect((saved.document.shop.opening_hours as {entries:{day:string}[]}).entries.map(r=>r.day)).toEqual(['monday','monday','tuesday','tuesday','wednesday','sunday']);
+  expect(saved.document.sources).toEqual(originalSources);
+  expect(saved.document.types).toEqual(originalTypes);
+  expect(state.actions).toEqual(['save']); // invalid local input never submitted
+  await expect(page.getByRole('heading',{name:'Saved public-page preview'})).toBeVisible();
+  await expect(publicPreview(page).getByRole('article',{name:'Public page preview'}).getByText('22:00–02:00 (next day) · Late',{exact:true}).first()).toBeVisible();
+  await expect(publicPreview(page).getByRole('article',{name:'Public page preview'}).getByText('Open · times not recorded · Times to confirm',{exact:true})).toBeVisible();
+  await page.reload(); await open(page,'Visit details');
+  await expect(page.getByLabel('Hours summary · optional')).toHaveValue('Call first\nHoliday times vary');
+  await expect(page.getByLabel('Hours state')).toHaveCount(6);
+  await expect(page.getByLabel('Hours note',{exact:true}).nth(1)).toHaveValue('Late');
+  const scan=await new AxeBuilder({page}).include('main').analyze(); expect(scan.violations).toEqual([]);
+  expect(await page.evaluate(()=>window.document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({path:info.outputPath('admin-d-hours.png'),fullPage:true});
+  page.once('dialog',d=>d.accept()); await page.getByRole('button',{name:'Clear all hours'}).click(); await save(page);
+  await page.reload(); await open(page,'Visit details');
+  expect(state.current().document.shop.opening_hours).toBeNull();
+  await expect(page.getByLabel('Holiday note',{exact:true})).toHaveValue('Synthetic holiday note');
+});
+
+test('D preview excludes unsaved changes and failed-save comparison does not silently rebase @short',async({page})=>{
+  const initial=fixture(); initial.publicationStatus='published';
+  const state=await setup(page,initial);
+  await page.goto(`/admin/shops/${id}`); await page.getByLabel('Shop name').fill('Unsaved synthetic name');
+  await open(page,'Review');
+  const preview=publicPreview(page).getByRole('article',{name:'Public page preview'});
+  await expect(preview.getByRole('heading',{name:'M6 Demo shop',exact:true})).toBeVisible();
+  await expect(preview.getByText('Unsaved synthetic name')).toHaveCount(0);
+  await expect(page.getByText(/You have unsaved edits/)).toBeVisible();
+  await expect(page.getByRole('button',{name:'Publish saved changes'})).toBeDisabled();
+  await open(page,'Shop & story'); state.conflict(); await save(page);
+  await page.getByRole('button',{name:'Compare latest saved version'}).click();
+  const comparison=page.getByRole('region',{name:'Compare with latest saved version'});
+  await expect(comparison.getByText('Unsaved synthetic name',{exact:true})).toBeVisible();
+  await expect(comparison.getByText('M6 Demo shop',{exact:true})).toBeVisible();
+  await expect(page.getByLabel('Shop name')).toHaveValue('Unsaved synthetic name');
+  await save(page); // still uses the conflicted base: comparison cannot authorize overwriting
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('changed in another session');
+  expect(state.current().document.shop.name).toBe('M6 Demo shop');
+  expect(state.actions).toEqual(['save','save']);
+});
+
+test('D gallery stale caption preserves local text through refresh and deliberate retry @short',async({page})=>{
+  await setup(page);
+  const photo='85000000-0000-4000-8000-000000000001';
+  let entry={id:photo,kind:'photo',width:2,height:2,altText:'Synthetic photo',creditText:null,status:'draft',revision:'a'.repeat(32),caption:'Original'};
+  let fail=true; const requests:Record<string,unknown>[]=[];
+  await page.route(`**/api/v1/admin/shops/${id}/media`,async route=>{
+    if(route.request().method()==='POST') {
+      const body=route.request().postDataJSON(); requests.push(body);
+      if(fail) { fail=false;entry={...entry,caption:'Changed in another tab',revision:'b'.repeat(32)};await route.fulfill({status:409,json:{error:{code:'revision_conflict'}}});return; }
+      expect(body.revisions).toEqual({[photo]:'b'.repeat(32)});
+      entry={...entry,caption:body.captions[photo],revision:'c'.repeat(32)};
+    }
+    await route.fulfill({json:{entries:[entry],capabilities:['arrange','remove']}});
+  });
+  await page.route(`**/api/v1/admin/shops/${id}/media/${photo}`,r=>r.fulfill({contentType:'image/png',body:makePng()}));
+  await page.goto(`/admin/shops/${id}`); await open(page,'Photos & logo');
+  await page.getByLabel('Photo caption · optional').fill('My caption to keep');
+  await page.getByRole('button',{name:'Save caption',exact:true}).click();
+  await expect(page.getByLabel('Photo caption · optional')).toHaveValue('My caption to keep');
+  await expect(page.getByText(/Saved caption: Changed in another tab/)).toBeVisible();
+  await page.getByRole('button',{name:'Replace saved caption with my text'}).click();
+  await expect(page.getByRole('button',{name:'Save caption',exact:true})).toBeDisabled();
+  await page.reload(); await open(page,'Photos & logo');
+  await expect(page.getByLabel('Photo caption · optional')).toHaveValue('My caption to keep');
+  expect(requests.map(r=>r.action)).toEqual(['arrange','arrange']); expect(entry.status).toBe('draft');
+});
+
+test('D3 real viewport preview preserves public layout and excludes private media @short',async({page},info)=>{
+  const initial=fixture();
+  initial.revision='72000000-0000-4000-8000-000000000001';
+  Object.assign(initial.document.shop,{field_note_body:'Synthetic saved story',address_line_1:'Synthetic address',internal_notes:'D3 PRIVATE NOTE',reference_links:'https://example.test/private'});
+  const state=await setup(page,initial);
+  const photo='85000000-0000-4000-8000-000000000001', privatePhoto='85000000-0000-4000-8000-000000000002',logo='85000000-0000-4000-8000-000000000003';
+  const entries=[{id:photo,kind:'photo',width:2,height:2,altText:'Approved synthetic photo',creditText:null,caption:'Approved cover',status:'approved',revision:'a'.repeat(32)},{id:privatePhoto,kind:'photo',width:2,height:2,altText:'PRIVATE PHOTO',creditText:null,status:'draft',revision:'b'.repeat(32)},{id:logo,kind:'logo',width:2,height:2,altText:'Approved logo',creditText:null,status:'approved',revision:'c'.repeat(32)}];
+  const writes:string[]=[];
+  page.on('request',r=>{if(r.method()!=='GET') writes.push(r.url());});
+  await page.route(`**/api/v1/admin/shops/${id}/media`,route=>route.fulfill({json:{entries}}));
+  await page.route(`**/api/v1/admin/shops/${id}/media/*`,route=>route.fulfill({contentType:'image/png',body:makePng()}));
+  await page.goto(`/admin/shops/${id}`); await open(page,'Review');
+  const preview=publicPreview(page);
+  await expect(preview.getByRole('heading',{name:'M6 Demo shop',exact:true})).toBeVisible();
+  await expect(preview.getByText('Approved cover',{exact:true})).toBeVisible();
+  await expect(preview.getByRole('button',{name:/Open photo 1 of 1/})).toBeVisible();
+  await expect(preview.getByAltText('Approved logo')).toBeVisible();
+  await expect(preview.locator('body')).not.toContainText('D3 PRIVATE NOTE');
+  await expect(preview.locator('body')).not.toContainText('PRIVATE PHOTO');
+  await expect(preview.locator('a[href="https://example.test/private"]')).toHaveCount(0);
+  const body=preview.locator('[data-columns="two"]').last();
+  expect(await body.evaluate(e=>getComputedStyle(e).gridTemplateColumns.split(' ').length)).toBe(2);
+  await page.getByRole('button',{name:'Mobile',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Mobile',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect.poll(()=>body.evaluate(e=>getComputedStyle(e).gridTemplateColumns.split(' ').length)).toBe(1);
+  expect(await preview.locator('html').evaluate(e=>e.scrollWidth <= e.clientWidth)).toBe(true);
+  await preview.getByRole('button',{name:/Open photo 1 of 1/}).click();
+  await expect(preview.getByRole('dialog')).toBeVisible(); await page.keyboard.press('Escape');
+  await expect(preview.getByRole('dialog')).toHaveCount(0);
+  await expect(preview.getByRole('button',{name:/Collect Stamp/})).toBeDisabled();
+  await page.screenshot({path:info.outputPath('admin-d3-public-preview.png'),fullPage:true});
+  expect(state.actions).toEqual([]); expect(writes).toEqual([]);
+  expect(await page.evaluate(()=>window.document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('D3 preview refuses changed revisions and denied readers',async({page})=>{
+  const state=await setup(page); await page.goto(`/admin/shops/${id}`); await open(page,'Review');
+  await expect(publicPreview(page).getByRole('heading',{name:'M6 Demo shop',exact:true})).toBeVisible();
+  const changed=state.current(); changed.revision='e'.repeat(32); changed.document.shop.name='Unreviewed change';
+  await page.route(`**/api/v1/admin/shops/${id}`,route=>route.fulfill({json:changed}));
+  await page.getByRole('button',{name:'Refresh preview',exact:true}).click();
+  await expect(publicPreview(page).getByRole('main').getByRole('alert')).toContainText('This saved version has changed');
+  await expect(publicPreview(page).getByText('Unreviewed change')).toHaveCount(0);
+  await page.route(`**/api/v1/admin/shops/${id}`,route=>route.fulfill({status:403,json:{error:{code:'forbidden'}}}));
+  await page.getByRole('button',{name:'Refresh preview',exact:true}).click();
+  await expect(publicPreview(page).getByRole('main').getByRole('alert')).toContainText('current editor or admin access');
+  expect(state.actions).toEqual([]);
+});
+
+test('D4 private media comparison is read-only, keyboard accessible and resets on reload @short', async ({page},info) => {
+  const state = await setup(page);
+  const ids = Array.from({length:7},(_,n)=>`86000000-0000-4000-8000-${String(n+1).padStart(12,'0')}`);
+  const entries = [
+    {id:ids[0],kind:'photo',altText:'Private comparison photo',status:'draft',caption:'Saved private caption'},
+    {id:ids[1],kind:'photo',altText:'Approved comparison photo',status:'approved',caption:'Saved approved caption'},
+    {id:ids[2],kind:'logo',altText:'Approved comparison logo',status:'approved'},
+    {id:ids[3],kind:'logo',altText:'Private replacement logo',status:'draft'},
+  ].map((e,n)=>({...e,width:20,height:12,creditText:null,revision:'a'.repeat(32),sortOrder:n}));
+  const stamps = [
+    {id:ids[4],stampId:ids[6],designVersion:1,kind:'generated_template',origin:'generated_template',status:'approved',active:true,hasArtwork:false,templateData:{tier:'shop',motif:'nib'}},
+    {id:ids[5],stampId:ids[6],designVersion:2,kind:'uploaded',origin:'founder_created',status:'draft',active:false,hasArtwork:true},
+  ].map(e=>({...e,ink:'teal',creatorName:null,creatorUrl:null,revision:'b'.repeat(32)}));
+  const writes:string[]=[];
+  page.on('request',r=>{if(r.method()!=='GET')writes.push(r.url());});
+  await page.route(`**/api/v1/admin/shops/${id}/media`,r=>r.fulfill({json:{entries}}));
+  await page.route(`**/api/v1/admin/shops/${id}/stamp`,r=>r.fulfill({json:{entries:stamps}}));
+  await page.route(`**/api/v1/admin/shops/${id}/media/*`,r=>r.fulfill({contentType:'image/png',body:makePng(20,12)}));
+  await page.route(`**/api/v1/admin/shops/${id}/stamp/*`,r=>r.fulfill({contentType:'image/png',body:makePng(1200,800)}));
+  await page.goto(`/admin/shops/${id}`);await open(page,'Review');
+  const panel=page.getByRole('region',{name:'Compare saved images and artwork'});
+  const checkbox=panel.getByRole('checkbox',{name:/Private comparison photo/});
+  await checkbox.focus();await page.keyboard.press('Space');await expect(checkbox).toBeChecked();
+  await expect(checkbox).toHaveCSS('width','18px');await expect(checkbox).toHaveCSS('height','18px');
+  const photoLabel=checkbox.locator('..');
+  const target=await photoLabel.boundingBox();
+  expect(target?.height).toBeGreaterThanOrEqual(44);
+  // Click the label below the 18px glyph to verify the full touch target.
+  await photoLabel.click({position:{x:8,y:40}});await expect(checkbox).not.toBeChecked();
+  await photoLabel.click({position:{x:8,y:40}});await expect(checkbox).toBeChecked();
+  await panel.getByRole('radio',{name:/Private replacement logo/}).check();
+  await panel.getByRole('radio',{name:/Design v2/}).check();
+  const gallery=panel.getByLabel('Selected gallery comparison');
+  await expect(gallery.getByAltText('Private replacement logo')).toBeVisible();
+  await gallery.getByRole('button',{name:/Open photo 1 of 2: Private comparison photo/}).click();
+  await expect(page.getByRole('dialog')).toContainText('Saved private caption');
+  await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(panel.getByLabel('Selected stamp comparison').getByAltText('List-size stamp preview')).toBeVisible();
+  await expect(panel.getByLabel('Selected stamp comparison').getByAltText('Detail-size stamp preview')).toHaveCSS('object-fit','contain');
+  await expect(publicPreview(page).getByRole('button',{name:/Open photo 1 of 1: Approved comparison photo/})).toBeVisible();
+  await expect(publicPreview(page).getByAltText('Private replacement logo')).toHaveCount(0);
+  const scan=await new AxeBuilder({page}).include('[aria-label="Compare saved images and artwork"]').analyze();expect(scan.violations).toEqual([]);
+  expect(await page.evaluate(()=>window.document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await panel.screenshot({path:info.outputPath('admin-d4-media-comparison.png')});
+  await panel.getByRole('button',{name:'Reload media comparison'}).click();await expect(checkbox).not.toBeChecked();
+  await expect(panel.getByRole('radio',{name:/Design v1/})).toBeChecked();
+  await checkbox.check();await panel.getByRole('button',{name:'Manage stamp artwork'}).click();
+  await expect(page.getByRole('region',{name:'Atlas Stamp artwork'})).toBeVisible();
+  await open(page,'Review');await expect(checkbox).not.toBeChecked();
+  expect(state.actions).toEqual([]);expect(writes).toEqual([]);
 });

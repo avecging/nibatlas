@@ -1,3 +1,4 @@
+import { EXPERIENCE_ICON_KEYS } from '@/src/domain/experience-icons';
 /** M6 WP2 contract: catalogue fields only; no stamp, media or import writes. */
 export type Value =
   string | number | boolean | null | Value[] | { [key: string]: Value };
@@ -34,6 +35,7 @@ export interface Option {
   id: string;
   label: string;
   countryCode?: string;
+  code?: string;
 }
 export type Options = Record<string, Option[]>;
 export type Field = {
@@ -127,6 +129,7 @@ export const GROUPS: {
   { key: "experiences", label: "Experiences", fields: [
     f("category", "Category", { required: true, choices: ["fountain_pens", "inks_paper", "nib_testing", "gifts", "repairs", "other"] }),
     f("title", "Public title", { required: true }), f("description", "Experience description", { kind: "long" }),
+    f("icon", "Experience icon", { choices: EXPERIENCE_ICON_KEYS }),
   ] },
   {
     key: "sources",
@@ -248,8 +251,17 @@ export const HOURS_FIELDS: Field[] = [
   f("closed", "Closed", { kind: "boolean" }),
   f("note", "Hours note"),
 ];
+export const HOURS_EXCEPTION_FIELDS: Field[] = [
+  f("date", "Date", { required: true }),
+  f("opens", "Opens"),
+  f("closes", "Closes"),
+  f("closed", "Closed", { kind: "boolean" }),
+  f("note", "Exception note"),
+];
 export const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Public-document fingerprints and private-working-copy UUIDs are both opaque revisions.
+export const SHOP_REVISION = /^([a-f0-9]{32}|[a-f0-9-]{36})$/i;
 export function object(v: unknown): Record<string, unknown> {
   if (!v || typeof v !== "object" || Array.isArray(v))
     throw Error("Invalid contract");
@@ -317,12 +329,15 @@ export function document(value: unknown): Document {
   shop.opening_hours = null;
   if (hours !== null && hours !== undefined) {
     const h = object(hours);
-    if (Object.keys(h).some((k) => k !== "entries" && k !== "note"))
+    if (Object.keys(h).some((k) => k !== "entries" && k !== "note" && k !== "exceptions"))
       throw Error("Invalid hours");
     shop.opening_hours = {
       ...(h.note ? { note: text(h.note) } : {}),
       ...(h.entries
         ? { entries: rows(h.entries).map((r) => fields(r, HOURS_FIELDS)) }
+        : {}),
+      ...(h.exceptions
+        ? { exceptions: rows(h.exceptions).map((r) => fields(r, HOURS_EXCEPTION_FIELDS)) }
         : {}),
     };
   }
@@ -348,7 +363,7 @@ export function decodeShop(value: unknown): ShopRecord {
     publicationStatus = text(r.publicationStatus);
   if (
     !UUID.test(id) ||
-    !/^([a-f0-9]{32}|[a-f0-9-]{36})$/i.test(revision) ||
+    !SHOP_REVISION.test(revision) ||
     !["draft", "published", "archived"].includes(publicationStatus) ||
     typeof r.hasChanges !== "boolean"
   )
@@ -398,6 +413,7 @@ export function decodeOptions(value: unknown): Options {
       return {
         id,
         label: text(o.label),
+        ...((k === "types" || k === "services" || k === "specialties") && o.code != null ? { code: text(o.code) } : {}),
         ...(k === "localities" ? { countryCode: text(o.countryCode) } : {}),
       };
     });

@@ -7,8 +7,9 @@ import { readAdminResponse } from './read-response';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { decodeAdminStamps, stampAdminPath, STAMP_INKS, type AdminStampVersion } from './stamp-contract';
-import { usePendingUpload } from './use-pending-upload';
-import { UUID } from './shop-contract';
+import { UploadField } from './UploadField';
+import { usePrivateUpload } from './use-private-upload';
+import { imageContentType } from './image-content-type';
 import styles from './ShopStampAdmin.module.css';
 
 const messages:Record<string,string>={
@@ -119,36 +120,29 @@ function CreateStamp({disabled,run,path,saved}:{disabled:boolean;run:(w:(s:Abort
   </details>;
 }
 
-function ArtworkPicker({shopId,version,disabled,run,attached}:{shopId:string;version:AdminStampVersion;disabled:boolean;run:(w:(s:AbortSignal)=>Promise<void>)=>void;attached:(r:AdminStampVersion[])=>void}) {
-  const [file,setFile]=useState<File|null>(null),[preview,setPreview]=useState('');const input=useRef<HTMLInputElement>(null),uploadId=useRef<string|null>(null);
-  useEffect(()=>()=>{if(preview)URL.revokeObjectURL(preview);},[preview]);
-  usePendingUpload(!!file);
-  const save = (file: File) => void run(async signal => {
-      try{
-        if(file.type!=='image/png'||file.size<1||file.size>5*1024*1024) throw new Failure('invalid_upload');
-        const bytes=await file.arrayBuffer(),base='/api/v1/admin/media/uploads';
-        if(!uploadId.current){
-          const sha256=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
-          const manifest=await call(base,signal,post({shopId,artworkVersionId:version.id,purpose:'artwork_png',sha256,byteSize:file.size,contentType:file.type}));
-          if(typeof manifest.id!=='string'||!UUID.test(manifest.id))throw new Failure('service_unavailable');uploadId.current=manifest.id;
-        }
-        const url=`${base}/${uploadId.current}`;
-        try{await call(url,signal,{method:'POST'});}catch(e){if(!(e instanceof Failure)||e.code!=='upload_incomplete')throw e;await call(url,signal,{method:'PUT',headers:{'Content-Type':'image/png'},body:bytes});await call(url,signal,{method:'POST'});}
-        const value=await call(stampAdminPath(shopId),signal,post({action:'attach',versionId:version.id,uploadId:uploadId.current}));
-        attached(decodeAdminStamps(value.entries));setFile(null);setPreview('');uploadId.current=null;if(input.current)input.current.value='';
-      }catch(e){if(e instanceof Failure&&['upload_expired','upload_conflict'].includes(e.code))uploadId.current=null;throw e;}
-
+function ArtworkPicker({shopId,version,disabled,run,attached}:{shopId:string;version:AdminStampVersion;disabled:boolean;run:(w:(s:AbortSignal)=>Promise<void>)=>Promise<void>;attached:(r:AdminStampVersion[])=>void}) {
+  const upload=usePrivateUpload({disabled,run,request:call,
+    manifest:{shopId,artworkVersionId:version.id,purpose:'artwork_png'},
+    prepare:async file=>{
+      if(file.size<1||file.size>5*1024*1024)throw new Failure('invalid_upload');
+      const bytes=await file.arrayBuffer();
+      if(imageContentType(new Uint8Array(bytes))!=='image/png')throw new Failure('invalid_upload');
+      return {bytes,contentType:'image/png'}; // Original artwork bytes, never normalized.
+    },
+    attach:async(uploadId,signal)=>{
+      const value=await call(stampAdminPath(shopId),signal,post({action:'attach',versionId:version.id,uploadId}));
+      attached(decodeAdminStamps(value.entries));
+    },
   });
-  return <div className={styles.picker}><label>Stamp PNG<input ref={input} type="file" accept="image/png" disabled={disabled} onChange={e=>{
-    if(preview)URL.revokeObjectURL(preview);const next=e.target.files?.[0]??null;setFile(next);setPreview(next?URL.createObjectURL(next):'');uploadId.current=null;
-    if(next) save(next);
-  }}/></label><p>Choosing a PNG uploads and saves it privately. Review the saved preview before activation.</p>
-    {file&&preview?<><img src={preview} alt={`Selected stamp artwork for ${version.creatorName??'creator'}`}/><p>{file.name} · not saved yet</p>
-    <button type="button" disabled={disabled} onClick={()=>save(file)}>Save PNG privately</button></>:null}
-  </div>;
+  return <UploadField label="Stamp PNG" accept="image/png,.png" filename={upload.filename}
+    disabled={disabled||upload.busy} status={upload.status} error={upload.error}
+    onSelect={upload.select} onClear={upload.clear} onRetry={upload.retry} retryLabel="Save PNG privately"
+    help="Choose a 1200 × 800 transparent PNG, up to 5 MiB. Choosing a PNG saves it privately without changing its pixels. Review the saved preview before activation.">
+    {upload.preview && <img className={styles.selectedArtwork} src={upload.preview} alt={`Selected stamp artwork for ${version.creatorName??'creator'}`}/>}
+  </UploadField>;
 }
 
-function StampPreview({shopId,entry}:{shopId:string;entry:AdminStampVersion}) {
+export function StampPreview({shopId,entry}:{shopId:string;entry:AdminStampVersion}) {
   const src=`${stampAdminPath(shopId)}/${entry.id}`;
   return <div className={styles.preview} aria-label="Stamp size previews">
     <div><span>List</span><img className={styles.list} src={src} alt="List-size stamp preview"/></div>

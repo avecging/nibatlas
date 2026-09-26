@@ -143,7 +143,7 @@ The complete document adds optional scalar shop fields: `feature_headline`,
 and `reference_links`. Text is bounded to 4,000 characters per field. Reference
 links are one HTTP(S) URL per line. `short_description` remains the short intro;
 paragraphs survive in the separate field-note body. `experiences` is an ordered
-array of at most 100 `{id,category,title,description?}` rows; categories are
+array of at most 100 `{id,category,title,description?,icon?}` rows; categories are
 `fountain_pens`, `inks_paper`, `nib_testing`, `gifts`, `repairs`, `other`.
 Existing appointment/accessibility/phone/postcode fields have public mappings.
 Unknown appointment stays null; false remains No. Legacy documents without new
@@ -161,6 +161,23 @@ and D's full public preview/media choices remain. C must invoke position review
 and publication deliberately against reviewed revisions, not copy attestations
 from CSV cells. Omitted/blank import values preserve data; explicit clears and
 safe merge/preview happen before this complete-document save contract.
+
+
+## Curated experience icons
+
+An experience may carry an optional `icon` key: `pen`, `nib`, `ink`, `swatch`,
+`paper`, `book`, `tools`, `gift`, `workshop`, or `chat`. These are presentation
+choices independent of category. The editor shows labelled native radio choices;
+old entries with absent/null icons still render the existing Writing (`pen`) icon.
+Arbitrary SVG, URLs and unknown icon names are rejected in the shared normalizer,
+SQL validator and public decoder. The public renderer and both saved preview
+implementations use the same icon component.
+
+The icon follows the existing complete-document private save, revision conflict,
+explicit publication and audit contracts. It is not a media upload or stamp-artwork
+choice. Import v1 still does not accept experiences; safe updates preserve existing
+experience rows and their icons. The additive validator migration changes no stored
+catalogue/draft rows, fingerprints, grants or artwork history.
 
 ## Mobile acceptance correction
 
@@ -196,3 +213,104 @@ bounded labels for custom codes. Existing codes and the four approved public
 filter categories remain unchanged. Custom types appear in unfiltered discovery,
 Saved and detail; this slice adds no new filter categories or inferred mapping to
 an existing category. The `test_venue` demo-only boundary remains intact.
+
+
+## C3 saved-batch publication reuse
+
+Package C3 adds owner-private batch review/publication operations around these
+same saved-document, `confirm_position` and `publish` rules. The manual writer
+and location invalidation contract are unchanged. The batch ledger binds exact
+private and canonical state, records recoverable per-row outcomes and requires
+fresh review after a change; imported drafts are never implicitly approved.
+See `admin-import-v1.md` for the bounded wire contract and retention. Media and
+artwork remain separately published/activated. C3 technical acceptance,
+deployment and founder acceptance are tracked separately in its PR/runbook.
+
+## D1 editor behavior (no wire/schema change)
+
+The hours UI writes the same `opening_hours: null | {note?,entries?}` document.
+Rows still contain only day/opens/closes/closed/note; split/overnight rows and
+unknown flags survive. Day copy preserves every source row/note and explicitly
+replaces only the chosen destination. Whole-hours clear writes null; clearing a
+summary does not clear entries or the separate `holiday_note`.
+
+The D2 addition is `opening_hours.exceptions?: {date,opens?,closes?,closed?,note?}[]`
+on the same complete shop document. Dates are real ISO `YYYY-MM-DD` shop-local
+calendar dates; at most 100 rows. A date can have multiple open periods, including
+overnight spans, or one closed row. Open and closed rows cannot coexist on a date;
+times come in pairs and a closed row has no times. Unknown remains distinct from
+closed. Missing exceptions decode as empty and do not alter old weekly rows or
+holiday prose. Shared manual/import normalization and the SQL writer enforce the
+same shape; v1 CSV/JSON import does not accept exceptions as a mapped column and
+preserves existing hours. The published detail returns `openingHoursExceptions`
+only from the published revision. A private save never publishes these entries.
+
+Failed-save comparison uses the existing GET and never swaps in its revision for
+local unsaved edits. A current revision is adopted only with the returned saved
+mutation document or a deliberate reload. The saved-text preview is labelled as
+such and excludes unsaved/private maintenance content; full public rendering and
+pending-media/artwork review integration remain D follow-ups. Catalogue save
+continues to advance private state and invalidate C3 bindings as specified above.
+
+
+## D3 saved public-renderer preview
+
+`/admin/shops/[id]/preview?revision=<opaque revision>` is a private client shell,
+not a public preview token. It embeds no catalogue data in initial HTML and uses
+only the existing authorized, private/no-store shop, options and media GETs. It
+rejects a mismatched saved revision rather than silently previewing newer content.
+Unsigned/ordinary accounts remain denied by those existing server boundaries.
+Changing accounts unmounts the in-memory snapshot. Preview routes never mount the
+normal saved-shop/collection providers, so opening a preview cannot trigger a
+local-save import or pending account action. No new mutation endpoint is added.
+
+The editor embeds this route at real 360/1280 px viewport widths. A public-field
+allowlist feeds the same public decoder/adapter and `ShopDetailView` used on the
+shop page. It previews the saved content as it would look after editorial
+publication; unsaved form values, private notes/references, evidence notes and
+actor metadata never enter the rendered model. Incomplete required identity,
+location/timezone/type data produce an incomplete-preview notice, not invented
+facts. Weekly split/overnight/open-unknown labels now share the actual renderer.
+
+The frame shows only approved images in their saved order, through authenticated
+private delivery (also for unpublished shops). Draft images and stamp activation
+choices are excluded. This is a current media snapshot, not revision-bound media
+publication approval; refresh to reread. Gallery/zoom interactions work. Account
+actions are inert and link activation is suppressed within the frame. Nearby
+recommendations, account state and the future editorial review date are not
+invented. Stamp art remains in its own review section, matching the current public
+page's absence of a stamp identity header. Private save/publish/activation APIs,
+audit, C3 review bindings and historical impressions are unchanged.
+
+Migration `20260925083746_d3_public_preview_option_order.sql` only adds the public
+projection's `code` tie-break after `sort_order` to type/service/specialty options.
+It changes no rows, IDs, labels, grants or current-role checks; grouped import
+mapping retains exactly the same vocabulary. Deploy it before claiming ordering
+parity. Integrated pending media/artwork review remains the next D checkpoint.
+
+
+## D4a saved media/artwork comparison
+
+Review includes a separate read-only comparison of saved photo/logo attachments
+and active or uploaded draft stamp versions. It uses existing private/no-store
+shop, media and stamp GETs. The shop ID and opaque saved revision must match both
+before and after the separate media reads; any failed, denied or malformed read
+withholds the whole comparison. The existing account-keyed editor unmounts this
+memory on account change/sign-out. No browser storage, public token, mutation,
+new endpoint, provider key or private source field is introduced.
+
+Approved photos stay included; optional draft photos retain saved gallery order.
+One logo is selected, initially the approved logo. Stamp choices default to the
+active version and allow uploaded drafts only after their PNG has been saved.
+Historical inactive approvals are not offered for reactivation. Existing exact
+private bytes and creator credits are reused; generated previews use stored
+template/ink and saved known labels. Missing artwork is not substituted.
+
+Comparison choices reset on reload, leaving Review or a changed saved revision.
+The selected gallery reuses the public gallery/zoom renderer, but it is separate
+from D3's unchanged approved-only public-page frame. Choosing or publishing the
+shop does not publish those media choices or activate artwork. Each existing
+mutation still requires its own explicit confirmation and server revision check.
+Media can change after these independent reads; this is not an atomic snapshot,
+a durable review receipt or combined publication approval. Those execution and
+recovery semantics remain the next D increment.
