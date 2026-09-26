@@ -6,7 +6,8 @@ import { decodeShopMedia, mediaCapabilities, mediaPath, type ShopMedia } from '.
 import { prepareShopImage } from './prepare-shop-image';
 import { usePendingUpload } from './use-pending-upload';
 import { useDialog } from './use-dialog';
-import { UUID } from './shop-contract';
+import { UploadField } from './UploadField';
+import { usePrivateUpload } from './use-private-upload';
 import styles from './ShopMediaAdmin.module.css';
 
 export interface MediaSummary {
@@ -15,11 +16,11 @@ export interface MediaSummary {
 }
 
 const messages: Record<string,string> = {
-  invalid_upload:'This image could not be saved. Logos: static PNG or ordinary RGB JPEG, up to 8192 px per side and 24 MP. Photos: ordinary RGB JPEG or non-interlaced RGB/RGBA PNG; photo PNGs must be at most 2048 px per side without text or EXIF metadata.',
+  invalid_upload:'This image format could not be saved. Try exporting a standard RGB JPEG, or choose another image within the limits below. Supported phone HDR JPEGs are saved as standard photos; HEIC and other multi-image formats are not supported.',
   invalid_request:'That request was refused. Nothing was changed. Reload images and try again.',
   authentication_required:'Sign in again to continue.', forbidden:'Your account cannot do this. Showing an image on the public page, taking it off again and deleting it all need an admin account.',
   service_unavailable:'Media service is unavailable. Your file was not lost — try again.',
-  upload_expired:'This upload expired. Choose the file again to start a fresh upload.', upload_conflict:'Choose the file again to start a fresh upload.',
+  upload_expired:'This upload expired. Try again to start a fresh upload.', upload_conflict:'Try again to start a fresh upload.',
   revision_conflict:'This image changed in another session. Reload images before trying again.',
   invalid_media_target:'The shop or upload changed. Reload images and try again.',
   media_limit:'This shop has reached the 50-image limit.', upload_limit:'The daily upload limit has been reached.',
@@ -262,70 +263,16 @@ function UploadPicker({kind,shopId,shopName,disabled,run,saved}: {
   kind:'photo'|'logo';shopId:string;shopName:string;disabled:boolean;
   run:(work:(signal:AbortSignal)=>Promise<void>)=>Promise<void>;saved:(value:{entries?:unknown})=>void;
 }) {
-  const [file,setFile] = useState<File | null>(null), [preview,setPreview] = useState(''), [error,setError] = useState('');
-  const [failed,setFailed] = useState(false);
-  const prepared = useRef<{file:File;image:Awaited<ReturnType<typeof prepareShopImage>>} | null>(null);
-  const session = useRef<string | null>(null), input = useRef<HTMLInputElement | null>(null);
-  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); },[preview]);
-  usePendingUpload(!!file);
-  const save = (file: File) => void run(async signal => {
-        setFailed(false);
-        try {
-        if (prepared.current?.file !== file) {
-          prepared.current = {file,image:await prepareShopImage(file,kind === 'logo')};
-          if (kind === 'logo' && prepared.current.image.contentType === 'image/png' && !signal.aborted) {
-            setPreview(URL.createObjectURL(new Blob([prepared.current.image.bytes], {type:'image/png'})));
-          }
-        }
-        const {bytes,contentType} = prepared.current.image;
-        const base = '/api/v1/admin/media/uploads';
-        if (!session.current) {
-          const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b => b.toString(16).padStart(2,'0')).join('');
-          const r = await call(base,signal,post({shopId,purpose:kind === 'logo' ? 'shop_logo' : 'shop_photo',sha256,byteSize:bytes.byteLength,contentType}));
-          if (typeof r.id !== 'string' || !UUID.test(r.id)) throw new MediaFailure('service_unavailable');
-          session.current = r.id;
-        }
-        const url = `${base}/${session.current}`;
-        // A retry first recovers a lost PUT/finalization response without reprocessing JPEG.
-        try { await call(url,signal,{method:'POST'}); }
-        catch (e) {
-          if (!(e instanceof MediaFailure) || e.code !== 'upload_incomplete') throw e;
-          await call(url,signal,{method:'PUT',headers:{'Content-Type':contentType},body:bytes});
-          await call(url,signal,{method:'POST'});
-        }
-        const r = await call(mediaPath(shopId),signal,post({action:'attach',id:session.current}));
-        saved(r);setFile(null);setPreview('');session.current = null;prepared.current = null;
-        if (input.current) input.current.value = '';
-        } catch (e) {
-          if (e instanceof MediaFailure && ['upload_expired','upload_conflict'].includes(e.code)) session.current = null;
-          // The chosen file stays on screen with a retry, so nothing has to be found again.
-          setFailed(true);
-          throw e;
-        }
-
+  const label=kind==='logo'?'logo':'photo';
+  const upload=usePrivateUpload({disabled,run,request:call,
+    prepare:file=>prepareShopImage(file,kind==='logo'),
+    manifest:{shopId,purpose:kind==='logo'?'shop_logo':'shop_photo'},
+    attach:async(id,signal)=>{saved(await call(mediaPath(shopId),signal,post({action:'attach',id})));},
   });
-  const label = kind === 'logo' ? 'logo' : 'photo';
-  return <div className={styles.picker}>
-    <label className={styles.fileLabel}>Choose a {label}
-      <input ref={input} type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" disabled={disabled} onChange={e => {
-      setPreview('');setError('');setFailed(false);session.current = null;prepared.current = null;
-      const f = e.target.files?.[0] ?? null;
-      if (f && (f.size < 1 || f.size > 5*1024*1024)) {
-        setFile(null); setError('Choose a PNG or JPEG up to 5 MiB.'); return;
-      }
-      setFile(f);
-      if (f) { if (kind === 'photo') setPreview(URL.createObjectURL(f)); save(f); }
-    }}/></label>
-    <p className={styles.help}>{kind === 'logo' ? 'JPEG or PNG, up to 5 MiB, 24 MP and 8192 px per side. Logos automatically fit within 1024 px, keeping their proportions and PNG transparency. No cropping or stretching.' : 'JPEG or PNG, up to 5 MiB. JPEG: up to 24 MP / 8192 px per side. PNG: up to 2048 px per side.'} Choosing a file saves it privately straight away.</p>
-    {error && <p role="alert" className={styles.error}>{error}</p>}
-    {file && <div className={styles.pendingUpload}>
-      {preview && <img className={kind === 'logo' ? styles.logo : styles.photo} src={preview} alt={`Selected ${label} for ${shopName}`}/>}
-      <p>{file.name} · {failed ? 'not saved' : 'saving…'}</p>
-      {failed && <button type="button" disabled={disabled} onClick={() => save(file)}>Retry saving this {label}</button>}
-      {failed && <button type="button" className={styles.quiet} onClick={() => {
-        setFile(null);setPreview('');setFailed(false);session.current = null;prepared.current = null;
-        if (input.current) input.current.value = '';
-      }}>Discard this file</button>}
-    </div>}
-  </div>;
+  return <UploadField label={`Choose a ${label}`} accept="image/png,image/jpeg,.png,.jpg,.jpeg"
+    filename={upload.filename} disabled={disabled||upload.busy} status={upload.status} error={upload.error}
+    onSelect={upload.select} onClear={upload.clear} onRetry={upload.retry} retryLabel={`Retry saving this ${label}`}
+    help={<>{kind==='logo'?'JPEG or PNG, up to 5 MiB, 24 MP and 8192 px per side. Logos automatically fit within 1024 px, keeping their proportions and PNG transparency. No cropping or stretching.':'JPEG or PNG, up to 5 MiB. JPEG: up to 24 MP / 8192 px per side. PNG: up to 2048 px per side.'} Choosing a file saves it privately straight away. Phone HDR JPEGs are saved as standard photos; check the saved preview.</>}>
+    {upload.preview && <img className={kind==='logo'?styles.logo:styles.photo} src={upload.preview} alt={`Selected ${label} for ${shopName}`}/>}
+  </UploadField>;
 }

@@ -88,6 +88,17 @@ publication transaction and approved-media reads are separate current snapshots.
 Map tile report #97 is a future investigation, not part of D3. No hosted changes
 or deployment are authorized by these checkpoints.
 
+### Upload follow-up — issues #102 and #103
+
+The phone-photo/shared-picker follow-up accepts a bounded two-image HDR JPEG
+subset and saves its standard primary image through the existing metadata-free
+processor. Photos, logos, stamp PNGs and importer selection now share one upload
+field; private image transfers share retry state while retaining separate purpose
+validation and exact stamp bytes. Failed/pending media is distinguished from saved
+shop details. Local verification is recorded in the follow-up PR; hosted acceptance
+requires a separately authorized deployment and phone retest. This does not complete
+Package D's integrated publication work or change approved experience icons.
+
 ### Package B checkpoints and field mapping
 
 B1 removes the missing-default obstacle without concealing the still-existing
