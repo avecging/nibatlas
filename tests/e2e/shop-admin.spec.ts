@@ -300,8 +300,16 @@ test("draft editor is accessible and preserves unknown information @short", asyn
       "main button:visible,main input:visible,main select:visible,main summary:visible",
     )
     .all()) {
-    const b = await control.boundingBox();
-    expect(b?.height).toBeGreaterThanOrEqual(44);
+    // Checkbox/radio labels are the clickable target; the native glyph can
+    // remain compact within that target.
+    const height = await control.evaluate((element) => {
+      const target = element instanceof HTMLInputElement &&
+        (element.type === "checkbox" || element.type === "radio")
+        ? element.labels?.[0] ?? element
+        : element;
+      return target.getBoundingClientRect().height;
+    });
+    expect(height).toBeGreaterThanOrEqual(44);
   }
   await open(page, "Shop & story");
   await page.getByLabel("Shop name").focus();
@@ -1364,6 +1372,12 @@ test('D4 private media comparison is read-only, keyboard accessible and resets o
   const checkbox=panel.getByRole('checkbox',{name:/Private comparison photo/});
   await checkbox.focus();await page.keyboard.press('Space');await expect(checkbox).toBeChecked();
   await expect(checkbox).toHaveCSS('width','18px');await expect(checkbox).toHaveCSS('height','18px');
+  const photoLabel=checkbox.locator('..');
+  const target=await photoLabel.boundingBox();
+  expect(target?.height).toBeGreaterThanOrEqual(44);
+  // Click the label below the 18px glyph to verify the full touch target.
+  await photoLabel.click({position:{x:8,y:40}});await expect(checkbox).not.toBeChecked();
+  await photoLabel.click({position:{x:8,y:40}});await expect(checkbox).toBeChecked();
   await panel.getByRole('radio',{name:/Private replacement logo/}).check();
   await panel.getByRole('radio',{name:/Design v2/}).check();
   const gallery=panel.getByLabel('Selected gallery comparison');
