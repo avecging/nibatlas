@@ -3,7 +3,11 @@ select no_plan();
 insert into auth.users(id) values('d4000000-0000-4000-8000-000000000001'),('d4000000-0000-4000-8000-000000000002'),('d4000000-0000-4000-8000-000000000003');
 select public.assign_profile_role('d4000000-0000-4000-8000-000000000001','admin');
 select public.assign_profile_role('d4000000-0000-4000-8000-000000000002','editor');
+-- Isolated synthetic fixture must permit both environment paths and remain a
+-- valid full document when later exercised through the real catalogue writer.
 update public.shops set source_quality='sourced' where id='00000000-0000-4000-8000-000000000301';
+update public.shop_sources set source_type='official',label='Synthetic source for review tests only'
+ where shop_id='00000000-0000-4000-8000-000000000301';
 create function pg_temp.review(payload jsonb default null,actor uuid default 'd4000000-0000-4000-8000-000000000001',env text default 'staging') returns jsonb language sql as $$
  select public.shop_review_operation(actor,env,'00000000-0000-4000-8000-000000000301',payload)
 $$;
