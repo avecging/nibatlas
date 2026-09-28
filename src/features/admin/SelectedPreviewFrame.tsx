@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { useAccountSession } from '@/src/features/account/AccountSessionProvider';
 import type { PreviewSelection } from './preview-selection';
 import styles from './ShopAdmin.module.css';
@@ -13,7 +13,9 @@ export function SelectedPreviewFrame({selection}: {selection: PreviewSelection})
   const userId = session.status === 'signed-in' ? session.userId : null;
   const frame = useRef<HTMLIFrameElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
-  useEffect(() => {
+  // Replace the listener during commit, before a new frame can send readiness.
+  // A passive effect could answer the new frame with the previous choices.
+  useLayoutEffect(() => {
     const receive = (event: MessageEvent) => {
       if (!userId || event.origin !== window.location.origin || event.source !== frame.current?.contentWindow
         || event.data?.type !== 'nibatlas-preview-ready') return;

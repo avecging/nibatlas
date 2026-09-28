@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, act, fireEvent } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
+import { useLayoutEffect } from 'react';
+import type { PreviewSelection } from './preview-selection';
 import { SelectedPreviewFrame } from './SelectedPreviewFrame';
 const identity=vi.hoisted(()=>({session:{status:'signed-in',userId:'one'}}));
 vi.mock('@/src/features/account/AccountSessionProvider',()=>({useAccountSession:()=>identity}));
@@ -27,4 +29,25 @@ it('remounts for new choices and drops the frame on sign-out',()=>{
   expect(screen.getByTitle('Selected public-page preview')).not.toBe(old);
   identity.session={status:'signed-out',userId:''};view.rerender(<SelectedPreviewFrame selection={selection}/>);
   expect(screen.queryByTitle('Selected public-page preview')).toBeNull();
+});
+
+it('answers a replacement frame with current choices before passive effects flush',()=>{
+  const sent: unknown[]=[];
+  function Harness({value}:{value:PreviewSelection}) {
+    useLayoutEffect(()=>{
+      const frame=screen.getByTitle('Selected public-page preview') as HTMLIFrameElement;
+      const child=frame.contentWindow!;
+      const post=vi.spyOn(child,'postMessage').mockImplementation(message=>{sent.push(message);});
+      // Child layout effects have committed, but parent passive-effect cleanup
+      // has not run. Reproduce readiness in that old-listener/new-frame window.
+      window.dispatchEvent(new MessageEvent('message',{source:child,origin:window.location.origin,data:{type:'nibatlas-preview-ready'}}));
+      return ()=>post.mockRestore();
+    },[value]);
+    return <SelectedPreviewFrame selection={value}/>;
+  }
+  const view=render(<Harness value={selection}/>);
+  sent.length=0;
+  const changed={...selection,photos:[]};
+  view.rerender(<Harness value={changed}/>);
+  expect(sent).toEqual([{type:'nibatlas-preview-selection',userId:'one',selection:changed}]);
 });
