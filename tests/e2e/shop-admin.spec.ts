@@ -159,6 +159,7 @@ async function setup(page: Page, initial?: ShopRecord) {
       headers: { "Cache-Control": "private, no-store" },
     });
   });
+  await reviewFixture(page,()=>structuredClone(record));
   return {
     actions,
     current: () => structuredClone(record),
@@ -166,6 +167,25 @@ async function setup(page: Page, initial?: ShopRecord) {
       conflict = true;
     },
   };
+}
+
+// Browser-double persistence exercises the UI only; SQL tests exercise authority.
+async function reviewFixture(page: Page, current: () => ShopRecord, media: Record<string,unknown>[] = [], stamps: Record<string,unknown>[] = []) {
+  let receipt: {id:string;choices:unknown;reviewedAt:string;key:string}|null = null;
+  await page.route(`**/api/v1/admin/shops/${id}/review`,async route=>{
+    const record=current();
+    const key=createHash('sha256').update(JSON.stringify([record,media,stamps])).digest('hex');
+    if(route.request().method()==='POST') {
+      const body=route.request().postDataJSON();
+      if(body.reviewKey!==key || body.previousId!==(receipt?.id??null)) {
+        await route.fulfill({status:409,json:{error:{code:'review_conflict'}}}); return;
+      }
+      receipt={id:body.id,choices:body.choices,reviewedAt:'2026-09-28T09:00:00Z',key};
+    }
+    await route.fulfill({json:{record,media,stamps,reviewKey:key,conflict:false,
+      availableStampIds:stamps.filter(s=>s.active || s.kind==='uploaded'&&s.status==='draft'&&s.hasArtwork).map(s=>s.id),
+      review:receipt?{id:receipt.id,choices:receipt.choices,reviewedAt:receipt.reviewedAt,current:receipt.key===key}:null}});
+  });
 }
 
 test("all seven approved sections are directly reachable @short", async ({ page }, info) => {
@@ -1374,6 +1394,7 @@ test('D4 private media comparison is read-only, keyboard accessible and resets o
   page.on('request',r=>{if(r.method()!=='GET')writes.push(r.url());});
   await page.route(`**/api/v1/admin/shops/${id}/media`,r=>r.fulfill({json:{entries}}));
   await page.route(`**/api/v1/admin/shops/${id}/stamp`,r=>r.fulfill({json:{entries:stamps}}));
+  await reviewFixture(page,state.current,entries,stamps);
   await page.route(`**/api/v1/admin/shops/${id}/media/*`,r=>r.fulfill({contentType:'image/png',body:makePng(20,12)}));
   await page.route(`**/api/v1/admin/shops/${id}/stamp/*`,r=>r.fulfill({contentType:'image/png',body:makePng(1200,800)}));
   await page.goto(`/admin/shops/${id}`);await open(page,'Review');
@@ -1425,6 +1446,7 @@ async function selectedPreviewFixture(page: Page) {
   page.on('request',r=>{if(r.method()!=='GET')writes.push(r.url());});
   await page.route(`**/api/v1/admin/shops/${id}/media`,r=>r.fulfill({json:{entries}}));
   await page.route(`**/api/v1/admin/shops/${id}/stamp`,r=>r.fulfill({json:{entries:stamps}}));
+  await reviewFixture(page,state.current,entries,stamps);
   await page.route(`**/api/v1/admin/shops/${id}/media/*`,r=>r.fulfill({contentType:'image/png',body:makePng(20,12)}));
   await page.route(`**/api/v1/admin/shops/${id}/stamp/*`,r=>r.fulfill({contentType:'image/png',body:makePng(1200,800)}));
   await page.goto(`/admin/shops/${id}`);await open(page,'Review');
@@ -1495,4 +1517,37 @@ test('D4b refuses changed media or stamp snapshots and denied reads without sile
   await panel.getByRole('button',{name:'Refresh selected preview'}).click();
   await expect(selected.getByRole('main').getByRole('alert')).toContainText('current editor or admin access');
   expect(writes).toEqual([]);
+});
+
+
+test('D4c saves choices across leaving and reload, requires re-review after content changes @short',async({page},info)=>{
+  const {panel,entries,stamps,state,writes}=await selectedPreviewFixture(page);
+  await panel.getByRole('button',{name:'Save reviewed choices'}).click();
+  await expect(panel.getByText('Reviewed choices saved. Nothing was published or activated.')).toBeVisible();
+  await open(page,'Shop & story');await open(page,'Review');
+  await expect(panel.getByRole('checkbox',{name:/Private selected photo/})).toBeChecked();
+  await expect(panel.getByRole('radio',{name:/Private selected logo/})).toBeChecked();
+  await expect(panel.getByRole('radio',{name:/Design v2/})).toBeChecked();
+  await page.reload();await open(page,'Review');
+  await expect(panel.getByRole('checkbox',{name:/Private selected photo/})).toBeChecked();
+  await expect(panel.getByRole('button',{name:'Save reviewed choices'})).toBeDisabled();
+  entries[0]!.caption='Concurrent caption after review';
+  await panel.getByRole('button',{name:'Reload media comparison'}).click();
+  await expect(panel.getByText(/Review again: saved content has changed/)).toBeVisible();
+  await expect(panel.getByRole('checkbox',{name:/Private selected photo/})).toBeChecked();
+  await expect(panel.getByText('Concurrent caption after review',{exact:true}).first()).toBeVisible();
+  await panel.screenshot({path:info.outputPath('admin-d4c-review-again.png')});
+  await panel.getByRole('button',{name:'Save reviewed choices'}).click();
+  await expect(panel.getByRole('button',{name:'Save reviewed choices'})).toBeDisabled();
+  // Change after loading: save fails rather than reviewing unseen content.
+  await panel.getByRole('radio',{name:'No logo in comparison'}).check();
+  stamps[0]!.creatorName='Changed artist after load';
+  await panel.getByRole('button',{name:'Save reviewed choices'}).click();
+  await expect(panel.getByRole('alert')).toContainText('Saved content or your review changed');
+  await expect(panel.getByRole('button',{name:'Save reviewed choices'})).toBeDisabled();
+  const scan=await new AxeBuilder({page}).include('[aria-label="Compare saved images and artwork"]').analyze();expect(scan.violations).toEqual([]);
+  expect(await page.evaluate(()=>window.document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  expect(writes).toHaveLength(3);expect(writes.every(url=>url.endsWith('/review'))).toBe(true);
+  expect(state.actions).toEqual([]);
+  expect(await page.evaluate(()=>JSON.stringify({...localStorage,...sessionStorage}))).not.toContain('87000000');
 });

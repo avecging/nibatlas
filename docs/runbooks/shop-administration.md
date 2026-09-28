@@ -556,3 +556,33 @@ After a separately approved deployment, check:
 No hosted migration is required. Durable revision-bound review and recoverable
 combined publication remain within Package D. Technical checks do not establish
 founder phone acceptance of this preview or #104's HDR upload support.
+
+## D4c — remember reviewed choices (after approved migration/deployment)
+
+In **Review**, choose the saved private photos, logo and stamp you want to compare.
+Use **Preview these choices on the page** to inspect them, then **Save reviewed
+choices**. Returning to Review or reloading restores your saved choices for your
+account. Saving the review publishes nothing; existing publication/activation
+buttons remain separate.
+
+If any underlying saved shop/gallery/artwork content changes, the next reload
+shows **Review again**. Your old choices remain visible so you can check them
+against the new content and deliberately save another review. Removed/unavailable
+choices require replacement or **Clear unavailable choices**; the app does not
+pick replacements for you. If another tab changes content or your saved review
+while you are looking at it, saving is rejected: reload the comparison and review
+again. If the save response is lost, reload to check whether it was saved.
+
+Founder checklist (phone acceptance remains separate from CI):
+1. Select a private photo, replacement logo and stamp. Save reviewed choices;
+   leave Review and return, then reload the page. Check all three are remembered.
+2. Change a saved caption or shop detail in another tab. Reload Review and check
+   **Review again** appears with the old choices retained. Inspect and save again.
+3. Change content in another tab without reloading the first tab; change a choice
+   there and try saving. It should ask you to reload/re-review.
+4. Confirm the live shop and active stamp did not change just from saving review.
+   Sign out; private review choices should disappear from the screen.
+
+This checkpoint adds private review tables/RPCs only. Merge, migration and staging
+deployment each require founder approval; no hosted data is reset or seeded.
+Combined publication with recoverable outcomes remains unfinished Package D work.

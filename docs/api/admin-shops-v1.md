@@ -352,3 +352,59 @@ after the last read are not pushed into an already displayed frame; refresh to
 recheck. The next dependency is a durable server-owned review bound to the shop,
 media and artwork revisions, followed by explicit combined publication and
 recoverable outcomes. No existing writer consumes this preview fingerprint.
+
+## D4c durable private review
+
+`GET /api/v1/admin/shops/[id]/review` returns one locked saved-content snapshot:
+`record`, `media`, `stamps`, `availableStampIds`, opaque SHA-256 `reviewKey`,
+`conflict`, and the caller's nullable `review` (`id`, `choices`, `reviewedAt`,
+`current`). `POST` accepts only `{id,previousId,reviewKey,choices}`; choices are
+`{photos: UUID[0..50],logo: UUID|null,stamp: UUID|null}`. `previousId` is the last
+loaded review ID or null, and `id` is a new UUID for this deliberate review.
+Approved photos remain included; choices add private photos in saved order and
+select at most one logo/stamp. Null means no logo/stamp in this review, never an
+instruction to hide or deactivate existing public content.
+
+The server owns the key; the D4b browser fingerprint is **not** accepted as review
+authority. It binds the private revision/document, canonical document and base,
+position/publication state, complete saved gallery membership/order/captions and
+revisions, retained artwork metadata/revisions/active design, referenced vocabulary
+rows and environment. Current-role then shop locks serialize with existing shop,
+media and artwork writers. Canonical drift beneath a private working copy blocks
+re-review until reconciliation. Optional publication requirements do not block
+saving a review and no position confirmation or public reviewed date is inferred.
+
+Review storage is one latest row per actor/shop/environment; another editor cannot
+read or overwrite these choices. `previousId` provides compare-and-swap protection
+against another tab. A repeated current request ID with identical key/choices
+returns its current status without another event; changed content returns
+`current:false`, never revives the receipt. Superseded IDs and stale keys conflict.
+A lost response is recovered by reloading, not blindly creating a new request.
+The server timestamp and a fingerprint-only append-only audit event commit with
+review storage. Reads create no rows. No documents, captions, credits or coordinates
+are duplicated in the review/audit tables; only selected IDs and hashes persist.
+
+The endpoint requires verified cookie identity, live editor/admin role, same-origin
+POST, JSON, no query parameters and a maximum 8 KiB body. It explicitly projects
+nested response fields and uses private/no-store headers. Like media operations,
+its service-only SQL RPC receives actor from verified identity and environment from
+the Worker binding, then rechecks and locks the current role. Browser roles cannot
+call that actor-accepting RPC or access either RLS-protected table directly.
+Uploaded stamp choices must have a validated receipt for the exact version/shop
+and environment, including active uploaded art. Retained but unavailable choices
+are disabled, not silently replaced. 409 means reload/re-review; 422 means invalid
+choices, 401/403 denied identity/access, 404 missing target, 503 unavailable.
+
+Review restores remembered choices after reload/return. Changed saved content
+shows **Review again** on the next read, or rejects saving against stale content.
+The page is a loaded snapshot, not a live subscription; reload checks freshness.
+Unavailable remembered IDs stay explicit until deliberately cleared/replaced.
+Unsaved choices reset on leaving/reload; account changes unmount private memory.
+Nothing is written to browser storage, preview URLs or initial HTML.
+
+Migration `20260928090000_d4c_durable_shop_review.sql` is additive and must be
+approved/applied before deployment of this endpoint. Existing publication,
+position-confirmation, media writers, C1–C3, and immutable artwork/impressions are
+unchanged. **No publication writer consumes this receipt yet.** Explicit combined
+publication and recoverable outcomes are the next Package D increment; D4c does
+not complete Package D or authorize hosted migrations/deployment.
