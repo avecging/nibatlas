@@ -314,3 +314,41 @@ mutation still requires its own explicit confirmation and server revision check.
 Media can change after these independent reads; this is not an atomic snapshot,
 a durable review receipt or combined publication approval. Those execution and
 recovery semantics remain the next D increment.
+
+### D4b integrated selected preview
+
+The comparison can now open **Preview these choices on the page**: a separate
+360/1280 px frame using the actual public renderer with the selected private
+photos and replacement (or absent) logo. Approved photos remain included and the
+saved gallery order/captions are preserved. The exact selected stamp and creator
+credit appear in a separately labelled collection-artwork section, not in the
+public identity header. The existing approved-only D3 frame remains available.
+This adds no upload interface or publication/activation action.
+
+The selected frame receives only bounded IDs, the saved shop revision and a
+SHA-256 fingerprint of the compared media/artwork metadata through an in-memory
+message. Both ends check the same origin and exact parent/frame window; the
+receiver checks the signed-in account, shop and revision, strictly decodes the
+selection and accepts it once per frame mount. No private choice, credit, image
+bytes or fingerprint enters a URL, initial HTML or browser storage. The URL's
+`mode=selection` flag alone is not a preview token; a standalone frame has no
+selection and shows instructions to open Review.
+
+The frame independently repeats the authorized shop/media/stamp reads and reads
+options. It compares the saved shop revision before/after media reads, checks
+all media/artwork membership, order, status, opaque revisions, displayed metadata
+and active-design state against the comparison fingerprint, then resolves only
+eligible IDs. A stale, missing, malformed or denied result withholds the whole
+selected view and requires explicit comparison reload/reselection. It never
+silently adopts newer media. Changing choices remounts the frame; changing
+viewport width does not. Reloading/leaving Review or changing accounts discards
+choices. Refresh selected preview rechecks the same choices. Private byte delivery
+continues to enforce current access; exact uploaded PNGs and retained history are
+untouched. Ordinary D3 incomplete-preview guidance is unchanged.
+
+This is still a read-only, temporary preview over separate current reads, not an
+atomic snapshot, durable review receipt or authorization to publish. Changes
+after the last read are not pushed into an already displayed frame; refresh to
+recheck. The next dependency is a durable server-owned review bound to the shop,
+media and artwork revisions, followed by explicit combined publication and
+recoverable outcomes. No existing writer consumes this preview fingerprint.

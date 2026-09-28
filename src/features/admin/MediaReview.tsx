@@ -3,14 +3,12 @@
 import { useEffect, useState } from 'react';
 import { ShopMediaSnapshotProvider } from '@/src/components/shops/ShopMediaProvider';
 import { ShopMediaGallery } from '@/src/components/shops/ShopMediaGallery';
-import { StampArt } from '@/src/components/stamps/StampArt';
-import { countryLabel, isCountryCode } from '@/src/domain/geo';
-import { validCreatorCredit } from '@/src/domain/creator-credit';
 import { mediaPath } from './media-contract';
-import { StampPreview } from './ShopStampAdmin';
 import { comparisonMedia, MediaReviewFailure, readMediaReview, type MediaReviewSnapshot } from './media-review';
 import type { ShopRecord } from './shop-contract';
 import styles from './MediaReview.module.css';
+import { SelectedStampPreview } from './SelectedStampPreview';
+import { SelectedPreviewFrame } from './SelectedPreviewFrame';
 
 export function MediaReview({record, localityName, onOpenPhotos, onOpenStamp}: {
   record: ShopRecord; localityName: string; onOpenPhotos: () => void; onOpenStamp: () => void;
@@ -19,7 +17,7 @@ export function MediaReview({record, localityName, onOpenPhotos, onOpenStamp}: {
   return <section className={styles.panel} aria-label="Compare saved images and artwork">
     <h3>Compare saved images and artwork</h3>
     <p>Try private photos, a replacement logo and a stamp design together before deciding what to publish.</p>
-    <p className={styles.help}>These choices are only for this comparison. They reset when you reload this comparison, leave Review or save a new shop version. They do not publish images, activate artwork or change the public-page preview below. Unsaved uploads and caption edits are excluded.</p>
+    <p className={styles.help}>These choices are only for this comparison. They reset when you reload this comparison, leave Review or save a new shop version. They do not publish images, activate artwork or change the approved-only public-page preview below. Unsaved uploads and caption edits are excluded.</p>
     <button type="button" onClick={() => setAttempt(n => n + 1)}>Reload media comparison</button>
     <Comparison key={`${record.id}:${record.revision}:${attempt}`} record={record} localityName={localityName}/>
     <div className={styles.actions}>
@@ -49,6 +47,7 @@ function Comparison({record, localityName}: {record: ShopRecord; localityName: s
 
 function Choices({record, localityName, snapshot}: {record: ShopRecord; localityName: string; snapshot: MediaReviewSnapshot}) {
   const {media, stamps} = snapshot;
+  const [showPage, setShowPage] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
   const [logo, setLogo] = useState<string | null>(media.find(m => m.kind === 'logo' && m.status === 'approved')?.id ?? null);
   const [stamp, setStamp] = useState<string | null>(stamps.find(s => s.active)?.id ?? null);
@@ -57,7 +56,6 @@ function Choices({record, localityName, snapshot}: {record: ShopRecord; locality
   const selectedStamp = stamps.find(s => s.id === stamp);
   const stampChoices = stamps.filter(s => s.active || (s.kind === 'uploaded' && s.status === 'draft'));
   const name = String(record.document.shop.name);
-  const country = String(record.document.shop.country_code ?? '');
   const live = record.publicationStatus === 'published';
   return <>
     <fieldset><legend>Photos to compare</legend>
@@ -96,16 +94,9 @@ function Choices({record, localityName, snapshot}: {record: ShopRecord; locality
       </label>)}</div>
       {!stampChoices.length && <p>No active design or uploaded draft. Open Stamp to inspect retained versions or prepare a default.</p>}
     </fieldset>
-    {selectedStamp && <div aria-label="Selected stamp comparison">
-      <h4>Design v{selectedStamp.designVersion} · {selectedStamp.active ? 'Current active design' : 'Private comparison'}</h4>
-      <p>{selectedStamp.kind === 'generated_template' ? 'Generated default' : selectedStamp.origin.replaceAll('_', ' ')}</p>
-      {selectedStamp.creatorName && <p>created by: {selectedStamp.creatorUrl && validCreatorCredit(selectedStamp.creatorName, selectedStamp.creatorUrl)
-        ? <a href={selectedStamp.creatorUrl} target="_blank" rel="noreferrer">{selectedStamp.creatorName}</a> : selectedStamp.creatorName}</p>}
-      {selectedStamp.kind === 'uploaded' && selectedStamp.hasArtwork ? <StampPreview key={selectedStamp.id} shopId={record.id} entry={selectedStamp}/>
-        : selectedStamp.kind === 'generated_template' && selectedStamp.templateData ? <div className={styles.generated}><StampArt title={name} stamp={{id:selectedStamp.stampId, tier:'shop', motif:selectedStamp.templateData.motif, ink:selectedStamp.ink, designVersion:selectedStamp.designVersion, paletteVersion:1, localityLabel:localityName, countryLabel:isCountryCode(country) ? countryLabel(country) : ''}}/></div>
-          : <p>Artwork preview unavailable. No substitute artwork is shown.</p>}
-      <p className={styles.help}>Comparison only. Activation changes the design for future collections; existing impressions retain their original artwork.</p>
-    </div>}
+    {selectedStamp && <SelectedStampPreview record={record} localityName={localityName} selectedStamp={selectedStamp}/>}
+    <button type="button" aria-expanded={showPage} onClick={() => setShowPage(value => !value)}>{showPage ? 'Close selected page preview' : 'Preview these choices on the page'}</button>
+    {showPage && <SelectedPreviewFrame selection={{shopId:record.id, revision:record.revision, fingerprint:snapshot.fingerprint, photos, logo, stamp}}/>}
   </>;
 }
 
