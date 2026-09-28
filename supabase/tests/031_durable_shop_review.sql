@@ -101,7 +101,7 @@ update public.stamp_artwork_versions set creator_name='Synthetic changed artist'
 select is(pg_temp.review()->'review'->>'current','false','changed draft creator credit invalidates review');
 select pg_temp.review(pg_temp.payload(10,jsonb_set(pg_temp.choices(),'{stamp}',(select v from fixtures where k='draft'))));
 select public.stamp_artwork_draft_operation('d4000000-0000-4000-8000-000000000001','staging','00000000-0000-4000-8000-000000000301','activate',
- jsonb_build_object('versionId',(select v from fixtures where k='draft'),'revision',(select md5(to_jsonb(av)::text) from public.stamp_artwork_versions av where id=((select v from fixtures where k='draft')#>>'{}')::uuid));
+ jsonb_build_object('versionId',(select v from fixtures where k='draft'),'revision',(select md5(to_jsonb(av)::text) from public.stamp_artwork_versions av where id=((select v from fixtures where k='draft')#>>'{}')::uuid)));
 select is(pg_temp.review()->'review'->>'current','false','active artwork change invalidates review');
 select pg_temp.review(pg_temp.payload(11));
 update public.shop_types set sort_order=sort_order+1 where id in (select shop_type_id from public.shop_shop_types where shop_id='00000000-0000-4000-8000-000000000301');
