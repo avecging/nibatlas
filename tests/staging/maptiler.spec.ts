@@ -105,6 +105,10 @@ test("draws a shop's location preview from real MapTiler geography", async ({
   await expect(page.getByRole("region", { name: "Plan your visit" })
     .getByText(selected!.fact)).toBeVisible();
 
+  // Server-rendered text can appear before account initialization remounts the
+  // detail subtree. Wait for the existing session-ready control before scrolling.
+  await expect(page.getByRole("button", { name: "Save shop", exact: true })).toBeEnabled();
+
   const preview = page.getByTestId("shop-location-map");
   await preview.scrollIntoViewIfNeeded();
   await expect(preview).toBeVisible();
