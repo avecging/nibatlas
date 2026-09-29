@@ -28,7 +28,7 @@ it('restores a lost-response outcome by read without republishing',async()=>{
  const fetch=mock({lost:true});render(<PublicationPanel shop={id} review={review} disabled={false}/>);
  await waitFor(()=>expect(screen.getByRole('button',{name:'Publish reviewed shop and choices'})).toBeEnabled());
  fireEvent.click(screen.getByRole('button',{name:'Publish reviewed shop and choices'}));fireEvent.click(screen.getByRole('button',{name:'Yes, publish these reviewed choices'}));
- await screen.findByRole('alert');expect(screen.getByRole('button',{name:'Publish reviewed shop and choices'})).toBeDisabled();
+ expect(await screen.findByRole('alert')).toHaveTextContent('Check the outcome before trying again.');expect(screen.getByRole('button',{name:'Publish reviewed shop and choices'})).toBeDisabled();
  fireEvent.click(screen.getByRole('button',{name:'Check publication outcome'}));await screen.findByText('Publication complete.');
  expect(fetch.mock.calls.filter(([,init])=>init?.method==='POST')).toHaveLength(1);
 });

@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { decodePublication, publicationPath, type Publication } from './publication-contract';
 import type { ReviewChoices } from './review-contract';
 
+class PublicationFailure extends Error {}
+
 export function PublicationPanel({shop, review, disabled, onAttempt}: {
   shop: string; review: {id: string; choices: ReviewChoices} | null; disabled: boolean; onAttempt?: () => void;
 }) {
@@ -38,14 +40,14 @@ export function PublicationPanel({shop, review, disabled, onAttempt}: {
     try {
       const response = await fetch(publicationPath(shop),{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({action,reviewId}),signal:pending.signal,credentials:'same-origin',cache:'no-store'});
-      if (!response.ok) throw Error(response.status === 409
+      if (!response.ok) throw new PublicationFailure(response.status === 409
         ? 'Saved content or your review changed. Reload the saved shop and review again; completed parts stay completed.'
         : response.status === 401 || response.status === 403 ? 'Access changed. Sign in with current admin access, then check the outcome.'
         : 'Publication could not be confirmed. Check the outcome before trying again.');
       const next = decodePublication(await response.json()).publication;
-      if (!next || next.reviewId !== reviewId) throw Error('Publication could not be confirmed. Check the outcome before trying again.');
+      if (!next || next.reviewId !== reviewId) throw new PublicationFailure('Publication could not be confirmed. Check the outcome before trying again.');
       if (!pending.signal.aborted) {setResult(next);setUncertain(false);}
-    } catch (error) { if (!pending.signal.aborted) {setUncertain(true);setMessage(error instanceof Error ? error.message : 'Check the publication outcome.');} }
+    } catch (error) { if (!pending.signal.aborted) {setUncertain(true);setMessage(error instanceof PublicationFailure ? error.message : 'Publication could not be confirmed. Check the outcome before trying again.');} }
     finally { if (!pending.signal.aborted) {setBusy(false);onAttempt?.();} }
   }
   const used = result?.reviewId === review?.id;

@@ -129,6 +129,8 @@ select ok(not has_table_privilege(role,tab,priv),'no direct '||role||' '||tab||'
  from unnest(array['anon','authenticated','service_role']) role cross join unnest(array['public.shop_reviews','public.shop_review_events']) tab cross join unnest(array['select','insert','update','delete','truncate']) priv;
 select ok((select bool_and(relrowsecurity and relforcerowsecurity) from pg_class where oid in ('public.shop_reviews'::regclass,'public.shop_review_events'::regclass)),'RLS forced');
 select throws_ok($$update public.shop_review_events set choices_hash=repeat('f',64)$$,'42501','Audit history is append-only','audit mutation refused');
-select throws_ok($$truncate public.shop_review_events$$,'42501','Audit history is append-only','audit truncation refused');
+-- Include dependent D4d ledgers so this reaches the append-only trigger rather
+-- than stopping at PostgreSQL's earlier foreign-key dependency check.
+select throws_ok($$truncate public.shop_review_events cascade$$,'42501','Audit history is append-only','audit truncation refused');
 select * from finish();
 rollback;
