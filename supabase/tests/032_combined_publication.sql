@@ -95,6 +95,14 @@ select set_config('request.jwt.claims','{"sub":"d4000000-0000-4000-8000-00000000
 select public.admin_shop_write('save','00000000-0000-4000-8000-000000000301',pg_temp.review()->'record'->>'revision',
  jsonb_set(pg_temp.review()->'record'->'document','{shop,name}','"Synthetic combined publication"'));
 select pg_temp.review(pg_temp.payload(6,jsonb_set(pg_temp.choices(),'{stamp}',(select v from fixtures where k='draft'))));
+insert into public.stamp_collections(id,user_id,stamp_id,shop_id,stamp_design_version,
+ shop_timezone,verification_method,verification_version,shop_name_snapshot,place_snapshot,stamp_snapshot)
+values('d4300000-0000-4000-8000-000000000080','d4000000-0000-4000-8000-000000000003',
+ '00000000-0000-4000-8000-000000000601','00000000-0000-4000-8000-000000000301',1,
+ 'Asia/Singapore','geofence',1,'Synthetic historical shop',
+ '{"countryCode":"SG","countryLabel":"Singapore","localityName":"Singapore","localitySlug":"singapore"}',
+ '{"id":"00000000-0000-4000-8000-000000000601","designVersion":1,"artworkKind":"generated_template","ink":"teal","paletteVersion":1,"templateData":{"tier":"shop","motif":"storefront"}}');
+select is((select count(*) from public.stamp_collections),1::bigint,'nonempty historical impression exists before redesign');
 insert into fixtures values('history',jsonb_build_object('art',(select jsonb_agg(to_jsonb(v) order by id) from public.stamp_artwork_versions v where approval_status='approved'),
  'collections',(select jsonb_agg(to_jsonb(c) order by id) from public.stamp_collections c)));
 create function pg_temp.fail_shop() returns trigger language plpgsql as $$ begin raise exception 'Synthetic shop outage' using errcode='XX000'; end; $$;

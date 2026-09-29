@@ -101,7 +101,7 @@ function Choices({record, localityName, snapshot, state, canPublish, publication
   const live = record.publicationStatus === 'published';
   return <>
     <div role="status">
-      {current ? 'Reviewed choices saved for the loaded content. Reload to check for changes.' : review && !review.current
+      {blocked ? 'Reload the saved version before reviewing further changes. Check any recorded publication outcome first.' : current ? 'Reviewed choices saved for the loaded content. Reload to check for changes.' : review && !review.current
         ? 'Review again: saved content has changed. Your previous choices are remembered, but the old review is no longer current.'
         : 'These choices have not been saved as a review.'}
     </div>
@@ -151,7 +151,7 @@ function Choices({record, localityName, snapshot, state, canPublish, publication
     {selectedStamp && <SelectedStampPreview record={record} localityName={localityName} selectedStamp={selectedStamp}/>}
     <button type="button" disabled={saving || blocked || state.conflict || unavailable || Boolean(current)} onClick={() => void saveReview()}>{saving ? 'Saving reviewed choices…' : 'Save reviewed choices'}</button>
     {canPublish && <PublicationPanel shop={record.id} review={current && !state.conflict && !unavailable && record.positionConfirmed ? review : null}
-      disabled={publicationDisabled || saving} onAttempt={() => {setBlocked(true);setShowPage(false);}}/>}
+      disabled={publicationDisabled || saving} onAttempt={() => {setBlocked(true);setShowPage(false);setMessage('');}}/>}
     {message && <p role={blocked ? 'alert' : 'status'}>{message}</p>}
     <button type="button" aria-expanded={showPage} onClick={() => setShowPage(value => !value)}>{showPage ? 'Close selected page preview' : 'Preview these choices on the page'}</button>
     {showPage && <SelectedPreviewFrame selection={{shopId:record.id, revision:record.revision, fingerprint:snapshot.fingerprint, photos, logo, stamp}}/>}
