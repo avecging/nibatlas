@@ -1,5 +1,6 @@
 'use client';
 /* eslint-disable @next/next/no-img-element -- Authenticated private bytes must not pass through a public image proxy. */
+import { PublicationPanel } from './PublicationPanel';
 import { useEffect, useRef, useState } from 'react';
 import { ShopMediaSnapshotProvider } from '@/src/components/shops/ShopMediaProvider';
 import { ShopMediaGallery } from '@/src/components/shops/ShopMediaGallery';
@@ -11,8 +12,8 @@ import { SelectedStampPreview } from './SelectedStampPreview';
 import { SelectedPreviewFrame } from './SelectedPreviewFrame';
 import { decodeReviewState, reviewPath, type ReviewState } from './review-contract';
 
-export function MediaReview({record, localityName, onOpenPhotos, onOpenStamp}: {
-  record: ShopRecord; localityName: string; onOpenPhotos: () => void; onOpenStamp: () => void;
+export function MediaReview({record, localityName, onOpenPhotos, onOpenStamp, canPublish = false, publicationDisabled = false}: {
+  canPublish?: boolean; publicationDisabled?: boolean; record: ShopRecord; localityName: string; onOpenPhotos: () => void; onOpenStamp: () => void;
 }) {
   const [attempt, setAttempt] = useState(0);
   return <section className={styles.panel} aria-label="Compare saved images and artwork">
@@ -20,16 +21,16 @@ export function MediaReview({record, localityName, onOpenPhotos, onOpenStamp}: {
     <p>Try private photos, a replacement logo and a stamp design together before deciding what to publish.</p>
     <p className={styles.help}>Save reviewed choices to remember them for your account. Unsaved choices reset when you leave or reload Review. If saved content changes, review it again. Saving a review does not publish images, activate artwork or change the approved-only public-page preview below. Unsaved uploads and caption edits are excluded.</p>
     <button type="button" onClick={() => setAttempt(n => n + 1)}>Reload media comparison</button>
-    <Comparison key={`${record.id}:${record.revision}:${attempt}`} record={record} localityName={localityName}/>
+    <Comparison key={`${record.id}:${record.revision}:${attempt}`} record={record} localityName={localityName} canPublish={canPublish} publicationDisabled={publicationDisabled}/>
     <div className={styles.actions}>
       <button type="button" onClick={onOpenPhotos}>Manage photos &amp; logo</button>
       <button type="button" onClick={onOpenStamp}>Manage stamp artwork</button>
     </div>
-    <p className={styles.help}>Use Photos &amp; logo to publish images and Stamp to activate a design. Publishing the shop below does neither. Media can change in another session; reload to compare again. This comparison is not publication approval.</p>
+    <p className={styles.help}>Admins can publish saved reviewed choices together here. The separate shop-only publish action below changes no images or artwork. Media can change in another session; the server checks again before publication.</p>
   </section>;
 }
 
-function Comparison({record, localityName}: {record: ShopRecord; localityName: string}) {
+function Comparison({record, localityName, canPublish, publicationDisabled}: {record: ShopRecord; localityName: string; canPublish: boolean; publicationDisabled: boolean}) {
   const [result, setResult] = useState<{snapshot?: MediaReviewSnapshot; state?: ReviewState; error?: string} | null>(null);
   const {id, revision} = record;
   useEffect(() => {
@@ -49,12 +50,12 @@ function Comparison({record, localityName}: {record: ShopRecord; localityName: s
     });
     return () => controller.abort();
   }, [id, revision]);
-  if (result?.error) return <p role="alert">{result.error}</p>;
+  if (result?.error) return <><p role="alert">{result.error}</p>{canPublish && <PublicationPanel shop={record.id} review={null} disabled={publicationDisabled}/>}</>;
   if (!result?.snapshot || !result.state) return <p role="status">Loading saved images and artwork…</p>;
-  return <Choices record={record} localityName={localityName} snapshot={result.snapshot} state={result.state}/>;
+  return <Choices record={record} localityName={localityName} snapshot={result.snapshot} state={result.state} canPublish={canPublish} publicationDisabled={publicationDisabled}/>;
 }
 
-function Choices({record, localityName, snapshot, state}: {record: ShopRecord; localityName: string; snapshot: MediaReviewSnapshot; state: ReviewState}) {
+function Choices({record, localityName, snapshot, state, canPublish, publicationDisabled}: {record: ShopRecord; localityName: string; snapshot: MediaReviewSnapshot; state: ReviewState; canPublish: boolean; publicationDisabled: boolean}) {
   const {media, stamps} = snapshot;
   const [showPage, setShowPage] = useState(false);
   const [photos, setPhotos] = useState<string[]>(state.review?.choices.photos ?? []);
@@ -149,6 +150,8 @@ function Choices({record, localityName, snapshot, state}: {record: ShopRecord; l
     </fieldset>
     {selectedStamp && <SelectedStampPreview record={record} localityName={localityName} selectedStamp={selectedStamp}/>}
     <button type="button" disabled={saving || blocked || state.conflict || unavailable || Boolean(current)} onClick={() => void saveReview()}>{saving ? 'Saving reviewed choices…' : 'Save reviewed choices'}</button>
+    {canPublish && <PublicationPanel shop={record.id} review={current && !state.conflict && !unavailable && record.positionConfirmed ? review : null}
+      disabled={publicationDisabled || saving} onAttempt={() => {setBlocked(true);setShowPage(false);}}/>}
     {message && <p role={blocked ? 'alert' : 'status'}>{message}</p>}
     <button type="button" aria-expanded={showPage} onClick={() => setShowPage(value => !value)}>{showPage ? 'Close selected page preview' : 'Preview these choices on the page'}</button>
     {showPage && <SelectedPreviewFrame selection={{shopId:record.id, revision:record.revision, fingerprint:snapshot.fingerprint, photos, logo, stamp}}/>}

@@ -78,7 +78,8 @@ async function setup(page: Page, initial?: ShopRecord) {
     const url = new URL(route.request().url());
     let body: unknown,
       status = 200;
-    if (url.pathname.endsWith("/media") || url.pathname.endsWith("/stamp")) body = {entries: []};
+    if (url.pathname.endsWith("/publication")) body = {publication:null};
+    else if (url.pathname.endsWith("/media") || url.pathname.endsWith("/stamp")) body = {entries: []};
     else if (url.pathname.endsWith("/options"))
       body = {
         localities: [
@@ -1431,8 +1432,9 @@ test('D4 private media comparison is read-only, keyboard accessible and resets o
 });
 
 
-async function selectedPreviewFixture(page: Page) {
+async function selectedPreviewFixture(page: Page, confirmed = false) {
   const initial=fixture();
+  initial.positionConfirmed = confirmed;
   Object.assign(initial.document.shop,{field_note_body:'Selected preview saved story',address_line_1:'Synthetic address',internal_notes:'D4b PRIVATE NOTE',reference_links:'https://example.test/private'});
   const state=await setup(page,initial);
   const ids=Array.from({length:6},(_,n)=>`87000000-0000-4000-8000-${String(n+1).padStart(12,'0')}`);
@@ -1550,4 +1552,38 @@ test('D4c saves choices across leaving and reload, requires re-review after cont
   expect(writes).toHaveLength(3);expect(writes.every(url=>url.endsWith('/review'))).toBe(true);
   expect(state.actions).toEqual([]);
   expect(await page.evaluate(()=>JSON.stringify({...localStorage,...sessionStorage}))).not.toContain('87000000');
+});
+
+
+test('D4d deliberate publication restores partial outcomes and safely retries across reload @short',async({page},info)=>{
+ const {panel,ids}=await selectedPreviewFixture(page,true);
+ let result:unknown=null;const actions:string[]=[];
+ await page.route(`**/api/v1/admin/shops/${id}/publication`,async route=>{
+  if(route.request().method()==='POST') {
+   const body=route.request().postDataJSON();actions.push(body.action);
+   result={reviewId:body.reviewId,status:body.action==='publish'?'partial':'complete',canRetry:body.action==='publish',updatedAt:'2026-09-29T09:00:00Z',outcomes:[
+    {kind:'shop',targetId:id,status:'succeeded',reason:null},{kind:'stamp',targetId:ids[3],status:'succeeded',reason:null},
+    {kind:'photo',targetId:ids[0],status:body.action==='publish'?'failed':'succeeded',reason:body.action==='publish'?'unavailable':null},
+    {kind:'logo',targetId:ids[2],status:'succeeded',reason:null}]};
+   // Commit happened but response was lost: UI must read before retrying.
+   if(body.action==='publish') {await route.abort('failed');return;}
+  }
+  await route.fulfill({json:{publication:result}});
+ });
+ const publish=panel.getByRole('button',{name:'Publish reviewed shop and choices'});
+ await expect(publish).toBeDisabled();await panel.getByRole('button',{name:'Save reviewed choices'}).click();
+ await expect(publish).toBeEnabled();await publish.click();expect(actions).toEqual([]);
+ await panel.getByRole('button',{name:'Cancel publication'}).click();expect(actions).toEqual([]);
+ await publish.click();await panel.getByRole('button',{name:'Yes, publish these reviewed choices'}).click();
+ await expect(panel.getByRole('alert')).toContainText('Check the outcome');await expect(publish).toBeDisabled();
+ await panel.getByRole('button',{name:'Check publication outcome'}).click();await expect(panel.getByText('Partly published.',{exact:true})).toBeVisible();
+ await page.reload();await open(page,'Review');await expect(panel.getByText('Partly published.',{exact:true})).toBeVisible();
+ await panel.screenshot({path:info.outputPath('admin-d4d-partial-publication.png')});
+ await panel.getByRole('button',{name:'Retry unfinished parts',exact:true}).click();
+ await panel.getByRole('button',{name:'Yes, retry unfinished parts'}).click();await expect(panel.getByText('Publication complete.',{exact:true})).toBeVisible();
+ expect(actions).toEqual(['publish','retry']);
+ const scan=await new AxeBuilder({page}).include('[aria-label="Combined publication"]').analyze();expect(scan.violations).toEqual([]);
+ expect(await page.evaluate(()=>window.document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ expect(await page.evaluate(()=>JSON.stringify({...localStorage,...sessionStorage}))).not.toContain('87000000');
+ await panel.screenshot({path:info.outputPath('admin-d4d-complete-publication.png')});
 });

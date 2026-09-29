@@ -586,3 +586,43 @@ Founder checklist (phone acceptance remains separate from CI):
 This checkpoint adds private review tables/RPCs only. Merge, migration and staging
 deployment each require founder approval; no hosted data is reset or seeded.
 Combined publication with recoverable outcomes remains unfinished Package D work.
+
+
+## Package D4d — desktop combined publication
+
+Starting-state verification on 29 September: #108 merged at `6e95e14`; main CI
+36548107732 passed. Latest successful staging deployment is still 36379655930,
+and hosted staging migration inventory ends at `20260925105642`. D4c is therefore
+not deployed/applied. No hosted changes were made during D4d implementation.
+Approve/apply D4c then D4d migrations before deploying the reviewed combined build.
+Migration files are additive; do not reset or seed hosted data.
+
+On PC, save shop edits and confirm its saved position in **Location**. In
+**Review**, select saved private photos/logo/stamp, inspect the selected page and
+exact stamp preview, then **Save reviewed choices**. An admin may now choose
+**Publish reviewed shop and choices** and confirm inline. Approved photos stay;
+a selected logo replaces the current logo; no logo selection keeps it. No stamp
+selection keeps the active design. The old shop-only publish remains separate.
+
+A recorded result lists shop/stamp/photos/logo separately. **Partly published**
+means successful parts are live; failed parts remain unchanged. If the response
+is lost, **Check publication outcome** or reload. **Retry unfinished parts** skips
+successes and checks the saved content again. If content changed, reload the saved
+version, inspect the new snapshot and save a new review. Never infer success from
+a network error or retry a different set without reviewing it. The displayed
+outcome describes that attempt, not the live state after subsequent edits.
+
+Desktop founder checklist after approved migration/deployment:
+1. Pick one private photo, replacement logo and stamp, save the review. Cancel
+   combined publication once: the live page must stay unchanged.
+2. Confirm publication. Expect each part marked Done; reload the editor and check
+   the public shop's photo/logo plus the current stamp in Stamp. Older Passport
+   impressions should retain their original artwork.
+3. Change a saved caption/detail in a second tab, then publish the first tab's old
+   review: expect reload/re-review, with no surprise publication.
+4. Reload after publication: **Check publication outcome** should show the same
+   result. If a real partial failure occurs, retry only unfinished parts; do not
+   deliberately break hosted services. Failure/lost-response coverage is automated.
+
+Founder admin acceptance is on PC. Automated coverage continues across desktop,
+tablet and both mobile viewports; public field/device/launch acceptance is separate.
