@@ -13,7 +13,7 @@ it('loads existing localities and saves privately before publication',async()=>{
  render(<SealAdmin/>);
  const locality=await screen.findByLabelText('Locality',{exact:true});
  fireEvent.change(locality,{target:{value:id}});
- fireEvent.click(screen.getByRole('button',{name:'Save privately',exact:true}));
+ fireEvent.click(screen.getByRole('button',{name:'Save privately'}));
  await waitFor(()=>expect(actions).toEqual(['save']));
  expect(await screen.findByRole('button',{name:'Publish saved seal'})).toBeEnabled();
 });
