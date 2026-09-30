@@ -5,6 +5,7 @@ import { PlatformIcon } from '@/src/components/ui/PlatformIcon';
 import { Icon } from '@/src/components/ui/Icon';
 import type { ShopLink } from '@/src/domain/shop-detail';
 import styles from './ShopChannels.module.css';
+import detailStyles from './ShopDetailView.module.css';
 
 /** Device hint only; never claims to detect app installation or failed launches. */
 export function mobileMessagingDevice(): boolean {
@@ -37,7 +38,7 @@ export function ShopWebsiteSocial({links}: {links:readonly ShopLink[]}) {
   const rows = links.filter((link):link is ShopLink & {url:string}=>!!link.url && !!webUrl(link.url) && !isContactPlatform(link.type))
     .sort((a,b)=>Number(isPlatform(a.type))-Number(isPlatform(b.type)));
   if (!rows.length) return null;
-  return <section className={styles.card} aria-labelledby="website-social"><h2 id="website-social">Website &amp; social</h2>
+  return <section className={`${detailStyles.section} ${styles.card}`} aria-labelledby="website-social"><h2 className={detailStyles.sectionTitle} id="website-social">Website &amp; social</h2>
     <ul>{rows.map((link,i)=><li key={`${link.url}-${i}`}>
       {isPlatform(link.type) ? <PlatformIcon platform={link.type} size={22}/> : <Icon name="globe" size={22}/>}
       <a href={link.url} target="_blank" rel="noreferrer noopener" aria-label={`${isPlatform(link.type) ? PLATFORM_NAMES[link.type] : link.type === 'directions' ? 'Directions' : link.type === 'contact' ? 'Contact' : link.isOfficial ? 'Website' : 'Reference'}: ${link.url}`}>{link.url}</a>
