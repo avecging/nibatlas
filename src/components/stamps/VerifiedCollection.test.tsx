@@ -23,7 +23,7 @@ let nonceFailure:StampFailureCode|null;
 let collectFailure:StampFailureCode|null;
 let nonceCount:number;
 let readFailure:boolean;
-function Probe({showAction=true}:{showAction?:boolean}){const store=useCollection();return <><output data-testid="count">{store.passport.stampCount}</output><output data-testid="visited">{String(store.isVisited(shop.id))}</output><output data-testid="seals">{store.seals.length}</output><output data-testid="seal-countries">{store.countryProgress.filter(p=>p.earned).length}</output>{showAction ? <VerifiedCollection shop={shop}/>:null}</>;}
+function Probe({showAction=true}:{showAction?:boolean}){const store=useCollection();return <><output data-testid="count">{store.passport.stampCount}</output><output data-testid="visited">{String(store.isVisited(shop.id))}</output><output data-testid="seals">{store.seals.length}</output><output data-testid="seal-countries">{store.countryProgress.filter(p=>p.earned).length}</output><output data-testid="new-seals">{store.geographicSeals?.filter(r=>r.award?.unseen).length??0}</output><button onClick={()=>store.acknowledgeSeals?.(store.geographicSeals?.flatMap(r=>r.award?[r.award.awardId]:[])??[])}>Acknowledge seals</button>{showAction ? <VerifiedCollection shop={shop}/>:null}</>;}
 function App({showAction=true}:{showAction?:boolean}){return <ReviewerModeProvider><CatalogueProvider mode="api"><CollectionProvider><Probe showAction={showAction}/></CollectionProvider></CatalogueProvider></ReviewerModeProvider>;}
 beforeEach(()=>{
   window.localStorage.clear();window.history.replaceState({},'','/shops/m3-api-demo-shop');
@@ -33,7 +33,12 @@ beforeEach(()=>{
   vi.spyOn(document,'visibilityState','get').mockReturnValue('visible');
   Object.defineProperty(navigator,'geolocation',{configurable:true,value:{getCurrentPosition:vi.fn((success:PositionCallback)=>success({coords:{latitude:1,longitude:2,accuracy:100}} as GeolocationPosition))}});
   vi.stubGlobal('fetch',vi.fn(async(input:string,init?:RequestInit)=>{
-    if(input==='/api/v1/seals') return sealFailure?Response.json({}, {status:503}):Response.json({ownerId:STAMP_OWNER,rows:sealRows,nextCursor:null});
+    if(input==='/api/v1/seals') {
+      const body=JSON.parse(String(init?.body)) as {ack:string[];after:string|null};
+      sealRows=sealRows.map(value=>{const row=value as {id:string;award:{id:string;unseen:boolean}};return body.ack.includes(row.award.id)?{...row,award:{...row.award,unseen:false}}:row;});
+      const page=sealRows.filter(r=>!body.after||(r as {id:string}).id>body.after).slice(0,51);
+      return sealFailure?Response.json({}, {status:503}):Response.json({ownerId:STAMP_OWNER,rows:page.slice(0,50),nextCursor:page.length>50?(page[49] as {id:string}).id:null});
+    }
     if(input.startsWith('/api/v1/collections')) return readFailure ? Response.json({}, {status:503}) : Response.json({ownerId:STAMP_OWNER,collections:rows,nextCursor:null});
     const action=input.split('/').at(-1)!;
     const body=JSON.parse(String(init?.body)) as Record<string,unknown>;
@@ -352,4 +357,13 @@ it('shows newly earned locality and country seals after the shop in one ceremony
  expect(await screen.findByText('Locality seal earned')).toBeVisible();
  expect(screen.getAllByRole('dialog')).toHaveLength(1);
  expect(screen.getAllByRole('link',{name:'Open in Passport'})).toHaveLength(1);
+});
+
+it('acknowledges every displayed past-visit seal across bounded receipt batches',async()=>{
+ sealRows=Array.from({length:53},(_,i)=>{const row=geographicAward('locality');const id=`e1000000-0000-4000-8000-${String(i+1).padStart(12,'0')}`;return {...row,id,award:{...row.award,id,sealId:id}};});
+ render(<App/>);
+ await waitFor(()=>expect(screen.getByTestId('new-seals')).toHaveTextContent('53'));
+ fireEvent.click(screen.getByRole('button',{name:'Acknowledge seals'}));
+ await waitFor(()=>expect(screen.getByTestId('new-seals')).toHaveTextContent('0'));
+ expect(screen.getByTestId('seals')).toHaveTextContent('53');
 });

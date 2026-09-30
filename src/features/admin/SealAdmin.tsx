@@ -49,7 +49,7 @@ function SealEditor() {
  }
  async function search(after:string|null=null) {if(!controller.current)return;setBusy(true);try {const r=await api(`/api/v1/admin/shops?q=${encodeURIComponent(query)}${after?`&after=${after}`:''}`,controller.current.signal);setShops(old=>after?[...old,...decodeList(r.entries)]:decodeList(r.entries));setShopCursor(r.nextCursor as string|null);}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
  const locality=options.localities?.find(l=>l.id===draft.localityId)?.label??record?.localityName??'';
- return <main className={styles.admin}>
+ return <div className={styles.admin}>
   <nav aria-label="Administration"><Link href="/admin/shops">Shops</Link> · Stamps &amp; seals</nav>
   <h1>Stamps &amp; seals</h1><p>Manage shop artwork in Shops. Geographic seals are earned from verified shop visits.</p>
   <p role="status">{message}</p>
@@ -61,10 +61,10 @@ function SealEditor() {
     {cursor?<button disabled={busy||dirty} onClick={()=>void reload(cursor)}>More seals</button>:null}
    </section>
    <form onSubmit={e=>{e.preventDefault();void action('save');}}><fieldset disabled={busy}><legend>{record?'Edit seal':'New geographic seal'}</legend>
-    <label>Scope<select value={draft.scope} disabled={!!record} onChange={e=>change({...draft,scope:e.target.value as SealDocument['scope'],localityId:null,eligibleShopIds:[]})}><option value="locality">Locality</option><option value="country">Country</option></select></label>
+    <label htmlFor="seal-scope">Scope</label><select id="seal-scope" value={draft.scope} disabled={!!record} onChange={e=>change({...draft,scope:e.target.value as SealDocument['scope'],localityId:null,eligibleShopIds:[]})}><option value="locality">Locality</option><option value="country">Country</option></select>
     <CountryField value={draft.countryCode} disabled={!!record} onChange={code=>{if(code)change({...draft,countryCode:code as SealDocument['countryCode'],countryLabel:countryName(code),localityId:null,eligibleShopIds:[]});}}/>
-    {draft.scope==='locality'?<label>Locality<select required disabled={!!record} value={draft.localityId??''} onChange={e=>change({...draft,localityId:e.target.value,eligibleShopIds:[]})}><option value="">Choose locality</option>{options.localities?.filter(l=>l.countryCode===draft.countryCode).map(l=><option key={l.id} value={l.id}>{l.label}</option>)}</select></label>:null}
-    <label>Ink<select value={draft.ink} onChange={e=>change({...draft,ink:e.target.value as SealDocument['ink']})}>{STAMP_INKS.map(ink=><option key={ink}>{ink}</option>)}</select></label>
+    {draft.scope==='locality'?<div><label htmlFor="seal-locality">Locality</label><select id="seal-locality" required disabled={!!record} value={draft.localityId??''} onChange={e=>change({...draft,localityId:e.target.value,eligibleShopIds:[]})}><option value="">Choose locality</option>{options.localities?.filter(l=>l.countryCode===draft.countryCode).map(l=><option key={l.id} value={l.id}>{l.label}</option>)}</select></div>:null}
+    <label htmlFor="seal-ink">Ink</label><select id="seal-ink" value={draft.ink} onChange={e=>change({...draft,ink:e.target.value as SealDocument['ink']})}>{STAMP_INKS.map(ink=><option key={ink}>{ink}</option>)}</select>
     <div style={{maxWidth:420,margin:'1rem auto'}}><StampArt stamp={sealDesign(record?.id??'preview',draft,1,locality)} title={draft.scope==='country'?draft.countryLabel:locality||'Locality'}/></div>
     <p>Earn after {draft.scope==='locality'?2:5} distinct shop stamps. Optionally establish {draft.scope==='locality'?'a sole eligible shop':'a complete eligible set of 1–4 shops'}. This is an editorial decision, not the current catalogue size.</p>
     <ul>{draft.eligibleShopIds.map(id=><li key={id}>{names[id]??`Loading shop ${id.slice(-6)}…`} <button type="button" onClick={()=>change({...draft,eligibleShopIds:draft.eligibleShopIds.filter(v=>v!==id)})}>Remove</button></li>)}</ul>
@@ -77,5 +77,5 @@ function SealEditor() {
     {dirty?<button type="button" onClick={()=>{setDraft(record?.draft??fresh());setDirty(false);setMessage('Unsaved changes discarded.');}}>Discard unsaved changes</button>:null}
    </fieldset></form>
   </>:null}
- </main>;
+ </div>;
 }

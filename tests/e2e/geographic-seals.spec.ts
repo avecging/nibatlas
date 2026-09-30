@@ -14,7 +14,7 @@ test('geographic seal private save and deliberate publication',async({page},test
   await r.fulfill({json:{seal:saved}});
  });
  await page.goto('/admin/seals');
- await page.getByLabel('Locality',{exact:true}).selectOption(locality);
+ await page.getByLabel('Locality',{exact:true}).selectOption(locality,{timeout:5000}).catch(async error=>{console.log('Seal editor state:',await page.locator('#main-content').innerText());throw error;});
  await expect(page.getByRole('img',{name:'locality seal, Singapore'})).toBeVisible();
  await expect(page.getByRole('button',{name:'Publish saved seal'})).toBeDisabled();
  await page.getByRole('button',{name:'Save privately',exact:true}).click();

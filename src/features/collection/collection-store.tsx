@@ -595,6 +595,7 @@ function AccountCollections({ owner, local, children }: {
       if(controller.signal.aborted) return;
       ack.forEach(id=>receipts.current.delete(id));
       setSealRows(rows);setSealReadStatus('ready');
+      if(receipts.current.size) setRevision(value=>value+1);
     }).catch(()=>{if(!controller.signal.aborted) setSealReadStatus('error');});
     return ()=>controller.abort();
   },[owner,revision]);
@@ -667,7 +668,7 @@ function AccountCollections({ owner, local, children }: {
     hydrated: owner ? readStatus === 'ready' || collections.length > 0 : session.status === 'signed-out',
     passport:buildPassport(collections),
     geographicSeals:sealRows,sealReadStatus,
-    acknowledgeSeals:ids=>{ids.slice(0,50).forEach(id=>receipts.current.add(id));retryRead();},
+    acknowledgeSeals:ids=>{ids.forEach(id=>receipts.current.add(id));retryRead();},
     seals:sealRows.flatMap(row=>row.award?[row.award]:[]),
     countryProgress:sealRows.flatMap(row=>{
       const s=row.current,p=row.progress;

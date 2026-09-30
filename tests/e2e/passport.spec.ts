@@ -1114,7 +1114,7 @@ test("seal logic is shown against an explicit versioned set", async ({ page }) =
   }
 
   await expect(page.getByText(/Geographic seals/i)).toBeVisible();
-  await expect(page.getByText(/Earned 2026-06-03/i)).toBeVisible();
+  await expect(page.getByText("Earned 2026-06-03", {exact:true}).first()).toBeVisible();
   await expect(page.getByText(/2 of 4 curated shops/).first()).toBeVisible();
   await expect(page.getByText(/set sg-prototype-/)).toHaveCount(0);
 });
