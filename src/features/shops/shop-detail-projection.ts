@@ -144,7 +144,7 @@ export function projectShopDetail(
     ...(wire.editorial ? { editorial: wire.editorial } : {}),
     ...(wire.phone ? { phone: wire.phone } : {}),
     ...(wire.postalCode ? { postalCode: wire.postalCode } : {}),
-    ...(wire.relatedShops ? {relatedShops:wire.relatedShops} : {}),
+    ...(wire.relatedShops?.length ? {relatedShops:wire.relatedShops} : {}),
     id: wire.id,
     slug: wire.slug,
     name: wire.name,

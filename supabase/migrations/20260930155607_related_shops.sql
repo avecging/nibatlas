@@ -1,6 +1,7 @@
 -- #112: reciprocal private drafts and independently published directions.
 -- No hosted backfill. Empty legacy documents retain their original fingerprints.
 begin;
+alter table public.shop_working_copies add column related_removed jsonb not null default '{}'::jsonb;
 create table public.shop_relationships (
  shop_id uuid not null references public.shops(id) on delete restrict,
  related_shop_id uuid not null references public.shops(id) on delete restrict,
@@ -89,7 +90,7 @@ revoke all on function public.validate_shop_document(uuid,jsonb) from public,ano
 -- stale editors/imports/review receipts cannot silently undo the relationship.
 create function public.sync_related_private(p_id uuid,p_before jsonb,p_after jsonb)
 returns void language plpgsql security definer set search_path='' as $$
-declare target uuid; prior jsonb; next_row jsonb; d jsonb; base jsonb; w public.shop_working_copies; items jsonb; backlink jsonb;
+declare target uuid; prior jsonb; next_row jsonb; d jsonb; base jsonb; w public.shop_working_copies; items jsonb; backlink jsonb; removed jsonb;
 begin
  for target in select distinct (value->>'shop_id')::uuid from jsonb_array_elements(p_before||p_after) order by 1 loop
   select value into prior from jsonb_array_elements(p_before) where (value->>'shop_id')::uuid=target;
@@ -101,18 +102,22 @@ begin
   select * into w from public.shop_working_copies where shop_id=target for update;
   if w.shop_id is not null and w.base_fingerprint<>md5(base::text) then raise exception 'Revision conflict' using errcode='40001'; end if;
   d:=coalesce(w.document,base);
+  removed:=coalesce(w.related_removed,'{}');
   select value into backlink from jsonb_array_elements(coalesce(d->'related_shops','[]')) where value->>'shop_id'=p_id::text;
   select coalesce(jsonb_agg(value order by value->>'shop_id'),'[]') into items
    from jsonb_array_elements(coalesce(d->'related_shops','[]')) where value->>'shop_id'<>p_id::text;
+  if next_row is null and backlink is not null then removed:=removed||jsonb_build_object(p_id::text,backlink); end if;
   if next_row is not null then
+   backlink:=coalesce(backlink,removed->p_id::text);
+   removed:=removed-p_id::text;
    if jsonb_array_length(items)>=100 then raise exception 'Invalid related shops' using errcode='22023'; end if;
    items:=items||jsonb_build_array(jsonb_build_object('shop_id',p_id,'kind',next_row->>'kind','show_public',coalesce((backlink->>'show_public')::boolean,false)));
   end if;
   select coalesce(jsonb_agg(value order by value->>'shop_id'),'[]') into items from jsonb_array_elements(items);
   d:=jsonb_set(d,'{related_shops}',items);
-  insert into public.shop_working_copies(shop_id,document,base_fingerprint,position_confirmation)
-   values(target,d,md5(base::text),case when w.shop_id is not null then w.position_confirmation else (select position_confirmation from public.shops where id=target) end)
-   on conflict(shop_id) do update set document=excluded.document,revision=gen_random_uuid(),updated_at=statement_timestamp();
+  insert into public.shop_working_copies(shop_id,document,base_fingerprint,related_removed,position_confirmation)
+   values(target,d,md5(base::text),removed,case when w.shop_id is not null then w.position_confirmation else (select position_confirmation from public.shops where id=target) end)
+   on conflict(shop_id) do update set document=excluded.document,related_removed=excluded.related_removed,revision=gen_random_uuid(),updated_at=statement_timestamp();
  end loop;
 end; $$;
 revoke all on function public.sync_related_private(uuid,jsonb,jsonb) from public,anon,authenticated,service_role;
@@ -126,7 +131,8 @@ begin
  before_rows:=public.shop_related_document(p_id);
  after_rows:=coalesce(p_document->'related_shops',before_rows);
  perform public.apply_shop_document_before_related(p_id,p_document-'related_shops');
- for target in select distinct (value->>'shop_id')::uuid from jsonb_array_elements(before_rows||after_rows) order by 1 loop
+ for target in select (value->>'shop_id')::uuid from jsonb_array_elements(before_rows||after_rows)
+  union select key::uuid from public.shop_working_copies wc,lateral jsonb_each(wc.related_removed) where wc.shop_id=p_id order by 1 loop
   perform 1 from public.shops where id=target for update;
   base:=public.shop_edit_document(target);
   select * into w from public.shop_working_copies where shop_id=target for update;
@@ -153,6 +159,7 @@ begin
    end if;
    select coalesce(jsonb_agg(value order by value->>'shop_id'),'[]') into items from jsonb_array_elements(items);
    update public.shop_working_copies set document=jsonb_set(document,'{related_shops}',items),
+    related_removed=case when next_row is null then related_removed-p_id::text else related_removed end,
     base_fingerprint=md5(public.shop_edit_document(target)::text),revision=gen_random_uuid(),updated_at=statement_timestamp() where shop_id=target;
   end if;
  end loop;
@@ -163,10 +170,11 @@ revoke all on function public.apply_shop_document(uuid,jsonb) from public,anon,a
 -- direction on again. Private selections are cleared as well as public flags.
 create function public.suppress_nearby_relationships()
 returns void language plpgsql security definer set search_path='' as $$
-declare target uuid; base jsonb; w public.shop_working_copies; ids uuid[]; items jsonb;
+declare target uuid; base jsonb; w public.shop_working_copies; ids uuid[]; items jsonb; removed jsonb;
 begin
  for target in select shop_id from public.shop_relationships where show_public
-  union select shop_id from public.shop_working_copies where document->'related_shops' @> '[{"show_public":true}]' loop
+  union select shop_id from public.shop_working_copies where document->'related_shops' @> '[{"show_public":true}]'
+   or exists(select 1 from jsonb_each(related_removed) where value->>'show_public'='true') loop
   ids:=public.shop_nearby_ids(target);
   if cardinality(ids)=0 then continue; end if;
   perform 1 from public.shops where id=target for update;
@@ -176,8 +184,11 @@ begin
   if w.shop_id is not null then
    select coalesce(jsonb_agg(case when (value->>'shop_id')::uuid=any(ids) then jsonb_set(value,'{show_public}','false') else value end order by value->>'shop_id'),'[]') into items
     from jsonb_array_elements(coalesce(w.document->'related_shops','[]'));
-   if items is distinct from coalesce(w.document->'related_shops','[]') or base is distinct from public.shop_edit_document(target) then
+   select coalesce(jsonb_object_agg(key,case when key::uuid=any(ids) then jsonb_set(value,'{show_public}','false') else value end),'{}') into removed
+    from jsonb_each(w.related_removed);
+   if items is distinct from coalesce(w.document->'related_shops','[]') or removed is distinct from w.related_removed or base is distinct from public.shop_edit_document(target) then
     update public.shop_working_copies set document=jsonb_set(document,'{related_shops}',items),
+     related_removed=removed,
      base_fingerprint=case when w.base_fingerprint=md5(base::text) then md5(public.shop_edit_document(target)::text) else w.base_fingerprint end,
      revision=gen_random_uuid(),updated_at=statement_timestamp() where shop_id=target;
    end if;
@@ -190,14 +201,16 @@ alter function public.admin_shop_write(text,uuid,text,jsonb) rename to admin_sho
 revoke all on function public.admin_shop_write_before_related(text,uuid,text,jsonb) from public,anon,authenticated,service_role;
 create function public.admin_shop_write(p_action text,p_id uuid,p_revision text default null,p_document jsonb default null)
 returns jsonb language plpgsql security definer set search_path='' as $$
-declare before_doc jsonb; after_doc jsonb; result jsonb;
+declare before_doc jsonb; after_doc jsonb; result jsonb; removed jsonb; item jsonb; discarded_removed jsonb; target uuid;
 begin
- perform public.admin_access();
+ perform 1 from public.profiles where id=auth.uid() and role in ('editor','admin') for share;
+ if not found then raise exception 'Admin access denied' using errcode='42501'; end if;
  -- Serialize two-sided catalogue mutations before taking the first shop lock.
  perform pg_catalog.pg_advisory_xact_lock(112,1);
  if p_action<>'create' then
   perform 1 from public.shops where id=p_id for update;
   before_doc:=coalesce((select document from public.shop_working_copies where shop_id=p_id),public.shop_edit_document(p_id));
+  select related_removed into discarded_removed from public.shop_working_copies where shop_id=p_id;
  end if;
  -- Old clients/import files do not clear new relationships by omission.
  if p_action='save' and not p_document ? 'related_shops' and before_doc ? 'related_shops' then
@@ -206,8 +219,30 @@ begin
  result:=public.admin_shop_write_before_related(p_action,p_id,p_revision,p_document);
  if result ? 'code' then return result; end if;
  after_doc:=result->'document';
+ if p_action='save' then
+  select related_removed into removed from public.shop_working_copies where shop_id=p_id;
+  removed:=coalesce(removed,'{}');
+  for item in select value from jsonb_array_elements(coalesce(before_doc->'related_shops','[]')) loop
+   if not exists(select 1 from jsonb_array_elements(coalesce(after_doc->'related_shops','[]')) r where r->>'shop_id'=item->>'shop_id') then
+    removed:=removed||jsonb_build_object(item->>'shop_id',item);
+   end if;
+  end loop;
+  for item in select value from jsonb_array_elements(coalesce(after_doc->'related_shops','[]')) loop removed:=removed-(item->>'shop_id'); end loop;
+  update public.shop_working_copies set related_removed=removed where shop_id=p_id and related_removed is distinct from removed;
+ end if;
  if p_action in ('save','discard') then
   perform public.sync_related_private(p_id,coalesce(before_doc->'related_shops','[]'),coalesce(after_doc->'related_shops','[]'));
+ end if;
+ -- Discarding a never-published link completes its removal. A later addition
+ -- must start with a hidden backlink, not inherit the abandoned private choice.
+ if p_action='discard' then
+  for target in select (value->>'shop_id')::uuid from jsonb_array_elements(coalesce(before_doc->'related_shops','[]'))
+   union select key::uuid from jsonb_each(coalesce(discarded_removed,'{}')) loop
+   if not exists(select 1 from jsonb_array_elements(coalesce(after_doc->'related_shops','[]')) r where r->>'shop_id'=target::text) then
+    update public.shop_working_copies set related_removed=related_removed-p_id::text,revision=gen_random_uuid(),updated_at=statement_timestamp()
+     where shop_id=target and related_removed ? p_id::text;
+   end if;
+  end loop;
  end if;
  perform public.suppress_nearby_relationships();
  return public.admin_shop_read(p_id);
@@ -253,19 +288,34 @@ returns jsonb language sql stable security definer set search_path='' as $$
 $$;
 revoke all on function public.shop_detail(text) from public;
 grant execute on function public.shop_detail(text) to anon,authenticated,service_role;
--- Changes made through the SQL editor must suppress old display flags too.
-create function public.reconcile_related_after_catalogue()
+-- Serialize catalogue SQL statements before they take any shop/type row locks.
+-- Reconcile their final transaction state, never an intermediate type replacement.
+create function public.lock_related_catalogue_statement()
 returns trigger language plpgsql security definer set search_path='' as $$
 begin
  perform pg_catalog.pg_advisory_xact_lock(112,1);
- perform public.suppress_nearby_relationships();
+ perform set_config('nibatlas.related_reconciled','false',true);
  return null;
 end; $$;
+create function public.reconcile_related_after_catalogue()
+returns trigger language plpgsql security definer set search_path='' as $$
+begin
+ if current_setting('nibatlas.related_reconciled',true) is distinct from 'true' then
+  perform public.suppress_nearby_relationships();
+  perform set_config('nibatlas.related_reconciled','true',true);
+ end if;
+ return null;
+end; $$;
+revoke all on function public.lock_related_catalogue_statement() from public,anon,authenticated,service_role;
 revoke all on function public.reconcile_related_after_catalogue() from public,anon,authenticated,service_role;
-create trigger related_nearby_refresh after insert or update or delete on public.shops
- for each statement execute function public.reconcile_related_after_catalogue();
-create trigger related_nearby_refresh after insert or update or delete on public.shop_shop_types
- for each statement execute function public.reconcile_related_after_catalogue();
+create trigger related_catalogue_lock before insert or update or delete on public.shops
+ for each statement execute function public.lock_related_catalogue_statement();
+create trigger related_catalogue_lock before insert or update or delete on public.shop_shop_types
+ for each statement execute function public.lock_related_catalogue_statement();
+create constraint trigger related_nearby_refresh after insert or update or delete on public.shops
+ deferrable initially deferred for each row execute function public.reconcile_related_after_catalogue();
+create constraint trigger related_nearby_refresh after insert or update or delete on public.shop_shop_types
+ deferrable initially deferred for each row execute function public.reconcile_related_after_catalogue();
 
 create or replace function public.shop_review_operation(p_actor uuid,p_environment text,p_shop uuid,p_save jsonb default null)
 returns jsonb language plpgsql security definer set search_path='' as $$
@@ -276,6 +326,7 @@ begin
  -- Same lock order as media/stamp writers: current role, shop, then dependent rows.
  perform 1 from public.profiles where id=p_actor and role in ('editor','admin') for update;
  if not found then raise exception 'Admin access denied' using errcode='42501'; end if;
+ perform pg_catalog.pg_advisory_xact_lock(112,1);
  if p_environment is null or p_environment not in ('staging','production') or p_shop is null then
   raise exception 'Invalid review' using errcode='22023'; end if;
  select * into s from public.shops where id=p_shop for update;
@@ -379,4 +430,23 @@ begin
    'reviewedAt',r.reviewed_at,'current',r.review_key=key and not conflict) end);
 end; $$;
 
+-- These existing outer writers lock shops before calling admin_shop_write.
+-- Insert the same advisory lock immediately after their existing live-role lock.
+-- Guard the exact insertion point so a changed upstream definition fails closed.
+do $locks$
+declare signature text; definition text;
+ marker constant text := 'if not found then raise exception ''Admin access denied'' using errcode=''42501''; end if;';
+begin
+ foreach signature in array array[
+  'public.admin_import_operation(text,uuid,uuid,jsonb)',
+  'public.admin_import_publication(text,uuid,uuid,uuid,jsonb)',
+  'public.shop_publication_operation(uuid,text,uuid,text,uuid)'
+ ] loop
+  definition:=pg_get_functiondef(signature::regprocedure);
+  if length(definition)-length(replace(definition,marker,''))<>length(marker) then
+   raise exception 'Unexpected catalogue writer definition: %',signature;
+  end if;
+  execute replace(definition,marker,marker||E'\n perform pg_catalog.pg_advisory_xact_lock(112,1);');
+ end loop;
+end; $locks$;
 commit;
