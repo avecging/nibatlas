@@ -93,6 +93,10 @@ select set_config('request.jwt.claims','{"sub":"a1000000-0000-4000-8000-00000000
 select throws_ok('select pg_temp.read_channels()','42501','Admin access denied','ordinary account cannot read private contacts');
 select throws_ok($$select public.admin_shop_write('save','a1000000-0000-4000-8000-000000000010',null,'{}')$$,'42501',null,'ordinary account cannot change contacts');
 reset role;
-select ok(exists(select 1 from public.admin_audit_log where entity_type='shop_links' and entity_id='a1000000-0000-4000-8000-000000000012'),'contact writes retain link audit');
+select is((select count(distinct action) from public.admin_audit_log
+ where entity_type='shop_links' and entity_id='a1000000-0000-4000-8000-000000000010'
+ and actor_user_id='a1000000-0000-4000-8000-000000000001'
+ and action in ('catalogue_insert','catalogue_update','catalogue_delete')),3::bigint,
+ 'contact insert, update and removal retain attributed shop-level link audit');
 select * from finish();
 rollback;
