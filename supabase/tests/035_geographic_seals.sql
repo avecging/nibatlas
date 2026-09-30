@@ -78,8 +78,12 @@ select pg_temp.login(3);
 set local role authenticated;
 select lives_ok($$select public.my_geographic_seals()$$,'authenticated owner RPC works with forced RLS');
 reset role;
-select public.my_geographic_seals(p_ack=>array(select id from public.geographic_seal_awards where user_id='e1000000-0000-4000-8000-000000000002'));
-select is((select count(*)::integer from public.geographic_seal_receipts r join public.geographic_seal_awards a on a.id=r.award_id where a.user_id='e1000000-0000-4000-8000-000000000003'),0,'foreign receipt IDs do not acknowledge own pending awards');
+select pg_temp.login(2);
+select set_config('test.foreign_awards',(select array_agg(id)::text from public.geographic_seal_awards where user_id='e1000000-0000-4000-8000-000000000003'),true);
+set local role authenticated;
+select public.my_geographic_seals(p_ack=>current_setting('test.foreign_awards')::uuid[]);
+reset role;
+select is((select count(*)::integer from public.geographic_seal_receipts r join public.geographic_seal_awards a on a.id=r.award_id where a.user_id='e1000000-0000-4000-8000-000000000003'),0,'foreign unacknowledged awards cannot be acknowledged');
 -- Any five is independent of an incomplete explicit set; duplicate editions count once.
 insert into public.shops select (jsonb_populate_record(null::public.shops,to_jsonb(s)||jsonb_build_object(
  'id','00000000-0000-4000-8000-'||lpad(n::text,12,'0'),'slug','synthetic-seal-'||n,'name','Synthetic seal shop '||n))).*
@@ -89,6 +93,7 @@ insert into public.stamps(id,shop_id,name) select ('00000000-0000-4000-8000-'||l
 insert into public.stamp_artwork_versions select (jsonb_populate_record(null::public.stamp_artwork_versions,to_jsonb(v)||jsonb_build_object(
  'id','00000000-0000-4000-8000-'||lpad((n+400)::text,12,'0'),'stamp_id','00000000-0000-4000-8000-'||lpad((n+300)::text,12,'0')))).*
  from public.stamp_artwork_versions v cross join generate_series(311,315) n where v.id='00000000-0000-4000-8000-000000000701';
+update public.stamps set status='active',current_design_version=1 where id in (select ('00000000-0000-4000-8000-'||lpad((n+300)::text,12,'0'))::uuid from generate_series(311,315) n);
 select pg_temp.login(1);
 select pg_temp.write_seal('country','save',pg_temp.document('country','["00000000-0000-4000-8000-000000000315"]'));
 select pg_temp.write_seal('country','publish');
@@ -97,9 +102,21 @@ select pg_temp.visit(312,612,6,1);
 select pg_temp.visit(313,613,7,1);
 select pg_temp.visit(314,614,8,1);
 select is((select count(*)::integer from public.geographic_seal_awards where user_id='e1000000-0000-4000-8000-000000000001'),0,'four visits outside the eligible set do not earn country');
+insert into public.stamps(id,shop_id,name) values('00000000-0000-4000-8000-000000000616','00000000-0000-4000-8000-000000000311','Synthetic second edition');
+insert into public.stamp_artwork_versions select (jsonb_populate_record(null::public.stamp_artwork_versions,to_jsonb(v)||'{"id":"00000000-0000-4000-8000-000000000716","stamp_id":"00000000-0000-4000-8000-000000000616"}')).* from public.stamp_artwork_versions v where v.id='00000000-0000-4000-8000-000000000701';
+update public.stamps set status='retired' where id='00000000-0000-4000-8000-000000000611';
+update public.stamps set status='active',current_design_version=1 where id='00000000-0000-4000-8000-000000000616';
+select pg_temp.visit(311,616,8,1);
+select is((select count(*)::integer from public.geographic_seal_awards where user_id='e1000000-0000-4000-8000-000000000001'),0,'another edition of same shop does not count as a fifth shop');
 select pg_temp.visit(302,602,9,1);
 select is((select count(*)::integer from public.geographic_seal_awards where user_id='e1000000-0000-4000-8000-000000000001'),1,'five distinct shops earn country despite incomplete set');
 select pg_temp.write_seal('country','publish');
 select is((select count(*)::integer from public.geographic_seal_versions where snapshot->>'scope'='country'),2,'identical republish reuses version');
+-- Uppercase UUIDs normalize before published membership comparisons.
+insert into public.shops select (jsonb_populate_record(null::public.shops,to_jsonb(s)||'{"id":"aaaaaaaa-0000-4000-8000-000000000315","slug":"synthetic-uppercase-seal","name":"Synthetic uppercase seal shop"}')).* from public.shops s where s.id='00000000-0000-4000-8000-000000000301';
+select pg_temp.write_seal('country','save',pg_temp.document('country','["AAAAAAAA-0000-4000-8000-000000000315"]'));
+select is((select draft#>>'{eligibleShopIds,0}' from public.geographic_seals where scope='country'),'aaaaaaaa-0000-4000-8000-000000000315','membership UUID normalized');
+select pg_temp.write_seal('country','publish');
+select lives_ok($$select public.my_geographic_seals()$$,'normalized published membership remains readable');
 select * from finish();
 rollback;

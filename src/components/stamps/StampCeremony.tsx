@@ -23,6 +23,7 @@ interface StampCeremonyProps {
   readonly alreadyCollected: boolean;
   readonly passportHref: string;
   readonly onClose: () => void;
+  readonly onOpenPassport?: (() => void) | undefined;
 }
 
 function usesReducedMotion(): boolean {
@@ -56,6 +57,7 @@ export function StampCeremony({
   alreadyCollected,
   passportHref,
   onClose,
+  onOpenPassport,
 }: StampCeremonyProps) {
   const dialogRef = useDialogFocus<HTMLDivElement>(true, onClose);
   const reviewer = useReviewerMode();
@@ -142,7 +144,7 @@ export function StampCeremony({
         <ImpressionPlate size="detail"><StampArt stamp={seal.stamp} title={seal.localityName??seal.countryLabel} subtitle={seal.earnedOn}/></ImpressionPlate>
       </section>):null}
       <div className={styles.actions}>
-        <ButtonLink href={passportHref} variant="primary" fullWidth>
+        <ButtonLink href={passportHref} variant="primary" fullWidth onClick={onOpenPassport}>
           Open in Passport
         </ButtonLink>
         <Button variant="quiet" fullWidth onClick={onClose}>

@@ -170,6 +170,8 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
   }
   const retryable = !['throttled','shop_unavailable','invalid_request','untrusted_origin','authentication_required'].includes(failure)
     && !(failure === 'poor_accuracy' && poorRetries >= 1);
+  const ceremonySeals=store.geographicSeals?.flatMap(r=>r.award?.unseen && ceremony && !ceremony.duplicate && r.award.derivedFromShopId===ceremony.collection.shopId?[r.award]:[]).sort((a,b)=>a.scope===b.scope?0:a.scope==='locality'?-1:1)??[];
+  const acknowledgeCeremonySeals=()=>{if(ceremonySeals.length)store.acknowledgeSeals?.(ceremonySeals.map(s=>s.awardId));};
   return <>
     <Button variant={existing ? 'collected':'stamp'} disabled={session.status === 'loading'} onClick={() => {
       if (!owner) { signIn(); return; }
@@ -199,8 +201,8 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
         <Button variant="quiet" fullWidth onClick={cancel}>Cancel</Button>
       </div>
     </div></div>:null}
-    {ceremony ? <StampCeremony seals={store.geographicSeals?.flatMap(r=>r.award?.unseen && r.award.derivedFromShopId===ceremony.collection.shopId?[r.award]:[])} collection={ceremony.collection} alreadyCollected={ceremony.duplicate}
+    {ceremony ? <StampCeremony seals={ceremonySeals} onOpenPassport={acknowledgeCeremonySeals} collection={ceremony.collection} alreadyCollected={ceremony.duplicate}
       passportHref={`/passport/${ceremony.collection.countryCode.toLowerCase()}/${ceremony.collection.localitySlug}?stamp=${ceremony.collection.id}`}
-      onClose={() => setCeremony(null)}/>:null}
+      onClose={() => {acknowledgeCeremonySeals();setCeremony(null);}}/>:null}
   </>;
 }

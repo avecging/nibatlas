@@ -137,7 +137,7 @@ function ImpressionDetail({
  *
  * No shop fields and no **Open shop**. A seal falls out of verified visits
  * rather than being one: a country seal derives from five stamps or a complete
- * curated set, and a locality seal from the first stamp there, so there is no
+ * curated set, and a locality seal from two distinct shops or an explicit sole-shop set, so there is no
  * single shop for it to lead to. Offering one would misreport what the seal is.
  *
  * The sheet ends on the earned date with nothing in its place. The line that

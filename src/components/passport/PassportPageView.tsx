@@ -250,7 +250,7 @@ export function PassportPageView({
               })}
               {page.countries.length === 0 ? (
                 <li className={styles.pageNote}>
-                  A seal derives from the first stamp you collect.
+                  Verified shop visits build toward locality and country seals.
                 </li>
               ) : null}
             </ul>
