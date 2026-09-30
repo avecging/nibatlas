@@ -108,3 +108,13 @@ describe('B2 editorial input', () => {
       expect(errors({ ...base(), shop: { ...base().shop, [key]: 'forged' } })).toContainEqual({ path: 'shop', message: 'Remove unsupported fields.' });
   });
 });
+
+it('normalizes platform rows in the same manual boundary, permits multiple copy-only channels and rejects duplicate platforms',()=>{
+  const row=(link_type:string,value:string,id:string)=>({id,link_type,url:value,label:null,is_official:true,sort_order:0});
+  const input={...base(),links:[row('instagram','@shopname','90000000-0000-4000-8000-000000000011'),row('wechat','shop-id','90000000-0000-4000-8000-000000000012'),row('kakaotalk','shop-id','90000000-0000-4000-8000-000000000013')]};
+  const d=normalizeShopDocument(input);
+  expect(d.links[0]?.url).toBe('https://www.instagram.com/shopname');
+  expect(d.links[1]).toMatchObject({url:null,account_value:'shop-id'});
+  expect(normalizeShopDocument(d)).toEqual(d);
+  expect(()=>normalizeShopDocument({...input,links:[...input.links,row('instagram','@other','90000000-0000-4000-8000-000000000014')]})).toThrow();
+});

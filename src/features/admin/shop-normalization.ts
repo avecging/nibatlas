@@ -1,3 +1,4 @@
+import { isPlatform, isContactPlatform, normalizeChannel } from '@/src/domain/shop-channels';
 import { document, GROUPS, HOURS_FIELDS, HOURS_EXCEPTION_FIELDS, SHOP_FIELDS, UUID, type Document, type Field, type Row, type Options } from './shop-contract';
 
 export interface FieldIssue { path: string; message: string }
@@ -115,7 +116,16 @@ export function normalizeShopDocument(input: unknown, options?: Options): Docume
   for (const g of GROUPS) {
     const hasId = ['sources', 'aliases', 'links', 'experiences'].includes(g.key);
     result[g.key] = list(g.key === 'experiences' ? d[g.key] ?? [] : d[g.key], g.key).map((v, i) => {
-      const path = `${g.key}.${i}`, r = parse(v, g.fields, path, hasId ? ['id'] : []);
+      const path = `${g.key}.${i}`;
+      if (g.key === 'links') {
+        const raw = obj(v, path);
+        if (isPlatform(raw.link_type)) {
+          if (raw.url && raw.account_value) issue(`${path}.url`, 'Supply a link or an ID, not both.');
+          try { v = {...raw, ...normalizeChannel(raw.link_type, String(raw.url || raw.account_value || ''))}; }
+          catch (e) { issue(`${path}.url`, e instanceof Error ? e.message : 'Enter an account or link.'); }
+        } else if (!raw.url || raw.account_value) issue(`${path}.url`, 'Supply a complete web link.');
+      }
+      const r = parse(v, g.fields, path, hasId ? ['id'] : []);
       if (hasId) {
         const id = obj(v, path).id;
         if (typeof id !== 'string' || !UUID.test(id)) issue(path, 'Keep the existing item identity or create a new item.');
@@ -143,12 +153,19 @@ export function normalizeShopDocument(input: unknown, options?: Options): Docume
   result.aliases.forEach((r, i) => {
     if (typeof r.language_tag === 'string' && !/^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$/.test(r.language_tag)) issue(`aliases.${i}.language_tag`, 'Use a language tag such as ja-JP.');
   });
+  const platforms = new Set<string>();
   result.links.forEach((r, i) => {
+    if (isPlatform(r.link_type)) {
+      if (platforms.has(r.link_type)) issue(`links.${i}.url`, 'Keep one account per platform.');
+      platforms.add(r.link_type);
+    }
+    if (r.account_value && !isContactPlatform(r.link_type)) issue(`links.${i}.account_value`, 'Only messaging contacts accept a number or ID.');
     if (typeof r.sort_order === 'number' && (!Number.isInteger(r.sort_order) || r.sort_order < 0 || r.sort_order > 1000)) issue(`links.${i}.sort_order`, 'Use a whole number from 0 to 1000.');
   });
   for (const [group, key] of [['aliases', 'alias'], ['links', 'url']] as const) {
     const seen = new Set<string>();
     result[group].forEach((r, i) => {
+      if (r[key] == null) return;
       const v = String(r[key] ?? ''), comparable = group === 'aliases' ? v.toLowerCase() : v;
       if (seen.has(comparable)) issue(`${group}.${i}.${key}`, 'Remove the duplicate item.');
       seen.add(comparable);

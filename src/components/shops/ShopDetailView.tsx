@@ -1,3 +1,4 @@
+import { ShopMessaging, ShopWebsiteSocial } from "./ShopChannels";
 import type { ReactNode } from "react";
 
 import { ShopCorrection } from "@/src/components/shops/ShopCorrection";
@@ -374,33 +375,11 @@ export function ShopDetailView({
                   ))}
                 </div>}
 
-                <FactList facts={facts.beforeYouGo} />
+                <FactList facts={facts.beforeYouGo.filter(f=>f.key === 'phone')} />
+                <ShopMessaging links={links} inert={preview}/>
+                <FactList facts={facts.beforeYouGo.filter(f=>f.key !== 'phone')} />
 
-                <div className={styles.factList}>
-                  {/*
-                    The shop's own website, as a contextual link. It was a second
-                    header button until the founder's staging review: the website
-                    is visit information, and it only needs to be on the page once.
-                  */}
-                  {links.map((link) => (
-                    <p className={styles.fact} key={link.url}>
-                      <Icon name="link" size={18} />
-                      <span>
-                        <span className={styles.factLabel}>
-                          {link.isOfficial ? "Official website" : "Reference"}
-                        </span>
-                        <a
-                          className={styles.linkRow}
-                          href={link.url}
-                          rel="noreferrer noopener"
-                          target="_blank"
-                        >
-                          {link.label}
-                        </a>
-                      </span>
-                    </p>
-                  ))}
-                </div>
+
               </div>
 
               {/*
@@ -412,6 +391,7 @@ export function ShopDetailView({
               */}
               {!preview && <ShopPositionDiagnostic shop={shop} />}
             </section>
+            <ShopWebsiteSocial links={links}/>
           </div>
         </div>
 

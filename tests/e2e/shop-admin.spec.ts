@@ -1587,3 +1587,34 @@ test('D4d deliberate publication restores partial outcomes and safely retries ac
  expect(await page.evaluate(()=>JSON.stringify({...localStorage,...sessionStorage}))).not.toContain('87000000');
  await panel.screenshot({path:info.outputPath('admin-d4d-complete-publication.png')});
 });
+
+test('social and contact picker saves into the existing flow and public preview',async({page},testInfo)=>{
+  const state=await setup(page);
+  await page.goto(`/admin/shops/${id}`);
+  await page.getByRole('button',{name:'Add Social Media',exact:true}).click();
+  await page.getByRole('checkbox',{name:'Instagram',exact:true}).check();
+  await page.getByRole('dialog').getByRole('button',{name:'Add',exact:true}).click();
+  await page.getByRole('textbox',{name:'Instagram',exact:true}).fill('@syntheticshop');
+  await page.getByRole('button',{name:'Add Contact',exact:true}).click();
+  await page.getByRole('checkbox',{name:'WeChat',exact:true}).check();
+  await page.getByRole('checkbox',{name:'WhatsApp',exact:true}).check();
+  await page.screenshot({path:testInfo.outputPath('channel-picker.png')});
+  expect((await new AxeBuilder({page}).include('[role="dialog"]').analyze()).violations).toEqual([]);
+  await page.getByRole('dialog').getByRole('button',{name:'Add',exact:true}).click();
+  await page.getByRole('textbox',{name:'WeChat',exact:true}).fill('synthetic-shop');
+  await page.getByRole('textbox',{name:'WhatsApp',exact:true}).fill('+65 8123 4567');
+  const social=await page.getByRole('region',{name:'Social Media'}).boundingBox();
+  const contact=await page.getByRole('region',{name:'Contact',exact:true}).boundingBox();
+  if(testInfo.project.name==='desktop-1440') expect(social!.y).toBe(contact!.y);
+  else if(testInfo.project.name==='mobile-360') expect(contact!.y).toBeGreaterThan(social!.y);
+  await page.screenshot({path:testInfo.outputPath('channel-fields.png'),fullPage:true});
+  await saveAndReview(page);
+  expect(state.actions).toEqual(['save']);
+  expect(state.current().document.links).toEqual(expect.arrayContaining([
+    expect.objectContaining({link_type:'instagram',url:'https://www.instagram.com/syntheticshop'}),
+    expect.objectContaining({link_type:'wechat',url:null,account_value:'synthetic-shop'})]));
+  const frame=publicPreview(page);
+  await expect(frame.getByRole('heading',{name:'Website & social'})).toBeVisible();
+  await expect(frame.getByRole('button',{name:'WeChat',exact:true})).toBeDisabled();
+  await expect(frame.getByRole('link',{name:/Instagram: https/})).toHaveText('https://www.instagram.com/syntheticshop');
+});

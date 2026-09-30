@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { PLATFORMS, normalizeChannel } from '@/src/domain/shop-channels';
 import { normalizeShopCreate, normalizeShopDocument, ShopValidationError } from '../shop-normalization';
 import { UUID, type Document, type Options } from '../shop-contract';
 import { SCALARS, type Context, type MappedRow, type Prepared } from './contract';
@@ -25,7 +27,7 @@ export function prepareRow(row: MappedRow, context: Context, options: Options, p
   }
   const merged = structuredClone(base);
   const scalarKeys = new Set(SCALARS.map(f => f.key));
-  const clearable = new Set([...scalarKeys, 'country', 'locality', 'shop_type', 'brands', 'specialties']);
+  const clearable = new Set([...scalarKeys, ...PLATFORMS, 'country', 'locality', 'shop_type', 'brands', 'specialties']);
   const clears = new Set((input.clear_fields ?? '').split('|').map(s => s.trim()).filter(Boolean));
   for (const field of clears) {
     if (!clearable.has(field) || ['name', 'slug', 'position_precision', 'operational_status'].includes(field)) fail('clear_fields', `The field ${field.slice(0, 100)} cannot be cleared here.`);
@@ -49,6 +51,21 @@ export function prepareRow(row: MappedRow, context: Context, options: Options, p
       for (const id of ids) if (!merged[group].some(r => r[key] === id)) merged[group].push({ [key]: id, ...(group === 'types' ? { is_primary: true } : {}) });
     }
   }
+  for (const platform of PLATFORMS) {
+    const value = input[platform]?.trim();
+    if (!value && !clears.has(platform)) continue;
+    const existing = merged.links.filter(r => r.link_type === platform);
+    if (clears.has(platform)) { merged.links = merged.links.filter(r => r.link_type !== platform); continue; }
+    if (existing.length > 1) { fail(platform, 'Multiple legacy accounts exist. Resolve them in the editor first.'); continue; }
+    try {
+      const normalized = normalizeChannel(platform, value!);
+      const hex = createHash('sha256').update(JSON.stringify(['shop-channel', target?.id ?? proposedId, platform])).digest('hex');
+      const id = `${hex.slice(0,8)}-${hex.slice(8,12)}-5${hex.slice(13,16)}-a${hex.slice(17,20)}-${hex.slice(20,32)}`;
+      const link = existing[0];
+      if (link) Object.assign(link, normalized);
+      else merged.links.push({id,link_type:platform,...normalized,label:null,is_official:true,sort_order:PLATFORMS.indexOf(platform)});
+    } catch (e) { fail(platform, e instanceof Error ? e.message : 'Enter an account or link.'); }
+  }
   let normalized: Document | null = null;
   try { normalized = normalizeShopDocument(merged, options); }
   catch (e) { if (!(e instanceof ShopValidationError)) throw e; issues.push(...e.issues); }
@@ -60,7 +77,12 @@ export function prepareRow(row: MappedRow, context: Context, options: Options, p
         const field = key === 'country_code' ? 'country' : key === 'locality_id' ? 'locality' : key;
         if (!input[field]?.trim() && !clears.has(field)) normalized.shop[key] = base.shop[key]!;
       }
-      for (const group of ['sources', 'aliases', 'links', 'experiences', 'services'] as const) normalized[group] = structuredClone(base[group]);
+      for (const group of ['sources', 'aliases', 'experiences', 'services'] as const) normalized[group] = structuredClone(base[group]);
+      normalized.links = normalized.links.map(link => {
+        const platform = String(link.link_type);
+        const original = base.links.find(r => r.id === link.id);
+        return original && !input[platform]?.trim() && !clears.has(platform) ? structuredClone(original) : link;
+      });
       for (const [field, group] of [['shop_type', 'types'], ['brands', 'brands'], ['specialties', 'specialties']] as const) {
         if (!input[field]?.trim() && !clears.has(field)) normalized[group] = structuredClone(base[group]);
         else if (!clears.has(field)) normalized[group] = normalized[group].map(row => {
@@ -73,6 +95,10 @@ export function prepareRow(row: MappedRow, context: Context, options: Options, p
     for (const [key, after] of Object.entries(normalized.shop)) {
       const before = base.shop[key] ?? null;
       if (JSON.stringify(before) !== JSON.stringify(after) || !target && after !== null) preview.changes.push({ field: key, before: target ? before : null, after, clear: clears.has(key) || clears.has(key === 'country_code' ? 'country' : key === 'locality_id' ? 'locality' : '') });
+    }
+    for (const platform of PLATFORMS) {
+      const before = base.links.filter(r => r.link_type === platform), after = normalized.links.filter(r => r.link_type === platform);
+      if (JSON.stringify(before) !== JSON.stringify(after)) preview.changes.push({field:platform,before,after,clear:clears.has(platform)});
     }
     for (const [field, group] of [['shop_type', 'types'], ['brands', 'brands'], ['specialties', 'specialties']] as const) {
       if (JSON.stringify(base[group]) !== JSON.stringify(normalized[group])) preview.changes.push({ field, before: base[group], after: normalized[group], clear: clears.has(field) });

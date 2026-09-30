@@ -272,3 +272,26 @@ No founder acceptance is inferred from passing CI. Package D rich editor/media
 integration, Package A/M5 field acceptance, M7/M8 production/account/backup/
 monitoring obligations and #68/#70/#71/#72/#87 remain separate.
 Catalogue research/reconciliation and real imports need their own founder scope.
+
+## Social/contact columns (#110)
+
+Both v1 downloadable templates and CSV/JSON mapping accept flat string columns
+`facebook`, `instagram`, `tiktok`, `xiaohongshu`, `threads`, `x`, `youtube`,
+`whatsapp`, `telegram`, `line`, `wechat`, `messenger`, `kakaotalk`.
+They use the same channel normalizer as manual saves (see `admin-shops-v1.md`).
+Existing files and the current version remain valid; the column/file/row limits
+are unchanged. URLs or handles are accepted where safely derivable; copy-only
+contact IDs remain IDs rather than fabricated URLs.
+
+On explicit shop-ID updates, an omitted or blank channel preserves that row
+byte-for-byte. A supplied channel updates that platform's existing row in place,
+retaining its ID/label/order/official flag and all unrelated links. New rows have
+deterministic IDs derived from the target/proposed shop ID and platform, so
+repeated previews/resume agree. Multiple legacy accounts for a supplied platform
+block with a request to resolve them in the editor; no account is guessed.
+
+`clear_fields=instagram|wechat` explicitly removes those platform rows. Supplying
+a value and clearing the same column is invalid. Before/after changes identify
+the platform, including clear actions. Existing safe duplicate targeting,
+revision conflicts, private import, saved previews and deliberate publication
+remain authoritative; no new review step or vocabulary creation is introduced.

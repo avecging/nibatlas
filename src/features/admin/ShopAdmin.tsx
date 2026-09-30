@@ -1,4 +1,6 @@
 "use client";
+import { ShopChannelsEditor } from "./ShopChannelsEditor";
+import { Fragment } from "react";
 import { ExperienceIconPicker } from './ExperienceIconPicker';
 import { RevisionComparison } from "./RevisionComparison";
 import { HoursEditor } from "./HoursEditor";
@@ -573,7 +575,7 @@ function Workspace({ id }: { id: string | null }) {
         if (target) {
           // A correction has to be reachable, so this jump is not refusable;
           // the pending-upload warning is raised by `go` for ordinary moves.
-          setSection(sectionForPath(target.path));
+          setSection(sectionForPath(target.path, draft));
           setFocusTarget({ path: target.path });
         }
       }
@@ -987,11 +989,11 @@ function Workspace({ id }: { id: string | null }) {
   const archived = record.publicationStatus === "archived";
   const locked = busy || archived;
   const active = SECTIONS.find((s) => s.id === section)!;
-  const errorSections = new Set(fieldErrors.map((e) => sectionForPath(e.path)));
+  const errorSections = new Set(fieldErrors.map((e) => sectionForPath(e.path, draft)));
   // The checks and this routing both describe the saved version, which is what
   // the Review copy promises; an unsaved edit must not move where Fix lands.
   const blockerSections = new Set(
-    record.publicationErrors.map((e) => sectionForFix(publicationFix(e, record.document))),
+    record.publicationErrors.map((e) => sectionForFix(publicationFix(e, record.document), record.document)),
   );
   const stateLabel = `${record.publicationStatus}${record.hasChanges ? " · saved changes" : ""}${
     dirty ? " · unsaved edits" : ""
@@ -1074,7 +1076,7 @@ function Workspace({ id }: { id: string | null }) {
               <button
                 type="button"
                 onClick={() => {
-                  setSection(sectionForPath(error.path));
+                  setSection(sectionForPath(error.path, draft));
                   setFocusTarget({ path: error.path });
                 }}
               >
@@ -1141,7 +1143,7 @@ function Workspace({ id }: { id: string | null }) {
             setPreviewWidth={setPreviewWidth}
             onFix={(requirement) => {
               const fix = publicationFix(requirement, record.document);
-              setSection(sectionForFix(fix));
+              setSection(sectionForFix(fix, record.document));
               setFocusTarget(fix);
             }}
             onConfirm={setConfirmation}
@@ -1182,7 +1184,7 @@ function Workspace({ id }: { id: string | null }) {
               <div className={styles.grid}>
                 {SECTION_FIELDS[section]
                   .filter((key) => !["latitude", "longitude", "position_precision"].includes(key))
-                  .map((key) => shopField(key))}
+                  .map((key) => <Fragment key={key}>{section === 'story' && key === 'short_description' && <ShopChannelsEditor links={draft.links} errors={fieldErrors} change={links=>setDraft({...draft,links})}/>} {shopField(key)}</Fragment>)}
               </div>
 
               {section === "location" && (
