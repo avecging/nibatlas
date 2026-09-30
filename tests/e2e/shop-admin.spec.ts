@@ -405,7 +405,7 @@ test("editor supports zoom and reduced motion", async ({ page }) => {
     fits:globalThis.document.documentElement.scrollWidth<=globalThis.document.documentElement.clientWidth,
     width:globalThis.document.documentElement.clientWidth,scrollWidth:globalThis.document.documentElement.scrollWidth,
     overflowing:[...globalThis.document.querySelectorAll('body *')].filter(el=>el.getBoundingClientRect().right>globalThis.document.documentElement.clientWidth+1)
-      .slice(0,20).map(el=>({tag:el.tagName,className:el.className,right:el.getBoundingClientRect().right,width:el.getBoundingClientRect().width})),
+      .slice(0,20).map(el=>({tag:el.tagName,text:el.textContent?.slice(0,60),className:el.className,right:el.getBoundingClientRect().right,width:el.getBoundingClientRect().width})),
   }));
   expect(dimensions.fits,JSON.stringify(dimensions)).toBe(true);
 });
