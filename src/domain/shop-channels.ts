@@ -43,8 +43,15 @@ export function normalizeChannel(platform: Platform, input: string): ChannelValu
   }
   const handle = value.replace(/^@/, '');
   if (platform === 'xiaohongshu') throw Error('Use the Xiaohongshu profile or share link; its public ID is not a profile URL.');
-  const pattern = platform === 'x' ? /^[a-zA-Z0-9_]{1,15}$/ : platform === 'instagram' || platform === 'threads' ? /^[a-zA-Z0-9_.]{1,30}$/ : /^[\p{L}\p{N}_.-]{1,100}$/u;
-  if (!pattern.test(handle)) throw Error('Enter a profile link or handle, without spaces.');
+  // Derive only the supported handle subset; other scripts and unusual legacy
+  // accounts can supply their real profile URL without guessing a destination.
+  const pattern = platform === 'tiktok' ? /^[a-zA-Z0-9_.]{2,24}$/
+    : platform === 'youtube' ? /^[a-zA-Z0-9][a-zA-Z0-9_.-]{1,28}[a-zA-Z0-9]$/
+    : platform === 'x' ? /^[a-zA-Z0-9_]{1,15}$/
+    : platform === 'instagram' || platform === 'threads' ? /^[a-zA-Z0-9_.]{1,30}$/
+    : /^[\p{L}\p{N}_.-]{1,100}$/u;
+  if (!pattern.test(handle) || platform === 'tiktok' && handle.endsWith('.'))
+    throw Error(`Use a supported ${PLATFORM_NAMES[platform]} handle or paste the complete profile link.`);
   const prefix: Record<Exclude<typeof platform, 'xiaohongshu'>, string> = {facebook:'https://www.facebook.com/',instagram:'https://www.instagram.com/',tiktok:'https://www.tiktok.com/@',threads:'https://www.threads.com/@',x:'https://x.com/',youtube:'https://www.youtube.com/@'};
   return {url:prefix[platform] + encodeURIComponent(handle), account_value:null};
 }

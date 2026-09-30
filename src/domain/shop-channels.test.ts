@@ -36,3 +36,26 @@ describe('messaging destinations and honest clipboard payloads',()=>{
   });
   it.each(['whatsapp','telegram','line','wechat','messenger','kakaotalk'] as Platform[])('stores a bare contact separately from a URL: %s',p=>expect(normalizeChannel(p,p==='whatsapp'?'+65 8123 4567':'shopname')).toMatchObject({url:null}));
 });
+
+describe('platform-specific derived profile URLs',()=>{
+  it.each([
+    ['tiktok','shop-name'],['tiktok','shop.'],['tiktok','a'.repeat(25)],
+    ['youtube','a'.repeat(31)],['youtube','ab'],['youtube','_shop'],['youtube','shop-'],
+    ['youtube','文具店'],['tiktok','文具店'],
+  ] as const)('requires an explicit link instead of deriving unsupported %s handle %s',(platform,value)=>{
+    expect(()=>normalizeChannel(platform,value)).toThrow(/complete profile link/);
+  });
+  it.each([
+    ['tiktok','ab'],['tiktok','shop.name_1'],['tiktok','a'.repeat(24)],
+    ['youtube','abc'],['youtube','shop-name_1'],['youtube','a'.repeat(30)],
+  ] as const)('preserves valid %s handles at supported boundaries',(platform,value)=>{
+    expect(normalizeChannel(platform,value).url).toBe(`https://www.${platform}.com/@${value}`);
+  });
+  it.each([
+    ['youtube','https://www.youtube.com/@%E6%96%87%E5%85%B7%E5%BA%97'],
+    ['tiktok','https://www.tiktok.com/@supplied.profile'],
+    ['youtube','https://www.youtube.com/channel/UC123456789'],
+  ] as const)('preserves supplied %s destinations',(platform,url)=>{
+    expect(normalizeChannel(platform,url)).toEqual({url,account_value:null});
+  });
+});
