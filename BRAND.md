@@ -332,9 +332,10 @@ shared or printed without the interface does not identify its level by itself.
 - Level is communicated by the interface, never by a compulsory border, shape or colour.
 - Every generated stamp pins the palette version used so regeneration remains deterministic.
 - Shop stamps are the primary collected objects.
-- A locality seal is derived when the user's first verified shop stamp in that locality is acquired. If check-in is later introduced, it must emit the same canonical verified-visit event rather than create a parallel rule.
+- A locality seal is derived when two distinct verified shop stamps in that locality are acquired, or the sole shop in an explicitly established one-shop eligible set is collected. If check-in is later introduced, it must emit the same canonical verified-visit event rather than create a parallel rule.
 - A country seal is derived after five verified shop stamps in that country, or after the complete eligible curated set when that versioned set contains fewer than five shops.
 - Once earned, a geographic seal is never revoked because the curated catalogue later expands.
+- MVP geographic defaults use a restrained typographic cartouche with neutral nib ornament, one ink and the qualifying visit date. No invented local landmark. The template is versioned; earned impressions retain their original design. Custom geographic artwork and collectible redesign editions are deferred.
 - Milestone 1 may demonstrate these derived seals with selected real-shop prototype data; it must not imply unversioned global completeness.
 - Dual-ink and spectrum/rainbow impressions are reserved future treatments. They must remain one coherent physical impression with irregular colour boundaries and pressure variation, not gradients or rarity tiers. The Taiwan Sun-Star Coiro reference supplied by the founder is the physical benchmark for this future direction.
 

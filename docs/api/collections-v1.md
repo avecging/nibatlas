@@ -65,11 +65,54 @@ Failures use WP2's `{ok:false,error:{code}}`: `invalid_request` (400),
   The owner-scoped provider survives route unmounts, so returning from a shop
   restores the list scroll offset and book position without writing either to disk.
 
+## Geographic seals (Package E)
+
+`POST /api/v1/seals` uses the cookie-bound owner and exact same-origin JSON.
+Body: `{after?: UUID|null, ack?: UUID[]}` (at most 50 receipt IDs, 8 KiB body).
+It reconciles prior verified visits in pages of 50 published definitions or owned
+historical awards, returning `{ownerId, rows, nextCursor}`. GET does not mutate.
+Drafts, other owners, location diagnostics and provider-only fields are excluded.
+An owner may acknowledge only their own award IDs. Receipt state is separate from
+immutable awards. Client state stays in owner-scoped memory and aborts on owner
+changes; a seal refresh failure does not erase or block shop impressions.
+
+Locality requires two distinct shops, or the sole member of an explicitly
+published eligible set. Country requires any five distinct shops, or all members
+of an explicit 1–4 shop set. Catalogue size never defines a denominator. Both
+rules use collection-time place snapshots, including old visits, moved/closed
+shops and visits before a seal was published. Singapore can earn both scopes.
+The qualifying visit supplies the earned date; reconciliation supplies no visits.
+
+Publishing stores an immutable `cartouche-v1` generated design and versioned
+eligible membership/name snapshot. A collection insert awards matching published
+seals transactionally; reconciliation backfills older visits. A unique owner/seal
+constraint makes both paths idempotent. Unpublish stops new awards; existing
+collectors retain their original version, date and artwork. Future templates
+need new identifiers—never modify the historical `cartouche-v1` renderer.
+
+`/admin/seals` provides scope/place, generated ink preview, optional deliberately
+established small eligible set, Save privately, Publish saved seal and Unpublish.
+`GET /api/v1/admin/seals?after=UUID` lists 50 drafts; POST accepts
+`{action: "save"|"publish"|"unpublish", id, revision, document?}`. Every RPC checks
+and locks the current editor/admin role. Existing geographic identities cannot be
+changed. Saves rotate the revision; publish/unpublish require that exact revision.
+Publishing validates selected shops are published and in the selected place.
+Audited writes preserve immutable publication/award rows; no direct browser or
+service-role table access is granted. Errors are fixed `{error: code}` responses:
+400 invalid request, 401 unauthenticated, 403 forbidden, 409 stale/duplicate,
+422 invalid seal, 503 unavailable. All responses are private/no-store.
+
+Passport explains thresholds and named eligible membership. New awards are grouped
+under “New seals from your past visits”; acknowledgement is durable. During a new
+shop collection, matching newly earned seals follow the shop press in the same
+sheet, with one Passport destination and reduced-motion support.
+
 ## Explicitly deferred
 
-WP2's geographic seal persistence/versioned coverage sets remain a separate
-backend package. API mode shows stamp/place counts without deriving awards or
-completion denominators from the prototype catalogue. Reviewer seals remain demos.
+Special/event/seasonal stamps (including the six-week launch signup stamp),
+custom geographic uploads and recollectible artwork editions remain deferred.
+A new geographic design does not replace an earned impression or permit a second
+award. Reviewer seals remain demonstrations, separate from account awards.
 
 M6 preserves both legacy commissioned artwork and #73 neutral uploaded artwork.
 Legacy commissioned snapshots keep their existing export checksums and illustrator

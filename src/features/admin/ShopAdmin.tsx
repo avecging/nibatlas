@@ -920,6 +920,7 @@ function Workspace({ id }: { id: string | null }) {
         )}
         <section className={styles.createPanel}>
           <h2>Add a shop</h2>
+          <p><Link href="/admin/seals">Stamps &amp; seals</Link></p>
           {role === "admin" && <p><Link href="/admin/shops/import">Preview a bulk CSV / JSON import</Link></p>}
           <form
             onSubmit={(e) => {

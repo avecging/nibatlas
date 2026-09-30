@@ -15,6 +15,19 @@ GPT owns end-to-end implementation and initiates independent review under
 and scope decisions. A conductor/orchestrator has not been onboarded. `AGENTS.md`
 is the shared working contract. This assignment covers every milestone; frontend work is not reserved for Claude.
 
+## Current follow-up — Geographic seals (#114), 1 October 2026
+
+Founder approved the next Package E increment after #116 was merged/deployed.
+Implement generated cartouche defaults, private Save/Publish admin controls,
+durable country/locality awards from past verified visits, and Passport progress
+with a combined shop/seal ceremony. Locality is two distinct shops or an explicit
+sole eligible shop; country remains any five or a complete explicit 1–4 set.
+Singapore earns both. Historical designs/awards survive edits and unpublication;
+redesigned-edition recollection stays deferred. All special stamps wait for the
+production phase. See `docs/api/collections-v1.md` for the proposed contract.
+This increment is in review; no hosted migration/deployment or founder visual
+acceptance is implied. Imports, production, #97 and anomaly UI remain deferred.
+
 ## Current follow-up — Related shops (#112), 30 September 2026
 
 Founder confirms Package D, social/contact #111 and Website & social card #115

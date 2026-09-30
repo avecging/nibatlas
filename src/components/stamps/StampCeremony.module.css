@@ -182,3 +182,9 @@
   gap: var(--space-2);
   margin-top: var(--space-3);
 }
+
+.sealPress { animation: seal-press 600ms ease-out both; }
+.sealPress + .sealPress { animation-delay: 250ms; }
+@keyframes seal-press { from { opacity: 0; transform: scale(1.06); } to { opacity: 1; transform: scale(1); } }
+.sealPress[data-reduced="true"] { animation: none; }
+@media (prefers-reduced-motion: reduce) { .sealPress { animation: none; } }

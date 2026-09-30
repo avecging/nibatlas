@@ -108,7 +108,7 @@ describe("countrySealRequirement", () => {
 });
 
 describe("deriveSeals", () => {
-  it("derives a locality seal from the first verified stamp there", () => {
+  it("derives a locality seal from the second distinct verified stamp there", () => {
     const { seals } = deriveSeals({
       collections: [
         collection("second", "ginza", "2026-03-20"),
@@ -121,13 +121,13 @@ describe("deriveSeals", () => {
     const seal = localitySealFor(seals, "JP", "ginza");
 
     expect(seal).toBeDefined();
-    // The earlier visit derived it, not the first one in the input array.
-    expect(seal?.earnedOn).toBe("2026-03-14");
-    expect(seal?.derivedFromShopId).toBe("shop-first");
+    // The second chronological visit derives it.
+    expect(seal?.earnedOn).toBe("2026-03-20");
+    expect(seal?.derivedFromShopId).toBe("shop-second");
     expect(seals.filter((candidate) => candidate.scope === "locality")).toHaveLength(1);
   });
 
-  it("derives one locality seal per locality", () => {
+  it("withholds locality seals after only one shop in each locality", () => {
     const { seals } = deriveSeals({
       collections: [
         collection("a", "ginza", "2026-03-14"),
@@ -137,7 +137,7 @@ describe("deriveSeals", () => {
       designSeal,
     });
 
-    expect(seals.filter((seal) => seal.scope === "locality")).toHaveLength(2);
+    expect(seals.filter((seal) => seal.scope === "locality")).toHaveLength(0);
   });
 
   it("withholds a country seal below the requirement", () => {

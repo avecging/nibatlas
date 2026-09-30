@@ -17,8 +17,8 @@ import {
  *   the only case where the interface may say "complete";
  * - Japan and Taiwan each hold four eligible shops with two collected, so both
  *   show honest progress against an explicit versioned denominator;
- * - five localities are collected, so five locality seals derive from a first
- *   verified stamp each.
+ * - Singapore has two distinct shops, so its locality seal also derives;
+ *   other localities remain below the two-shop threshold.
  *
  * Milestone 5 replaces all of this with server-issued `stamp_collections` rows.
  */

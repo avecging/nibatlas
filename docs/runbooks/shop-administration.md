@@ -651,3 +651,16 @@ private edits remain. Enable/publish the other side, then hide one side and remo
 the pair. Check that a Nearby target has a disabled switch and no duplicate card.
 On a narrow viewport Related shops follows Nearby; on desktop it is in the left
 column. Actual founder acceptance remains separate from automated checks.
+
+## Geographic seals — proposed Package E acceptance
+
+After an authorized staging migration/deployment, open **Stamps & seals** from
+Shops. Save a Singapore locality seal and country seal privately, then publish
+each. A locality with no explicit sole-shop set must wait for two distinct shops;
+a country may use an explicitly chosen complete set of 1–4 shops or any five.
+Check that a returning account's older verified visits count in Passport. After
+changing ink and publishing again, its earned seal must keep its original ink;
+a newly qualifying account gets the published ink. Unpublish and confirm the old
+seal remains in both List and Book. A second editor tab with an old revision must
+reload before publishing. Try on phone with reduced motion as well as desktop.
+These are founder acceptance steps, not a claim they have been executed.

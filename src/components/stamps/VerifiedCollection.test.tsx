@@ -31,6 +31,7 @@ beforeEach(()=>{
   vi.spyOn(document,'visibilityState','get').mockReturnValue('visible');
   Object.defineProperty(navigator,'geolocation',{configurable:true,value:{getCurrentPosition:vi.fn((success:PositionCallback)=>success({coords:{latitude:1,longitude:2,accuracy:100}} as GeolocationPosition))}});
   vi.stubGlobal('fetch',vi.fn(async(input:string,init?:RequestInit)=>{
+    if(input==='/api/v1/seals') return Response.json({ownerId:STAMP_OWNER,rows:[],nextCursor:null});
     if(input.startsWith('/api/v1/collections')) return readFailure ? Response.json({}, {status:503}) : Response.json({ownerId:STAMP_OWNER,collections:rows,nextCursor:null});
     const action=input.split('/').at(-1)!;
     const body=JSON.parse(String(init?.body)) as Record<string,unknown>;

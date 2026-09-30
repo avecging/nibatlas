@@ -368,7 +368,7 @@ The same hierarchy holds in both modes.
 
 Only show `x / y` where `y` is a clearly versioned curated coverage set. Otherwise show counts without implying completeness.
 
-- Derive a locality seal from the first verified shop stamp in that locality.
+- Derive a locality seal from two distinct verified shop stamps in that locality, or the sole shop in an explicitly established one-shop eligible set.
 - Derive a country seal after five verified shop stamps, or the complete eligible curated set when it contains fewer than five shops.
 - Record the applicable coverage-set version and never revoke an earned country seal because the catalogue later changes.
 - Treat a future check-in as an interface over the same verified-visit event; do not create a second unlock source.

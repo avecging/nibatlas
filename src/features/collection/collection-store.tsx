@@ -1,4 +1,6 @@
 "use client";
+import { fetchSeals } from "./seal-client";
+import type { SealRow } from "@/src/domain/geographic-seals";
 
 import {
   createContext,
@@ -134,6 +136,9 @@ export interface CollectionStore {
   readonly userShopState: UserShopState;
   readonly passport: PassportOverview;
   readonly seals: readonly EarnedSeal[];
+  readonly geographicSeals?: readonly SealRow[];
+  readonly sealReadStatus?: "loading" | "ready" | "error";
+  acknowledgeSeals?(ids: readonly string[]): void;
   readonly countryProgress: readonly CountrySealProgress[];
   /** Which store is in use, so tests and diagnostics can name it. */
   readonly scope: CollectionScope;
@@ -579,6 +584,20 @@ function AccountCollections({ owner, local, children }: {
   const [collections, setCollections] = useState<readonly StampCollection[]>([]);
   const [readStatus, setReadStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [revision, setRevision] = useState(0);
+  const [sealRows,setSealRows]=useState<readonly SealRow[]>([]);
+  const [sealReadStatus,setSealReadStatus]=useState<'loading'|'ready'|'error'>('loading');
+  const receipts=useRef(new Set<string>());
+  useEffect(()=>{
+    if(!owner) return;
+    const controller=new AbortController();
+    const ack=[...receipts.current].slice(0,50);
+    void fetchSeals(controller.signal,owner,ack).then(rows=>{
+      if(controller.signal.aborted) return;
+      ack.forEach(id=>receipts.current.delete(id));
+      setSealRows(rows);setSealReadStatus('ready');
+    }).catch(()=>{if(!controller.signal.aborted) setSealReadStatus('error');});
+    return ()=>controller.abort();
+  },[owner,revision]);
   const active = useRef(true);
   const issued = useRef(new Map<string, StampCollection>());
   const passportViewRef = useRef<PassportViewRecord>(EMPTY_PASSPORT_VIEW);
@@ -647,8 +666,22 @@ function AccountCollections({ owner, local, children }: {
       : session.status === 'loading' ? 'loading' : 'unavailable',
     hydrated: owner ? readStatus === 'ready' || collections.length > 0 : session.status === 'signed-out',
     passport:buildPassport(collections),
-    // Geographic awards need their own persisted/versioned backend (deferred).
-    seals:[],countryProgress:[],localitySeal:() => undefined,countrySeal:() => undefined,
+    geographicSeals:sealRows,sealReadStatus,
+    acknowledgeSeals:ids=>{ids.slice(0,50).forEach(id=>receipts.current.add(id));retryRead();},
+    seals:sealRows.flatMap(row=>row.award?[row.award]:[]),
+    countryProgress:sealRows.flatMap(row=>{
+      const s=row.current,p=row.progress;
+      if(!s || !p) return row.award?.scope==='country'?[{countryCode:row.award.countryCode,countryLabel:row.award.countryLabel,
+        stampCount:0,eligibleCollected:0,eligibleTotal:null,required:5,progressCount:0,coverageSetVersion:row.award.coverageSetVersion??null,requirementFromCuratedSet:false,earned:true}]:[];
+      if(s.scope!=='country') return [];
+      const small=s.eligibleShopIds.length>0;
+      return [{countryCode:s.countryCode,countryLabel:s.countryLabel,stampCount:p.count,eligibleCollected:p.collectedIds.length,
+        eligibleTotal:small?s.eligibleShopIds.length:null,required:small?s.eligibleShopIds.length:5,
+        progressCount:small?p.collectedIds.length:p.count,coverageSetVersion:row.award?.coverageSetVersion??null,
+        requirementFromCuratedSet:small,earned:!!row.award}];
+    }),
+    localitySeal:(code,slug)=>sealRows.find(r=>r.award?.scope==='locality'&&r.award.countryCode===code&&r.award.localitySlug===slug)?.award??undefined,
+    countrySeal:code=>sealRows.find(r=>r.award?.scope==='country'&&r.award.countryCode===code)?.award??undefined,
     userShopState:{ savedShopIds:local.savedShopIds,visitedShopIds:visited },
     isVisited:id => visited.has(id), collectionForShop:id => collections.find(row => row.shopId === id),
     collectStamp:() => { throw new Error('Verified issuance required'); }, retryRead:() => {refresh();retryRead();},acceptIssued,

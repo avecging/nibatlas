@@ -199,7 +199,7 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
         <Button variant="quiet" fullWidth onClick={cancel}>Cancel</Button>
       </div>
     </div></div>:null}
-    {ceremony ? <StampCeremony collection={ceremony.collection} alreadyCollected={ceremony.duplicate}
+    {ceremony ? <StampCeremony seals={store.geographicSeals?.flatMap(r=>r.award?.unseen && r.award.derivedFromShopId===ceremony.collection.shopId?[r.award]:[])} collection={ceremony.collection} alreadyCollected={ceremony.duplicate}
       passportHref={`/passport/${ceremony.collection.countryCode.toLowerCase()}/${ceremony.collection.localitySlug}?stamp=${ceremony.collection.id}`}
       onClose={() => setCeremony(null)}/>:null}
   </>;

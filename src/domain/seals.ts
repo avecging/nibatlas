@@ -11,7 +11,7 @@ import type { ShopStampDesign } from "@/src/domain/shop-detail";
  *
  * The two rules, from `PRODUCT.md` and `BRAND.md`:
  *
- * - a locality seal derives from the first verified shop stamp in that locality;
+ * - a locality seal derives from the second distinct verified shop stamp in that locality;
  * - a country seal derives after five verified shop stamps in that country, or
  *   after the complete eligible curated set when that versioned set holds fewer
  *   than five shops.
@@ -153,7 +153,10 @@ export function deriveSeals({
   alreadyEarned = [],
   designSeal,
 }: DeriveSealsOptions): DerivedSeals {
-  const ordered = [...collections].sort(byCollectedAsc);
+  const seenShops = new Set<string>();
+  const ordered = [...collections].sort(byCollectedAsc).filter(c => {
+    if(seenShops.has(c.shopId)) return false; seenShops.add(c.shopId); return true;
+  });
   const kept = new Map<string, EarnedSeal>();
 
   for (const seal of alreadyEarned) {
@@ -164,11 +167,13 @@ export function deriveSeals({
     coverageSets.map((set) => [set.countryCode, set] as const),
   );
 
-  // Locality seals: the first verified stamp in a locality derives it.
+  // Demonstration default: two distinct shops. Account eligibility is server-owned.
+  const localityCounts = new Map<string, number>();
   for (const collection of ordered) {
     const id = localitySealId(collection.countryCode, collection.localitySlug);
 
-    if (kept.has(id)) {
+    localityCounts.set(id, (localityCounts.get(id) ?? 0) + 1);
+    if (kept.has(id) || localityCounts.get(id)! < 2) {
       continue;
     }
 

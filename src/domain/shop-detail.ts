@@ -261,6 +261,7 @@ export interface ShopDetail extends ShopMapSummary {
 export type StampTier = "shop" | "locality" | "country";
 
 export interface ShopStampDesign {
+  readonly generatedSealTemplate?: "cartouche-v1";
   /** Preserved approved export metadata. Asset delivery is owned by M6. */
   readonly commissioned?: {
     readonly illustratorCredit: string;
