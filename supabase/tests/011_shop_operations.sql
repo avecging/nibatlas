@@ -9,7 +9,7 @@ select ok(not has_function_privilege('service_role','public.admin_shop_write(tex
 select ok(not has_function_privilege('authenticated','public.apply_shop_document(uuid,jsonb)','EXECUTE'),'apply helper cannot bypass role guard');
 select ok(not has_function_privilege('authenticated','public.shop_edit_document(uuid)','EXECUTE'),'projection helper is not public');
 select ok(not has_function_privilege('authenticated','public.shop_claim_supported(jsonb,text,text)','EXECUTE'),'claim helper has no direct account grant');
-select is((select count(*)::int from pg_trigger where tgname='catalogue_no_truncate' and not tgisinternal),10,'every audited catalogue table rejects truncation');
+select is((select count(*)::int from pg_trigger where tgname='catalogue_no_truncate' and not tgisinternal),11,'every audited catalogue table rejects truncation');
 select throws_ok('truncate public.shop_links','42501','Catalogue truncation is forbidden; use audited row operations','database operator cannot silently truncate catalogue links');
 insert into auth.users(id) values('61000000-0000-4000-8000-000000000001'),('61000000-0000-4000-8000-000000000002'),('61000000-0000-4000-8000-000000000003');
 select public.assign_profile_role('61000000-0000-4000-8000-000000000002','editor');

@@ -41,6 +41,7 @@ export async function shopAdminRoute(
             'Invalid opening hours': {path:'shop.opening_hours',message:'Check the opening and closing times for each day.'},
             'Unknown catalogue vocabulary': {path:'types',message:'A catalogue choice changed. Reload the choices and select an available item.'},
             'Invalid source': {path:'sources',message:'Check the legacy source fields, or remove an unused new source.'},
+            'Invalid related shops': {path:'related_shops',message:'Choose up to 100 different existing shops; a shop cannot link to itself.'},
             'Invalid alias': {path:'aliases',message:'Check the name and language tag.'},
           };
           const field = error.code === '23505' && error.message.includes('unique constraint "shops_slug_key"')

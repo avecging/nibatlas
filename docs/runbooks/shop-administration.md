@@ -626,3 +626,28 @@ Desktop founder checklist after approved migration/deployment:
 
 Founder admin acceptance is on PC. Automated coverage continues across desktop,
 tablet and both mobile viewports; public field/device/launch acceptance is separate.
+
+### Related shops
+
+In **Shop & story**, search for an existing shop and add it to **Related shops**.
+Choose **Branch** or **Related shop**; the label is shared on both sides. Different
+branch names may show a helpful, non-blocking note. **Show on this shop's public
+page** affects only this page. The other shop gets a private backlink after Save;
+open that shop separately if its backlink should be public. Use the existing
+Save/Publish flow. Another open editor may need to reload after a reciprocal edit.
+
+Nearby takes priority. When a linked shop is already in the actual Nearby list,
+the display switch is off/disabled; the information control explains why. If it
+later leaves Nearby, enable display deliberately and publish again. It does not
+switch itself back on. Only published target listings can appear publicly.
+
+**Remove** removes both links when saved, and public links when published. Turn
+off public display instead to hide only one side. No extra confirmation is added.
+
+Founder staging check after an approved migration/deployment: link two synthetic
+shops far enough apart that neither appears in Nearby; publish one side and check
+its card/name/place/tag. Confirm the other side is still hidden and its unrelated
+private edits remain. Enable/publish the other side, then hide one side and remove
+the pair. Check that a Nearby target has a disabled switch and no duplicate card.
+On a narrow viewport Related shops follows Nearby; on desktop it is in the left
+column. Actual founder acceptance remains separate from automated checks.
