@@ -54,3 +54,13 @@ it('uses canonical option order, not relationship insertion order, with primary 
   expect(result.specialties).toEqual(['First canonical','Last canonical']);
   expect(result.specialtyLine).toBe('First canonical');
 });
+
+it('projects new unlabeled copy-only contacts through the real decoder/public adapter',()=>{
+  const record=fixture();
+  record.document.links=[{id:type,link_type:'wechat',url:null,account_value:'synthetic-wechat',label:null,is_official:true,sort_order:0},
+    {id:'61000000-0000-4000-8000-000000000004',link_type:'whatsapp',url:null,account_value:'+6581234567',label:null,is_official:true,sort_order:1}];
+  const preview=projectSavedShopPreview(record,options);
+  expect(preview).not.toBeNull();
+  expect(preview?.links).toEqual([{type:'wechat',accountValue:'synthetic-wechat',label:'synthetic-wechat',isOfficial:true},
+    {type:'whatsapp',accountValue:'+6581234567',label:'+6581234567',isOfficial:true}]);
+});

@@ -108,8 +108,10 @@ export function projectShopDetail(
   }
 
   const wireLinks: readonly ShopLink[] = wire.links.map((link) => ({
-    label: linkLabel(link.url, link.label),
-    url: link.url,
+    label: link.url ? linkLabel(link.url, link.label) : (link.label ?? link.accountValue ?? ""),
+    type: link.type,
+    ...(link.url ? {url:link.url} : {}),
+    ...(link.accountValue ? {accountValue:link.accountValue} : {}),
     isOfficial: link.isOfficial,
   }));
 
@@ -130,6 +132,7 @@ export function projectShopDetail(
       : [
           ...wireLinks,
           {
+            type: "website",
             label: linkLabel(wire.websiteUrl, undefined),
             url: wire.websiteUrl,
             isOfficial: true,

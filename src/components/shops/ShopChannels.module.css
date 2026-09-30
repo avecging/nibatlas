@@ -1,0 +1,13 @@
+.messaging {margin:.3rem 0 1rem;}
+.icons {display:flex;flex-wrap:wrap;gap:.65rem;}
+.icons button {width:52px;height:52px;display:grid;place-items:center;border:1px solid var(--border,#becac3);border-radius:12px;background:var(--paper,#fffdf8);color:var(--ink,#285e51);cursor:pointer;}
+.icons button:hover {background:#edf2ed;}
+.icons button:focus-visible {outline:2px solid #285e51;outline-offset:3px;}
+.status:empty {display:none;}
+.status {display:block;margin-top:.5rem;font-size:.875rem;}
+.card {border-top:1px solid var(--border,#d5dcd4);padding-top:1.5rem;margin-top:1.5rem;min-width:0;}
+.card h2 {font-family:var(--font-serif,serif);font-size:1.5rem;margin:0 0 1rem;}
+.card ul {list-style:none;margin:0;padding:0;display:grid;gap:1rem;}
+.card li {display:flex;align-items:center;gap:.8rem;min-width:0;}
+.card svg {flex-shrink:0;}
+.card a {display:flex;align-items:center;flex:1;min-width:44px;min-height:44px;overflow-wrap:anywhere;color:inherit;text-underline-offset:.2em;}

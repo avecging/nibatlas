@@ -48,7 +48,7 @@ export function projectSavedShopPreview(record: ShopRecord, options: Options): S
         // Source-less services are editorially reviewed only when publishing.
         // Add their preview shape after public decoding, without inventing a review timestamp.
         services: [],
-        links: d.links.filter(r => r.is_official === true).sort((a,b) => Number(a.sort_order ?? 0)-Number(b.sort_order ?? 0) || String(a.id).localeCompare(String(b.id))).map(r => ({type:r.link_type,label:r.label,url:r.url,isOfficial:true})),
+        links: d.links.filter(r => r.is_official === true).sort((a,b) => Number(a.sort_order ?? 0)-Number(b.sort_order ?? 0) || String(a.id).localeCompare(String(b.id))).map(r => ({type:r.link_type,label:r.label,url:r.url,accountValue:r.account_value,isOfficial:true})),
         sources: d.sources.map(r => ({id:r.id,label:r.label,kind:r.source_type,url:r.source_url,retrievedOn:String(r.checked_at).slice(0,10),confirms:r.claims ?? []})),
       }) as Record<string, unknown>,
       specialtyLine: specialties[0] ?? services[0]?.label ?? null,

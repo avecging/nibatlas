@@ -33,8 +33,10 @@ export type OpeningHoursEntry = {
 export type OpeningHoursException = Omit<OpeningHoursEntry, 'day'> & { readonly date: string };
 
 export interface ShopLink {
+  readonly type?: string;
+  readonly accountValue?: string;
   readonly label: string;
-  readonly url: string;
+  readonly url?: string;
   readonly isOfficial: boolean;
 }
 

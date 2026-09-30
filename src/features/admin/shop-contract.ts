@@ -1,3 +1,4 @@
+import { PLATFORMS } from '@/src/domain/shop-channels';
 import { EXPERIENCE_ICON_KEYS } from '@/src/domain/experience-icons';
 /** M6 WP2 contract: catalogue fields only; no stamp, media or import writes. */
 export type Value =
@@ -189,17 +190,10 @@ export const GROUPS: {
     fields: [
       f("link_type", "Link kind", {
         required: true,
-        choices: [
-          "website",
-          "instagram",
-          "facebook",
-          "x",
-          "line",
-          "directions",
-          "contact",
-        ],
+        choices: ['website', ...PLATFORMS, 'directions', 'contact'],
       }),
-      f("url", "URL", { required: true }),
+      f("url", "URL"),
+      f("account_value", "Contact number / ID"),
       f("label", "Link label"),
       f("is_official", "Official link", { kind: "boolean", required: true }),
       f("sort_order", "Display order", { kind: "number", required: true }),

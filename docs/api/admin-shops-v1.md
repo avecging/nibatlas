@@ -465,3 +465,41 @@ RLS is forced, with no direct browser or service table grants.
 Proposed additive migration: `20260929090000_d4d_combined_publication.sql`, after
 D4c `20260928090000`. No existing C/manual writers, vocabulary, artwork or hosted
 rows are migrated. Both migrations and deployment still require founder approval.
+
+## Social profiles and messaging contacts (#110)
+
+Social Media and Contact are ordinary `document.links` fields in Shop & story.
+The two platform pickers add editable rows (one account per platform) to the same
+unsaved document. Save/private preview/publish, role checks, audit, revision
+conflicts and position confirmation stay unchanged. No channel-specific review,
+approval or confirmation is added. Removing a row takes effect publicly only on
+publication, like other shop fields.
+
+Platforms: social `facebook`, `instagram`, `tiktok`, `xiaohongshu`, `threads`, `x`,
+`youtube`; contact `whatsapp`, `telegram`, `line`, `wechat`, `messenger`, `kakaotalk`.
+Legacy `website`, `directions`, `contact` and existing IDs/labels/order/official
+flags remain. The new fields default to `is_official:true`; legacy flags are not
+silently promoted. Only official rows enter the public API and saved preview.
+
+Migration `20260930135052_shop_social_contacts.sql` adds nullable `account_value`
+and permits a null `url` only for a messaging number/ID. Exactly one destination
+is present: a real HTTP(S) `url`, or a bare `account_value` (≤160 characters).
+Social handles normalize to profile URLs; Xiaohongshu requires a profile/share
+link because a public RED ID/display name is not a reliable profile path.
+Manual and imported inputs share `normalizeChannel` and `normalizeShopDocument`.
+URL inputs are restricted to known platform hosts, reject credentials/control
+characters/backslashes and are never fetched, expanded or verified as live accounts.
+No country prefix, personal-to-official ID conversion, or destination is guessed.
+
+SQL independently checks destination shape, supported type, row ownership,
+unique platform and ordinary URL safety. The existing audited writer handles
+insert/update/removal. No new RPC, role grant or table is introduced. Null contact
+values are omitted from the canonical edit projection to retain existing
+fingerprints and private-copy bases; existing saved documents are not rewritten.
+Legacy duplicates remain stored; to save such a record, remove extra accounts
+explicitly. No migration silently chooses an account.
+
+Public `links` retain `type` and optionally expose `accountValue`; `url` can now
+be absent for a copy-only contact. Consumers must not run URL parsing on IDs.
+The shared saved/public projector carries both forms. Public page behaviour and
+verified link formats are documented in `v1-shop-reads.md`.

@@ -53,6 +53,19 @@ to shared migrations/contracts. No package here authorizes production release.
 | E — Catalogue and core acceptance | Locate actual founder dataset; map once, dry-run/correct/import, review genuine coordinates/timezones/unknowns; truthful public About; geographic seal/versioned coverage and anomaly-list dispositions; changed admin/public flows, field checks and five-user usability. | No fabricated catalogue or verification dates. Keep WP-D founder desktop feedback, broader device/indoor checks and #17 About accuracy explicit. Imports never create visits or derive award denominators from batch size. |
 | F — Production and release | Production/auth/domain/SMTP/OAuth, server account export/deletion consistent with immutable history/privacy, monitoring/spend alerts, terms/privacy, backups/restore and rollback drills, accessibility/performance/security, launch publication audit and founder acceptance. | Infrastructure discovery and independent account lifecycle work can start before D/E finish. Actual promotion follows authorized gates. Read closed-beta runbook before gating; preserve automation/alternate-route protection; no tester invitations here. |
 
+### Current follow-up — shop social/contact fields (#110)
+
+Package D was merged in #109, deployed and founder-tested (founder confirmation,
+30 September 2026). Historical D checkpoint entries below describe delivery at
+the time and do not reopen that work. The approved next increment is #110:
+Social Media/Contact pickers in Shop & story, public messaging plus a separate
+Website & social card, and matching CSV/JSON safe-update support. All use existing
+private save/preview/publication; no channel-specific review or confirmation.
+
+Implementation and one additive links migration are proposed in the #110 PR;
+merge, hosted migration and deployment await founder approval. Workers Free,
+#97, Packages E/F, catalogue preparation and production remain out of scope.
+
 ### Package D1 — bounded editor polish
 
 The approved admin handoff allows coherent slices with the remainder recorded.

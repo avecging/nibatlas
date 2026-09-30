@@ -127,3 +127,11 @@ describe("correction routing", () => {
     );
   });
 });
+
+it('routes new channel errors to story and legacy/metadata controls to review',()=>{
+  const d = {...draft, links:[{link_type:'wechat'},{link_type:'website'}]};
+  expect(sectionForPath('links.0.url',d)).toBe('story');
+  expect(sectionForPath('links.0.account_value',d)).toBe('story');
+  expect(sectionForPath('links.0.sort_order',d)).toBe('review');
+  expect(sectionForPath('links.1.url',d)).toBe('review');
+});
