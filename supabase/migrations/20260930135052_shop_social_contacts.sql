@@ -190,8 +190,8 @@ begin
     or (select count(value->>'url')<>count(distinct value->>'url') from jsonb_array_elements(d->'links')) then
     raise exception 'Duplicate catalogue item' using errcode='22023';
   end if;
-  if exists(select 1 from jsonb_array_elements(d->'links') r
-    where r->>'link_type' in ('facebook','instagram','tiktok','xiaohongshu','threads','x','youtube','whatsapp','telegram','line','wechat','messenger','kakaotalk') group by r->>'link_type' having count(*)>1) then
+  if exists(select 1 from jsonb_array_elements(d->'links') as platform_rows(value)
+    where platform_rows.value->>'link_type' in ('facebook','instagram','tiktok','xiaohongshu','threads','x','youtube','whatsapp','telegram','line','wechat','messenger','kakaotalk') group by platform_rows.value->>'link_type' having count(*)>1) then
     raise exception 'One account per platform' using errcode='22023';
   end if;
   if exists(select 1 from jsonb_array_elements(d->'types') t join public.shop_types st on st.id=(t->>'shop_type_id')::uuid where st.code='test_venue') and s->>'source_quality'<>'demo' then

@@ -145,10 +145,10 @@ test("Save is a bookmark whose name and state change together", async ({ page })
 test("the official website appears once, as visit information", async ({ page }) => {
   await page.goto("/shops/ginza-itoya-main-store");
 
-  // The header button is gone; the sourced link lives in Before you go.
+  // The full URL lives in the separate card below Plan your visit.
   await expect(page.getByRole("link", { name: /^official site$/i })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "ito-ya.co.jp" })).toHaveCount(1);
-  await expect(page.getByText("Official website")).toBeVisible();
+  await expect(page.getByRole("link", { name: /Website: https:\/\/www\.ito-ya\.co\.jp\// })).toHaveCount(1);
+  await expect(page.getByRole("heading", {name:"Website & social"})).toBeVisible();
 });
 
 test("Plan your visit renders no heading over an empty subsection", async ({

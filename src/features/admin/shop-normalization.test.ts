@@ -118,3 +118,7 @@ it('normalizes platform rows in the same manual boundary, permits multiple copy-
   expect(normalizeShopDocument(d)).toEqual(d);
   expect(()=>normalizeShopDocument({...input,links:[...input.links,row('instagram','@other','90000000-0000-4000-8000-000000000014')]})).toThrow();
 });
+
+it.each([123, true, {handle:'shopname'}])('does not coerce non-text platform inputs into account URLs: %j',value=>{
+  expect(()=>normalizeShopDocument({...base(),links:[{id:'90000000-0000-4000-8000-000000000021',link_type:'instagram',url:value,is_official:true,sort_order:0}]})).toThrow();
+});

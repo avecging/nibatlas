@@ -121,8 +121,12 @@ export function normalizeShopDocument(input: unknown, options?: Options): Docume
         const raw = obj(v, path);
         if (isPlatform(raw.link_type)) {
           if (raw.url && raw.account_value) issue(`${path}.url`, 'Supply a link or an ID, not both.');
-          try { v = {...raw, ...normalizeChannel(raw.link_type, String(raw.url || raw.account_value || ''))}; }
-          catch (e) { issue(`${path}.url`, e instanceof Error ? e.message : 'Enter an account or link.'); }
+          const value = raw.url || raw.account_value;
+          if (typeof value !== 'string') issue(`${path}.url`, 'Enter an account or link as text.');
+          else {
+            try { v = {...raw, ...normalizeChannel(raw.link_type, value)}; }
+            catch (e) { issue(`${path}.url`, e instanceof Error ? e.message : 'Enter an account or link.'); }
+          }
         } else if (!raw.url || raw.account_value) issue(`${path}.url`, 'Supply a complete web link.');
       }
       const r = parse(v, g.fields, path, hasId ? ['id'] : []);
