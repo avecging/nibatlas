@@ -156,6 +156,26 @@ preview uses an allowlist and omits private notes. RLS, current-role locks,
 audited writes, revision/base checks and original stamp/collection history remain.
 No upload is published or activated by a catalogue save or publish.
 
+## Social profiles and contact channels
+
+The Shop & story editor places Social Media and Contact columns below website
+and status and above the short introduction. Each column uses an Add picker and
+supports one row per platform, edits and removal. Values are part of the same
+complete `links` document and use the existing Save, saved preview, audit and
+explicit Publish flow; there is no separate approval state.
+
+Social `link_type` values are `social_facebook`, `social_instagram`,
+`social_tiktok`, `social_xiaohongshu`, `social_threads`, `social_x`, and
+`social_youtube`. Contact values are `contact_whatsapp`, `contact_telegram`,
+`contact_line`, `contact_wechat`, `contact_messenger`, and
+`contact_kakaotalk`. Their `label` stores the entered handle, contact value, or
+original share URL; `url` stores a normalized public URL when one is safely
+available and may be null for copy-only contacts. Social entries require a URL.
+Contact short/share URLs that do not expose a usable ID are copied as links;
+their tokens are never presented as account IDs. No country code or destination
+is inferred. Platform-specific mobile destinations are documented in the
+public-read contract.
+
 B3 canonical mappings/seven-section essentials, C's mandatory 200-row workflow
 and D's full public preview/media choices remain. C must invoke position review
 and publication deliberately against reviewed revisions, not copy attestations

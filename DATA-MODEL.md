@@ -133,7 +133,16 @@ from the shop's country. Unique normalized alias per shop.
 
 `id`, `shop_id`, `link_type`, `url`, `label`, `is_official`, `sort_order`, timestamps.
 
-Types include website, Instagram, Facebook, X, Line, directions, contact. URLs are validated and sanitized.
+Legacy types include website, Instagram, Facebook, X, Line, directions and
+contact. Typed profiles use `social_facebook`, `social_instagram`,
+`social_tiktok`, `social_xiaohongshu`, `social_threads`, `social_x`, and
+`social_youtube`; messaging uses `contact_whatsapp`, `contact_telegram`,
+`contact_line`, `contact_wechat`, `contact_messenger`, and `contact_kakaotalk`.
+Social rows require a validated URL. Contact rows may have a null URL when their
+ID is copy-only; their label holds the contact value or an unparsed share link.
+The complete document validator enforces one row per typed platform. All typed
+rows remain subject to the existing private save, audit and explicit publication
+boundary.
 
 ### `shop_images`
 

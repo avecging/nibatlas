@@ -1,4 +1,5 @@
 import { document, GROUPS, HOURS_FIELDS, HOURS_EXCEPTION_FIELDS, SHOP_FIELDS, UUID, type Document, type Field, type Row, type Options } from './shop-contract';
+import { normalizeChannelValue, parseChannelLinkType } from '@/src/domain/shop-channels';
 
 export interface FieldIssue { path: string; message: string }
 export class ShopValidationError extends Error {
@@ -67,7 +68,7 @@ export function normalizeShopDocument(input: unknown, options?: Options): Docume
         if (f.choices && !f.choices.includes(t)) issue(at, 'Choose an available option.');
         if (f.vocabulary && !UUID.test(t)) issue(at, 'Choose an existing item or resolve its mapping.');
         if (f.kind === 'date' && !validDate(t)) issue(at, 'Enter a real ISO date or timestamp no later than now.');
-        if (['url', 'website_url', 'source_url'].includes(f.key) && !validWebUrl(t)) issue(at, 'Enter a complete http:// or https:// link.');
+        if (['url', 'website_url', 'source_url'].includes(f.key) && !(path === 'links' && f.key === 'url') && !validWebUrl(t)) issue(at, 'Enter a complete http:// or https:// link.');
         result[f.key] = f.vocabulary ? t.toLowerCase() : t;
       }
     }
@@ -143,13 +144,42 @@ export function normalizeShopDocument(input: unknown, options?: Options): Docume
   result.aliases.forEach((r, i) => {
     if (typeof r.language_tag === 'string' && !/^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$/.test(r.language_tag)) issue(`aliases.${i}.language_tag`, 'Use a language tag such as ja-JP.');
   });
+  const duplicateChannelTypes = new Set<string>();
   result.links.forEach((r, i) => {
     if (typeof r.sort_order === 'number' && (!Number.isInteger(r.sort_order) || r.sort_order < 0 || r.sort_order > 1000)) issue(`links.${i}.sort_order`, 'Use a whole number from 0 to 1000.');
+    const channel = typeof r.link_type === 'string' ? parseChannelLinkType(r.link_type) : undefined;
+    if (channel && channel.kind === 'social' && typeof r.url === 'string' && validWebUrl(r.url)) {
+      const raw = typeof r.label === 'string' ? r.label : '';
+      if (!raw.trim()) issue(`links.${i}.label`, 'Enter a link, handle or contact value.');
+      if (r.is_official !== true) issue(`links.${i}.is_official`, 'Platform profiles must be public links.');
+      if (duplicateChannelTypes.has(String(r.link_type))) issue(`links.${i}.link_type`, 'Keep one account per platform for this shop.');
+      duplicateChannelTypes.add(String(r.link_type));
+    } else if (channel) {
+      const raw = typeof r.label === 'string' ? r.label : '';
+      if (!raw.trim()) issue(`links.${i}.label`, 'Enter a link, handle or contact value.');
+      else {
+        try {
+          const normalized = normalizeChannelValue(channel.kind, channel.platform, raw);
+          r.label = normalized.value;
+          r.url = normalized.url;
+          r.is_official = true;
+        } catch {
+          issue(`links.${i}.label`, channel.kind === 'social'
+            ? 'Enter a complete web link or a platform handle.'
+            : 'Enter a phone number, ID or complete web link.');
+        }
+      }
+      if (duplicateChannelTypes.has(String(r.link_type))) issue(`links.${i}.link_type`, 'Keep one account per platform for this shop.');
+      duplicateChannelTypes.add(String(r.link_type));
+    } else if (typeof r.url !== 'string' || !validWebUrl(r.url)) {
+      issue(`links.${i}.url`, 'Enter a complete http:// or https:// link.');
+    }
   });
   for (const [group, key] of [['aliases', 'alias'], ['links', 'url']] as const) {
     const seen = new Set<string>();
     result[group].forEach((r, i) => {
       const v = String(r[key] ?? ''), comparable = group === 'aliases' ? v.toLowerCase() : v;
+      if (group === 'links' && !v) return;
       if (seen.has(comparable)) issue(`${group}.${i}.${key}`, 'Remove the duplicate item.');
       seen.add(comparable);
     });

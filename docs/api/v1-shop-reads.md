@@ -97,6 +97,25 @@ values are shop coordinates. Each candidate also carries `positionPrecision`,
 both endpoints have street precision, and never recommends a permanently closed
 shop.
 
+## Website, social profiles and contact channels
+
+The detail wire `links` array carries the typed `social_*` and `contact_*`
+rows described by the admin contract. `websiteUrl` is shown first in the
+Website & social card, followed by social rows with platform labels and full
+clickable URLs. The card is omitted when both are empty. Existing phone stays
+in Plan your visit; messaging icons appear directly beneath it, or alongside
+the first visit fact when no phone is supplied. Empty sections stay hidden.
+
+On desktop, a messaging icon copies its saved number, ID or original share link
+and confirms `Copied` or `Link copied`. On mobile, values with an explicit
+supported HTTPS destination open that destination; copy-only values use the
+clipboard. This does not promise an installed app will launch or detect a
+failed launch. WhatsApp needs a supplied full international number; Telegram
+usernames and LINE Official Account IDs can form supported links; Messenger
+uses explicit `m.me` links. WeChat IDs use copy fallback because bare-ID launch
+is unverified. Unknown or short/share links without an extractable ID are copied
+as their original link, never as a token-like account ID.
+
 ## Payload budget
 
 The viewport endpoint has a 500-record hard cap and a 250 KB compressed response

@@ -7,6 +7,17 @@ function errors(value:unknown) {
   catch(e) { if(!(e instanceof ShopValidationError)) throw e; return e.issues; }
 }
 describe('shared full-document normalization',()=>{
+  it('normalizes channel rows and allows only one account per platform',()=>{
+    const doc={...base(),links:[
+      {id:'60000000-0000-4000-8000-000000000002',link_type:'social_instagram',url:'https://www.instagram.com/pen-shop/',label:'@pen-shop',is_official:true,sort_order:0},
+      {id:'60000000-0000-4000-8000-000000000003',link_type:'contact_wechat',url:null,label:'shop-id',is_official:true,sort_order:1},
+    ]};
+    const normalized=normalizeShopDocument(doc);
+    expect(normalized.links[0]).toMatchObject({url:'https://www.instagram.com/pen-shop/',label:'@pen-shop'});
+    expect(normalized.links[1]).toMatchObject({url:null,label:'shop-id'});
+    const duplicate={...doc,links:[...doc.links,{...doc.links[1],id:'60000000-0000-4000-8000-000000000004'}]};
+    expect(errors(duplicate).some(issue=>issue.message.includes('one account per platform'))).toBe(true);
+  });
   it('normalizes mapped text cells and manual values identically without inventing facts',()=>{
     const value=base();
     const shop={...value.shop,name:'  Synthetic 文具店  ',country_code:' sg ',latitude:'0',longitude:'-0.5',appointment_required:'false',postal_code:'00123',phone:'+65 00123',short_description:'First paragraph.\n\n第二段。'};

@@ -79,16 +79,17 @@ describe("shop detail projection", () => {
     expect(first.countryLabel).toBe("Japan");
   });
 
-  it("labels a link from its own URL when the record gives no label", () => {
+  it("moves the official website into its own field", () => {
     const shop = projectShopDetail(
       wire({ links: [{ type: "website", url: "https://www.example.jp/shop", isOfficial: true }] }),
       { demoRecords: false },
     );
 
-    expect(shop.links?.[0]?.label).toBe("example.jp");
+    expect(shop.websiteUrl).toBe("https://www.example.jp/shop");
+    expect(shop.links).toBeUndefined();
   });
 
-  it("folds the record's own website into the contextual links, once", () => {
+  it("does not duplicate a website already present in the links table", () => {
     const shop = projectShopDetail(
       wire({
         websiteUrl: "https://example.jp/",
@@ -97,12 +98,22 @@ describe("shop detail projection", () => {
       { demoRecords: false },
     );
 
-    expect(shop.links).toHaveLength(1);
+    expect(shop.websiteUrl).toBe("https://example.jp/");
+    expect(shop.links).toBeUndefined();
+  });
+
+  it("projects social profile URLs and contact values without treating an unrecognized link token as an ID", () => {
+    const shop = projectShopDetail(wire({ links: [
+      { type: "social_instagram", url: "https://www.instagram.com/pen-shop/", label: "@pen-shop", isOfficial: true },
+      { type: "contact_wechat", label: "https://u.wechat.com/shareToken", isOfficial: true },
+    ] }), { demoRecords: false });
+    expect(shop.socialProfiles).toEqual([{ platform: "instagram", url: "https://www.instagram.com/pen-shop/" }]);
+    expect(shop.contactChannels).toEqual([{ platform: "wechat", value: "https://u.wechat.com/shareToken" }]);
   });
 
   it("rejects an unparseable link URL", () => {
     expect(() =>
-      projectShopDetail(wire({ links: [{ type: "website", url: "not a url", isOfficial: false }] }), {
+      projectShopDetail(wire({ links: [{ type: "directions", url: "not a url", isOfficial: false }] }), {
         demoRecords: false,
       }),
     ).toThrow(ShopDetailProjectionError);

@@ -1,0 +1,101 @@
+.columns {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  margin: 8px 0 16px;
+}
+
+@media (min-width: 760px) {
+  .columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.column {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--bg-surface);
+}
+
+.columnHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.columnHeader h3 { margin: 0; }
+.columnHeader button, .remove, .dialogActions button {
+  min-height: 44px;
+  padding: 8px 14px;
+  font: inherit;
+  font-weight: 600;
+  border: 1px solid var(--action-primary);
+  border-radius: 8px;
+  color: var(--action-primary);
+  background: var(--bg-surface);
+  cursor: pointer;
+}
+
+.empty { color: var(--text-secondary); font-size: 14px; }
+.fields { display: grid; gap: 12px; }
+.valueRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+.platformLabel { display: flex; align-items: center; gap: 8px; }
+.mark {
+  display: inline-grid;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  background: var(--bg-surface-warm);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+.valueRow input { margin-top: 5px; }
+.remove { color: var(--text-secondary); border-color: var(--border-strong); font-weight: 400; }
+
+.backdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 48%);
+}
+.dialog {
+  width: min(100%, 560px);
+  max-height: min(86vh, 720px);
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid var(--border-default);
+  border-radius: 14px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: 0 16px 50px rgb(0 0 0 / 22%);
+}
+.dialog h3 { margin: 0 0 18px; }
+.pickerGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.option {
+  display: flex !important;
+  min-height: 48px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 400 !important;
+}
+.option input { width: 18px; min-height: 18px; height: 18px; margin: 0; padding: 0; }
+.option:has(input:disabled) { opacity: .6; cursor: default; }
+.dialogActions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+.dialogActions .secondary { border-color: var(--border-strong); color: var(--text-secondary); font-weight: 400; }
+.dialogActions .primary { background: var(--action-primary); color: var(--bg-surface); }
+.dialog button:focus-visible, .dialog input:focus-visible, .column button:focus-visible, .column input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }

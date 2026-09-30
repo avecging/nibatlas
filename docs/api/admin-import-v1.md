@@ -84,6 +84,16 @@ separate review and canonical creation before import. Specialties are also
 controlled choices; services are outside the v1 import file. Existing shop
 links, sources, notes and publication rules are unaffected.
 
+The flat import contract also accepts `social_facebook`, `social_instagram`,
+`social_tiktok`, `social_xiaohongshu`, `social_threads`, `social_x`,
+`social_youtube`, `contact_whatsapp`, `contact_telegram`, `contact_line`,
+`contact_wechat`, `contact_messenger`, and `contact_kakaotalk`. Each supplied
+platform value is validated and normalized by the shared full-document boundary.
+A supplied channel updates the same platform row while retaining its ID; an
+omitted or blank channel leaves it untouched. Add a channel name to
+`clear_fields` to deliberately remove that one platform. Preview lists each
+platform's before/after value. Existing non-channel links remain preserved.
+
 Blank/omitted/null cells preserve existing values. `clear_fields` contains
 `|`-separated supported field names, deliberately clears scalars or the whole
 selected relationship group, and appears as EXPLICIT CLEAR with before/after.

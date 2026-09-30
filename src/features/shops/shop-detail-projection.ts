@@ -1,10 +1,13 @@
 import { countryLabel } from "@/src/domain/geo";
 import type { ShopDetailReadV1 } from "@/src/api/v1/shop-read";
 import type {
+  ShopContactChannel,
   ShopDetail,
   ShopLink,
+  ShopSocialProfile,
   ShopStampDesign,
 } from "@/src/domain/shop-detail";
+import { parseChannelLinkType } from "@/src/domain/shop-channels";
 import { motifForStampKey, STAMP_DESIGN_VERSION } from "@/src/domain/stamp-design";
 import { inkForStampKey, STAMP_PALETTE_VERSION } from "@/src/domain/stamp-palette";
 
@@ -107,39 +110,37 @@ export function projectShopDetail(
     }
   }
 
-  const wireLinks: readonly ShopLink[] = wire.links.map((link) => ({
-    label: linkLabel(link.url, link.label),
-    url: link.url,
-    isOfficial: link.isOfficial,
-  }));
-
-  /*
-   * `websiteUrl` is the record's own site and belongs in the same contextual
-   * link list the fixtures populate, so it is folded in rather than dropped —
-   * deduplicated, because a record may already list it among `links`.
-   *
-   * Phone and postal code are distinct optional visit details; the legacy
-   * lastVerifiedAt stays separate from the actual editorial review event.
-   */
-  const hasWebsiteLink =
-    wire.websiteUrl !== undefined &&
-    wireLinks.some((link) => link.url === wire.websiteUrl);
-  const links: readonly ShopLink[] =
-    wire.websiteUrl === undefined || hasWebsiteLink
-      ? wireLinks
-      : [
-          ...wireLinks,
-          {
-            label: linkLabel(wire.websiteUrl, undefined),
-            url: wire.websiteUrl,
-            isOfficial: true,
-          },
-        ];
+  const links: ShopLink[] = [];
+  const socialProfiles: ShopSocialProfile[] = [];
+  const contactChannels: ShopContactChannel[] = [];
+  let websiteUrl = wire.websiteUrl;
+  for (const link of wire.links) {
+    const channel = parseChannelLinkType(link.type);
+    if (channel?.kind === "social") {
+      if (!link.url) throw new ShopDetailProjectionError("detail social profile is missing its URL");
+      socialProfiles.push({ platform: channel.platform as ShopSocialProfile["platform"], url: link.url });
+    } else if (channel?.kind === "contact") {
+      if (!link.label) throw new ShopDetailProjectionError("detail contact channel is missing its value");
+      contactChannels.push({
+        platform: channel.platform as ShopContactChannel["platform"],
+        value: link.label,
+        ...(link.url ? { url: link.url } : {}),
+      });
+    } else if (link.type === "website") {
+      websiteUrl ??= link.url;
+    } else {
+      if (!link.url) throw new ShopDetailProjectionError("detail.links contains a link without a URL");
+      links.push({ label: linkLabel(link.url, link.label), url: link.url, isOfficial: link.isOfficial });
+    }
+  }
 
   return {
     ...(wire.review ? { review: wire.review } : {}),
     ...(wire.editorial ? { editorial: wire.editorial } : {}),
     ...(wire.phone ? { phone: wire.phone } : {}),
+    ...(websiteUrl ? { websiteUrl } : {}),
+    ...(socialProfiles.length ? { socialProfiles } : {}),
+    ...(contactChannels.length ? { contactChannels } : {}),
     ...(wire.postalCode ? { postalCode: wire.postalCode } : {}),
     id: wire.id,
     slug: wire.slug,
