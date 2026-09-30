@@ -405,6 +405,63 @@ Nothing is written to browser storage, preview URLs or initial HTML.
 Migration `20260928090000_d4c_durable_shop_review.sql` is additive and must be
 approved/applied before deployment of this endpoint. Existing publication,
 position-confirmation, media writers, C1–C3, and immutable artwork/impressions are
-unchanged. **No publication writer consumes this receipt yet.** Explicit combined
-publication and recoverable outcomes are the next Package D increment; D4c does
-not complete Package D or authorize hosted migrations/deployment.
+unchanged. **D4d consumes this receipt only through the separate deliberate combined action below.**
+D4c alone does not complete Package D or authorize hosted migrations/deployment.
+
+
+## D4d deliberate combined publication
+
+`GET /api/v1/admin/shops/[id]/publication` returns `{publication:null}` or the
+caller's latest durable outcome for this shop/environment. POST accepts exactly
+`{action:"publish"|"retry",reviewId:UUID}` (maximum 1 KiB). Both methods require a
+verified cookie and **current admin** role. Same-origin JSON POST, no query,
+private/no-store, bounded safe response projection and service-only actor/environment
+RPC follow D4c. Editors retain separate shop-only publishing and review saving;
+combined publication does not grant them media/artwork activation authority.
+
+`publish` consumes only the caller's exact current D4c receipt. A changed review,
+saved/canonical content, gallery/artwork or referenced vocabulary requires fresh
+review. The saved location must already have deliberate position confirmation;
+this action never confirms it. Unsaved local work/pending uploads disable the UI.
+The inline confirmation names the saved choices and public consequences.
+
+The shop lock covers the whole operation. Shop publication and optional selected
+stamp activation form one subtransaction using existing writers/revision checks:
+failure rolls both back, including their audit. Photos are then attempted separately
+in saved gallery order, followed by the logo. Existing approved photos stay included;
+only selected private photos are approved. One selected logo replaces the existing
+logo atomically through the existing media writer. **Null logo/stamp means no
+instruction to remove or deactivate anything**; the current public logo/active
+stamp stays. The comparison can omit a logo; combined confirmation explicitly
+states this keep behavior. To hide a logo, use the existing separate media action.
+Old artwork versions, creator credit and historical impressions are unchanged.
+
+The outcome has `reviewId`, `status` (`complete`, `partial`, `failed`), `canRetry`,
+`updatedAt`, and bounded `outcomes` for shop/stamp/each selected photo/logo.
+Each outcome contains kind, nullable targetId, status (`pending`, `succeeded`,
+`failed`) and a safe nullable reason (`review_again`, `requirements`, `unavailable`).
+Success includes already-current/unchanged selections; pending means not attempted.
+Provider messages, documents, captions, coordinates and storage keys are excluded.
+
+The ledger and append-only publication audit commit with successful parts. Failure
+of either aborts the entire RPC. Core failure prevents media attempts. The outer
+transaction exposes no intermediate step; on commit, successful parts become
+visible together, even if another part failed. A repeated `publish` reads the
+existing result without performing any retry. After an uncertain/lost response,
+**Check publication outcome** or reload before another mutation. GET never writes.
+`retry` is deliberate, skips successes, and requires the same latest review plus
+the exact server-owned state recorded after the preceding attempt. Own successful
+writes are accounted for; intervening external changes require re-review. A new
+review cannot resurrect an old retry. Completed attempts remain historical results,
+not claims about the page after later edits. Archived shops can still show their
+outcome but cannot retry. Private outcomes are scoped per account/shop/environment.
+
+SQL holds current admin then shop locks, reuses the existing service-only media
+writers and temporarily establishes the verified actor for the authenticated
+catalogue writer/audit, restoring request claims afterwards. This actor-setting
+function is never granted to anonymous/authenticated roles. Private ledger/audit
+RLS is forced, with no direct browser or service table grants.
+
+Proposed additive migration: `20260929090000_d4d_combined_publication.sql`, after
+D4c `20260928090000`. No existing C/manual writers, vocabulary, artwork or hosted
+rows are migrated. Both migrations and deployment still require founder approval.

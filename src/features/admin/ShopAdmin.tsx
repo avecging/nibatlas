@@ -1146,7 +1146,7 @@ function Workspace({ id }: { id: string | null }) {
             }}
             onConfirm={setConfirmation}
             onOpenPhotos={() => go("photos")}
-            mediaComparison={<MediaReview record={record}
+            mediaComparison={<MediaReview record={record} canPublish={role === "admin"} publicationDisabled={busy || dirty || pendingUploads || archived}
               localityName={options.localities?.find(o => o.id === record.document.shop.locality_id)?.label.replace(/ \([A-Z]{2}\)$/, "") ?? ""}
               onOpenPhotos={() => go("photos")} onOpenStamp={() => go("stamp")}/>}
             onRecheckMedia={() => setMediaCheck("pending")}
