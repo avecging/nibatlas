@@ -15,6 +15,22 @@ GPT owns end-to-end implementation and initiates independent review under
 and scope decisions. A conductor/orchestrator has not been onboarded. `AGENTS.md`
 is the shared working contract. This assignment covers every milestone; frontend work is not reserved for Claude.
 
+## Current follow-up — Related shops (#112), 30 September 2026
+
+Founder confirms Package D, social/contact #111 and Website & social card #115
+merged, deployed and accepted. #113 is explicitly rejected; never revive it.
+The approved next task is #112 before Package E. Shared Branch/Related shop label,
+independent per-side visibility, private reciprocal links and Nearby deduplication
+are being implemented through the existing Save/Publish flow. Once Nearby stops
+showing a target, Related shops stays off until explicitly enabled. No separate
+approval step, group manager or Workers plan change. Technical review/CI and
+founder staging acceptance are separate; no hosted changes are implied.
+
+After #112, discuss #114's geographic-seal rules, visitor explanations and minimal
+admin controls before implementing Package E's persisted awards. The anomaly
+screen is deferred until concrete cost/monetisation risk warrants it. Catalogue
+imports, production, #97 and hosted reset/seed remain outside this increment.
+
 ## Current work — Q4 stability and admin/import sequence, 20 September 2026
 
 | Area | State / next action |

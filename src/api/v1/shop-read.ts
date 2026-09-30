@@ -125,6 +125,7 @@ export interface ShopDetailReadV1 extends ShopMapSummary {
   readonly services: readonly PublicShopServiceV1[];
   readonly brands: readonly string[];
   readonly links: readonly PublicShopLinkV1[];
+  readonly relatedShops?: readonly import("@/src/domain/shop-detail").RelatedShop[];
   readonly sources: readonly PublicShopSourceV1[];
 }
 
@@ -539,6 +540,13 @@ export function decodeShopDetailV1(value: unknown): ShopDetailReadV1 | null {
     specialties: stringArray(item["specialties"], "detail.specialties"),
     services,
     brands: stringArray(item["brands"], "detail.brands"),
+    ...(item['relatedShops'] === undefined ? {} : {relatedShops: arrayOf('relatedShops', (entry, index) => {
+      const r=record(entry, `detail.relatedShops[${index}]`);
+      const slug=string(r['slug'],'related.slug');
+      if(!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug) || !['branch','related'].includes(String(r['kind']))) throw new ShopReadContractError('Invalid related shop');
+      return {id:string(r['id'],'related.id'),slug,name:string(r['name'],'related.name'),
+        countryCode:countryCode(r['countryCode'],'related.countryCode'),localityName:string(r['localityName'],'related.localityName'),kind:r['kind'] as 'branch'|'related'};
+    })}),
     links: arrayOf("links", (entry, index) => {
       const link = record(entry, `detail.links[${index}]`);
       const label = optionalString(link["label"], `detail.links[${index}].label`);

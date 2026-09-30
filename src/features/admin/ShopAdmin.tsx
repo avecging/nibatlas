@@ -1,4 +1,5 @@
 "use client";
+import { RelatedShopsEditor } from "./RelatedShopsEditor";
 import { ShopChannelsEditor } from "./ShopChannelsEditor";
 import { Fragment } from "react";
 import { ExperienceIconPicker } from './ExperienceIconPicker';
@@ -1240,6 +1241,9 @@ function Workspace({ id }: { id: string | null }) {
                 });
               }} />}
 
+              {section === "story" && <RelatedShopsEditor key={`${id}:${record.revision}`} id={id!} name={String(draft.shop.name ?? '')}
+                rows={draft.related_shops ?? []} context={record.relatedContext} errors={fieldErrors}
+                change={rows=>setDraft({...draft,related_shops:rows})}/>}
               {SECTION_GROUPS[section].map((key) => groupEditor(key))}
 
               {section === "story" && (

@@ -205,7 +205,16 @@ export interface EditorialContent {
   readonly appointment_required?: boolean;
   readonly experiences?: readonly { readonly id: string; readonly category: string; readonly title: string; readonly description?: string; readonly icon?: ExperienceIcon }[];
 }
+export interface RelatedShop {
+  readonly id: string;
+  readonly slug: string;
+  readonly name: string;
+  readonly countryCode: import('./geo').CountryCode;
+  readonly localityName: string;
+  readonly kind: 'branch' | 'related';
+}
 export interface ShopDetail extends ShopMapSummary {
+  readonly relatedShops?: readonly RelatedShop[];
   readonly review?: EditorialReview;
   readonly editorial?: EditorialContent;
   readonly phone?: string;

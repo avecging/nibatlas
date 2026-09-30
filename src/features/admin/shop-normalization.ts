@@ -1,5 +1,5 @@
 import { isPlatform, isContactPlatform, normalizeChannel } from '@/src/domain/shop-channels';
-import { document, GROUPS, HOURS_FIELDS, HOURS_EXCEPTION_FIELDS, SHOP_FIELDS, UUID, type Document, type Field, type Row, type Options } from './shop-contract';
+import { document, RELATED_FIELDS, GROUPS, HOURS_FIELDS, HOURS_EXCEPTION_FIELDS, SHOP_FIELDS, UUID, type Document, type Field, type Row, type Options } from './shop-contract';
 
 export interface FieldIssue { path: string; message: string }
 export class ShopValidationError extends Error {
@@ -75,7 +75,7 @@ export function normalizeShopDocument(input: unknown, options?: Options): Docume
     return result;
   };
   const d = obj(input, 'document');
-  if (Object.keys(d).some(k => k !== 'shop' && !GROUPS.some(g => g.key === k))) issue('document', 'Remove unsupported sections.');
+  if (Object.keys(d).some(k => k !== 'shop' && k !== 'related_shops' && !GROUPS.some(g => g.key === k))) issue('document', 'Remove unsupported sections.');
   const shop = parse(d.shop, SHOP_FIELDS, 'shop', ['opening_hours']);
   const rawShop = obj(d.shop, 'shop');
   shop.opening_hours = null;
@@ -113,6 +113,15 @@ export function normalizeShopDocument(input: unknown, options?: Options): Docume
     shop.opening_hours = { ...(note.note ? { note: note.note } : {}), entries, exceptions };
   }
   const result = { shop } as Document;
+  if (d.related_shops !== undefined) {
+    const seen = new Set<string>();
+    result.related_shops = list(d.related_shops, 'related_shops').map((v,i) => {
+      const path = `related_shops.${i}`, row = parse(v, RELATED_FIELDS, path);
+      if (typeof row.shop_id !== 'string' || !UUID.test(row.shop_id)) issue(`${path}.shop_id`, 'Choose an existing shop.');
+      else { row.shop_id=row.shop_id.toLowerCase(); if(seen.has(row.shop_id)) issue(path,'Remove the duplicate shop.'); seen.add(row.shop_id); }
+      return row;
+    }).sort((a,b)=>String(a.shop_id).localeCompare(String(b.shop_id)));
+  }
   for (const g of GROUPS) {
     const hasId = ['sources', 'aliases', 'links', 'experiences'].includes(g.key);
     result[g.key] = list(g.key === 'experiences' ? d[g.key] ?? [] : d[g.key], g.key).map((v, i) => {

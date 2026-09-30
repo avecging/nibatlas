@@ -14,6 +14,7 @@ export interface Document {
   specialties: Row[];
   brands: Row[];
   experiences: Row[];
+  related_shops?: Row[];
 }
 export interface ShopRecord {
   id: string;
@@ -23,7 +24,16 @@ export interface ShopRecord {
   document: Document;
   publicationErrors: string[];
   positionConfirmed?: boolean;
+  relatedContext?: { shops: RelatedShopSummary[]; nearbyIds: string[] };
 }
+export interface RelatedShopSummary {
+  id: string; name: string; slug: string; localityName: string; countryCode: string; publicationStatus: string;
+}
+export const RELATED_FIELDS: Field[] = [
+  {key:"shop_id",label:"Related shop",required:true},
+  {key:"kind",label:"Relationship",required:true,choices:["branch","related"]},
+  {key:"show_public",label:"Show publicly",kind:"boolean",required:true},
+];
 export interface ShopSummary {
   id: string;
   name: string;
@@ -123,7 +133,7 @@ export const SHOP_FIELDS: Field[] = [
   }),
 ];
 export const GROUPS: {
-  key: Exclude<keyof Document, "shop">;
+  key: Exclude<keyof Document, "shop" | "related_shops">;
   label: string;
   fields: Field[];
 }[] = [
@@ -315,7 +325,7 @@ export function fields(
 export function document(value: unknown): Document {
   const d = object(value);
   if (
-    Object.keys(d).some((k) => k !== "shop" && !GROUPS.some((g) => g.key === k))
+    Object.keys(d).some((k) => k !== "shop" && k !== "related_shops" && !GROUPS.some((g) => g.key === k))
   )
     throw Error("Invalid document");
   const shop = fields(d.shop, SHOP_FIELDS, ["opening_hours"]);
@@ -348,6 +358,11 @@ export function document(value: unknown): Document {
       return item;
     });
   }
+  if (d.related_shops !== undefined) result.related_shops = rows(d.related_shops).map(v => {
+    const row = fields(v, RELATED_FIELDS);
+    if (typeof row.shop_id !== "string" || !UUID.test(row.shop_id)) throw Error("Invalid related shop");
+    return row;
+  });
   return result;
 }
 export function decodeShop(value: unknown): ShopRecord {
@@ -368,6 +383,7 @@ export function decodeShop(value: unknown): ShopRecord {
     publicationStatus,
     hasChanges: r.hasChanges,
     positionConfirmed: r.positionConfirmed === true,
+    ...(r.relatedContext === undefined ? {} : {relatedContext: decodeRelatedContext(r.relatedContext)}),
     document: document(r.document),
     publicationErrors: rows(r.publicationErrors).map(text),
   };
@@ -413,4 +429,13 @@ export function decodeOptions(value: unknown): Options {
     });
   }
   return output;
+}
+
+export function decodeRelatedContext(value: unknown): NonNullable<ShopRecord['relatedContext']> {
+  const r = object(value);
+  return {nearbyIds: rows(r.nearbyIds).map(v => { const id=text(v); if(!UUID.test(id)) throw Error('Invalid shop'); return id; }),
+    shops: rows(r.shops).map(v => { const s=object(v), id=text(s.id);
+      if(!UUID.test(id)) throw Error('Invalid shop');
+      return {id,name:text(s.name),slug:text(s.slug),localityName:typeof s.localityName==='string'?s.localityName:'',countryCode:typeof s.countryCode==='string'?s.countryCode:'',publicationStatus:text(s.publicationStatus)};
+    })};
 }
