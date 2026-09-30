@@ -1645,6 +1645,8 @@ test('related shops use normal save and render compact cards in the correct colu
   // Preview switch deliberately exercises both responsive render locations.
   await page.getByRole('button',{name:'Desktop',exact:true}).click();
   await expect(frame.locator('[id="related-shops-desktop"]')).toBeVisible();
+  await card.screenshot({path:info.outputPath('admin-related-public-desktop.png')});
   await page.getByRole('button',{name:'Mobile',exact:true}).click();
   await expect(frame.locator('[id="related-shops-mobile"]')).toBeVisible();
+  await card.screenshot({path:info.outputPath('admin-related-public-mobile.png')});
 });

@@ -5,13 +5,19 @@ select public.assign_profile_role('b1000000-0000-4000-8000-000000000001','admin'
 create function pg_temp.rel_read(p uuid) returns jsonb language sql as $$select public.admin_shop_read(p)$$;
 create function pg_temp.rel_save(p uuid,d jsonb) returns jsonb language sql as $$select public.admin_shop_write('save',p,pg_temp.rel_read(p)->>'revision',d)$$;
 create function pg_temp.rel_rows(p uuid,r jsonb) returns jsonb language sql as $$select pg_temp.rel_save(p,jsonb_set(pg_temp.rel_read(p)->'document','{related_shops}',r))$$;
-create function pg_temp.rel_publish(p uuid) returns jsonb language sql as $$select public.admin_shop_write('publish',p,pg_temp.rel_read(p)->>'revision')$$;
+create function pg_temp.rel_publish(p uuid) returns jsonb language plpgsql as $$
+declare result jsonb;
+begin
+ result:=public.admin_shop_write('publish',p,pg_temp.rel_read(p)->>'revision');
+ if result ? 'code' then raise exception 'Synthetic publication failed: %',result; end if;
+ return result;
+end; $$;
 create function pg_temp.rel_fixture(p uuid,n text,x numeric) returns void language plpgsql as $$
 declare d jsonb;
 begin
  perform public.admin_shop_write('create',p,null,jsonb_build_object('name',n,'slug',n));
  d:=pg_temp.rel_read(p)->'document';
- d:=jsonb_set(d,'{shop}',(d->'shop')||jsonb_build_object('country_code','SG','locality_id','00000000-0000-4000-8000-000000000201','timezone','Asia/Singapore','latitude',1.3,'longitude',x,'city_display','Synthetic city','source_quality','demo','address_line_1','Synthetic test address'));
+ d:=jsonb_set(d,'{shop}',(d->'shop')||jsonb_build_object('country_code','SG','locality_id','00000000-0000-4000-8000-000000000201','timezone','Asia/Singapore','latitude',1.3,'longitude',x::double precision,'city_display','Synthetic city','source_quality','demo','address_line_1','Synthetic test address'));
  d:=jsonb_set(d,'{types}','[{"shop_type_id":"00000000-0000-4000-8000-000000000101","is_primary":true}]');
  perform pg_temp.rel_save(p,d);
  perform public.admin_shop_write('confirm_position',p,pg_temp.rel_read(p)->>'revision');
