@@ -85,6 +85,24 @@ begin
 end; $$;
 revoke all on function public.validate_shop_document(uuid,jsonb) from public,anon,authenticated,service_role;
 
+-- Reconciliation can consume the counterpart's entire private delta. Retain
+-- real edits, confirmation changes, removal choices and canonical conflicts.
+-- Callers hold the shop/working-copy locks and the relationship writer lock.
+create function public.prune_reconciled_related_copy(p_id uuid)
+returns void language plpgsql security definer set search_path='' as $$
+declare base jsonb;
+begin
+ base:=public.shop_edit_document(p_id);
+ delete from public.shop_working_copies w using public.shops s
+ where w.shop_id=p_id and s.id=w.shop_id
+  and w.base_fingerprint=md5(base::text)
+  and w.document-'related_shops'=base-'related_shops'
+  and coalesce(w.document->'related_shops','[]')=coalesce(base->'related_shops','[]')
+  and w.position_confirmation is not distinct from s.position_confirmation
+  and w.related_removed='{}'::jsonb;
+end; $$;
+revoke all on function public.prune_reconciled_related_copy(uuid) from public,anon,authenticated,service_role;
+
 -- Change only the reciprocal row in the other shop's saved document. Its public
 -- listing and all unrelated private content remain intact. Bump its revision so
 -- stale editors/imports/review receipts cannot silently undo the relationship.
@@ -118,6 +136,7 @@ begin
   insert into public.shop_working_copies(shop_id,document,base_fingerprint,related_removed,position_confirmation)
    values(target,d,md5(base::text),removed,case when w.shop_id is not null then w.position_confirmation else (select position_confirmation from public.shops where id=target) end)
    on conflict(shop_id) do update set document=excluded.document,related_removed=excluded.related_removed,revision=gen_random_uuid(),updated_at=statement_timestamp();
+  perform public.prune_reconciled_related_copy(target);
  end loop;
 end; $$;
 revoke all on function public.sync_related_private(uuid,jsonb,jsonb) from public,anon,authenticated,service_role;
@@ -161,6 +180,7 @@ begin
    update public.shop_working_copies set document=jsonb_set(document,'{related_shops}',items),
     related_removed=case when next_row is null then related_removed-p_id::text else related_removed end,
     base_fingerprint=md5(public.shop_edit_document(target)::text),revision=gen_random_uuid(),updated_at=statement_timestamp() where shop_id=target;
+   perform public.prune_reconciled_related_copy(target);
   end if;
  end loop;
 end; $$;
@@ -191,6 +211,7 @@ begin
      related_removed=removed,
      base_fingerprint=case when w.base_fingerprint=md5(base::text) then md5(public.shop_edit_document(target)::text) else w.base_fingerprint end,
      revision=gen_random_uuid(),updated_at=statement_timestamp() where shop_id=target;
+    perform public.prune_reconciled_related_copy(target);
    end if;
   end if;
  end loop;
@@ -241,6 +262,7 @@ begin
    if not exists(select 1 from jsonb_array_elements(coalesce(after_doc->'related_shops','[]')) r where r->>'shop_id'=target::text) then
     update public.shop_working_copies set related_removed=related_removed-p_id::text,revision=gen_random_uuid(),updated_at=statement_timestamp()
      where shop_id=target and related_removed ? p_id::text;
+    perform public.prune_reconciled_related_copy(target);
    end if;
   end loop;
  end if;

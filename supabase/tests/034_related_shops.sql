@@ -40,6 +40,7 @@ select is(pg_temp.rel_publish('b1000000-0000-4000-8000-000000000010')->>'publica
 select is(public.shop_detail('synthetic-related-a')#>>'{relatedShops,0,kind}','branch','public card has branch tag');
 select is(public.shop_detail('synthetic-related-b')->'relatedShops','[]'::jsonb,'publishing A never makes B backlink public');
 select is(public.shop_detail('synthetic-related-b')->>'phone',null,'publishing A never publishes B unrelated work');
+select is(pg_temp.rel_read('b1000000-0000-4000-8000-000000000020')->>'hasChanges','true','publishing A retains B actual private edits');
 -- B may deliberately show its side and edit the one shared tag.
 select pg_temp.rel_rows('b1000000-0000-4000-8000-000000000020','[{"shop_id":"b1000000-0000-4000-8000-000000000010","kind":"related","show_public":true}]');
 select is(pg_temp.rel_read('b1000000-0000-4000-8000-000000000010')#>>'{document,related_shops,0,kind}','related','tag edits propagate privately');
@@ -47,16 +48,19 @@ select is(public.shop_detail('synthetic-related-a')#>>'{relatedShops,0,kind}','b
 select is(pg_temp.rel_publish('b1000000-0000-4000-8000-000000000020')->>'publicationStatus','published','counterpart preserved draft can still publish');
 select is(public.shop_detail('synthetic-related-a')#>>'{relatedShops,0,kind}','related','published shared tag agrees on both sides');
 select is(public.shop_detail('synthetic-related-b')#>>'{relatedShops,0,id}','b1000000-0000-4000-8000-000000000010','B visibility independent and deliberate');
+-- The label-only counterpart is now fully reconciled, with nothing to publish.
+select is(pg_temp.rel_read('b1000000-0000-4000-8000-000000000010')->>'hasChanges','false','shared-label publication clears no-op counterpart draft');
 -- Discard reverses the removal without losing the other side's visibility.
-select pg_temp.rel_publish('b1000000-0000-4000-8000-000000000010');
 select pg_temp.rel_rows('b1000000-0000-4000-8000-000000000010','[]');
 select public.admin_shop_write('discard','b1000000-0000-4000-8000-000000000010',pg_temp.rel_read('b1000000-0000-4000-8000-000000000010')->>'revision');
 select is(pg_temp.rel_read('b1000000-0000-4000-8000-000000000020')#>>'{document,related_shops,0,show_public}','true','discard restores published counterpart visibility');
+select is(pg_temp.rel_read('b1000000-0000-4000-8000-000000000020')->>'hasChanges','false','discard of published removal clears reconciled counterpart draft');
 -- A pre-existing private choice must win over its different published value.
 select pg_temp.rel_rows('b1000000-0000-4000-8000-000000000020','[{"shop_id":"b1000000-0000-4000-8000-000000000010","kind":"related","show_public":false}]');
 select pg_temp.rel_rows('b1000000-0000-4000-8000-000000000010','[]');
 select public.admin_shop_write('discard','b1000000-0000-4000-8000-000000000010',pg_temp.rel_read('b1000000-0000-4000-8000-000000000010')->>'revision');
 select is(pg_temp.rel_read('b1000000-0000-4000-8000-000000000020')#>>'{document,related_shops,0,show_public}','false','discard restores pre-existing private counterpart visibility');
+select is(pg_temp.rel_read('b1000000-0000-4000-8000-000000000020')->>'hasChanges','true','different private visibility remains a real change');
 select pg_temp.rel_publish('b1000000-0000-4000-8000-000000000020');
 -- Legacy clients/import updates omit relationships: preserve them.
 select pg_temp.rel_save('b1000000-0000-4000-8000-000000000010',(pg_temp.rel_read('b1000000-0000-4000-8000-000000000010')->'document')-'related_shops');
@@ -129,10 +133,57 @@ select pg_temp.rel_rows('b1000000-0000-4000-8000-000000000051','[{"shop_id":"b10
 select public.admin_shop_write('discard','b1000000-0000-4000-8000-000000000050',pg_temp.rel_read('b1000000-0000-4000-8000-000000000050')->>'revision');
 select pg_temp.rel_rows('b1000000-0000-4000-8000-000000000050','[{"shop_id":"b1000000-0000-4000-8000-000000000051","kind":"related","show_public":false}]');
 select is(pg_temp.rel_read('b1000000-0000-4000-8000-000000000051')#>>'{document,related_shops,0,show_public}','false','new backlink stays hidden after discarding an unpublished pair');
+-- A clean counterpart must not need a manual discard after publication/removal.
+select pg_temp.rel_fixture('b1000000-0000-4000-8000-000000000060','synthetic-clean-pair-a',109.0);
+select pg_temp.rel_fixture('b1000000-0000-4000-8000-000000000061','synthetic-clean-pair-b',110.0);
+select pg_temp.rel_rows('b1000000-0000-4000-8000-000000000060','[{"shop_id":"b1000000-0000-4000-8000-000000000061","kind":"branch","show_public":true}]');
+select set_config('test.clean_b_revision',pg_temp.rel_read('b1000000-0000-4000-8000-000000000061')->>'revision',true);
+select pg_temp.rel_publish('b1000000-0000-4000-8000-000000000060');
+select is(pg_temp.rel_read('b1000000-0000-4000-8000-000000000061')->>'hasChanges','false','new-link publication removes no-op counterpart draft');
+select is(pg_temp.rel_read('b1000000-0000-4000-8000-000000000061')#>>'{document,related_shops,0,show_public}','false','pruning keeps canonical backlink hidden');
+select throws_ok($$select public.admin_shop_write('save','b1000000-0000-4000-8000-000000000061',current_setting('test.clean_b_revision'),pg_temp.rel_read('b1000000-0000-4000-8000-000000000061')->'document')$$,'40001','Revision conflict','pruning still invalidates the old draft revision');
+select is(public.admin_shop_write('temporarily_closed','b1000000-0000-4000-8000-000000000061',pg_temp.rel_read('b1000000-0000-4000-8000-000000000061')->>'revision')#>>'{document,shop,operational_status}','temporarily_closed','reconciled counterpart can close without manual discard');
+select pg_temp.rel_rows('b1000000-0000-4000-8000-000000000060','[]');
+select pg_temp.rel_publish('b1000000-0000-4000-8000-000000000060');
+select is(pg_temp.rel_read('b1000000-0000-4000-8000-000000000061')->>'hasChanges','false','published removal prunes empty-list counterpart draft');
+select pg_temp.rel_rows('b1000000-0000-4000-8000-000000000060','[{"shop_id":"b1000000-0000-4000-8000-000000000061","kind":"branch","show_public":false}]');
+select public.admin_shop_write('discard','b1000000-0000-4000-8000-000000000060',pg_temp.rel_read('b1000000-0000-4000-8000-000000000060')->>'revision');
+select is(pg_temp.rel_read('b1000000-0000-4000-8000-000000000061')->>'hasChanges','false','discarded unpublished link prunes empty-list counterpart draft');
+select is(public.admin_shop_write('archive','b1000000-0000-4000-8000-000000000061',pg_temp.rel_read('b1000000-0000-4000-8000-000000000061')->>'revision')->>'publicationStatus','archived','reconciled counterpart can archive without manual discard');
+-- Confirmation-only edits are significant even when documents are identical.
+select pg_temp.rel_fixture('b1000000-0000-4000-8000-000000000070','synthetic-confirm-pair-a',111.0);
+select pg_temp.rel_fixture('b1000000-0000-4000-8000-000000000071','synthetic-confirm-pair-b',112.0);
+select public.admin_shop_write('confirm_position','b1000000-0000-4000-8000-000000000071',pg_temp.rel_read('b1000000-0000-4000-8000-000000000071')->>'revision');
+reset role;
+select set_config('test.b_confirmation',(select position_confirmation::text from public.shop_working_copies where shop_id='b1000000-0000-4000-8000-000000000071'),true);
+set local role authenticated;
+select pg_temp.rel_rows('b1000000-0000-4000-8000-000000000070','[{"shop_id":"b1000000-0000-4000-8000-000000000071","kind":"branch","show_public":false}]');
+select pg_temp.rel_publish('b1000000-0000-4000-8000-000000000070');
+select is(pg_temp.rel_read('b1000000-0000-4000-8000-000000000071')->>'hasChanges','true','confirmation-only counterpart draft is retained');
+reset role;
+select is((select position_confirmation from public.shop_working_copies where shop_id='b1000000-0000-4000-8000-000000000071'),current_setting('test.b_confirmation')::jsonb,'counterpart position confirmation is preserved exactly');
+set local role authenticated;
+-- Unrelated retained removals must survive even with no document delta.
+select pg_temp.rel_fixture('b1000000-0000-4000-8000-000000000080','synthetic-removal-pair-a',113.0);
+select pg_temp.rel_fixture('b1000000-0000-4000-8000-000000000081','synthetic-removal-pair-b',114.0);
+select pg_temp.rel_fixture('b1000000-0000-4000-8000-000000000082','synthetic-removal-pair-c',115.0);
+select pg_temp.rel_rows('b1000000-0000-4000-8000-000000000081','[{"shop_id":"b1000000-0000-4000-8000-000000000082","kind":"related","show_public":false}]');
+select pg_temp.rel_rows('b1000000-0000-4000-8000-000000000081','[]');
+select pg_temp.rel_rows('b1000000-0000-4000-8000-000000000080','[{"shop_id":"b1000000-0000-4000-8000-000000000081","kind":"branch","show_public":false}]');
+select pg_temp.rel_publish('b1000000-0000-4000-8000-000000000080');
+select is(pg_temp.rel_read('b1000000-0000-4000-8000-000000000081')->>'hasChanges','true','unrelated removal choices retain the counterpart draft');
+reset role;
+select ok((select related_removed ? 'b1000000-0000-4000-8000-000000000082' from public.shop_working_copies where shop_id='b1000000-0000-4000-8000-000000000081'),'unrelated removal history remains intact');
+-- Even an otherwise identical draft with a stale base cannot be pruned.
+insert into public.shop_working_copies(shop_id,document,base_fingerprint,position_confirmation)
+ select id,public.shop_edit_document(id),'stale-test-fingerprint',position_confirmation from public.shops where id='b1000000-0000-4000-8000-000000000080';
+select public.prune_reconciled_related_copy('b1000000-0000-4000-8000-000000000080');
+select ok(exists(select 1 from public.shop_working_copies where shop_id='b1000000-0000-4000-8000-000000000080'),'cleanup never absorbs canonical conflicts');
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"b1000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
 select throws_ok($$select pg_temp.rel_read('b1000000-0000-4000-8000-000000000010')$$,'42501','Admin access denied','ordinary user cannot read private links');
 select throws_ok('select * from public.shop_relationships','42501',null,'table not directly accessible');
+select throws_ok($$select public.prune_reconciled_related_copy('b1000000-0000-4000-8000-000000000010')$$,'42501',null,'cleanup helper is not client-callable');
 select throws_ok($$select public.sync_related_private('b1000000-0000-4000-8000-000000000010','[]','[]')$$,'42501',null,'private helper cannot be called directly');
 set local role anon;
 select throws_ok($$select public.admin_shop_read('b1000000-0000-4000-8000-000000000010')$$,'42501',null,'anonymous admin read denied');

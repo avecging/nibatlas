@@ -526,6 +526,13 @@ relationship changes rebase only the known relationship delta in a non-conflicti
 counterpart draft; public visibility remains independent. Existing publication
 requirements (including position confirmation) continue to apply.
 
+After reconciliation, a counterpart working copy is removed only when its
+document and position confirmation match canonical state, no retained removal
+choices remain, and its base is current. An omitted or empty related-shop list
+is equivalent for this comparison. Actual private edits, confirmation changes,
+removal choices and canonical conflicts remain protected; a fully reconciled
+shop does not require a manual discard before closure or archival.
+
 Private `relatedContext` on shop reads supplies selected shop identities and the
 actual Nearby IDs. The durable D4 review binds this context as well as the saved
 document. `shop_relationships` has forced RLS and no direct client grants;
