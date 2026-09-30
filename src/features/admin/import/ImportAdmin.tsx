@@ -1,4 +1,5 @@
 'use client';
+import { PLATFORMS } from '@/src/domain/shop-channels';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAccountSession } from '@/src/features/account/AccountSessionProvider';
@@ -17,7 +18,7 @@ function download(filename: string, contents: string, type: string) {
   const link = document.createElement('a'); link.href = url; link.download = filename; link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-const templateColumns = ['row_id', 'shop_id', 'name', 'slug', 'country', 'locality', 'shop_type', 'brands', 'specialties', 'address_line_1', 'postal_code', 'timezone', 'latitude', 'longitude', 'website_url', 'short_description', 'clear_fields'];
+const templateColumns = ['row_id', 'shop_id', 'name', 'slug', 'country', 'locality', 'shop_type', 'brands', 'specialties', 'address_line_1', 'postal_code', 'timezone', 'latitude', 'longitude', 'website_url', ...PLATFORMS, 'short_description', 'clear_fields'];
 const actionLabel: Record<PreviewRow['action'], string> = { new_private_draft: 'Proposed new private draft', update_private_draft: 'Proposed private update', no_change: 'No changes', review_duplicates: 'Review duplicate candidates', blocked: 'Needs correction' };
 async function api(signal: AbortSignal, payload?: unknown) {
   const response = await fetch('/api/v1/admin/import', { method: payload ? 'POST' : 'GET', signal, cache: 'no-store', credentials: 'same-origin', ...(payload ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) } : {}) });

@@ -75,10 +75,18 @@ export interface PublicShopSourceV1 extends ShopSourceRef {
 
 export type PublicShopServiceV1 = ShopService;
 
+function optionalLinkValue(link: Record<string, unknown>, index: number): {url?: string; accountValue?: string} {
+  const url = optionalString(link['url'], `detail.links[${index}].url`);
+  const accountValue = optionalString(link['accountValue'], `detail.links[${index}].accountValue`);
+  if (!url && !accountValue) throw Error('Missing link destination');
+  return {...(url ? {url} : {}), ...(accountValue ? {accountValue} : {})};
+}
+
 export interface PublicShopLinkV1 {
   readonly type: string;
   readonly label?: string;
-  readonly url: string;
+  readonly url?: string;
+  readonly accountValue?: string;
   readonly isOfficial: boolean;
 }
 
@@ -536,7 +544,7 @@ export function decodeShopDetailV1(value: unknown): ShopDetailReadV1 | null {
       const label = optionalString(link["label"], `detail.links[${index}].label`);
       return {
         type: string(link["type"], `detail.links[${index}].type`),
-        url: string(link["url"], `detail.links[${index}].url`),
+        ...optionalLinkValue(link, index),
         isOfficial: boolean(link["isOfficial"], `detail.links[${index}].isOfficial`),
         ...(label === undefined ? {} : { label }),
       };

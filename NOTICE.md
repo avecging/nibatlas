@@ -40,3 +40,11 @@ third-party service is Nib Atlas.
 
 The AGPL licence does not grant trademark rights or permission to suggest that a
 fork, deployment, or derivative is official, endorsed, or operated by Nib Atlas.
+
+### Platform icons
+
+Social and messaging marks in `src/components/ui/PlatformIcon.tsx` are from
+[Simple Icons 16.33.0](https://github.com/simple-icons/simple-icons/tree/16.33.0),
+licensed under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+Brand names and marks remain the property of their respective owners; inclusion
+identifies a destination and does not imply endorsement.

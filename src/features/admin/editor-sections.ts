@@ -1,3 +1,5 @@
+import { isPlatform } from '@/src/domain/shop-channels';
+import type { Document } from './shop-contract';
 /**
  * The approved seven sections of the shop editor.
  *
@@ -148,7 +150,7 @@ for (const section of SECTIONS)
  * `experiences.0.title`, so a correction link can open the right section.
  * Private and legacy material resolves to the section that contains it.
  */
-export function sectionForPath(path: string): SectionId {
+export function sectionForPath(path: string, document?: Document | null): SectionId {
   const parts = path.split(".");
   if (parts[0] === "shop") {
     const key = parts[1] ?? "";
@@ -157,6 +159,8 @@ export function sectionForPath(path: string): SectionId {
     if (LEGACY_FIELDS.includes(key)) return "review";
     return SECTION_OF_FIELD.get(key) ?? "story";
   }
+  if (parts[0] === "links" && ['url','account_value'].includes(parts[2] ?? '')
+    && isPlatform(document?.links[Number(parts[1])]?.link_type)) return "story";
   if (LEGACY_GROUPS.includes(parts[0] ?? "")) return "review";
   return SECTION_OF_GROUP.get(parts[0] ?? "") ?? "story";
 }
@@ -166,8 +170,8 @@ export function sectionForPath(path: string): SectionId {
  * publication requirement. Anchor ids are resolved here so the requirement
  * strings themselves are matched in exactly one place.
  */
-export function sectionForFix(fix: { path?: string; id?: string }): SectionId {
-  if (fix.path) return sectionForPath(fix.path);
+export function sectionForFix(fix: { path?: string; id?: string }, document?: Document | null): SectionId {
+  if (fix.path) return sectionForPath(fix.path, document);
   return ANCHOR_SECTIONS[fix.id ?? ""] ?? "review";
 }
 

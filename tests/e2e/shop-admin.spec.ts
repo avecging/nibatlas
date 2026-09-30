@@ -78,7 +78,8 @@ async function setup(page: Page, initial?: ShopRecord) {
     const url = new URL(route.request().url());
     let body: unknown,
       status = 200;
-    if (url.pathname.endsWith("/media") || url.pathname.endsWith("/stamp")) body = {entries: []};
+    if (url.pathname.endsWith("/publication")) body = {publication:null};
+    else if (url.pathname.endsWith("/media") || url.pathname.endsWith("/stamp")) body = {entries: []};
     else if (url.pathname.endsWith("/options"))
       body = {
         localities: [
@@ -159,6 +160,7 @@ async function setup(page: Page, initial?: ShopRecord) {
       headers: { "Cache-Control": "private, no-store" },
     });
   });
+  await reviewFixture(page,()=>structuredClone(record));
   return {
     actions,
     current: () => structuredClone(record),
@@ -166,6 +168,25 @@ async function setup(page: Page, initial?: ShopRecord) {
       conflict = true;
     },
   };
+}
+
+// Browser-double persistence exercises the UI only; SQL tests exercise authority.
+async function reviewFixture(page: Page, current: () => ShopRecord, media: Record<string,unknown>[] = [], stamps: Record<string,unknown>[] = []) {
+  let receipt: {id:string;choices:unknown;reviewedAt:string;key:string}|null = null;
+  await page.route(`**/api/v1/admin/shops/${id}/review`,async route=>{
+    const record=current();
+    const key=createHash('sha256').update(JSON.stringify([record,media,stamps])).digest('hex');
+    if(route.request().method()==='POST') {
+      const body=route.request().postDataJSON();
+      if(body.reviewKey!==key || body.previousId!==(receipt?.id??null)) {
+        await route.fulfill({status:409,json:{error:{code:'review_conflict'}}}); return;
+      }
+      receipt={id:body.id,choices:body.choices,reviewedAt:'2026-09-28T09:00:00Z',key};
+    }
+    await route.fulfill({json:{record,media,stamps,reviewKey:key,conflict:false,
+      availableStampIds:stamps.filter(s=>s.active || s.kind==='uploaded'&&s.status==='draft'&&s.hasArtwork).map(s=>s.id),
+      review:receipt?{id:receipt.id,choices:receipt.choices,reviewedAt:receipt.reviewedAt,current:receipt.key===key}:null}});
+  });
 }
 
 test("all seven approved sections are directly reachable @short", async ({ page }, info) => {
@@ -1374,6 +1395,7 @@ test('D4 private media comparison is read-only, keyboard accessible and resets o
   page.on('request',r=>{if(r.method()!=='GET')writes.push(r.url());});
   await page.route(`**/api/v1/admin/shops/${id}/media`,r=>r.fulfill({json:{entries}}));
   await page.route(`**/api/v1/admin/shops/${id}/stamp`,r=>r.fulfill({json:{entries:stamps}}));
+  await reviewFixture(page,state.current,entries,stamps);
   await page.route(`**/api/v1/admin/shops/${id}/media/*`,r=>r.fulfill({contentType:'image/png',body:makePng(20,12)}));
   await page.route(`**/api/v1/admin/shops/${id}/stamp/*`,r=>r.fulfill({contentType:'image/png',body:makePng(1200,800)}));
   await page.goto(`/admin/shops/${id}`);await open(page,'Review');
@@ -1410,8 +1432,9 @@ test('D4 private media comparison is read-only, keyboard accessible and resets o
 });
 
 
-async function selectedPreviewFixture(page: Page) {
+async function selectedPreviewFixture(page: Page, confirmed = false) {
   const initial=fixture();
+  initial.positionConfirmed = confirmed;
   Object.assign(initial.document.shop,{field_note_body:'Selected preview saved story',address_line_1:'Synthetic address',internal_notes:'D4b PRIVATE NOTE',reference_links:'https://example.test/private'});
   const state=await setup(page,initial);
   const ids=Array.from({length:6},(_,n)=>`87000000-0000-4000-8000-${String(n+1).padStart(12,'0')}`);
@@ -1425,6 +1448,7 @@ async function selectedPreviewFixture(page: Page) {
   page.on('request',r=>{if(r.method()!=='GET')writes.push(r.url());});
   await page.route(`**/api/v1/admin/shops/${id}/media`,r=>r.fulfill({json:{entries}}));
   await page.route(`**/api/v1/admin/shops/${id}/stamp`,r=>r.fulfill({json:{entries:stamps}}));
+  await reviewFixture(page,state.current,entries,stamps);
   await page.route(`**/api/v1/admin/shops/${id}/media/*`,r=>r.fulfill({contentType:'image/png',body:makePng(20,12)}));
   await page.route(`**/api/v1/admin/shops/${id}/stamp/*`,r=>r.fulfill({contentType:'image/png',body:makePng(1200,800)}));
   await page.goto(`/admin/shops/${id}`);await open(page,'Review');
@@ -1495,4 +1519,102 @@ test('D4b refuses changed media or stamp snapshots and denied reads without sile
   await panel.getByRole('button',{name:'Refresh selected preview'}).click();
   await expect(selected.getByRole('main').getByRole('alert')).toContainText('current editor or admin access');
   expect(writes).toEqual([]);
+});
+
+
+test('D4c saves choices across leaving and reload, requires re-review after content changes @short',async({page},info)=>{
+  const {panel,entries,stamps,state,writes}=await selectedPreviewFixture(page);
+  await panel.getByRole('button',{name:'Save reviewed choices'}).click();
+  await expect(panel.getByText('Reviewed choices saved. Nothing was published or activated.')).toBeVisible();
+  await open(page,'Shop & story');await open(page,'Review');
+  await expect(panel.getByRole('checkbox',{name:/Private selected photo/})).toBeChecked();
+  await expect(panel.getByRole('radio',{name:/Private selected logo/})).toBeChecked();
+  await expect(panel.getByRole('radio',{name:/Design v2/})).toBeChecked();
+  await page.reload();await open(page,'Review');
+  await expect(panel.getByRole('checkbox',{name:/Private selected photo/})).toBeChecked();
+  await expect(panel.getByRole('button',{name:'Save reviewed choices'})).toBeDisabled();
+  entries[0]!.caption='Concurrent caption after review';
+  await panel.getByRole('button',{name:'Reload media comparison'}).click();
+  await expect(panel.getByText(/Review again: saved content has changed/)).toBeVisible();
+  await expect(panel.getByRole('checkbox',{name:/Private selected photo/})).toBeChecked();
+  await expect(panel.getByText('Concurrent caption after review',{exact:true}).first()).toBeVisible();
+  await panel.screenshot({path:info.outputPath('admin-d4c-review-again.png')});
+  await panel.getByRole('button',{name:'Save reviewed choices'}).click();
+  await expect(panel.getByRole('button',{name:'Save reviewed choices'})).toBeDisabled();
+  // Change after loading: save fails rather than reviewing unseen content.
+  await panel.getByRole('radio',{name:'No logo in comparison'}).check();
+  stamps[0]!.creatorName='Changed artist after load';
+  await panel.getByRole('button',{name:'Save reviewed choices'}).click();
+  await expect(panel.getByRole('alert')).toContainText('Saved content or your review changed');
+  await expect(panel.getByRole('button',{name:'Save reviewed choices'})).toBeDisabled();
+  const scan=await new AxeBuilder({page}).include('[aria-label="Compare saved images and artwork"]').analyze();expect(scan.violations).toEqual([]);
+  expect(await page.evaluate(()=>window.document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  expect(writes).toHaveLength(3);expect(writes.every(url=>url.endsWith('/review'))).toBe(true);
+  expect(state.actions).toEqual([]);
+  expect(await page.evaluate(()=>JSON.stringify({...localStorage,...sessionStorage}))).not.toContain('87000000');
+});
+
+
+test('D4d deliberate publication restores partial outcomes and safely retries across reload @short',async({page},info)=>{
+ const {panel,ids}=await selectedPreviewFixture(page,true);
+ let result:unknown=null;const actions:string[]=[];
+ await page.route(`**/api/v1/admin/shops/${id}/publication`,async route=>{
+  if(route.request().method()==='POST') {
+   const body=route.request().postDataJSON();actions.push(body.action);
+   result={reviewId:body.reviewId,status:body.action==='publish'?'partial':'complete',canRetry:body.action==='publish',updatedAt:'2026-09-29T09:00:00Z',outcomes:[
+    {kind:'shop',targetId:id,status:'succeeded',reason:null},{kind:'stamp',targetId:ids[3],status:'succeeded',reason:null},
+    {kind:'photo',targetId:ids[0],status:body.action==='publish'?'failed':'succeeded',reason:body.action==='publish'?'unavailable':null},
+    {kind:'logo',targetId:ids[2],status:'succeeded',reason:null}]};
+   // Commit happened but response was lost: UI must read before retrying.
+   if(body.action==='publish') {await route.abort('failed');return;}
+  }
+  await route.fulfill({json:{publication:result}});
+ });
+ const publish=panel.getByRole('button',{name:'Publish reviewed shop and choices'});
+ await expect(publish).toBeDisabled();await panel.getByRole('button',{name:'Save reviewed choices'}).click();
+ await expect(publish).toBeEnabled();await publish.click();expect(actions).toEqual([]);
+ await panel.getByRole('button',{name:'Cancel publication'}).click();expect(actions).toEqual([]);
+ await publish.click();await panel.getByRole('button',{name:'Yes, publish these reviewed choices'}).click();
+ await expect(panel.getByRole('alert')).toContainText('Check the outcome');await expect(publish).toBeDisabled();
+ await panel.getByRole('button',{name:'Check publication outcome'}).click();await expect(panel.getByText('Partly published.',{exact:true})).toBeVisible();
+ await page.reload();await open(page,'Review');await expect(panel.getByText('Partly published.',{exact:true})).toBeVisible();
+ await panel.screenshot({path:info.outputPath('admin-d4d-partial-publication.png')});
+ await panel.getByRole('button',{name:'Retry unfinished parts',exact:true}).click();
+ await panel.getByRole('button',{name:'Yes, retry unfinished parts'}).click();await expect(panel.getByText('Publication complete.',{exact:true})).toBeVisible();
+ expect(actions).toEqual(['publish','retry']);
+ const scan=await new AxeBuilder({page}).include('[aria-label="Combined publication"]').analyze();expect(scan.violations).toEqual([]);
+ expect(await page.evaluate(()=>window.document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ expect(await page.evaluate(()=>JSON.stringify({...localStorage,...sessionStorage}))).not.toContain('87000000');
+ await panel.screenshot({path:info.outputPath('admin-d4d-complete-publication.png')});
+});
+
+test('social and contact picker saves into the existing flow and public preview',async({page},testInfo)=>{
+  const state=await setup(page);
+  await page.goto(`/admin/shops/${id}`);
+  await page.getByRole('button',{name:'Add Social Media',exact:true}).click();
+  await page.getByRole('checkbox',{name:'Instagram',exact:true}).check();
+  await page.getByRole('dialog').getByRole('button',{name:'Add',exact:true}).click();
+  await page.getByRole('textbox',{name:'Instagram',exact:true}).fill('@syntheticshop');
+  await page.getByRole('button',{name:'Add Contact',exact:true}).click();
+  await page.getByRole('checkbox',{name:'WeChat',exact:true}).check();
+  await page.getByRole('checkbox',{name:'WhatsApp',exact:true}).check();
+  await page.screenshot({path:testInfo.outputPath('channel-picker.png')});
+  expect((await new AxeBuilder({page}).include('[role="dialog"]').analyze()).violations).toEqual([]);
+  await page.getByRole('dialog').getByRole('button',{name:'Add',exact:true}).click();
+  await page.getByRole('textbox',{name:'WeChat',exact:true}).fill('synthetic-shop');
+  await page.getByRole('textbox',{name:'WhatsApp',exact:true}).fill('+65 8123 4567');
+  const social=await page.getByRole('region',{name:'Social Media'}).boundingBox();
+  const contact=await page.getByRole('region',{name:'Contact',exact:true}).boundingBox();
+  if(testInfo.project.name==='desktop-1440') expect(social!.y).toBe(contact!.y);
+  else if(testInfo.project.name==='mobile-360') expect(contact!.y).toBeGreaterThan(social!.y);
+  await page.screenshot({path:testInfo.outputPath('channel-fields.png'),fullPage:true});
+  await saveAndReview(page);
+  expect(state.actions).toEqual(['save']);
+  expect(state.current().document.links).toEqual(expect.arrayContaining([
+    expect.objectContaining({link_type:'instagram',url:'https://www.instagram.com/syntheticshop'}),
+    expect.objectContaining({link_type:'wechat',url:null,account_value:'synthetic-shop'})]));
+  const frame=publicPreview(page);
+  await expect(frame.getByRole('heading',{name:'Website & social'})).toBeVisible();
+  await expect(frame.getByRole('button',{name:'WeChat',exact:true})).toBeDisabled();
+  await expect(frame.getByRole('link',{name:/Instagram: https/})).toHaveText('https://www.instagram.com/syntheticshop');
 });

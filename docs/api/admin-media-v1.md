@@ -386,3 +386,14 @@ and a late preparation result cannot start an upload. The shop footer identifies
 unsaved media separately from saved shop fields, and leaving either media section
 warns before discarding pending work. Upload/attachment never publishes an image
 or activates stamp artwork.
+
+
+### D4d combined publication consumer
+
+The explicit admin-only combined action in `admin-shops-v1.md` now consumes a
+current durable review and reuses these revision-checked writers. It does not
+publish via save/upload/preview. Shop and selected stamp form a rollback unit;
+selected photos and logo have durable, recoverable individual outcomes. Null
+choices never hide/deactivate content; historical versions/impressions remain
+immutable. Existing standalone photo/logo publication and stamp activation stay
+available with their existing permissions and audit.

@@ -279,9 +279,9 @@ describe("Plan your visit", () => {
   it("carries the official website as a contextual link, and only once", () => {
     renderShop(findPrototypeShop("ginza-itoya-main-store")!);
 
-    // Not a second header button: one labelled link, inside Before you go.
-    expect(screen.getAllByRole("link", { name: "ito-ya.co.jp" })).toHaveLength(1);
-    expect(screen.getByText("Official website")).toBeInTheDocument();
+    // One full URL in the separate website card.
+    expect(screen.getAllByRole("link", { name: /Website: https:\/\/www\.ito-ya\.co\.jp\// })).toHaveLength(1);
+    expect(screen.getByRole("heading", {name:"Website & social"})).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^official site$/i })).not.toBeInTheDocument();
   });
 

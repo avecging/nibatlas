@@ -165,3 +165,54 @@ attached type). Unknown codes outside that namespace remain invalid. These label
 are plain text and contain no account or private working-copy data. Existing
 public type filters retain their four canonical categories; new types remain
 visible in All and are not silently categorized.
+
+## Social and messaging presentation (#110)
+
+Public `links[]` now retain the platform `type` through the domain adapter and
+may carry `accountValue` instead of `url` for messaging contacts. Existing URL
+rows remain compatible. Only canonical published official links are projected;
+private drafts and non-official rows remain excluded. Copy-only IDs do not pass
+through URL-label inference. Saved admin previews use this same projection and
+renderer, with messaging actions disabled.
+
+The phone stays in Plan your visit; large messaging icons immediately follow it
+(or occupy that position when there is no phone). Website & social follows Plan
+your visit in the desktop right panel and in stacked mobile order. Website rows
+precede social rows, with platform icons and full clickable URLs. Empty messaging
+and website/social sections render nothing. Legacy reference/directions links are
+preserved in the link card.
+
+Desktop icons copy the number/ID, or the original link if no usable identifier
+can safely be extracted. Confirmation is Number copied / ID copied / Link copied.
+A denied/unavailable clipboard shows selectable text and does not claim success.
+Mobile uses the supplied supported HTTP(S) destination or a documented derived
+link; unsupported bare IDs copy. Device detection is a user-agent/touch hint, not
+app-installation detection. No chooser, timer-based launch probe, guaranteed
+launch promise or automatic failure detection is implemented.
+
+### Link verification and fallback rules (30 September 2026)
+
+| Platform | Supported derivation / extraction | Conservative fallback |
+| --- | --- | --- |
+| WhatsApp | Explicit international `+` phone → `https://wa.me/<digits>`; extract digits from wa.me phone and /send?phone= links | Local number stays as entered; wa.me/message tokens copy the whole link |
+| Telegram | Username → t.me/username; explicit international phone → t.me/+phone; extract only complete username/phone paths | Reserved endpoints, invite and temporary-contact tokens copy the original URL |
+| LINE | Explicit `@` official ID → line.me/R/ti/p/%40ID; extract only @ IDs from recognized profile/message paths | Personal IDs copy; lin.ee and opaque /ti/p tokens copy the original URL |
+| WeChat | Supplied weixin.qq.com/u.wechat.com links remain destinations | Bare IDs copy; bare-ID app launching is unverified; QR/share tokens are not IDs |
+| Messenger | Username or page ID → m.me/value; extract from m.me/value or messenger.com/t/value | Join/share links copy as links |
+| KakaoTalk | Supplied pf.kakao.com and open.kakao.com destinations remain intact | Bare IDs copy; channel/open-chat tokens are not presented as searchable account IDs |
+
+Primary references checked: [WhatsApp universal links](https://faq.whatsapp.com/425247423114725/),
+[Telegram deep links](https://core.telegram.org/api/links),
+[LINE URL schemes](https://developers.line.biz/en/docs/messaging-api/using-line-url-scheme/),
+[Kakao channel documentation](https://developers.kakao.com/docs/en/kakaotalk-channel/js).
+Facebook’s [username documentation](https://www.facebook.com/help/162586890471598)
+confirms facebook.com/username and m.me/username. Messenger links are HTTP
+destinations without a custom app scheme or app-launch claim.
+No bare WeChat or Kakao custom scheme is assumed. Source documentation is not
+proof of launch behaviour on every device; founder mobile acceptance is separate.
+
+Social canonical paths also follow the platforms’ username/handle formats:
+[YouTube handles](https://support.google.com/youtube/answer/11585688),
+[TikTok username/profile links](https://support.tiktok.com/en/getting-started/setting-up-your-profile/changing-your-username).
+Supplied profile/share URLs are preserved, including query tokens needed by the
+platform. Link support does not assert that a submitted account actually exists.

@@ -49,9 +49,22 @@ to shared migrations/contracts. No package here authorizes production release.
 | A — Stability | Investigate 1102 against route/release and authorized resource telemetry; useful non-JSON recovery; independent WebGL fallback; separate media acceptance. | PR #75 merged at `7074656bdc3e7aa945ad208a0fbdd036410fac82`; main CI 35458434251 passed all six jobs and staging deployment 35458739061 succeeded at that commit. Authenticated recovery/screenshots and real JPEG/photo/logo/stamp/device acceptance remain pending; original 1102 root cause lacks reproduction/telemetry. See staging/media runbooks; CI/public smoke is not that acceptance. |
 | B — Shared contract and essentials | One normalized manual/import draft and publication contract; additive compatibility/public decoding; trusted-admin review without mandatory claim tokens; protected private working copies; idempotent audited generated defaults for new shops; canonical locality/brand mapping/creation; essential seven-section editor. | B1 implements atomic generated defaults on manual create, idempotent preparation for older drafts with no stamp, and stored-template admin preview. PR #76 merged at `6938ceebea364a13902e6fc2e2a10310fe9d4110`; main CI 35462044811 and staging deployment 35462072430 passed. Founder acceptance remains separate. PR #77 merged at `28742a3454abab9c40a9cc48402e0242b97be509`; main CI 35471228640 and staging deployment 35471233475 passed. Founder mobile usability acceptance failed (empty choices, save/upload/error friction); correction is in progress on `fix/admin-mobile-save-feedback`. B3 essentials merged/deployed in #79; founder reports checks 1–6 otherwise pass, with logo intake/automatic resizing follow-up pending. Do not infer stamp or bulk-import acceptance. Retain IDs/slugs, legacy provenance, relationships, custom art and impressions. Optional creator name/link, with name required for a supplied link; no invented verification facts. |
 | C — Bulk onboarding | Versioned downloadable CSV/JSON template, column and grouped vocabulary mapping, dry run/dedupe, selected private import, correction reports, stable row identity/operation revisions, resumable safe updates and batch review/publication. | C1 dry-run checkpoint merged in PR #85 at `38f2ca7`: versioned templates, CSV/JSON parsing, column/grouped canonical mapping, backend validation, conservative duplicate preview and correction reports. See `docs/api/admin-import-v1.md` for the contract/Claude coordination boundary. C2 selected private import, safe updates and durable correction/retry/resume merged in PR #88 at `c573e45`; all six final PR/main CI jobs passed. Staging run 35573185161 applied migration `20260921000100` and deployed the Worker, but failed the unrelated addressless-demo shop-map smoke. The staging cleanup schedule is configured; its first execution and founder import acceptance remain pending. See the staging runbook. No real catalogue imports. C3 merged in PR #93 at `64243cf88e1f8abd13deac87996401a25d120eca`; post-merge CI 35680370585 passed and staging deployment 35702964089 succeeded at that revision. It implements saved-batch review, explicit position confirmation and selected revision-bound publication with durable partial outcomes; technical checks/review are recorded in #93. Combined C2+C3 founder acceptance remains pending; green CI is not founder acceptance. Main map refresh stays post-MVP #87. Mandatory before catalogue preparation; at least 200 synthetic mixed-quality rows in isolated tests. Omitted/blank fields preserve data; explicit clearing and before/after preview; draft/public revision conflicts require re-review. Bounded chunks/concurrency, private batch audit/retention and formula-safe reports. Dry run does not mutate catalogue/media/stamps. C1/C2 behavior remains intact; C3 completes the deployed implementation path; combined founder acceptance is still pending. |
-| D — Complete approved editor | Shop & story; experiences; location; visit details; photos/logo; stamp; review. Full editorial/paragraph fields, repeatable experiences, optional practical fields, split/overnight hours and dated exceptions, gallery cover/order/captions, private pending media/stamp selection, accurate mobile/desktop public preview and field-level Fix actions. | D1 merged in PR #94 (`ad86d18a`) and founder-accepted on staging with a selected-import-filename follow-up. D2 merged in PR #96 at `515034bf`; the founder reports it generally works. D3 merged in PR #99; current main also includes the founder-approved experience icons from #100. D4a adds a read-only comparison of saved photos/logo and active or pending stamp artwork inside Review, checked against the saved shop revision. D4b connects those temporary choices to the actual mobile/desktop page preview and separate exact collection-artwork views, refusing changed media/artwork snapshots. Durable server-owned revision-bound review is next, followed by explicit combined publication and recoverable partial outcomes; neither preview authorizes or executes publication. Carry B/C data without re-entry. Review/publication binds the reviewed revisions and reports recoverable partial outcomes; draft saves never silently publish media/activate artwork. Optional postcodes/references/hours/photos are not arbitrary blockers. |
+| D — Complete approved editor | Shop & story; experiences; location; visit details; photos/logo; stamp; review. Full editorial/paragraph fields, repeatable experiences, optional practical fields, split/overnight hours and dated exceptions, gallery cover/order/captions, private pending media/stamp selection, accurate mobile/desktop public preview and field-level Fix actions. | D1 merged in PR #94 (`ad86d18a`) and founder-accepted on staging with a selected-import-filename follow-up. D2 merged in PR #96 at `515034bf`; the founder reports it generally works. D3 merged in PR #99; current main also includes the founder-approved experience icons from #100. D4a adds a read-only comparison of saved photos/logo and active or pending stamp artwork inside Review, checked against the saved shop revision. D4b connects those temporary choices to the actual mobile/desktop page preview and separate exact collection-artwork views, refusing changed media/artwork snapshots. D4c adds owner-private durable photo/logo/stamp review choices bound to saved/canonical/gallery/artwork/vocabulary state, with stale re-review and competing-tab protection (merged #108; main CI passed; migration/deployment not yet applied). D4d implements deliberate admin-only combined publication and durable outcomes with guarded retry (proposed PR; hosted approval/acceptance pending); neither preview authorizes or executes publication. Carry B/C data without re-entry. Review/publication binds the reviewed revisions and reports recoverable partial outcomes; draft saves never silently publish media/activate artwork. Optional postcodes/references/hours/photos are not arbitrary blockers. |
 | E — Catalogue and core acceptance | Locate actual founder dataset; map once, dry-run/correct/import, review genuine coordinates/timezones/unknowns; truthful public About; geographic seal/versioned coverage and anomaly-list dispositions; changed admin/public flows, field checks and five-user usability. | No fabricated catalogue or verification dates. Keep WP-D founder desktop feedback, broader device/indoor checks and #17 About accuracy explicit. Imports never create visits or derive award denominators from batch size. |
 | F — Production and release | Production/auth/domain/SMTP/OAuth, server account export/deletion consistent with immutable history/privacy, monitoring/spend alerts, terms/privacy, backups/restore and rollback drills, accessibility/performance/security, launch publication audit and founder acceptance. | Infrastructure discovery and independent account lifecycle work can start before D/E finish. Actual promotion follows authorized gates. Read closed-beta runbook before gating; preserve automation/alternate-route protection; no tester invitations here. |
+
+### Current follow-up — shop social/contact fields (#110)
+
+Package D was merged in #109, deployed and founder-tested (founder confirmation,
+30 September 2026). Historical D checkpoint entries below describe delivery at
+the time and do not reopen that work. The approved next increment is #110:
+Social Media/Contact pickers in Shop & story, public messaging plus a separate
+Website & social card, and matching CSV/JSON safe-update support. All use existing
+private save/preview/publication; no channel-specific review or confirmation.
+
+Implementation and one additive links migration are proposed in the #110 PR;
+merge, hosted migration and deployment await founder approval. Workers Free,
+#97, Packages E/F, catalogue preparation and production remain out of scope.
 
 ### Package D1 — bounded editor polish
 
@@ -706,3 +719,46 @@ Existing separate photo/logo publishing and stamp activation remain deliberate.
 **Still within D:** selections carried into the full public-renderer preview,
 durable combined review bound to catalogue/media/artwork revisions, execution
 with safe re-review and recoverable partial outcomes. D4a does not complete D.
+
+### Package D4c — durable saved review (implementation checkpoint)
+
+Adds explicit **Save reviewed choices**, private per-account/shop/environment
+storage and server-owned freshness checks. Reload restores choices; saved content
+changes require deliberate re-review, and concurrent review edits conflict. Review
+saves are audited, never publish media, activate stamps or confirm position.
+The D4b preview and all existing writers remain intact. See the shop API contract
+and founder runbook for the additive migration, boundaries and acceptance steps.
+Local/CI/review evidence belongs in the PR; hosted deployment/migration and founder
+phone acceptance are separate and unclaimed. Next is the explicit combined
+publication executor with recoverable outcomes. Package D remains unfinished;
+no catalogue preparation, #97, reset/seed or production work is included.
+
+
+### Package D4d — combined publication and remaining MVP engineering
+
+D4d consumes the exact saved D4c receipt, keeps shop/stamp in one rollback unit,
+then publishes selected photos/logo with durable per-part outcomes. Lost responses
+are reconciled by read; retry skips successes and refuses intervening changes.
+Current-role checks, position confirmation, existing writer audit, immutable art
+and C contracts remain. It is the final planned D4 publication implementation
+slice, subject to final CI/review and approved hosted migration/deployment plus
+founder desktop acceptance. No catalogue preparation is started by this checkpoint.
+
+Remaining **engineering after D**, separately from catalogue/acceptance:
+- E: geographic seal persistence/versioned eligible coverage sets; verification
+  anomaly-list implementation or explicit approved disposition. Current verification
+  stores anomaly flags, but no anomaly admin route/UI exists. Wire truthful About
+  coverage to the real published catalogue (the page still counts fixtures).
+- F: server account export/deletion (Me explicitly says unavailable), production
+  configuration/auth/domain/SMTP/OAuth, monitoring/spend alerts, backup/restore and
+  rollback verification, and final accessibility/performance/security release gates.
+  Inspect actual infrastructure before selecting a bounded implementation; no
+  production provisioning or release is authorized here.
+- **Catalogue work (E), not engineering completion:** source research, mapping,
+  dry-run/correction/import and coordinate/timezone/content review of the real set.
+- **Founder/launch acceptance:** PC admin checks, public/device/indoor field checks,
+  five-user usability, accurate founder/legal copy, publication audit and explicit
+  production approval. Green CI is not acceptance; no phone-admin test is required.
+
+This is the approved MVP backlog, not a guarantee that all release gates can be
+finished this week. Optional polish, #97 and deferred features remain excluded.

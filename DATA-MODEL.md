@@ -535,3 +535,12 @@ triggers cover the additions; public projection remains an explicit allowlist.
 No source, confirmation, verification date, artwork or impression is backfilled.
 See `docs/api/admin-shops-v1.md` for the shared draft/publication contract and
 `docs/api/v1-shop-reads.md` for honest editorial attribution and compatibility.
+
+### Shop channel extension (#110)
+
+`shop_links` retains its identity, shop owner, sort order, official flag and audited
+writer. `account_value` is nullable plain contact text (≤160 chars); `url` is
+nullable only for messaging IDs/numbers. Exactly one is supplied. The supported
+platforms, validation, compatibility and public optional `accountValue` are
+specified in `docs/api/admin-shops-v1.md` and `docs/api/v1-shop-reads.md`. No new
+public/private table, role grant, alternate publication or automatic backfill.

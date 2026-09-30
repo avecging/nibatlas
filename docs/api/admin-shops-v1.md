@@ -352,3 +352,154 @@ after the last read are not pushed into an already displayed frame; refresh to
 recheck. The next dependency is a durable server-owned review bound to the shop,
 media and artwork revisions, followed by explicit combined publication and
 recoverable outcomes. No existing writer consumes this preview fingerprint.
+
+## D4c durable private review
+
+`GET /api/v1/admin/shops/[id]/review` returns one locked saved-content snapshot:
+`record`, `media`, `stamps`, `availableStampIds`, opaque SHA-256 `reviewKey`,
+`conflict`, and the caller's nullable `review` (`id`, `choices`, `reviewedAt`,
+`current`). `POST` accepts only `{id,previousId,reviewKey,choices}`; choices are
+`{photos: UUID[0..50],logo: UUID|null,stamp: UUID|null}`. `previousId` is the last
+loaded review ID or null, and `id` is a new UUID for this deliberate review.
+Approved photos remain included; choices add private photos in saved order and
+select at most one logo/stamp. Null means no logo/stamp in this review, never an
+instruction to hide or deactivate existing public content.
+
+The server owns the key; the D4b browser fingerprint is **not** accepted as review
+authority. It binds the private revision/document, canonical document and base,
+position/publication state, complete saved gallery membership/order/captions and
+revisions, retained artwork metadata/revisions/active design, referenced vocabulary
+rows and environment. Current-role then shop locks serialize with existing shop,
+media and artwork writers. Canonical drift beneath a private working copy blocks
+re-review until reconciliation. Optional publication requirements do not block
+saving a review and no position confirmation or public reviewed date is inferred.
+
+Review storage is one latest row per actor/shop/environment; another editor cannot
+read or overwrite these choices. `previousId` provides compare-and-swap protection
+against another tab. A repeated current request ID with identical key/choices
+returns its current status without another event; changed content returns
+`current:false`, never revives the receipt. Superseded IDs and stale keys conflict.
+A lost response is recovered by reloading, not blindly creating a new request.
+The server timestamp and a fingerprint-only append-only audit event commit with
+review storage. Reads create no rows. No documents, captions, credits or coordinates
+are duplicated in the review/audit tables; only selected IDs and hashes persist.
+
+The endpoint requires verified cookie identity, live editor/admin role, same-origin
+POST, JSON, no query parameters and a maximum 8 KiB body. It explicitly projects
+nested response fields and uses private/no-store headers. Like media operations,
+its service-only SQL RPC receives actor from verified identity and environment from
+the Worker binding, then rechecks and locks the current role. Browser roles cannot
+call that actor-accepting RPC or access either RLS-protected table directly.
+Uploaded stamp choices must have a validated receipt for the exact version/shop
+and environment, including active uploaded art. Retained but unavailable choices
+are disabled, not silently replaced. 409 means reload/re-review; 422 means invalid
+choices, 401/403 denied identity/access, 404 missing target, 503 unavailable.
+
+Review restores remembered choices after reload/return. Changed saved content
+shows **Review again** on the next read, or rejects saving against stale content.
+The page is a loaded snapshot, not a live subscription; reload checks freshness.
+Unavailable remembered IDs stay explicit until deliberately cleared/replaced.
+Unsaved choices reset on leaving/reload; account changes unmount private memory.
+Nothing is written to browser storage, preview URLs or initial HTML.
+
+Migration `20260928090000_d4c_durable_shop_review.sql` is additive and must be
+approved/applied before deployment of this endpoint. Existing publication,
+position-confirmation, media writers, C1–C3, and immutable artwork/impressions are
+unchanged. **D4d consumes this receipt only through the separate deliberate combined action below.**
+D4c alone does not complete Package D or authorize hosted migrations/deployment.
+
+
+## D4d deliberate combined publication
+
+`GET /api/v1/admin/shops/[id]/publication` returns `{publication:null}` or the
+caller's latest durable outcome for this shop/environment. POST accepts exactly
+`{action:"publish"|"retry",reviewId:UUID}` (maximum 1 KiB). Both methods require a
+verified cookie and **current admin** role. Same-origin JSON POST, no query,
+private/no-store, bounded safe response projection and service-only actor/environment
+RPC follow D4c. Editors retain separate shop-only publishing and review saving;
+combined publication does not grant them media/artwork activation authority.
+
+`publish` consumes only the caller's exact current D4c receipt. A changed review,
+saved/canonical content, gallery/artwork or referenced vocabulary requires fresh
+review. The saved location must already have deliberate position confirmation;
+this action never confirms it. Unsaved local work/pending uploads disable the UI.
+The inline confirmation names the saved choices and public consequences.
+
+The shop lock covers the whole operation. Shop publication and optional selected
+stamp activation form one subtransaction using existing writers/revision checks:
+failure rolls both back, including their audit. Photos are then attempted separately
+in saved gallery order, followed by the logo. Existing approved photos stay included;
+only selected private photos are approved. One selected logo replaces the existing
+logo atomically through the existing media writer. **Null logo/stamp means no
+instruction to remove or deactivate anything**; the current public logo/active
+stamp stays. The comparison can omit a logo; combined confirmation explicitly
+states this keep behavior. To hide a logo, use the existing separate media action.
+Old artwork versions, creator credit and historical impressions are unchanged.
+
+The outcome has `reviewId`, `status` (`complete`, `partial`, `failed`), `canRetry`,
+`updatedAt`, and bounded `outcomes` for shop/stamp/each selected photo/logo.
+Each outcome contains kind, nullable targetId, status (`pending`, `succeeded`,
+`failed`) and a safe nullable reason (`review_again`, `requirements`, `unavailable`).
+Success includes already-current/unchanged selections; pending means not attempted.
+Provider messages, documents, captions, coordinates and storage keys are excluded.
+
+The ledger and append-only publication audit commit with successful parts. Failure
+of either aborts the entire RPC. Core failure prevents media attempts. The outer
+transaction exposes no intermediate step; on commit, successful parts become
+visible together, even if another part failed. A repeated `publish` reads the
+existing result without performing any retry. After an uncertain/lost response,
+**Check publication outcome** or reload before another mutation. GET never writes.
+`retry` is deliberate, skips successes, and requires the same latest review plus
+the exact server-owned state recorded after the preceding attempt. Own successful
+writes are accounted for; intervening external changes require re-review. A new
+review cannot resurrect an old retry. Completed attempts remain historical results,
+not claims about the page after later edits. Archived shops can still show their
+outcome but cannot retry. Private outcomes are scoped per account/shop/environment.
+
+SQL holds current admin then shop locks, reuses the existing service-only media
+writers and temporarily establishes the verified actor for the authenticated
+catalogue writer/audit, restoring request claims afterwards. This actor-setting
+function is never granted to anonymous/authenticated roles. Private ledger/audit
+RLS is forced, with no direct browser or service table grants.
+
+Proposed additive migration: `20260929090000_d4d_combined_publication.sql`, after
+D4c `20260928090000`. No existing C/manual writers, vocabulary, artwork or hosted
+rows are migrated. Both migrations and deployment still require founder approval.
+
+## Social profiles and messaging contacts (#110)
+
+Social Media and Contact are ordinary `document.links` fields in Shop & story.
+The two platform pickers add editable rows (one account per platform) to the same
+unsaved document. Save/private preview/publish, role checks, audit, revision
+conflicts and position confirmation stay unchanged. No channel-specific review,
+approval or confirmation is added. Removing a row takes effect publicly only on
+publication, like other shop fields.
+
+Platforms: social `facebook`, `instagram`, `tiktok`, `xiaohongshu`, `threads`, `x`,
+`youtube`; contact `whatsapp`, `telegram`, `line`, `wechat`, `messenger`, `kakaotalk`.
+Legacy `website`, `directions`, `contact` and existing IDs/labels/order/official
+flags remain. The new fields default to `is_official:true`; legacy flags are not
+silently promoted. Only official rows enter the public API and saved preview.
+
+Migration `20260930135052_shop_social_contacts.sql` adds nullable `account_value`
+and permits a null `url` only for a messaging number/ID. Exactly one destination
+is present: a real HTTP(S) `url`, or a bare `account_value` (≤160 characters).
+Social handles normalize to profile URLs; Xiaohongshu requires a profile/share
+link because a public RED ID/display name is not a reliable profile path.
+Manual and imported inputs share `normalizeChannel` and `normalizeShopDocument`.
+URL inputs are restricted to known platform hosts, reject credentials/control
+characters/backslashes and are never fetched, expanded or verified as live accounts.
+No country prefix, personal-to-official ID conversion, or destination is guessed.
+
+SQL independently checks destination shape, supported type, row ownership,
+unique platform and ordinary URL safety. The existing audited writer handles
+insert/update/removal. No new RPC, role grant or table is introduced. Null contact
+values are omitted from the canonical edit projection to retain existing
+fingerprints and private-copy bases; existing saved documents are not rewritten.
+Legacy duplicates remain stored; to save such a record, remove extra accounts
+explicitly. No migration silently chooses an account.
+
+Public `links` retain `type` and optionally expose `accountValue`; `url` can now
+be absent for a copy-only contact. Consumers must not run URL parsing on IDs.
+The shared saved/public projector carries both forms. Public page behaviour and
+verified link formats are documented in `v1-shop-reads.md`.
