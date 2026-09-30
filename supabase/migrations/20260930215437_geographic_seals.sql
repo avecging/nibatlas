@@ -108,7 +108,7 @@ begin
    or length(btrim(p_document->>'countryLabel')) not between 1 and 100
    or p_document->>'ink' not in ('vermilion','navy','teal','indigo','plum','moss','ochre','brick')
    or jsonb_typeof(p_document->'eligibleShopIds') is distinct from 'array'
-   or jsonb_array_length(p_document->'eligibleShopIds')>case when p_document->>'scope'='locality' then 1 else 4 end
+   or jsonb_array_length(p_document->'eligibleShopIds')>(case when p_document->>'scope'='locality' then 1 else 4 end)
    or octet_length(p_document::text)>4096 then raise exception 'Invalid seal' using errcode='22023'; end if;
   if p_document->>'scope'='locality' then
    select * into l from public.localities where id=(p_document->>'localityId')::uuid and country_code=p_document->>'countryCode' for share;

@@ -1,0 +1,34 @@
+import {test,expect} from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
+import {stubSession} from '../support/auth';
+const id='e1000000-0000-4000-8000-000000000001', locality='e1000000-0000-4000-8000-000000000002';
+test('geographic seal private save and deliberate publication',async({page},testInfo)=>{
+ await stubSession(page,{kind:'signed-in'});
+ await page.route('**/api/v1/admin/shops/options',r=>r.fulfill({json:{localities:[{id:locality,label:'Singapore',countryCode:'SG'}],types:[],services:[],specialties:[],brands:[]}}));
+ let saved:Record<string,unknown>|null=null;const actions:string[]=[];
+ await page.route('**/api/v1/admin/seals',async r=>{
+  if(r.request().method()==='GET') return r.fulfill({json:{entries:saved?[saved]:[],nextCursor:null}});
+  const b=r.request().postDataJSON();actions.push(b.action);
+  if(b.action==='save')saved={id,revision:id,draft:b.document,localityName:'Singapore',published:false,publishedVersion:null};
+  else saved={...saved,published:b.action==='publish',publishedVersion:1};
+  await r.fulfill({json:{seal:saved}});
+ });
+ await page.goto('/admin/seals');
+ await page.getByLabel('Locality',{exact:true}).selectOption(locality);
+ await expect(page.getByRole('img',{name:'locality seal, Singapore'})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Publish saved seal'})).toBeDisabled();
+ await page.getByRole('button',{name:'Save privately',exact:true}).click();
+ await expect(page.getByRole('status')).toHaveText('Saved privately. Publish when ready.');
+ expect(actions).toEqual(['save']);
+ await page.getByRole('button',{name:'Publish saved seal'}).click();
+ await expect(page.getByRole('status')).toHaveText('Published. Past verified visits count too.');
+ await page.getByLabel('Ink',{exact:true}).selectOption('teal');
+ await expect(page.getByRole('button',{name:'Publish saved seal'})).toBeDisabled();
+ await page.getByRole('button',{name:'Discard unsaved changes'}).click();
+ await page.getByRole('button',{name:'Unpublish',exact:true}).click();
+ await expect(page.getByRole('status')).toHaveText('Unpublished. Existing collectors keep their seals.');
+ expect(actions).toEqual(['save','publish','unpublish']);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+ expect((await new AxeBuilder({page}).include('main').withTags(['wcag2a','wcag2aa']).analyze()).violations).toEqual([]);
+ await page.screenshot({path:testInfo.outputPath('admin-geographic-seal.png'),fullPage:true});
+});
