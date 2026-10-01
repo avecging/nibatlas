@@ -39,7 +39,7 @@ function PageSealButton({
   readonly size: "country" | "locality";
 }) {
   const name =
-    seal.scope === "country" ? seal.countryLabel : (seal.localityName ?? seal.countryLabel);
+    seal.name ?? (seal.scope === "country" ? seal.countryLabel : (seal.localityName ?? seal.countryLabel));
 
   return (
     <button
@@ -188,8 +188,8 @@ export function PassportPageView({
             </h3>
             <p className={styles.pageNote}>
               Seals are not collected. They derive from verified shop visits: a
-              locality seal from the first stamp there, a country seal from five
-              stamps — or from completing a smaller curated set.
+              locality seal from two distinct shops (or an explicit sole eligible shop),
+              a country seal from five distinct shops or its complete smaller eligible set.
             </p>
             <ul className={styles.sealList}>
               {page.countries.map((country) => {
@@ -217,9 +217,7 @@ export function PassportPageView({
                       {seal ? (
                         <span className={styles.sealMeta}>
                           Earned {seal.earnedOn}
-                          {country.requirementFromCuratedSet
-                            ? ` · curated set of ${country.required} complete`
-                            : ""}
+
                         </span>
                       ) : (
                         <span className={styles.sealMeta}>
@@ -252,7 +250,7 @@ export function PassportPageView({
               })}
               {page.countries.length === 0 ? (
                 <li className={styles.pageNote}>
-                  A seal derives from the first stamp you collect.
+                  Verified shop visits build toward locality and country seals.
                 </li>
               ) : null}
             </ul>

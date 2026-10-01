@@ -4,6 +4,7 @@ import { fitStampTitle } from "@/src/components/stamps/stamp-title";
 import { languageDirection } from "@/src/domain/language";
 import { STAMP_INK_LABELS } from "@/src/domain/stamp-palette";
 
+import { GeographicSealArt } from './GeographicSealArt';
 import styles from "./StampArt.module.css";
 
 /**
@@ -178,6 +179,10 @@ export function StampArt({
   subtitle,
   detail = "full",
 }: StampArtProps) {
+  if(stamp.sealArtwork) return <figure className={styles.stamp}>
+    <img className={styles.canvas} src={`/api/v1/seals/artwork/${stamp.sealArtwork.id}${stamp.sealArtwork.treatment==='ink-v1'?`?ink=${stamp.ink}`:''}`} alt={`${TIER_LABEL[stamp.tier]} seal, ${title}`}/>
+    {subtitle?<figcaption>{subtitle}</figcaption>:null}
+  </figure>;
   if (stamp.uploaded) {
     // Approved #73 uploads are delivered intact. The route authorizes current
     // public art or the owner's exact historical version.
@@ -198,6 +203,7 @@ export function StampArt({
       <p>Artwork temporarily unavailable</p>
     </figure>;
   }
+  if (stamp.generatedSealTemplate === "cartouche-v1") return <GeographicSealArt stamp={stamp} title={title} subtitle={subtitle} />;
   const ink = `var(--ink-${stamp.ink})`;
   const filterId = `stamp-edge-${stamp.id}`;
   const grainId = `stamp-grain-${stamp.id}`;

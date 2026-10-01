@@ -15,6 +15,21 @@ GPT owns end-to-end implementation and initiates independent review under
 and scope decisions. A conductor/orchestrator has not been onboarded. `AGENTS.md`
 is the shared working contract. This assignment covers every milestone; frontend work is not reserved for Claude.
 
+## Current follow-up — Geographic seals (#114), 1 October 2026
+
+Founder rejected PR #117's first admin interface on 1 October. The revised scope
+is a paginated/searchable seal dashboard with explicit country/locality scope,
+separate editors, published version history, and PNG/SVG artwork with credits.
+Eligible shops follow current published geography automatically. Founder confirmed
+all eligible shops qualify when fewer than two (locality) or five (country) exist.
+Changing a shop's locality changes future eligibility; earned seals stay intact.
+Generated cartouches, old-visit reconciliation, Passport progress and the combined
+ceremony remain. Special stamps and redesigned-edition recollection are deferred.
+The missed-reveal acknowledgement finding is accepted as non-blocking for MVP;
+a replay button is a future option. No hosted migration/deployment or founder
+acceptance is implied. Imports, production, #97 and anomaly UI remain deferred.
+See `docs/api/collections-v1.md` for the revised contract.
+
 ## Current follow-up — Related shops (#112), 30 September 2026
 
 Founder confirms Package D, social/contact #111 and Website & social card #115

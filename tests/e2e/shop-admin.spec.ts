@@ -401,13 +401,13 @@ test("editor supports zoom and reduced motion", async ({ page }) => {
   await expect(page.getByRole("main").getByRole("status").first()).toContainText(
     "Saved privately",
   );
-  expect(
-    await page.evaluate(
-      () =>
-        globalThis.document.documentElement.scrollWidth <=
-        globalThis.document.documentElement.clientWidth,
-    ),
-  ).toBe(true);
+  const dimensions=await page.evaluate(()=>({
+    fits:globalThis.document.documentElement.scrollWidth<=globalThis.document.documentElement.clientWidth,
+    width:globalThis.document.documentElement.clientWidth,scrollWidth:globalThis.document.documentElement.scrollWidth,
+    overflowing:[...globalThis.document.querySelectorAll('body *')].filter(el=>el.getBoundingClientRect().right>globalThis.document.documentElement.clientWidth+1)
+      .slice(0,20).map(el=>({tag:el.tagName,text:el.textContent?.slice(0,60),className:el.className,right:el.getBoundingClientRect().right,width:el.getBoundingClientRect().width})),
+  }));
+  expect(dimensions.fits,JSON.stringify(dimensions)).toBe(true);
 });
 
 test("dirty edits survive global links and browser Back @short", async ({ page }) => {

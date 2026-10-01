@@ -16,11 +16,13 @@ export function CountryField({
   onChange,
   error,
   disabled,
+  showHelp = true,
 }: {
   value: string;
   onChange: (value: string | null) => void;
   error?: string | undefined;
   disabled?: boolean | undefined;
+  showHelp?: boolean | undefined;
 }) {
   const id = useId();
   const search = useCallback((query: string): SelectChoice[] => {
@@ -65,7 +67,7 @@ export function CountryField({
       }
       error={error}
       disabled={disabled}
-      describedBy={`${id}-help${unnamed || malformed ? ` ${id}-note` : ""}`}
+      describedBy={[showHelp ? `${id}-help` : "", unnamed || malformed ? `${id}-note` : ""].filter(Boolean).join(" ") || undefined}
     >
       {malformed && (
         <small id={`${id}-note`}>
@@ -78,10 +80,10 @@ export function CountryField({
           This browser has no name for {value}. The saved code is unchanged.
         </small>
       )}
-      <small id={`${id}-help`}>
+      {showHelp && <small id={`${id}-help`}>
         Saved as the two-letter code, for example SG. The locality below must
         belong to the country chosen here.
-      </small>
+      </small>}
     </SearchSelect>
   );
 }

@@ -8,6 +8,7 @@ import { ImpressionSheet } from "@/src/components/stamps/ImpressionSheet";
 import { StampArt } from "@/src/components/stamps/StampArt";
 import { StampCredit } from "@/src/components/stamps/StampCredit";
 import { Button, ButtonLink } from "@/src/components/ui/Button";
+import type { EarnedSeal } from "@/src/domain/seals";
 import type { StampCollection } from "@/src/domain/passport";
 import { useReviewerMode } from "@/src/features/reviewer/ReviewerModeProvider";
 
@@ -18,9 +19,11 @@ const CEREMONY_MS = 780;
 
 interface StampCeremonyProps {
   readonly collection: StampCollection;
+  readonly seals?: readonly EarnedSeal[] | undefined;
   readonly alreadyCollected: boolean;
   readonly passportHref: string;
   readonly onClose: () => void;
+  readonly onOpenPassport?: (() => void) | undefined;
 }
 
 function usesReducedMotion(): boolean {
@@ -50,9 +53,11 @@ function usesReducedMotion(): boolean {
  */
 export function StampCeremony({
   collection,
+  seals = [],
   alreadyCollected,
   passportHref,
   onClose,
+  onOpenPassport,
 }: StampCeremonyProps) {
   const dialogRef = useDialogFocus<HTMLDivElement>(true, onClose);
   const reviewer = useReviewerMode();
@@ -134,8 +139,12 @@ export function StampCeremony({
         {collection.shopTimezone})
       </p>
 
+      {phase === "settled" && !alreadyCollected ? seals.map(seal=><section key={seal.id} className={styles.sealPress} data-reduced={reduced ? "true" : "false"}>
+        <h3>{seal.scope === "locality" ? "Locality" : "Country"} seal earned</h3>
+        <ImpressionPlate size="detail"><StampArt stamp={seal.stamp} title={seal.name??seal.localityName??seal.countryLabel} subtitle={seal.earnedOn}/></ImpressionPlate>
+      </section>):null}
       <div className={styles.actions}>
-        <ButtonLink href={passportHref} variant="primary" fullWidth>
+        <ButtonLink href={passportHref} variant="primary" fullWidth onClick={onOpenPassport}>
           Open in Passport
         </ButtonLink>
         <Button variant="quiet" fullWidth onClick={onClose}>
