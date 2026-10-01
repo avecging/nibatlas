@@ -110,7 +110,9 @@ revision. Geographic identity is immutable; change designs through new versions.
 
 `POST /api/v1/admin/seals/[id]/artwork` accepts PNG (up to 5 MiB, bounded 2048 px
 RGB/RGBA) or static SVG (up to 512 KiB, bounded viewBox, paths/shapes/text).
-Self-contained SVG excludes scripts, style blocks/attributes, entities, foreign
+XML declarations, comments and safe inline presentation styles are accepted.
+Inline styles are converted to presentation attributes for image delivery.
+Self-contained SVG excludes scripts, style sheets, entities, foreign
 objects, embedded images, animation and external references. Unsupported exports
 are rejected with a useful error rather than silently altered. PNG requests with
 JPEG bytes return 422 `jpeg_artwork_not_supported`, so the editor can explain that
@@ -120,12 +122,18 @@ through a service-only role-checked RPC; browser tables/finalization are denied.
 Conditional write, read-back hash verification and explicit ready state precede
 attachment. At most 100 retained uploads per seal; identical content retries
 reuse the asset. Save does not publish. Creator link requires a name. Ink is
-recorded metadata for uploaded designs, not an automatic recolouring operation.
+applied to SVG designs with the versioned `artworkTreatment: "ink-v1"` rendering
+mode. This maps painted RGB to the selected palette ink while preserving alpha.
+PNG retains original colours. New editor saves record the treatment in the
+immutable published snapshot; legacy snapshots without it retain original colours.
+Original source bytes remain unchanged in R2.
 
-`GET /api/v1/seals/artwork/[assetId]` delivers the original PNG/SVG only to a
+`GET /api/v1/seals/artwork/[assetId]` delivers artwork only to a
 current editor/admin, signed-in viewers of current published artwork, or an
 owner of a historical award using that asset. Authorization is rechecked after
-R2 read. SVG is delivered as an image with sandbox CSP, no scripts/resources,
+R2 read. Optional `?ink=PALETTE_NAME` renders SVG through the frozen ink-v1
+treatment; arbitrary/duplicate query parameters are rejected. PNG ignores the
+ink parameter. SVG is delivered as an image with sandbox CSP, no scripts/resources,
 nosniff and private/no-store headers. No raw SVG is inserted into application HTML.
 
 Errors remain fixed responses: 400 invalid request, 401 unauthenticated,

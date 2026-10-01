@@ -683,5 +683,10 @@ the format; saved seal details are retained after a rejected upload. SVG accepts
 self-contained static path/shape/text export up to 512 KiB with a viewBox up to
 2048 units per side; export text as paths if an unavailable font matters. Scripts,
 CSS, external links/resources, embedded images and unsupported exports are
-rejected. Ink records uploaded artwork's ink; uploading does not recolour it.
+rejected. Safe inline presentation styles, XML declarations and comments are accepted.
+SVG uses the selected Ink in the editor preview and newly published versions;
+transparent areas remain clear. PNG keeps its original colours. Saving an older
+uploaded design adopts the new SVG ink treatment; earlier published versions and
+already-collected impressions keep their original appearance. Use a transparent
+SVG background: opaque white shapes are painted areas and take the chosen ink too.
 No founder acceptance or hosted deployment is claimed by these instructions.

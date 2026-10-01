@@ -23,3 +23,18 @@ it('identifies JPEG bytes mislabeled as PNG before registering or storing artwor
  expect(r.status).toBe(422);expect(await r.json()).toEqual({error:'jpeg_artwork_not_supported'});
  expect(g.operation).not.toHaveBeenCalled();expect(g.bucket.put).not.toHaveBeenCalled();
 });
+it('renders the requested SVG ink after authorization while leaving the source intact',async()=>{
+ const g=gateway();const r=await handleSealArtwork(new Request('https://nibatlas.test/artwork?ink=plum'),id,false,g);
+ expect(r.status).toBe(200);expect(await r.text()).toContain('feColorMatrix');
+ expect(g.operation).toHaveBeenCalledTimes(2);expect(g.bucket.put).not.toHaveBeenCalled();
+ expect(new TextDecoder().decode(bytes)).not.toContain('feColorMatrix');
+});
+it.each(['ink=red','ink=teal&ink=plum','anything=teal','ink=teal&other=1'])('rejects invalid display parameters %s',async query=>{
+ const g=gateway();expect((await handleSealArtwork(new Request(`https://nibatlas.test/artwork?${query}`),id,false,g)).status).toBe(400);expect(g.operation).not.toHaveBeenCalled();
+});
+it('never recolours PNG artwork even when an ink is requested',async()=>{
+ const g=gateway();const pngAsset={...asset,contentType:'image/png',key:`staging/seals/${id}/${hash}.png`};g.operation=vi.fn(async()=>pngAsset);
+ g.bucket.get=async()=>({size:bytes.length,httpMetadata:{contentType:'image/png'},body:new Blob([bytes]).stream()});
+ const r=await handleSealArtwork(new Request('https://nibatlas.test/artwork?ink=teal'),id,false,g);
+ expect(r.status).toBe(200);expect(r.headers.get('Content-Type')).toBe('image/png');expect(new Uint8Array(await r.arrayBuffer())).toEqual(bytes);
+});

@@ -4,7 +4,8 @@ import {createSupabaseServerClient} from '@/src/server/supabase/server-client';
 import {readSupabasePublicConfig} from '@/src/server/supabase/config';
 import {object,uuid} from '@/src/domain/geographic-seals';
 import {InvalidMedia,MAX_MEDIA_BYTES,readBounded} from './png';
-import {SealArtworkFormatMismatch,validateSealArtwork} from './seal-artwork';
+import {renderSealSvg,SealArtworkFormatMismatch,validateSealArtwork} from './seal-artwork';
+import {STAMP_INKS,type StampInk} from '@/src/domain/stamp-palette';
 import type {MediaBucket} from './r2';
 const HEADERS={'Cache-Control':'private, no-store',Pragma:'no-cache',Vary:'Cookie','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; style-src 'none'; sandbox",'X-Robots-Tag':'noindex'};
 export class SealFileError extends Error{constructor(readonly code:string){super('Artwork operation failed');}}
@@ -15,7 +16,8 @@ export async function handleSealArtwork(request:Request,id:string,upload:boolean
  const fail=(code:string,status:number)=>Response.json({error:code},{status,headers:HEADERS});
  try{
   try{uuid(id);}catch{return fail('invalid_request',400);}
-  if(new URL(request.url).search||request.method!==(upload?'POST':'GET'))return fail('invalid_request',400);
+  const params=new URL(request.url).searchParams,ink=params.get('ink');
+  if(request.method!==(upload?'POST':'GET')||(upload&&params.size)||(!upload&&(params.size>(ink===null?0:1)||(ink!==null&&!STAMP_INKS.includes(ink as StampInk)))))return fail('invalid_request',400);
   if(upload&&request.headers.get('origin')!==new URL(request.url).origin)return fail('forbidden',403);
   if(!await gateway.identity())return fail('authentication_required',401);
   if(upload){
@@ -32,6 +34,13 @@ export async function handleSealArtwork(request:Request,id:string,upload:boolean
   }
   const resolve=async()=>asset(await gateway.operation('read',id,null),gateway.environment);
   const a=await resolve(),stored=await gateway.bucket.get(a.key);if(!stored||stored.size!==a.byteSize||stored.httpMetadata?.contentType!==a.contentType)throw Error('Missing artwork');
+  if(a.contentType==='image/svg+xml'){
+   const bytes=await readBounded(stored.body,512*1024);
+   if(validateSealArtwork(bytes,a.contentType).sha256!==a.sha256)throw Error('Artwork mismatch');
+   const body=ink!==null?renderSealSvg(bytes,ink as StampInk):new TextDecoder().decode(bytes).match(/\sstyle\s*=/)?renderSealSvg(bytes):bytes;
+   if((await resolve()).key!==a.key)throw Error('Changed artwork');
+   return new Response(body,{headers:{...HEADERS,'Content-Type':a.contentType}});
+  }
   if((await resolve()).key!==a.key)throw Error('Changed artwork');
   return new Response(stored.body,{headers:{...HEADERS,'Content-Type':a.contentType,'Content-Length':String(a.byteSize)}});
  }catch(e){if(e instanceof SealArtworkFormatMismatch)return fail('jpeg_artwork_not_supported',422);const code=e instanceof SealFileError?e.code:'';return fail('artwork_unavailable',e instanceof InvalidMedia?422:code==='42501'?403:code==='P0002'?404:code==='22023'?422:503);}

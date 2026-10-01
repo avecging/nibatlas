@@ -13,6 +13,7 @@ export function uuid(v: unknown): string { const s=text(v,36); if(!isShopId(s)) 
 export interface SealDocument {
  scope: 'country' | 'locality'; countryCode: CountryCode; countryLabel: string;
  localityId: string | null; ink: StampInk; eligibleShopIds: string[];
+ artworkTreatment?: 'ink-v1';
  name?: string; origin?: 'generated'|'founder_created'|'ai_assisted'|'commissioned'|undefined;
  creatorName?: string|undefined; creatorUrl?: string|undefined; artworkId?: string|null;
 }
@@ -28,9 +29,11 @@ export function sealDocument(v: unknown): SealDocument {
  const eligibleShopIds=d.eligibleShopIds.map(uuid);
  if(new Set(eligibleShopIds).size!==eligibleShopIds.length) throw Error('Duplicate eligible shop');
  if(scope==='country' && d.localityId!=null) throw Error('Unexpected locality');
+ if(d.artworkTreatment!==undefined&&d.artworkTreatment!=='ink-v1')throw Error('Invalid artwork treatment');
  if(d.origin!==undefined && !['generated','founder_created','ai_assisted','commissioned'].includes(String(d.origin))) throw Error('Invalid origin');
  if(!validCreatorCredit(d.creatorName,d.creatorUrl)) throw Error('Invalid creator credit');
  return {scope,countryCode:code,countryLabel:text(d.countryLabel,100),localityId:scope==='locality'?uuid(d.localityId):null,ink:d.ink as StampInk,eligibleShopIds,
+  ...(d.artworkTreatment==='ink-v1'?{artworkTreatment:'ink-v1' as const}:{}),
   ...(d.name!==undefined?{name:text(d.name,100)}:{}),...(d.origin!==undefined?{origin:d.origin as SealDocument['origin']}:{}),
   ...(d.creatorName!=null?{creatorName:d.creatorName as string}:{}),...(d.creatorUrl!=null?{creatorUrl:d.creatorUrl as string}:{}),
   ...(d.artworkId!==undefined?{artworkId:d.artworkId===null?null:uuid(d.artworkId)}:{})};
@@ -44,7 +47,7 @@ export function sealSnapshot(v: unknown): SealSnapshot {
 }
 export function sealDesign(id:string,s:SealDocument,version=1,localityName=''): ShopStampDesign {
  return {id,tier:s.scope,motif:'nib',ink:s.ink,localityLabel:localityName,countryLabel:s.countryLabel,designVersion:version,paletteVersion:1,generatedSealTemplate:'cartouche-v1',
-  ...(s.artworkId?{sealArtwork:{id:s.artworkId,...(s.creatorName?{creatorName:s.creatorName}:{}),...(s.creatorUrl?{creatorUrl:s.creatorUrl}:{})}}:{})};
+  ...(s.artworkId?{sealArtwork:{id:s.artworkId,...(s.artworkTreatment?{treatment:s.artworkTreatment}:{}),...(s.creatorName?{creatorName:s.creatorName}:{}),...(s.creatorUrl?{creatorUrl:s.creatorUrl}:{})}}:{})};
 }
 export interface SealRow {
  id:string; published:boolean; current:SealSnapshot|null;

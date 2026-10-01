@@ -180,7 +180,7 @@ export function StampArt({
   detail = "full",
 }: StampArtProps) {
   if(stamp.sealArtwork) return <figure className={styles.stamp}>
-    <img className={styles.canvas} src={`/api/v1/seals/artwork/${stamp.sealArtwork.id}`} alt={`${TIER_LABEL[stamp.tier]} seal, ${title}`}/>
+    <img className={styles.canvas} src={`/api/v1/seals/artwork/${stamp.sealArtwork.id}${stamp.sealArtwork.treatment==='ink-v1'?`?ink=${stamp.ink}`:''}`} alt={`${TIER_LABEL[stamp.tier]} seal, ${title}`}/>
     {subtitle?<figcaption>{subtitle}</figcaption>:null}
   </figure>;
   if (stamp.uploaded) {

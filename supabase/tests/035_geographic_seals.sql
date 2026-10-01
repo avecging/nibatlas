@@ -121,5 +121,11 @@ select is(jsonb_array_length(public.admin_geographic_seals_v2('list',p_scope=>'l
 select is(jsonb_array_length(public.admin_geographic_seals_v2('list',p_query=>'Synthetic seal 219')),1,'search finds beyond first page');
 select is(jsonb_array_length(public.admin_geographic_seals_v2('history',p_id=>current_setting('test.seal')::uuid)),3,'history includes all published designs');
 select is((public.admin_geographic_seals_v2('history',p_id=>current_setting('test.seal')::uuid,p_before=>2)->0->>'version')::integer,1,'history pagination uses older version');
+-- Opting into selected ink creates a new snapshot and leaves legacy awards/designs alone.
+select pg_temp.write_seal('country','save',pg_temp.document('country')||'{"artworkTreatment":"ink-v1"}'::jsonb);
+select pg_temp.write_seal('country','publish');
+select is((select snapshot->>'artworkTreatment' from public.geographic_seal_versions where seal_id=current_setting('test.seal')::uuid and version=4),'ink-v1','new rendering treatment is snapshotted');
+select ok((select bool_and(not(snapshot ? 'artworkTreatment')) from public.geographic_seal_versions where seal_id=current_setting('test.seal')::uuid and version<4),'legacy versions are not recoloured');
+select throws_ok($$select pg_temp.write_seal('country','save',pg_temp.document('country')||'{"artworkTreatment":"arbitrary"}'::jsonb)$$,'22023',null,'unknown treatment rejected');
 select * from finish();
 rollback;

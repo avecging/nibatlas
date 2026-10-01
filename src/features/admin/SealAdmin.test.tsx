@@ -58,3 +58,26 @@ it('explains a mislabeled JPEG and keeps saved details for a replacement upload'
  expect(uploads).toBe(2);expect(actions).toEqual(['save','save','save']);
  expect(screen.getByRole('button',{name:'Publish saved seal'})).toBeEnabled();
 });
+it('previews selected ink, requires saving legacy artwork, and keeps historical rendering original',async()=>{
+ const artId='e1000000-0000-4000-8000-000000000003';
+ const original={...draft,origin:'founder_created',artworkId:artId};
+ let saved={...entry,draft:original};const documents:Record<string,unknown>[]=[];
+ vi.stubGlobal('fetch',vi.fn(async(input:string,init?:RequestInit)=>{
+  if(input.endsWith('/options'))return Response.json({localities:[],types:[],services:[],specialties:[],brands:[]});
+  if(input.includes('history=1'))return Response.json({entries:[{version:1,snapshot:{...original,localityName:null,localitySlug:null,template:'cartouche-v1',eligibleShops:[]}}],nextBefore:null});
+  if(!init?.body)return Response.json({seal:saved});
+  const body=JSON.parse(String(init.body));documents.push(body.document);saved={...saved,draft:body.document};return Response.json({seal:saved});
+ }));
+ render(<SealEditor id={id}/>);await screen.findByLabelText('Name');
+ expect(screen.getByRole('img')).toHaveAttribute('src',`/api/v1/seals/artwork/${artId}?ink=teal`);
+ expect(screen.getByRole('button',{name:'Publish saved seal'})).toBeDisabled();
+ fireEvent.click(screen.getByRole('button',{name:'Discard unsaved changes'}));
+ expect(screen.getByRole('img')).toHaveAttribute('src',`/api/v1/seals/artwork/${artId}`);
+ fireEvent.change(screen.getByLabelText('Ink'),{target:{value:'plum'}});
+ expect(screen.getByRole('img')).toHaveAttribute('src',`/api/v1/seals/artwork/${artId}?ink=plum`);
+ fireEvent.click(screen.getByRole('button',{name:'Save privately'}));
+ await waitFor(()=>expect(screen.getByRole('button',{name:'Publish saved seal'})).toBeEnabled());
+ expect(documents[0]).toMatchObject({ink:'plum',artworkTreatment:'ink-v1'});
+ fireEvent.click(screen.getByRole('tab',{name:'Version history'}));await screen.findByText('Version 1');
+ expect(screen.getByRole('img')).toHaveAttribute('src',`/api/v1/seals/artwork/${artId}`);
+});
