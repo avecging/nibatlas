@@ -16,11 +16,12 @@ function Dashboard(){
   void sealApi(`/api/v1/admin/seals?${p}`,c.signal).then(r=>{if(!c.signal.aborted){setRows(r.entries as AdminSeal[]);setNext(r.nextCursor as string|null);}}).catch(e=>{if(!c.signal.aborted)setError(e.message);}).finally(()=>{if(!c.signal.aborted)setBusy(false);});return()=>c.abort();
  },[filters,after,reload]);
  return <div className={base.admin}><nav aria-label="Administration"><Link href="/admin/shops">Shops</Link> · Stamps &amp; seals</nav>
-  <header className={styles.header}><div><h1>Stamps &amp; seals</h1><p>Manage geographic seals. Shop artwork is managed in <Link href="/admin/shops">Shops</Link>.</p></div><Link className={styles.add} href="/admin/seals/new">Add new seal</Link></header>
+  <header className={styles.header}><h1>Stamps &amp; seals</h1><Link className={styles.add} href="/admin/seals/new">Add new seal</Link></header>
+  <p className={styles.description}>Manage geographic seals. Shop artwork is managed in <Link href="/admin/shops">Shops</Link>.</p>
   <form className={styles.filters} onSubmit={e=>{e.preventDefault();setBusy(true);setError('');setAfter(null);setPrevious([]);setFilters({q:q.trim(),scope,country});}}>
    <label>Search seals<input value={q} onChange={e=>setQ(e.target.value)} maxLength={100} placeholder="Name, country or locality"/></label>
    <label>Scope<select value={scope} onChange={e=>setScope(e.target.value)}><option value="">All scopes</option><option value="country">Country</option><option value="locality">Locality</option></select></label>
-   <CountryField value={country} onChange={value=>setCountry(value??'')}/><button disabled={busy}>Apply filters</button>
+   <CountryField showHelp={false} value={country} onChange={value=>setCountry(value??'')}/><button disabled={busy}>Apply filters</button>
   </form>
   {error?<p role="alert">{error} <button onClick={()=>{setBusy(true);setError('');setReload(v=>v+1);}}>Retry</button></p>:null}
   <p role="status">{busy?'Loading seals…':`${rows.length} seals on this page`}</p>
