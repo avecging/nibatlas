@@ -4,7 +4,7 @@ import {createSupabaseServerClient} from '@/src/server/supabase/server-client';
 import {readSupabasePublicConfig} from '@/src/server/supabase/config';
 import {object,uuid} from '@/src/domain/geographic-seals';
 import {InvalidMedia,MAX_MEDIA_BYTES,readBounded} from './png';
-import {validateSealArtwork} from './seal-artwork';
+import {SealArtworkFormatMismatch,validateSealArtwork} from './seal-artwork';
 import type {MediaBucket} from './r2';
 const HEADERS={'Cache-Control':'private, no-store',Pragma:'no-cache',Vary:'Cookie','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; style-src 'none'; sandbox",'X-Robots-Tag':'noindex'};
 export class SealFileError extends Error{constructor(readonly code:string){super('Artwork operation failed');}}
@@ -34,7 +34,7 @@ export async function handleSealArtwork(request:Request,id:string,upload:boolean
   const a=await resolve(),stored=await gateway.bucket.get(a.key);if(!stored||stored.size!==a.byteSize||stored.httpMetadata?.contentType!==a.contentType)throw Error('Missing artwork');
   if((await resolve()).key!==a.key)throw Error('Changed artwork');
   return new Response(stored.body,{headers:{...HEADERS,'Content-Type':a.contentType,'Content-Length':String(a.byteSize)}});
- }catch(e){const code=e instanceof SealFileError?e.code:'';return fail('artwork_unavailable',e instanceof InvalidMedia?422:code==='42501'?403:code==='P0002'?404:code==='22023'?422:503);}
+ }catch(e){if(e instanceof SealArtworkFormatMismatch)return fail('jpeg_artwork_not_supported',422);const code=e instanceof SealFileError?e.code:'';return fail('artwork_unavailable',e instanceof InvalidMedia?422:code==='42501'?403:code==='P0002'?404:code==='22023'?422:503);}
 }
 export async function sealArtworkRoute(request:Request,id:string,upload=false){
  try{

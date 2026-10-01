@@ -16,3 +16,10 @@ it('validates, stores and reads back exact original bytes before finalizing',asy
 it('does not finalize corrupted object storage',async()=>{const g=gateway();g.bucket.get=async()=>null;expect((await handleSealArtwork(request(),id,true,g)).status).toBe(503);expect(g.operation).toHaveBeenCalledTimes(1);});
 it('rechecks read authorization after storage and sandboxes SVG delivery',async()=>{const g=gateway();const r=await handleSealArtwork(request('GET'),id,false,g);expect(r.status).toBe(200);expect(g.operation).toHaveBeenCalledTimes(2);expect(r.headers.get('Content-Security-Policy')).toContain('sandbox');expect(r.headers.get('Content-Type')).toBe('image/svg+xml');});
 it('denies private art after role revocation during a read',async()=>{const g=gateway();let n=0;g.operation=async()=>{if(n++)throw new SealFileError('P0002');return asset;};expect((await handleSealArtwork(request('GET'),id,false,g)).status).toBe(404);});
+
+it('identifies JPEG bytes mislabeled as PNG before registering or storing artwork',async()=>{
+ const g=gateway();
+ const r=await handleSealArtwork(new Request('https://nibatlas.test/artwork',{method:'POST',headers:{Origin:'https://nibatlas.test','Content-Type':'image/png'},body:new Uint8Array([0xff,0xd8,0xff,0xe0,0,16,0x4a,0x46,0x49,0x46])}),id,true,g);
+ expect(r.status).toBe(422);expect(await r.json()).toEqual({error:'jpeg_artwork_not_supported'});
+ expect(g.operation).not.toHaveBeenCalled();expect(g.bucket.put).not.toHaveBeenCalled();
+});

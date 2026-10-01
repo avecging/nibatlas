@@ -676,7 +676,10 @@ for large catalogues. Add new is at the top right.
    their old design and credit; new collectors receive the current version.
    Unpublish and verify old impressions remain in List and Book.
 
-PNG accepts RGB/RGBA exports up to 2048 px per side and 5 MiB. SVG accepts a
+PNG accepts RGB/RGBA exports up to 2048 px per side and 5 MiB. If a file named
+`.png` contains JPEG data, the uploader explains the mismatch: export an actual
+PNG from the image editor, then select it and save again. Renaming does not convert
+the format; saved seal details are retained after a rejected upload. SVG accepts a
 self-contained static path/shape/text export up to 512 KiB with a viewBox up to
 2048 units per side; export text as paths if an unavailable font matters. Scripts,
 CSS, external links/resources, embedded images and unsupported exports are

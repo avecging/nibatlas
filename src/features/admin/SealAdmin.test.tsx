@@ -34,3 +34,27 @@ it('loads a separate editor, saves before publishing and shows immutable version
  await waitFor(()=>expect(screen.getByRole('button',{name:'Publish saved seal'})).toBeEnabled());fireEvent.click(screen.getByRole('tab',{name:'Version history'}));
  expect(await screen.findByText('Original design')).toBeVisible();expect(screen.getByRole('link',{name:'https://example.com'})).toHaveAttribute('href','https://example.com');expect(screen.getByText('navy')).toBeVisible();
 });
+it('explains a mislabeled JPEG and keeps saved details for a replacement upload',async()=>{
+ const actions:string[]=[];
+ const saved={...entry,draft:{...draft,origin:'founder_created'},published:false,publishedVersion:null};
+ let uploads=0;
+ vi.stubGlobal('fetch',vi.fn(async(input:string,init?:RequestInit)=>{
+  if(input.endsWith('/options'))return Response.json({localities:[],types:[],services:[],specialties:[],brands:[]});
+  if(input.endsWith('/artwork')){uploads++;return uploads===1?Response.json({error:'jpeg_artwork_not_supported'},{status:422}):Response.json({id});}
+  if(!init?.body)return Response.json({seal:saved});
+  const body=JSON.parse(String(init.body));actions.push(body.action);saved.draft=body.document;return Response.json({seal:saved});
+ }));
+ render(<SealEditor id={id}/>);await screen.findByLabelText('Name');
+ const picker=screen.getByLabelText('Seal artwork');
+ fireEvent.change(picker,{target:{files:[new File([new Uint8Array([0xff,0xd8,0xff])],'mislabeled.png',{type:'image/png'})]}});
+ fireEvent.click(screen.getByRole('button',{name:'Save privately'}));
+ expect(await screen.findByRole('alert')).toHaveTextContent('This file contains a JPEG image');
+ expect(screen.getByRole('alert')).toHaveTextContent('renaming it is not enough');
+ expect(screen.getByLabelText('Name')).toHaveValue('Singapore country');
+ expect(screen.getByRole('button',{name:'Publish saved seal'})).toBeDisabled();
+ fireEvent.change(picker,{target:{files:[new File(['replacement'],'exported.png',{type:'image/png'})]}});
+ fireEvent.click(screen.getByRole('button',{name:'Save privately'}));
+ await waitFor(()=>expect(screen.getByRole('status')).toHaveTextContent('Saved privately. Publish when ready.'));
+ expect(uploads).toBe(2);expect(actions).toEqual(['save','save','save']);
+ expect(screen.getByRole('button',{name:'Publish saved seal'})).toBeEnabled();
+});

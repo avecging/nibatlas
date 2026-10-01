@@ -112,7 +112,9 @@ revision. Geographic identity is immutable; change designs through new versions.
 RGB/RGBA) or static SVG (up to 512 KiB, bounded viewBox, paths/shapes/text).
 Self-contained SVG excludes scripts, style blocks/attributes, entities, foreign
 objects, embedded images, animation and external references. Unsupported exports
-are rejected with a useful error rather than silently altered. Original accepted
+are rejected with a useful error rather than silently altered. PNG requests with
+JPEG bytes return 422 `jpeg_artwork_not_supported`, so the editor can explain that
+an actual PNG export is needed. Original accepted
 bytes are kept in environment-separated immutable R2 keys. Metadata is registered
 through a service-only role-checked RPC; browser tables/finalization are denied.
 Conditional write, read-back hash verification and explicit ready state precede

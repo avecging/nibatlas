@@ -1,6 +1,7 @@
 import {createHash} from 'node:crypto';
 import {InvalidMedia,validatePng} from './png';
 export const MAX_SEAL_SVG_BYTES=512*1024;
+export class SealArtworkFormatMismatch extends InvalidMedia {}
 const elements=new Set(['svg','g','path','rect','circle','ellipse','line','polyline','polygon','text','tspan','title','desc','defs','clipPath']);
 const attrs=new Set(['xmlns','viewBox','width','height','x','y','x1','y1','x2','y2','cx','cy','r','rx','ry','d','points','fill','stroke','stroke-width','stroke-linecap','stroke-linejoin','stroke-miterlimit','stroke-dasharray','stroke-dashoffset','fill-rule','clip-rule','opacity','fill-opacity','stroke-opacity','transform','id','clip-path','font-family','font-size','font-weight','text-anchor','letter-spacing','dominant-baseline','preserveAspectRatio','version']);
 function invalid():never{throw new InvalidMedia('Unsupported SVG. Export self-contained paths and text without scripts, styles, images or external resources.');}
@@ -38,7 +39,10 @@ export function validateSealSvg(bytes:Uint8Array){
  return {sha256:createHash('sha256').update(bytes).digest('hex'),byteSize:bytes.length};
 }
 export function validateSealArtwork(bytes:Uint8Array,type:string){
- if(type==='image/png')return validatePng(bytes,false);
+ if(type==='image/png'){
+  if(bytes[0]===0xff&&bytes[1]===0xd8&&bytes[2]===0xff)throw new SealArtworkFormatMismatch('JPEG content supplied as PNG');
+  return validatePng(bytes,false);
+ }
  if(type==='image/svg+xml')return validateSealSvg(bytes);
  return invalid();
 }
