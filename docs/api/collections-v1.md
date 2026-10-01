@@ -76,33 +76,61 @@ An owner may acknowledge only their own award IDs. Receipt state is separate fro
 immutable awards. Client state stays in owner-scoped memory and aborts on owner
 changes; a seal refresh failure does not erase or block shop impressions.
 
-Locality requires two distinct shops, or the sole member of an explicitly
-published eligible set. Country requires any five distinct shops, or all members
-of an explicit 1–4 shop set. Catalogue size never defines a denominator. Both
-rules use collection-time place snapshots, including old visits, moved/closed
-shops and visits before a seal was published. Singapore can earn both scopes.
-The qualifying visit supplies the earned date; reconciliation supplies no visits.
+Founder revision, 1 October 2026: eligible shops are derived automatically from
+published shops' current country and locality IDs. There is no manual shop picker.
+Locality requires two distinct eligible shop visits, or all eligible shops if
+there is only one. Country requires five, or all eligible shops if there are
+1–4. Zero eligible shops cannot award. Moving a shop changes future eligibility;
+past verified visits count against its current geography, while already awarded
+seals and original shop impressions remain immutable. Singapore can earn both.
+The API returns required/eligibleTotal with progress; it does not expose private
+shop geography. Draft shop edits do not change eligibility until published.
 
-Publishing stores an immutable `cartouche-v1` generated design and versioned
-eligible membership/name snapshot. A collection insert awards matching published
-seals transactionally; reconciliation backfills older visits. A unique owner/seal
-constraint makes both paths idempotent. Unpublish stops new awards; existing
-collectors retain their original version, date and artwork. Future templates
-need new identifiers—never modify the historical `cartouche-v1` renderer.
+Publishing stores an immutable design/name/origin/creator/ink/artwork snapshot.
+A collection insert awards matching published seals transactionally; bounded
+reconciliation backfills older visits. The unique owner/seal constraint makes
+both paths idempotent. Unpublish stops new awards; owners retain the original
+version, date, design and credit. Generated `cartouche-v1` remains frozen.
 
-`/admin/seals` provides scope/place, generated ink preview, optional deliberately
-established small eligible set, Save privately, Publish saved seal and Unpublish.
-`GET /api/v1/admin/seals?after=UUID` lists 50 drafts; POST accepts
-`{action: "save"|"publish"|"unpublish", id, revision, document?}`. Every RPC checks
-and locks the current editor/admin role. Existing geographic identities cannot be
-changed. Saves rotate the revision; publish/unpublish require that exact revision.
-Publishing validates selected shops are published and in the selected place.
-Audited writes preserve immutable publication/award rows; no direct browser or
-service-role table access is granted. Errors are fixed `{error: code}` responses:
-400 invalid request, 401 unauthenticated, 403 forbidden, 409 stale/duplicate,
-422 invalid seal, 503 unavailable. All responses are private/no-store.
+`/admin/seals` is a 50-row list dashboard (name, scope, country/locality, published
+version, Edit), with Add new, server-side name/place search and country/scope
+filters. `/admin/seals/new` and `/admin/seals/[id]` contain Design & details and
+Version history tabs. History is paginated at 20 published snapshots and shows
+design, name, scope, origin, creator name/link and ink. Save privately then Publish
+saved seal remains the workflow, with no additional approval step.
 
-Passport explains thresholds and named eligible membership. New awards are grouped
+`GET /api/v1/admin/seals?after=UUID&q=...&scope=country|locality&country=SG`
+filters before keyset pagination. `?id=UUID` reads one seal; adding `history=1`
+and optional `before=VERSION` reads history. POST accepts
+`{action: "save"|"publish"|"unpublish", id, revision, document?}`. Document adds
+name, origin, optional creatorName/creatorUrl/artworkId. The retired
+eligibleShopIds field is cleared on save; the old RPC writer is revoked. New
+RPC `admin_geographic_seals_v2` locks the current editor/admin role and exact
+revision. Geographic identity is immutable; change designs through new versions.
+
+`POST /api/v1/admin/seals/[id]/artwork` accepts PNG (up to 5 MiB, bounded 2048 px
+RGB/RGBA) or static SVG (up to 512 KiB, bounded viewBox, paths/shapes/text).
+Self-contained SVG excludes scripts, style blocks/attributes, entities, foreign
+objects, embedded images, animation and external references. Unsupported exports
+are rejected with a useful error rather than silently altered. Original accepted
+bytes are kept in environment-separated immutable R2 keys. Metadata is registered
+through a service-only role-checked RPC; browser tables/finalization are denied.
+Conditional write, read-back hash verification and explicit ready state precede
+attachment. At most 100 retained uploads per seal; identical content retries
+reuse the asset. Save does not publish. Creator link requires a name. Ink is
+recorded metadata for uploaded designs, not an automatic recolouring operation.
+
+`GET /api/v1/seals/artwork/[assetId]` delivers the original PNG/SVG only to a
+current editor/admin, signed-in viewers of current published artwork, or an
+owner of a historical award using that asset. Authorization is rechecked after
+R2 read. SVG is delivered as an image with sandbox CSP, no scripts/resources,
+nosniff and private/no-store headers. No raw SVG is inserted into application HTML.
+
+Errors remain fixed responses: 400 invalid request, 401 unauthenticated,
+403 forbidden, 409 stale/duplicate, 422 invalid input, 503 unavailable.
+All responses are private/no-store; definition/version writes remain audited.
+
+Passport explains current automatic thresholds. New awards are grouped
 under “New seals from your past visits”; acknowledgement is durable. During a new
 shop collection, matching newly earned seals follow the shop press in the same
 sheet, with one Passport destination and reduced-motion support.
@@ -110,7 +138,7 @@ sheet, with one Passport destination and reduced-motion support.
 ## Explicitly deferred
 
 Special/event/seasonal stamps (including the six-week launch signup stamp),
-custom geographic uploads and recollectible artwork editions remain deferred.
+recollectible artwork editions remain deferred.
 A new geographic design does not replace an earned impression or permit a second
 award. Reviewer seals remain demonstrations, separate from account awards.
 

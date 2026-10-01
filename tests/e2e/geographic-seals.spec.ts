@@ -1,34 +1,37 @@
 import {test,expect} from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import {stubSession} from '../support/auth';
-const id='e1000000-0000-4000-8000-000000000001', locality='e1000000-0000-4000-8000-000000000002';
-test('geographic seal private save and deliberate publication',async({page},testInfo)=>{
+const id='e1000000-0000-4000-8000-000000000001',locality='e1000000-0000-4000-8000-000000000002';
+test('seal dashboard, separate editor, publication and version history',async({page},testInfo)=>{
  await stubSession(page,{kind:'signed-in'});
  await page.route('**/api/v1/admin/shops/options',r=>r.fulfill({json:{localities:[{id:locality,label:'Singapore',countryCode:'SG'}],types:[],services:[],specialties:[],brands:[]}}));
- let saved:Record<string,unknown>|null=null;const actions:string[]=[];
- await page.route('**/api/v1/admin/seals',async r=>{
-  if(r.request().method()==='GET') return r.fulfill({json:{entries:saved?[saved]:[],nextCursor:null}});
+ let saved:Record<string,unknown>|null=null;const actions:string[]=[];const history:{version:number;snapshot:Record<string,unknown>}[]=[];
+ await page.route('**/api/v1/admin/seals{,?*}',async r=>{
+  const url=new URL(r.request().url());
+  if(r.request().method()==='GET')return r.fulfill({json:url.searchParams.has('history')?{entries:history,nextBefore:null}:url.searchParams.has('id')?{seal:saved}:{entries:saved?[saved]:[],nextCursor:null}});
   const b=r.request().postDataJSON();actions.push(b.action);
   if(b.action==='save')saved={id,revision:id,draft:b.document,localityName:'Singapore',published:false,publishedVersion:null};
-  else saved={...saved,published:b.action==='publish',publishedVersion:1};
+  else {saved={...saved,published:b.action==='publish',publishedVersion:1};if(b.action==='publish')history.push({version:1,snapshot:{...(saved.draft as Record<string,unknown>),localityName:'Singapore',localitySlug:'singapore',template:'cartouche-v1',eligibleShops:[]}});}
   await r.fulfill({json:{seal:saved}});
  });
  await page.goto('/admin/seals');
- await page.getByLabel('Locality',{exact:true}).selectOption(locality,{timeout:5000}).catch(async error=>{console.log('Seal editor state:',await page.locator('#main-content').innerText());throw error;});
+ await expect(page.getByRole('columnheader',{name:'Scope'})).toBeVisible();await page.getByRole('link',{name:'Add new seal'}).click();
+ await page.getByLabel('Scope',{exact:true}).selectOption('locality');
+ await page.getByLabel('Locality',{exact:true}).selectOption(locality);
  await expect(page.getByRole('img',{name:'locality seal, Singapore'})).toBeVisible();
  await expect(page.getByRole('button',{name:'Publish saved seal'})).toBeDisabled();
- await page.getByRole('button',{name:'Save privately',exact:true}).click();
- await expect(page.getByRole('status')).toHaveText('Saved privately. Publish when ready.');
- expect(actions).toEqual(['save']);
- await page.getByRole('button',{name:'Publish saved seal'}).click();
+ await page.getByRole('button',{name:'Save privately',exact:true}).click();await expect(page).toHaveURL(new RegExp(`/admin/seals/${id}$`));
+ expect(actions).toEqual(['save']);await page.getByRole('button',{name:'Publish saved seal'}).click();
  await expect(page.getByRole('status')).toHaveText('Published. Past verified visits count too.');
- await page.getByLabel('Ink',{exact:true}).selectOption('teal');
- await expect(page.getByRole('button',{name:'Publish saved seal'})).toBeDisabled();
+ await page.getByLabel('Ink',{exact:true}).selectOption('teal');await expect(page.getByRole('button',{name:'Publish saved seal'})).toBeDisabled();
  await page.getByRole('button',{name:'Discard unsaved changes'}).click();
- await page.getByRole('button',{name:'Unpublish',exact:true}).click();
- await expect(page.getByRole('status')).toHaveText('Unpublished. Existing collectors keep their seals.');
+ await page.getByRole('tab',{name:'Version history'}).click();await expect(page.getByRole('heading',{name:'Version 1 · Current'})).toBeVisible();
+ await expect(page.getByText('Generated default',{exact:true})).toBeVisible();
+ await page.getByRole('tab',{name:'Design & details'}).click();await page.getByRole('button',{name:'Unpublish',exact:true}).click();await expect(page.getByRole('status')).toHaveText('Unpublished. Existing collectors keep their seals.');
  expect(actions).toEqual(['save','publish','unpublish']);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
  expect((await new AxeBuilder({page}).include('main').withTags(['wcag2a','wcag2aa']).analyze()).violations).toEqual([]);
  await page.screenshot({path:testInfo.outputPath('admin-geographic-seal.png'),fullPage:true});
+ await page.getByRole('link',{name:'← All stamps & seals'}).click();await expect(page.getByRole('link',{name:'Edit Singapore locality seal'})).toBeVisible();
+ await page.screenshot({path:testInfo.outputPath('admin-seal-dashboard.png'),fullPage:true});
 });

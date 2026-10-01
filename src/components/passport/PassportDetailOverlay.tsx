@@ -153,7 +153,7 @@ function SealDetail({
   readonly headingId: string;
 }) {
   const isCountry = seal.scope === "country";
-  const name = isCountry ? seal.countryLabel : (seal.localityName ?? seal.countryLabel);
+  const name = seal.name ?? (isCountry ? seal.countryLabel : (seal.localityName ?? seal.countryLabel));
 
   return (
     <>
@@ -167,6 +167,7 @@ function SealDetail({
         {name}
       </h2>
 
+      <StampCredit stamp={seal.stamp} />
       <dl className={styles.facts}>
         {isCountry ? null : (
           <div>

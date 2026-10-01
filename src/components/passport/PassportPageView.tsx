@@ -39,7 +39,7 @@ function PageSealButton({
   readonly size: "country" | "locality";
 }) {
   const name =
-    seal.scope === "country" ? seal.countryLabel : (seal.localityName ?? seal.countryLabel);
+    seal.name ?? (seal.scope === "country" ? seal.countryLabel : (seal.localityName ?? seal.countryLabel));
 
   return (
     <button

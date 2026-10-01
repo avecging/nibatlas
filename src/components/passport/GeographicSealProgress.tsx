@@ -9,10 +9,10 @@ export function GeographicSealProgress() {
  return <details className={styles.panel}><summary>Geographic seals{unseen.length?` · ${unseen.length} new`:''}</summary>
   <div className={styles.content}>
   {unseen.length>0?<section aria-label="New seals from your past visits"><h2>New seals from your past visits</h2><p>{unseen.map(a=>`${a.localityName??a.countryLabel} (${a.scope})`).join(' · ')}</p><button onClick={()=>store.acknowledgeSeals?.(unseen.map(a=>a.awardId))}>Got it</button></section>:null}
-  {rows.map(row=>{const s=row.current,p=row.progress;if(!s||!p) return null;const threshold=s.scope==='locality'?2:5;
+  {rows.map(row=>{const s=row.current,p=row.progress;if(!s||!p) return null;const threshold=p.required??(s.scope==='locality'?2:5);
    return <section key={row.id}><h3>{s.localityName??s.countryLabel} · {s.scope} seal</h3>
     <p>{row.award?'Seal earned.':`${Math.min(p.count,threshold)} of ${threshold} distinct shop stamps.`}</p>
-    <p>Earn this seal with verified visits to {threshold} different shops{s.eligibleShops.length?' or every shop in this eligible set':''}.</p>
+    <p>{p.eligibleTotal===0?'No eligible shops are currently published here.':`Earn this seal with verified visits to ${threshold} different ${threshold===1?'shop':'shops'} in ${s.localityName??s.countryLabel}.`}</p>
     {s.eligibleShops.length?<ul>{s.eligibleShops.map(shop=><li key={shop.id}>{p.collectedIds.includes(shop.id)?'Collected':'To collect'} · {shop.name}</li>)}</ul>:null}
    </section>;
   })}</div>

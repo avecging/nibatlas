@@ -179,6 +179,10 @@ export function StampArt({
   subtitle,
   detail = "full",
 }: StampArtProps) {
+  if(stamp.sealArtwork) return <figure className={styles.stamp}>
+    <img className={styles.canvas} src={`/api/v1/seals/artwork/${stamp.sealArtwork.id}`} alt={`${TIER_LABEL[stamp.tier]} seal, ${title}`}/>
+    {subtitle?<figcaption>{subtitle}</figcaption>:null}
+  </figure>;
   if (stamp.uploaded) {
     // Approved #73 uploads are delivered intact. The route authorizes current
     // public art or the owner's exact historical version.

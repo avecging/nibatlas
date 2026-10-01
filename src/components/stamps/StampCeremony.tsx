@@ -141,7 +141,7 @@ export function StampCeremony({
 
       {phase === "settled" && !alreadyCollected ? seals.map(seal=><section key={seal.id} className={styles.sealPress} data-reduced={reduced ? "true" : "false"}>
         <h3>{seal.scope === "locality" ? "Locality" : "Country"} seal earned</h3>
-        <ImpressionPlate size="detail"><StampArt stamp={seal.stamp} title={seal.localityName??seal.countryLabel} subtitle={seal.earnedOn}/></ImpressionPlate>
+        <ImpressionPlate size="detail"><StampArt stamp={seal.stamp} title={seal.name??seal.localityName??seal.countryLabel} subtitle={seal.earnedOn}/></ImpressionPlate>
       </section>):null}
       <div className={styles.actions}>
         <ButtonLink href={passportHref} variant="primary" fullWidth onClick={onOpenPassport}>

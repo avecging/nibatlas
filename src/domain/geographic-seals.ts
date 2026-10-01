@@ -3,6 +3,7 @@ import { isCountryCode, type CountryCode } from './geo';
 import type { EarnedSeal } from './seals';
 import type { ShopStampDesign } from './shop-detail';
 import { STAMP_INKS, type StampInk } from './stamp-palette';
+import {validCreatorCredit} from './creator-credit';
 export function object(v: unknown): Record<string, unknown> {
  if (!v || typeof v !== 'object' || Array.isArray(v)) throw Error('Invalid seal');
  return v as Record<string, unknown>;
@@ -12,6 +13,8 @@ export function uuid(v: unknown): string { const s=text(v,36); if(!isShopId(s)) 
 export interface SealDocument {
  scope: 'country' | 'locality'; countryCode: CountryCode; countryLabel: string;
  localityId: string | null; ink: StampInk; eligibleShopIds: string[];
+ name?: string; origin?: 'generated'|'founder_created'|'ai_assisted'|'commissioned'|undefined;
+ creatorName?: string|undefined; creatorUrl?: string|undefined; artworkId?: string|null;
 }
 export interface SealSnapshot extends SealDocument {
  localitySlug: string | null; localityName: string | null; template: 'cartouche-v1';
@@ -25,7 +28,12 @@ export function sealDocument(v: unknown): SealDocument {
  const eligibleShopIds=d.eligibleShopIds.map(uuid);
  if(new Set(eligibleShopIds).size!==eligibleShopIds.length) throw Error('Duplicate eligible shop');
  if(scope==='country' && d.localityId!=null) throw Error('Unexpected locality');
- return {scope,countryCode:code,countryLabel:text(d.countryLabel,100),localityId:scope==='locality'?uuid(d.localityId):null,ink:d.ink as StampInk,eligibleShopIds};
+ if(d.origin!==undefined && !['generated','founder_created','ai_assisted','commissioned'].includes(String(d.origin))) throw Error('Invalid origin');
+ if(!validCreatorCredit(d.creatorName,d.creatorUrl)) throw Error('Invalid creator credit');
+ return {scope,countryCode:code,countryLabel:text(d.countryLabel,100),localityId:scope==='locality'?uuid(d.localityId):null,ink:d.ink as StampInk,eligibleShopIds,
+  ...(d.name!==undefined?{name:text(d.name,100)}:{}),...(d.origin!==undefined?{origin:d.origin as SealDocument['origin']}:{}),
+  ...(d.creatorName!=null?{creatorName:d.creatorName as string}:{}),...(d.creatorUrl!=null?{creatorUrl:d.creatorUrl as string}:{}),
+  ...(d.artworkId!==undefined?{artworkId:d.artworkId===null?null:uuid(d.artworkId)}:{})};
 }
 export function sealSnapshot(v: unknown): SealSnapshot {
  const d=object(v), base=sealDocument(v);
@@ -35,11 +43,12 @@ export function sealSnapshot(v: unknown): SealSnapshot {
  return {...base,template:'cartouche-v1',localitySlug:base.scope==='locality'?text(d.localitySlug):null,localityName:base.scope==='locality'?text(d.localityName):null,eligibleShops};
 }
 export function sealDesign(id:string,s:SealDocument,version=1,localityName=''): ShopStampDesign {
- return {id,tier:s.scope,motif:'nib',ink:s.ink,localityLabel:localityName,countryLabel:s.countryLabel,designVersion:version,paletteVersion:1,generatedSealTemplate:'cartouche-v1'};
+ return {id,tier:s.scope,motif:'nib',ink:s.ink,localityLabel:localityName,countryLabel:s.countryLabel,designVersion:version,paletteVersion:1,generatedSealTemplate:'cartouche-v1',
+  ...(s.artworkId?{sealArtwork:{id:s.artworkId,...(s.creatorName?{creatorName:s.creatorName}:{}),...(s.creatorUrl?{creatorUrl:s.creatorUrl}:{})}}:{})};
 }
 export interface SealRow {
  id:string; published:boolean; current:SealSnapshot|null;
- progress:{count:number;collectedIds:string[]}|null;
+ progress:{count:number;collectedIds:string[];required?:number;eligibleTotal?:number}|null;
  award:(EarnedSeal & {unseen:boolean;awardId:string})|null;
 }
 export function sealRow(v:unknown): SealRow {
@@ -47,12 +56,14 @@ export function sealRow(v:unknown): SealRow {
  if(typeof r.published!=='boolean') throw Error('Invalid publication');
  const current=r.published?sealSnapshot(r.current):null;
  let progress:SealRow['progress']=null;
- if(current) { const t=object(r.progress); if(!Number.isSafeInteger(t.count) || (t.count as number)<0 || !Array.isArray(t.collectedIds) || t.collectedIds.length>4) throw Error('Invalid progress');progress={count:t.count as number,collectedIds:t.collectedIds.map(uuid)}; }
+ if(current) { const t=object(r.progress); if(!Number.isSafeInteger(t.count) || (t.count as number)<0 || !Array.isArray(t.collectedIds) || t.collectedIds.length>4) throw Error('Invalid progress');progress={count:t.count as number,collectedIds:t.collectedIds.map(uuid)};
+  if(t.required!==undefined) {if(!Number.isSafeInteger(t.required)||(t.required as number)<1||(t.required as number)>5||!Number.isSafeInteger(t.eligibleTotal)||(t.eligibleTotal as number)<0)throw Error('Invalid eligibility');progress.required=t.required as number;progress.eligibleTotal=t.eligibleTotal as number;}
+ }
  let award:SealRow['award']=null;
  if(r.award!=null) {
   const a=object(r.award), s=sealSnapshot(a.snapshot);
   if(uuid(a.sealId)!==id || !Number.isSafeInteger(a.version) || (a.version as number)<1 || typeof a.unseen!=='boolean' || !/^\d{4}-\d{2}-\d{2}$/.test(text(a.earnedOn,10))) throw Error('Invalid award');
-  award={id,awardId:uuid(a.id),scope:s.scope,countryCode:s.countryCode,countryLabel:s.countryLabel,
+  award={id,...(s.name?{name:s.name}:{}),awardId:uuid(a.id),scope:s.scope,countryCode:s.countryCode,countryLabel:s.countryLabel,
    ...(s.localitySlug && s.localityName?{localitySlug:s.localitySlug,localityName:s.localityName}:{}),
    earnedOn:a.earnedOn as string,derivedFromShopId:uuid(a.shopId),coverageSetVersion:String(a.version),
    stamp:sealDesign(id,s,a.version as number,s.localityName??''),unseen:a.unseen};

@@ -652,15 +652,33 @@ the pair. Check that a Nearby target has a disabled switch and no duplicate card
 On a narrow viewport Related shops follows Nearby; on desktop it is in the left
 column. Actual founder acceptance remains separate from automated checks.
 
-## Geographic seals — proposed Package E acceptance
+## Geographic seals — revised founder acceptance
 
-After an authorized staging migration/deployment, open **Stamps & seals** from
-Shops. Save a Singapore locality seal and country seal privately, then publish
-each. A locality with no explicit sole-shop set must wait for two distinct shops;
-a country may use an explicitly chosen complete set of 1–4 shops or any five.
-Check that a returning account's older verified visits count in Passport. After
-changing ink and publishing again, its earned seal must keep its original ink;
-a newly qualifying account gets the published ink. Unpublish and confirm the old
-seal remains in both List and Book. A second editor tab with an old revision must
-reload before publishing. Try on phone with reduced motion as well as desktop.
-These are founder acceptance steps, not a claim they have been executed.
+After an authorized staging migration/deployment, open **Shops → Stamps & seals**
+(`/admin/seals`). The landing page lists name, Country/Locality scope, place,
+published version and Edit. Use search/country/scope filters and Previous/Next
+for large catalogues. Add new is at the top right.
+
+1. Choose **Add new seal**, enter the name, select Country or Locality and its
+   place. Singapore country and Singapore locality are separate entries.
+2. For a generated cartouche choose its ink. For an upload choose its truthful
+   origin, PNG or SVG, and optional creator name/link. A link needs a name.
+3. **Save privately** uploads selected artwork and opens the saved editor.
+   Inspect the saved design, then **Publish saved seal**. Save alone awards nothing.
+4. **Version history** shows every published design with name, origin, creator
+   name/link and ink. Publishing changed artwork retains the earlier version.
+5. Check Passport with earlier verified visits. Shops qualify automatically by
+   their published geography: two distinct shops per locality, five per country,
+   or all eligible shops when fewer exist. There is no shop selection step.
+6. Move a synthetic shop's locality through ordinary shop Save/Publish. Its future
+   eligibility follows the new locality. Already-earned seals remain collected.
+7. Change a seal's design/name/credit, save and publish. Existing collectors keep
+   their old design and credit; new collectors receive the current version.
+   Unpublish and verify old impressions remain in List and Book.
+
+PNG accepts RGB/RGBA exports up to 2048 px per side and 5 MiB. SVG accepts a
+self-contained static path/shape/text export up to 512 KiB with a viewBox up to
+2048 units per side; export text as paths if an unavailable font matters. Scripts,
+CSS, external links/resources, embedded images and unsupported exports are
+rejected. Ink records uploaded artwork's ink; uploading does not recolour it.
+No founder acceptance or hosted deployment is claimed by these instructions.

@@ -1,4 +1,5 @@
-import { adminSeal, object, sealDocument, sealWire, uuid } from '@/src/domain/geographic-seals';
+import { adminSeal, object, sealDocument, sealSnapshot, sealWire, uuid } from '@/src/domain/geographic-seals';
+import {isCountryCode} from '@/src/domain/geo';
 export const SEAL_HEADERS={'Cache-Control':'private, no-store',Pragma:'no-cache',Vary:'Cookie','X-Robots-Tag':'noindex'};
 export class SealError extends Error { constructor(readonly code:string) {super('Seal request failed');} }
 export interface SealGateway {identity():Promise<string|null>;rpc(name:string,args:Record<string,unknown>):Promise<unknown>}
@@ -19,14 +20,18 @@ export async function handleSeals(request:Request,gateway:SealGateway,admin=fals
   let args:Record<string,unknown>,name:string;
   try {
    if(admin && request.method==='GET') {
-    if([...params.keys()].some(k=>k!=='after') || params.getAll('after').length>1) throw Error();
-    name='admin_geographic_seals';args={p_action:'list',p_after:params.has('after')?uuid(params.get('after')):null};
+    if([...params.keys()].some(k=>!['after','q','scope','country','id','history','before'].includes(k)||params.getAll(k).length>1)) throw Error();
+    const q=params.get('q')??'',scope=params.get('scope')??'',country=params.get('country')??'';
+    if(q.length>100||(scope&&!['country','locality'].includes(scope))||(country&&!isCountryCode(country)))throw Error();
+    const id=params.has('id')?uuid(params.get('id')):null, history=params.get('history');
+    if((history!==null&&history!=='1')||(history&&!id)|| (params.has('before')&&(!history||!/^\d{1,9}$/.test(params.get('before')!))))throw Error();
+    name='admin_geographic_seals_v2';args={p_action:history?'history':id?'get':'list',p_id:id,p_after:params.has('after')?uuid(params.get('after')):null,p_query:q,p_scope:scope,p_country:country,p_before:params.has('before')?Number(params.get('before')):null};
    } else {
     if(request.method!=='POST' || params.size) throw Error();
     const b=await body(request);
     if(admin) {
      if(Object.keys(b).some(k=>!['action','id','revision','document'].includes(k)) || !['save','publish','unpublish'].includes(String(b.action))) throw Error();
-     name='admin_geographic_seals';args={p_action:b.action,p_id:b.id==null?null:uuid(b.id),p_revision:b.revision==null?null:uuid(b.revision),p_document:b.action==='save'?sealDocument(b.document):null};
+     name='admin_geographic_seals_v2';args={p_action:b.action,p_id:b.id==null?null:uuid(b.id),p_revision:b.revision==null?null:uuid(b.revision),p_document:b.action==='save'?sealDocument(b.document):null};
     } else {
      if(Object.keys(b).some(k=>!['after','ack'].includes(k)) || (b.ack!==undefined && (!Array.isArray(b.ack) || b.ack.length>50))) throw Error();
      name='my_geographic_seals';args={p_after:b.after==null?null:uuid(b.after),p_ack:Array.isArray(b.ack)?b.ack.map(uuid):[]};
@@ -35,7 +40,12 @@ export async function handleSeals(request:Request,gateway:SealGateway,admin=fals
   } catch {return reply({error:'invalid_request'},400);}
   const data=await gateway.rpc(name,args);
   if(admin) {
-   if(request.method==='POST') return reply({seal:adminSeal(data)});
+   if(request.method==='POST'||params.has('id')&&!params.has('history')) return reply({seal:adminSeal(data)});
+   if(params.has('history')) {
+    if(!Array.isArray(data)||data.length>21)throw Error('Invalid history');
+    const entries=data.slice(0,20).map(v=>{const r=object(v);if(!Number.isSafeInteger(r.version)||(r.version as number)<1)throw Error('Invalid version');return {version:r.version as number,snapshot:sealSnapshot(r.snapshot)};});
+    return reply({entries,nextBefore:data.length>20?entries.at(-1)!.version:null});
+   }
    if(!Array.isArray(data) || data.length>51) throw Error('Invalid page');
    const entries=data.slice(0,50).map(adminSeal);return reply({entries,nextCursor:data.length>50?entries.at(-1)!.id:null});
   }

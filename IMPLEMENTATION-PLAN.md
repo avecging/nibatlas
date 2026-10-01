@@ -17,16 +17,18 @@ is the shared working contract. This assignment covers every milestone; frontend
 
 ## Current follow-up — Geographic seals (#114), 1 October 2026
 
-Founder approved the next Package E increment after #116 was merged/deployed.
-Implement generated cartouche defaults, private Save/Publish admin controls,
-durable country/locality awards from past verified visits, and Passport progress
-with a combined shop/seal ceremony. Locality is two distinct shops or an explicit
-sole eligible shop; country remains any five or a complete explicit 1–4 set.
-Singapore earns both. Historical designs/awards survive edits and unpublication;
-redesigned-edition recollection stays deferred. All special stamps wait for the
-production phase. See `docs/api/collections-v1.md` for the proposed contract.
-This increment is in review; no hosted migration/deployment or founder visual
+Founder rejected PR #117's first admin interface on 1 October. The revised scope
+is a paginated/searchable seal dashboard with explicit country/locality scope,
+separate editors, published version history, and PNG/SVG artwork with credits.
+Eligible shops follow current published geography automatically. Founder confirmed
+all eligible shops qualify when fewer than two (locality) or five (country) exist.
+Changing a shop's locality changes future eligibility; earned seals stay intact.
+Generated cartouches, old-visit reconciliation, Passport progress and the combined
+ceremony remain. Special stamps and redesigned-edition recollection are deferred.
+The missed-reveal acknowledgement finding is accepted as non-blocking for MVP;
+a replay button is a future option. No hosted migration/deployment or founder
 acceptance is implied. Imports, production, #97 and anomaly UI remain deferred.
+See `docs/api/collections-v1.md` for the revised contract.
 
 ## Current follow-up — Related shops (#112), 30 September 2026
 

@@ -41,6 +41,7 @@ export interface CountryCoverageSet {
 export type SealScope = "locality" | "country";
 
 export interface EarnedSeal {
+  readonly name?: string;
   readonly id: string;
   readonly scope: SealScope;
   readonly countryCode: CountryCode;

@@ -108,9 +108,9 @@ The loop must remain useful before merchant partnerships exist. Standard Atlas S
 - Country → locality hierarchy that accommodates wards, municipalities, districts, city-states, and other local structures without forcing a rigid Western city model.
 - Browsable stamp impressions showing shop, place, and local collection date.
 - Direct transition from newly collected stamp into the relevant Passport section.
-- A locality seal is derived when two distinct verified shop stamps in that locality are acquired, or the sole shop in an explicitly established one-shop eligible set is collected. If a separate check-in concept is introduced later, it must use the same canonical verified-visit event rather than create a second source of truth.
-- A country seal is derived after five verified shop stamps, or after the complete eligible curated set when that set contains fewer than five shops. The applicable coverage-set version is recorded, and an earned seal is never revoked when the catalogue changes.
-- No other completion denominator is shown unless the underlying curated coverage set is explicitly defined and versioned.
+- A locality seal requires two distinct verified visits to eligible shops, or the sole eligible shop when only one is published in that locality. Eligible shops follow current published country/locality assignments automatically.
+- A country seal requires five distinct eligible shop visits, or all eligible published shops when fewer than five exist. Zero eligible shops cannot award. There is no manual shop-selection step.
+- Progress may show the current automatic threshold. Catalogue growth or a shop moving changes future eligibility, never an already-earned seal. Original shop impressions and published design snapshots remain immutable.
 
 ### Founder administration and data operations
 
