@@ -18,7 +18,7 @@ function download(filename: string, contents: string, type: string) {
   const link = document.createElement('a'); link.href = url; link.download = filename; link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-const templateColumns = ['row_id', 'shop_id', 'name', 'slug', 'country', 'locality', 'shop_type', 'brands', 'specialties', 'address_line_1', 'postal_code', 'timezone', 'latitude', 'longitude', 'website_url', ...PLATFORMS, 'short_description', 'clear_fields'];
+const templateColumns = ['row_id', 'shop_id', 'name', 'local_name', 'local_name_language', 'slug', 'country', 'locality', 'shop_type', 'brands', 'specialties', 'address_line_1', 'postal_code', 'timezone', 'latitude', 'longitude', 'website_url', ...PLATFORMS, 'short_description', 'clear_fields'];
 const actionLabel: Record<PreviewRow['action'], string> = { new_private_draft: 'Proposed new private draft', update_private_draft: 'Proposed private update', no_change: 'No changes', review_duplicates: 'Review duplicate candidates', blocked: 'Needs correction' };
 async function api(signal: AbortSignal, payload?: unknown) {
   const response = await fetch('/api/v1/admin/import', { method: payload ? 'POST' : 'GET', signal, cache: 'no-store', credentials: 'same-origin', ...(payload ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) } : {}) });
@@ -121,7 +121,8 @@ function ImportWorkspace() {
           <li>Blank or omitted cells preserve existing data. Supplied brands/specialties are added without removing old links or notes. Shop type selects the primary type while keeping other types.</li>
           <li>To deliberately remove a value, put its field name in clear_fields, separated by |, and leave the value blank. Clearing brands, specialties or shop_type removes that whole relationship group and its notes; review the before/after carefully.</li>
           <li>Coordinates are decimal latitude/longitude; supply both. Appointment uses true/false; timezone uses an IANA name. Country and locality must agree. No confirmation or verification dates are inferred.</li>
-          <li>Only mapped fields are considered. Media URLs, opening-hour structures, sources, aliases and experiences cannot be imported in v1; existing values remain intact.</li>
+          <li>Local name is optional: supply local_name and local_name_language together (for example ja-JP or zh-Hant). Keep the main name in name; combined English/local names are not split automatically. The local name appears beneath it after publication. Blank cells preserve existing names; clear_fields=local_name removes local names and their language tags. Multiple existing local names must be resolved in the editor before replacement.</li>
+          <li>Only mapped fields are considered. Media URLs, opening-hour structures, sources, other aliases and experiences cannot be imported in v1; existing values remain intact.</li>
           <li>Correct the source file and reselect it to check again. Vocabulary mappings are reused during this signed-in session. Only reviewed rows are retained privately for recovery; raw files are not uploaded or retained.</li>
         </ul></details>
         <UploadField label="CSV or JSON file" accept=".csv,.json" filename={selectedFilename}
