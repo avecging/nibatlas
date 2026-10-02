@@ -101,7 +101,7 @@ describe("explore reducer", () => {
     });
     const drafted = exploreReducer(
       exploreReducer(opened, { type: "setDraftAvailability", availability: "open" }),
-      { type: "toggleDraftShopType", shopType: "vintage_used" },
+      { type: "toggleDraftShopType", shopType: "bookshop" },
     );
 
     // Nothing has moved: not the results, not the query, not the filter set.
@@ -112,7 +112,7 @@ describe("explore reducer", () => {
     const applied = exploreReducer(drafted, { type: "applyFilters" });
 
     expect(applied.filters.availability).toBe("open");
-    expect(applied.filters.shopTypes).toEqual(["vintage_used"]);
+    expect(applied.filters.shopTypes).toEqual(["bookshop"]);
     expect(applied.filtersOpen).toBe(false);
     expect(hasUnappliedFilters(applied)).toBe(false);
   });
@@ -127,12 +127,12 @@ describe("explore reducer", () => {
     });
     const drafted = exploreReducer(
       exploreReducer(opened, { type: "setDraftAvailability", availability: "open" }),
-      { type: "toggleDraftShopType", shopType: "vintage_used" },
+      { type: "toggleDraftShopType", shopType: "bookshop" },
     );
     const applied = exploreReducer(drafted, { type: "applyFilters" });
 
     expect(applied.requestId).toBe(opened.requestId + 1);
-    expect(applied.query.shopTypes).toEqual(["vintage_used"]);
+    expect(applied.query.shopTypes).toEqual(["bookshop"]);
     expect(applied.query.bounds).toEqual(tokyo.bounds);
     expect(applied.status).toBe("loading");
   });
@@ -143,7 +143,7 @@ describe("explore reducer", () => {
     });
     const drafted = exploreReducer(opened, {
       type: "toggleDraftShopType",
-      shopType: "vintage_used",
+      shopType: "bookshop",
     });
     const closed = exploreReducer(drafted, { type: "closeFilters" });
 
@@ -173,7 +173,7 @@ describe("explore reducer", () => {
     });
     const drafted = exploreReducer(
       exploreReducer(opened, { type: "setDraftAvailability", availability: "open" }),
-      { type: "toggleDraftShopType", shopType: "vintage_used" },
+      { type: "toggleDraftShopType", shopType: "bookshop" },
     );
     const applied = exploreReducer(drafted, { type: "applyFilters" });
 
@@ -183,7 +183,7 @@ describe("explore reducer", () => {
     expect(cleared.draftFilters.shopTypes).toEqual([]);
     expect(cleared.draftFilters.availability).toBe("any");
     // Still a draft: the results are untouched until it is applied.
-    expect(cleared.filters.shopTypes).toEqual(["vintage_used"]);
+    expect(cleared.filters.shopTypes).toEqual(["bookshop"]);
 
     const settled = exploreReducer(cleared, { type: "applyFilters" });
 
@@ -203,7 +203,7 @@ describe("explore reducer", () => {
     });
     const drafted = exploreReducer(
       exploreReducer(withStatus, { type: "openFilters" }),
-      { type: "toggleDraftShopType", shopType: "vintage_used" },
+      { type: "toggleDraftShopType", shopType: "bookshop" },
     );
     const cleared = exploreReducer(drafted, { type: "clearDraftFilters" });
 
@@ -228,7 +228,7 @@ describe("explore reducer", () => {
 
     const drafted = exploreReducer(
       exploreReducer(moved, { type: "openFilters" }),
-      { type: "toggleDraftShopType", shopType: "vintage_used" },
+      { type: "toggleDraftShopType", shopType: "bookshop" },
     );
     const applied = exploreReducer(drafted, {
       type: "applyFilters",
@@ -237,7 +237,7 @@ describe("explore reducer", () => {
 
     expect(applied.committed).toEqual(kyoto);
     expect(applied.query.bounds).toEqual(kyoto.bounds);
-    expect(applied.query.shopTypes).toEqual(["vintage_used"]);
+    expect(applied.query.shopTypes).toEqual(["bookshop"]);
 
     const settled = exploreReducer(applied, {
       type: "resultsLoaded",
@@ -273,7 +273,7 @@ describe("explore reducer", () => {
     const withType = exploreReducer(
       exploreReducer(exploreReducer(withStatus, { type: "openFilters" }), {
         type: "toggleDraftShopType",
-        shopType: "vintage_used",
+        shopType: "bookshop",
       }),
       { type: "applyFilters" },
     );
@@ -299,7 +299,7 @@ describe("explore reducer", () => {
       expect(canCountDraftMatches(opened)).toBe(true);
       expect(
         canCountDraftMatches(
-          exploreReducer(opened, { type: "toggleDraftShopType", shopType: "vintage_used" }),
+          exploreReducer(opened, { type: "toggleDraftShopType", shopType: "bookshop" }),
         ),
       ).toBe(true);
     });
@@ -308,7 +308,7 @@ describe("explore reducer", () => {
       const narrowed = exploreReducer(
         exploreReducer(exploreReducer(loaded(createExploreState({ viewport: tokyo })), {
           type: "openFilters",
-        }), { type: "toggleDraftShopType", shopType: "vintage_used" }),
+        }), { type: "toggleDraftShopType", shopType: "bookshop" }),
         { type: "applyFilters" },
       );
       const settled = loaded(narrowed);
@@ -322,7 +322,7 @@ describe("explore reducer", () => {
         canCountDraftMatches(
           exploreReducer(reopened, {
             type: "toggleDraftShopType",
-            shopType: "vintage_used",
+            shopType: "bookshop",
           }),
         ),
       ).toBe(false);

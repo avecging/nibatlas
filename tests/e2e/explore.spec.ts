@@ -482,7 +482,7 @@ test("the filter drawer holds a draft until it is applied", async ({ page }) => 
   await page.getByRole("button", { name: /^filters/i }).click();
 
   const drawer = page.getByRole("dialog", { name: "Filters" });
-  await drawer.getByRole("button", { name: "Vintage / Used", exact: true }).click();
+  await drawer.getByRole("button", { name: "Bookshop", exact: true }).click();
 
   // Drafted, not applied: the results behind the drawer have not moved, and
   // nothing is badged as applied.
@@ -512,7 +512,7 @@ test("closing the drawer discards what was not applied", async ({ page }) => {
   await page.getByRole("button", { name: /^filters/i }).click();
 
   const drawer = page.getByRole("dialog", { name: "Filters" });
-  await drawer.getByRole("button", { name: "Vintage / Used", exact: true }).click();
+  await drawer.getByRole("button", { name: "Bookshop", exact: true }).click();
   await drawer.getByRole("button", { name: "Recorded as open", exact: true }).click();
   await drawer.getByRole("button", { name: /close filters without applying/i }).click();
 
@@ -525,7 +525,7 @@ test("closing the drawer discards what was not applied", async ({ page }) => {
   // Reopening starts from what is applied, not from the discarded draft.
   await page.getByRole("button", { name: /^filters/i }).click();
   await expect(
-    drawer.getByRole("button", { name: "Vintage / Used", exact: true }),
+    drawer.getByRole("button", { name: "Bookshop", exact: true }),
   ).toHaveAttribute("aria-pressed", "false");
   await expect(
     drawer.getByRole("button", { name: "Recorded as open", exact: true }),

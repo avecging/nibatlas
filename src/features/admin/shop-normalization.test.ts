@@ -7,6 +7,12 @@ function errors(value:unknown) {
   catch(e) { if(!(e instanceof ShopValidationError)) throw e; return e.issues; }
 }
 describe('shared full-document normalization',()=>{
+  it('allows an incomplete draft or one main type, but rejects secondary types',()=>{
+    const main={shop_type_id:id,is_primary:true};
+    expect(normalizeShopDocument({...base(),types:[main]}).types).toHaveLength(1);
+    expect(errors({...base(),types:[{...main,is_primary:false}]})).toContainEqual(expect.objectContaining({path:'types'}));
+    expect(errors({...base(),types:[main,{shop_type_id:'60000000-0000-4000-8000-000000000002',is_primary:false}]})).toContainEqual(expect.objectContaining({path:'types'}));
+  });
   it('normalizes mapped text cells and manual values identically without inventing facts',()=>{
     const value=base();
     const shop={...value.shop,name:'  Synthetic 文具店  ',country_code:' sg ',latitude:'0',longitude:'-0.5',appointment_required:'false',postal_code:'00123',phone:'+65 00123',short_description:'First paragraph.\n\n第二段。'};

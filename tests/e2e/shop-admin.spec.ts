@@ -299,7 +299,7 @@ test("draft editor is accessible and preserves unknown information @short", asyn
   await open(page, "Visit details");
   await expect(page.getByLabel("Appointment required")).toHaveValue("");
   await open(page, "Experiences");
-  await expect(page.getByRole("group", { name: /^Shop types/ })).toBeVisible();
+  await expect(page.getByRole("group", { name: /^Main store type/ })).toBeVisible();
   await open(page, "Review");
   await page.getByText("Legacy provenance · retained, not required", { exact: true }).click();
   await expect(page.getByRole("group", { name: /^Legacy sources/ })).toBeVisible();
@@ -1131,17 +1131,17 @@ test('an unknown role never exposes admin-only image controls @short',async({pag
   await expect(section.getByRole('button',{name:'Make cover'})).toHaveCount(0);
 });
 
-test('admin can create missing localities and types then save their selection @short',async({page},info)=>{
+test('admin can create a locality and replace the single main store type @short',async({page},info)=>{
   const state=await setup(page);
   const newLocality='85000000-0000-4000-8000-000000000001',newType='85000000-0000-4000-8000-000000000002';
-  const options={localities:[{id:locality,label:'Singapore (SG)',countryCode:'SG'}],types:[{id:type,label:'Fountain Pen Specialist',code:'fountain_pen_specialist'}],services:[],brands:[],specialties:[]};
+  const options={localities:[{id:locality,label:'Singapore (SG)',countryCode:'SG'}],types:[{id:type,label:'Fountain Pen Specialist',code:'fountain_pen_specialist'},{id:newType,label:'Distributor',code:'distributor'}],services:[],brands:[],specialties:[]};
   await page.route('**/api/v1/admin/shops/options',async route=>{
     if(route.request().method()==='POST') {
       const body=route.request().postDataJSON();
       if(body.kind==='localities') {
         expect(body.countryCode).toBe('SG');
         options.localities.push({id:newLocality,label:`${body.label} (SG)`,countryCode:'SG'});
-      } else options.types.push({id:newType,label:body.label,code:`type_${newType.replaceAll('-','_')}`});
+      } else throw new Error('Only locality creation is expected');
       await route.fulfill({json:{id:body.kind==='localities'?newLocality:newType,options}});
     } else await route.fulfill({json:options});
   });
@@ -1151,12 +1151,12 @@ test('admin can create missing localities and types then save their selection @s
   await page.getByRole('button',{name:'Add or reuse locality'}).click();
   await expect(page.getByLabel('Locality').first()).toHaveValue(newLocality);
   await open(page,'Experiences');
-  await page.getByLabel('New shop type name').fill('Synthetic shop type');
-  await page.getByRole('button',{name:'Add or reuse shop type'}).click();
-  await expect(page.getByRole('status').filter({hasText:'Synthetic shop type selected'})).toBeVisible();
+  await page.getByLabel('Store type',{exact:true}).selectOption(newType);
+  await expect(page.getByRole('group',{name:'Main store type'}).getByRole('combobox')).toHaveCount(1);
   await save(page);
   await expect(page.getByRole('main').getByRole('status').first()).toContainText('Saved privately');
   expect(state.actions).toContain('save');
+  expect(state.current().document.types).toEqual([{shop_type_id:newType,is_primary:true}]);
   await page.reload();
   await open(page,'Experiences');
   await expect(page.locator('select:has(option[value="'+newType+'"]:checked)')).toHaveCount(1);

@@ -68,9 +68,14 @@ from all existing localities, with the merged country enforced by shared/SQL
 validation. Selections apply once to every matching value and can be reused when
 reselecting a corrected file in the same signed-in workspace. Nothing creates
 vocabulary. Brands/specialties use `|`-separated cells and add/reuse relationships;
-shop_type sets the primary type while retaining other type rows and legacy notes.
+shop_type selects exactly one main store type, replacing the previous type rows.
+Reusing the same type retains its legacy notes and source metadata; a different
+type does not inherit that evidence. Blank/omitted shop_type preserves the saved
+type, and an explicit clear leaves it unassigned in the private draft. Multiple
+legacy types require deliberate selection before saving. Secondary features such
+as vintage/used stock and nib/repair work are maintained manually in Experiences.
 
-Canonical shop-type codes (for example `nib_repair_services`) resolve from the
+Canonical shop-type codes (for example `distributor`) resolve from the
 existing database `shop_types.code` via the admin options response, as do
 unique UUIDs and display labels. The importer never creates a missing choice.
 The forward migration `20260925000100_singapore_import_vocabulary.sql` supplies

@@ -17,7 +17,7 @@ const CONTEXT: ExploreContext = {
   label: "Taipei",
   filters: {
     status: "saved",
-    shopTypes: ["stationery_store", "vintage_used"],
+    shopTypes: ["stationery_store", "bookshop"],
     availability: "not_closed",
   },
 };
@@ -59,11 +59,11 @@ describe("explore return context", () => {
           ...CONTEXT,
           filters: {
             ...CONTEXT.filters,
-            shopTypes: ["vintage_used", "stationery_store", "vintage_used"],
+            shopTypes: ["bookshop", "stationery_store", "bookshop"],
           },
         }),
       )?.filters.shopTypes,
-    ).toEqual(["stationery_store", "vintage_used"]);
+    ).toEqual(["stationery_store", "bookshop"]);
   });
 
   it("adds persisted context only to map and shop paths", () => {
