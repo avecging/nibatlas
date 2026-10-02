@@ -11,7 +11,7 @@ export const MAX_COLUMNS = 64;
 export const SCALARS = SHOP_FIELDS.filter(f => !['source_quality', 'last_verified_at', 'locality_id', 'country_code'].includes(f.key));
 export const VOCABULARIES = ['country', 'locality', 'shop_type', 'brands', 'specialties'] as const;
 export type Vocabulary = typeof VOCABULARIES[number];
-export const FIELDS = ['row_id', 'shop_id', ...SCALARS.map(f => f.key), ...VOCABULARIES, ...PLATFORMS, 'clear_fields'];
+export const FIELDS = ['row_id', 'shop_id', ...SCALARS.map(f => f.key), 'local_name', 'local_name_language', ...VOCABULARIES, ...PLATFORMS, 'clear_fields'];
 export type Cells = Record<string, string>;
 export interface InputRow { rowId: string; line: number; cells: Cells }
 export interface Upload { version: typeof VERSION; columns: string[]; rows: InputRow[] }

@@ -45,6 +45,19 @@ describe('private import HTTP', () => {
   expect(g.call.mock.calls.map(([name]) => name)).toEqual(['admin_import_operation_read', 'admin_import_operation']);
   expect(g.call.mock.calls.at(-1)?.[1]?.p_payload).toEqual({});
  });
+ it('keeps the same local-name alias through review and resumed execution', async () => {
+  const localRow = {...row, cells: {...row.cells, local_name: '試験店', local_name_language: 'ja-JP'}};
+  const g = gateway(), original = g.call.getMockImplementation()!;
+  g.call.mockImplementation((name, args) => name === 'admin_import_operation_read'
+   ? Promise.resolve({id: op, row_id: 'one', status: 'ready', patch: localRow, review_key: key})
+   : original(name, args));
+  expect((await handleImportBatch(request({...payload, row: localRow}), g)).status).toBe(200);
+  const reviewed = g.call.mock.calls.find(([name]) => name === 'admin_import_operation')![1]?.p_payload;
+  expect(reviewed).toMatchObject({row: localRow, document: {aliases: [{id: expect.any(String), alias: '試験店', language_tag: 'ja-JP', alias_type: 'local_name'}]}});
+  g.call.mockClear();
+  expect((await handleImportBatch(request({version: VERSION, batchId: batch, operationId: op, action: 'execute'}), g)).status).toBe(200);
+  expect(g.call.mock.calls.at(-1)?.[1]?.p_payload).toMatchObject({document: (reviewed as {document: unknown}).document});
+ });
  it('records a conflict if authoritative validation changes after review', async () => {
   const g = gateway(), original = g.call.getMockImplementation()!;
   g.call.mockImplementation((name, args) => name === 'admin_import_preview' && args?.p_mode === 'validate' ? Promise.resolve([{ rowId: 'one', issues: [{ path: 'shop_id', message: 'Changed' }], publicationErrors: [] }]) : original(name, args));

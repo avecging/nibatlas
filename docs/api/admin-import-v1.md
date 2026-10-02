@@ -88,7 +88,7 @@ Blank/omitted/null cells preserve existing values. `clear_fields` contains
 `|`-separated supported field names, deliberately clears scalars or the whole
 selected relationship group, and appears as EXPLICIT CLEAR with before/after.
 Name, slug and required status/precision cannot be cleared. Supplied value plus
-clear is rejected. Sources/aliases/experiences/services/opening hours, legacy
+clear is rejected. Sources/other aliases/experiences/services/opening hours, legacy
 classification/review dates, media, artwork and attestations are not import
 inputs in v1; their existing values survive. Arbitrary image URLs are never
 fetched. Preview itself creates no stamp/default, publication, visit or audit writes.
@@ -295,3 +295,27 @@ a value and clearing the same column is invalid. Before/after changes identify
 the platform, including clear actions. Existing safe duplicate targeting,
 revision conflicts, private import, saved previews and deliberate publication
 remain authoritative; no new review step or vocabulary creation is introduced.
+
+## Local-name columns
+
+CSV/JSON templates and column mapping accept optional `local_name` and
+`local_name_language` (for example `ja-JP` or `zh-Hant`). Supply both together;
+the language uses the existing manual-editor tag validation and is never inferred
+from country. `name` remains the main display name. Combined English/local name
+cells are not automatically split. No other alias kinds are import inputs.
+Existing v1 files and file/row/column limits remain compatible.
+
+Blank/omitted pairs preserve all existing aliases exactly. A supplied pair adds
+one `local_name` alias or updates the sole existing local name in place, retaining
+its ID. Multiple existing local names block replacement with an editor correction
+message; no name is guessed. Other alias kinds remain intact. New alias IDs derive
+from the target/proposed shop ID, so preview, review and retry produce the same
+complete document. Shared normalization and the existing private save/publication
+path validate and persist the alias; no database migration is required.
+
+`clear_fields=local_name` deliberately removes all local-name aliases and their
+language tags, preserving other kinds. Leave both name/language cells blank when
+clearing. The language cannot be cleared independently. Preview shows name and
+language before/after values and explicit clears. Published names use the existing
+single-local-name display beneath the main shop name; importing only saves a
+private draft and never publishes automatically.
