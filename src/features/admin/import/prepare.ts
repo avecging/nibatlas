@@ -27,7 +27,7 @@ export function prepareRow(row: MappedRow, context: Context, options: Options, p
   }
   const merged = structuredClone(base);
   const scalarKeys = new Set(SCALARS.map(f => f.key));
-  const clearable = new Set([...scalarKeys, ...PLATFORMS, 'country', 'locality', 'shop_type', 'brands', 'specialties']);
+  const clearable = new Set([...scalarKeys, ...PLATFORMS, 'local_name', 'country', 'locality', 'shop_type', 'brands', 'specialties']);
   const clears = new Set((input.clear_fields ?? '').split('|').map(s => s.trim()).filter(Boolean));
   for (const field of clears) {
     if (!clearable.has(field) || ['name', 'slug', 'position_precision', 'operational_status'].includes(field)) fail('clear_fields', `The field ${field.slice(0, 100)} cannot be cleared here.`);
@@ -66,9 +66,36 @@ export function prepareRow(row: MappedRow, context: Context, options: Options, p
       else merged.links.push({id,link_type:platform,...normalized,label:null,is_official:true,sort_order:PLATFORMS.indexOf(platform)});
     } catch (e) { fail(platform, e instanceof Error ? e.message : 'Enter an account or link.'); }
   }
+  const localName = input.local_name?.trim(), localLanguage = input.local_name_language?.trim();
+  const editLocalName = !!localName || !!localLanguage || clears.has('local_name');
+  let localNameIndex = -1;
+  if (clears.has('local_name')) {
+    if (localLanguage) fail('local_name_language', 'Leave the language blank when clearing the local name.');
+    merged.aliases = merged.aliases.filter(r => r.alias_type !== 'local_name');
+  } else if (localName || localLanguage) {
+    if (!localName) fail('local_name', 'Supply the local name together with its language tag.');
+    if (!localLanguage) fail('local_name_language', 'Supply the language tag, for example ja-JP or zh-Hant. It is never inferred from country.');
+    const existing = merged.aliases.filter(r => r.alias_type === 'local_name');
+    if (existing.length > 1) fail('local_name', 'Multiple local names exist. Resolve them in the editor first.');
+    else if (localName && localLanguage) {
+      const alias = existing[0];
+      if (alias) Object.assign(alias, {alias: localName, language_tag: localLanguage});
+      else {
+        const hex = createHash('sha256').update(JSON.stringify(['shop-local-name', target?.id ?? proposedId])).digest('hex');
+        const id = `${hex.slice(0,8)}-${hex.slice(8,12)}-5${hex.slice(13,16)}-a${hex.slice(17,20)}-${hex.slice(20,32)}`;
+        merged.aliases.push({id, alias_type: 'local_name', alias: localName, language_tag: localLanguage});
+      }
+      localNameIndex = merged.aliases.findIndex(r => r.alias_type === 'local_name');
+    }
+  }
   let normalized: Document | null = null;
   try { normalized = normalizeShopDocument(merged, options); }
-  catch (e) { if (!(e instanceof ShopValidationError)) throw e; issues.push(...e.issues); }
+  catch (e) {
+    if (!(e instanceof ShopValidationError)) throw e;
+    issues.push(...e.issues.map(issue => ({...issue, path:
+      issue.path === `aliases.${localNameIndex}.language_tag` ? 'local_name_language' :
+      issue.path === `aliases.${localNameIndex}.alias` ? 'local_name' : issue.path})));
+  }
   if (normalized) {
     // Normalization validates the complete merged shape, but untouched legacy
     // values are not correction targets. Keep their exact current bytes/IDs.
@@ -77,7 +104,11 @@ export function prepareRow(row: MappedRow, context: Context, options: Options, p
         const field = key === 'country_code' ? 'country' : key === 'locality_id' ? 'locality' : key;
         if (!input[field]?.trim() && !clears.has(field)) normalized.shop[key] = base.shop[key]!;
       }
-      for (const group of ['sources', 'aliases', 'experiences', 'services'] as const) normalized[group] = structuredClone(base[group]);
+      for (const group of ['sources', 'experiences', 'services'] as const) normalized[group] = structuredClone(base[group]);
+      normalized.aliases = !editLocalName ? structuredClone(base.aliases) : normalized.aliases.map(alias => {
+        const original = base.aliases.find(r => String(r.id).toLowerCase() === alias.id);
+        return original && alias.alias_type !== 'local_name' ? structuredClone(original) : alias;
+      });
       normalized.links = normalized.links.map(link => {
         const platform = String(link.link_type);
         const original = base.links.find(r => r.id === link.id);
@@ -95,6 +126,11 @@ export function prepareRow(row: MappedRow, context: Context, options: Options, p
     for (const [key, after] of Object.entries(normalized.shop)) {
       const before = base.shop[key] ?? null;
       if (JSON.stringify(before) !== JSON.stringify(after) || !target && after !== null) preview.changes.push({ field: key, before: target ? before : null, after, clear: clears.has(key) || clears.has(key === 'country_code' ? 'country' : key === 'locality_id' ? 'locality' : '') });
+    }
+    for (const [field, key] of [['local_name', 'alias'], ['local_name_language', 'language_tag']] as const) {
+      const before = base.aliases.filter(r => r.alias_type === 'local_name').map(r => r[key]!);
+      const after = normalized.aliases.filter(r => r.alias_type === 'local_name').map(r => r[key]!);
+      if (JSON.stringify(before) !== JSON.stringify(after)) preview.changes.push({field, before, after, clear: clears.has('local_name')});
     }
     for (const platform of PLATFORMS) {
       const before = base.links.filter(r => r.link_type === platform), after = normalized.links.filter(r => r.link_type === platform);

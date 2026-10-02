@@ -10,9 +10,11 @@ it('uses the app shell landmark, names controls accessibly and invalidates chang
   render(<main><ImportAdmin /></main>);
   const input = await screen.findByLabelText('CSV or JSON file');
   expect(screen.getAllByRole('main')).toHaveLength(1);
-  fireEvent.change(input, { target: { files: [{ name: 'synthetic.csv', size: 15, arrayBuffer: async () => new TextEncoder().encode('name\nSynthetic').buffer }] } });
+  fireEvent.change(input, { target: { files: [{ name: 'synthetic.csv', size: 90, arrayBuffer: async () => new TextEncoder().encode('name,local_name,local_name_language\nSynthetic,試験店,ja-JP').buffer }] } });
   const preview = await screen.findByRole('button', { name: 'Run dry-run preview' });
   expect(screen.getByRole('combobox', { name: 'name' })).toBeInTheDocument();
+  expect(screen.getByRole('combobox', { name: 'local_name' })).toHaveValue('local_name');
+  expect(screen.getByRole('combobox', { name: 'local_name_language' })).toHaveValue('local_name_language');
   fireEvent.click(preview);
   const filter = await screen.findByRole('combobox', { name: 'Show' });
   expect(screen.getByLabelText('Show', { exact: true })).toBe(filter);
