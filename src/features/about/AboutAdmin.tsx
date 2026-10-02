@@ -11,6 +11,7 @@ import {
   type AboutPerson,
   type AboutState,
 } from "./content";
+import { aboutFeedback } from "./validation-feedback";
 import { AboutView } from "./AboutView";
 import { RichTextEditor } from "./RichTextEditor";
 import base from "@/src/features/admin/ShopAdmin.module.css";
@@ -36,6 +37,14 @@ async function request(
   if (!response.ok) {
     if (response.status === 401 || response.status === 403)
       throw new AccessError("About editing requires an admin account.");
+    const field = Array.isArray(data.fields) ? data.fields[0] : undefined;
+    if (
+      response.status === 422 &&
+      field &&
+      typeof field.field === "string" &&
+      typeof field.message === "string"
+    )
+      throw new AboutValidationError(field.field, field.message);
     const messages: Record<string, string> = {
       content_changed:
         "Someone saved a newer version. Your edits are still here. Copy anything you want to keep, then load the latest saved content.",
@@ -76,6 +85,9 @@ function Workspace() {
   const [denied, setDenied] = useState(false),
     [reload, setReload] = useState(0),
     [editorKey, setEditorKey] = useState(0);
+  const [fieldError, setFieldError] = useState<ReturnType<
+    typeof aboutFeedback
+  > | null>(null);
   const [uploading, setUploading] = useState(false);
   const busy = working || uploading;
   const [preview, setPreview] = useState<AboutContent | null>(null);
@@ -90,6 +102,7 @@ function Workspace() {
         setDraft(data.draft);
         setEditorKey((v) => v + 1);
         setError("");
+        setFieldError(null);
         setDenied(false);
       })
       .catch((e) => {
@@ -157,13 +170,47 @@ function Workspace() {
       document.removeEventListener("click", guard, true);
     };
   }, [dirty, uploading]);
+  useEffect(() => {
+    if (!fieldError || busy) return;
+    const target = document.getElementById(`about-${fieldError.field}`);
+    target?.focus();
+    target?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [fieldError, busy]);
+  const fieldProps = (field: string) => ({
+    id: `about-${field}`,
+    "aria-invalid": fieldError?.field === field || undefined,
+    "aria-describedby":
+      fieldError?.field === field ? `about-${field}-error` : undefined,
+  });
+  const fieldMessage = (field: string) =>
+    fieldError?.field === field ? (
+      <span className={styles.fieldError} id={`about-${field}-error`}>
+        {fieldError.message}
+      </span>
+    ) : null;
+  const showError = (e: unknown) => {
+    setPreview(null);
+    if (e instanceof AboutValidationError && draft) {
+      const feedback = aboutFeedback(e, draft);
+      setFieldError(feedback);
+      setError(`${feedback.label}: ${feedback.message}`);
+    } else {
+      setFieldError(null);
+      setError(e instanceof Error ? e.message : "Could not save About.");
+    }
+  };
   const change = (next: AboutContent) => {
     setDraft(next);
+    if (fieldError) {
+      setFieldError(null);
+      setError("");
+    }
     setNotice("");
   };
   async function mutate(action: "save" | "publish") {
     if (!draft || !saved) return;
     setError("");
+    setFieldError(null);
     setNotice("");
     try {
       const document = aboutContent(draft, action === "publish");
@@ -182,13 +229,7 @@ function Workspace() {
           : "About published. Visitors can now see this version.",
       );
     } catch (e) {
-      setError(
-        e instanceof AboutValidationError
-          ? `${e.field}: ${e.message}`
-          : e instanceof Error
-            ? e.message
-            : "Could not save About.",
-      );
+      showError(e);
       if (e instanceof AccessError) {
         setDenied(true);
         setDraft(null);
@@ -284,11 +325,10 @@ function Workspace() {
                 onClick={() => {
                   try {
                     setPreview(aboutContent(draft));
+                    setFieldError(null);
                     setError("");
                   } catch (e) {
-                    setError(
-                      e instanceof Error ? e.message : "Check your content.",
-                    );
+                    showError(e);
                   }
                 }}
               >
@@ -320,16 +360,19 @@ function Workspace() {
                 <label>
                   Page title
                   <input
+                    {...fieldProps("title")}
                     maxLength={160}
                     value={draft.title}
                     onChange={(e) =>
                       change({ ...draft, title: e.target.value })
                     }
                   />
+                  {fieldMessage("title")}
                 </label>
                 <label>
                   Introduction
                   <textarea
+                    {...fieldProps("introduction")}
                     rows={4}
                     maxLength={2000}
                     value={draft.introduction}
@@ -337,17 +380,21 @@ function Workspace() {
                       change({ ...draft, introduction: e.target.value })
                     }
                   />
+                  {fieldMessage("introduction")}
                 </label>
                 <p id="body-label">
                   <strong>Main body</strong>
                 </p>
-                <RichTextEditor
-                  key={editorKey}
-                  initial={draft.body}
-                  onBusyChange={setUploading}
-                  disabled={busy}
-                  onChange={(body) => change({ ...draft, body })}
-                />
+                <div {...fieldProps("body")} tabIndex={-1}>
+                  <RichTextEditor
+                    key={editorKey}
+                    initial={draft.body}
+                    onBusyChange={setUploading}
+                    disabled={busy}
+                    onChange={(body) => change({ ...draft, body })}
+                  />
+                  {fieldMessage("body")}
+                </div>
               </fieldset>
               {(["team", "thanks"] as const).map((group) => {
                 const people = draft.people.filter((p) => p.group === group),
@@ -366,11 +413,13 @@ function Workspace() {
                       {group === "team" ? "Team heading" : "Thanks heading"}
                       <input
                         maxLength={120}
+                        {...fieldProps(headingKey)}
                         value={draft[headingKey]}
                         onChange={(e) =>
                           change({ ...draft, [headingKey]: e.target.value })
                         }
                       />
+                      {fieldMessage(headingKey)}
                     </label>
                     {!people.length && (
                       <p>This group is hidden until you add someone.</p>
@@ -382,17 +431,20 @@ function Workspace() {
                           Name
                           <input
                             maxLength={120}
+                            {...fieldProps(`person-${person.id}-name`)}
                             value={person.name}
                             onChange={(e) =>
                               setPerson(person.id, { name: e.target.value })
                             }
                           />
+                          {fieldMessage(`person-${person.id}-name`)}
                         </label>
                         <label>
                           Role or contribution
                           <textarea
                             maxLength={500}
                             rows={2}
+                            {...fieldProps(`person-${person.id}-description`)}
                             value={person.description}
                             onChange={(e) =>
                               setPerson(person.id, {
@@ -400,6 +452,7 @@ function Workspace() {
                               })
                             }
                           />
+                          {fieldMessage(`person-${person.id}-description`)}
                         </label>
                         <label>
                           Website (optional)
@@ -407,11 +460,13 @@ function Workspace() {
                             type="url"
                             maxLength={2000}
                             placeholder="https://…"
+                            {...fieldProps(`person-${person.id}-url`)}
                             value={person.url}
                             onChange={(e) =>
                               setPerson(person.id, { url: e.target.value })
                             }
                           />
+                          {fieldMessage(`person-${person.id}-url`)}
                         </label>
                         {(["linkedin", "instagram"] as const).map(
                           (platform) => (
@@ -423,6 +478,9 @@ function Workspace() {
                                 type="url"
                                 maxLength={2000}
                                 placeholder={`https://www.${platform}.com/…`}
+                                {...fieldProps(
+                                  `person-${person.id}-${platform}`,
+                                )}
                                 value={person[platform] ?? ""}
                                 onChange={(e) =>
                                   setPerson(person.id, {
@@ -430,6 +488,7 @@ function Workspace() {
                                   })
                                 }
                               />
+                              {fieldMessage(`person-${person.id}-${platform}`)}
                             </label>
                           ),
                         )}
@@ -543,6 +602,7 @@ function Workspace() {
                     <input
                       type={key === "url" ? "url" : "text"}
                       maxLength={max}
+                      {...fieldProps(`support.${key}`)}
                       value={draft.support[key]}
                       onChange={(e) =>
                         change({
@@ -551,6 +611,7 @@ function Workspace() {
                         })
                       }
                     />
+                    {fieldMessage(`support.${key}`)}
                   </label>
                 ))}
               </fieldset>

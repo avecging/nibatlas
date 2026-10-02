@@ -95,53 +95,60 @@ export function AboutView({
                     <h3 className={styles.personName} title={p.name}>
                       {p.name}
                     </h3>
-                    <div className={styles.personLinks}>
-                      {p.url && (
-                        <a
-                          href={p.url}
-                          aria-label={`${p.name} — Website`}
-                          title="Website"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <Icon name="globe" size={20} />
-                        </a>
-                      )}
-                      {p.linkedin && (
-                        <a
-                          href={p.linkedin}
-                          aria-label={`${p.name} — LinkedIn`}
-                          title="LinkedIn"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <svg
-                            width="20"
-                            height="20"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            aria-hidden="true"
+                    {(p.url || p.linkedin || p.instagram) && (
+                      <div className={styles.personLinks}>
+                        {p.url && (
+                          <a
+                            href={p.url}
+                            aria-label={`${p.name} — Website`}
+                            title="Website"
+                            target="_blank"
+                            rel="noopener noreferrer"
                           >
-                            <rect x="3" y="3" width="18" height="18" rx="2" />
-                            <path d="M7 10v7M11 17v-7m0 3a3 3 0 0 1 6 0v4" />
-                            <circle cx="7" cy="7" r=".5" fill="currentColor" />
-                          </svg>
-                        </a>
-                      )}
-                      {p.instagram && (
-                        <a
-                          href={p.instagram}
-                          aria-label={`${p.name} — Instagram`}
-                          title="Instagram"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <PlatformIcon platform="instagram" size={20} />
-                        </a>
-                      )}
-                    </div>
+                            <Icon name="globe" size={20} />
+                          </a>
+                        )}
+                        {p.linkedin && (
+                          <a
+                            href={p.linkedin}
+                            aria-label={`${p.name} — LinkedIn`}
+                            title="LinkedIn"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <svg
+                              width="20"
+                              height="20"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              aria-hidden="true"
+                            >
+                              <rect x="3" y="3" width="18" height="18" rx="2" />
+                              <path d="M7 10v7M11 17v-7m0 3a3 3 0 0 1 6 0v4" />
+                              <circle
+                                cx="7"
+                                cy="7"
+                                r=".5"
+                                fill="currentColor"
+                              />
+                            </svg>
+                          </a>
+                        )}
+                        {p.instagram && (
+                          <a
+                            href={p.instagram}
+                            aria-label={`${p.name} — Instagram`}
+                            title="Instagram"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <PlatformIcon platform="instagram" size={20} />
+                          </a>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <p>{p.description}</p>
                 </li>

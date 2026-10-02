@@ -16,6 +16,8 @@ has no cloud service, arbitrary HTML, tables, embeds or layout controls. Body im
 are uploaded through the existing PNG/JPEG processing and private R2 storage.
 
 - **Save draft** saves privately. An incomplete entry may be saved for later.
+- Validation feedback names the person/field, gives a practical correction, and
+  focuses/highlights the relevant input. Technical storage paths stay out of messages.
 - **Preview** displays current unsaved edits with the public renderer. Nothing is
   saved or published by preview; use Back to editing to continue.
 - **Publish** publishes the exact saved revision, with no approval/confirmation
@@ -26,7 +28,8 @@ are uploaded through the existing PNG/JPEG processing and private R2 storage.
 - Team/thanks display in an unboxed three-column desktop grid, two columns on
   tablets, one on phones. Larger serif names occupy at most two visual lines
   (full name stays accessible and available on hover). Optional Website, LinkedIn
-  and Instagram icons align to the right in that order. Missing links leave no icon.
+  and Instagram icons sit left-aligned below the name, above the contribution, in
+  that order. Missing links leave no icon; entries without links omit the icon row.
   Website accepts HTTP(S); social fields require full URLs on the matching platform.
 - **Image** in the body toolbar opens upload/alt-text/caption controls. Insert adds
   the image after the current paragraph or list. Select an existing image and

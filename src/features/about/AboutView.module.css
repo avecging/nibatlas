@@ -76,8 +76,8 @@
 .personHeader {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  gap: 4px;
   margin-bottom: 8px;
 }
 .page h3.personName {
@@ -96,7 +96,7 @@
   display: flex;
   flex-shrink: 0;
   gap: 8px;
-  margin-left: auto;
+  margin-left: -6px;
 }
 .personLinks a {
   display: inline-flex;

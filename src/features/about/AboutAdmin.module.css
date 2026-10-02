@@ -138,3 +138,14 @@
   outline: 2px solid var(--focus-ring);
   outline-offset: 3px;
 }
+
+.fieldError {
+  display: block;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-top: 4px;
+}
+.fields [aria-invalid="true"] {
+  border: 2px solid var(--status-error, #a63b2e);
+}

@@ -337,3 +337,76 @@ test("About images stay editable after reopen; people grid and social icons matc
   await expect(page).toHaveURL(/\/admin\/about$/);
   expect(uploads).toBe(2);
 });
+
+test("About validation names and focuses the invalid contributor field", async ({
+  page,
+}) => {
+  await stubSession(page, { kind: "signed-in" });
+  const draft = structuredClone(DEFAULT_ABOUT);
+  draft.people = [
+    {
+      id,
+      group: "team",
+      name: "Gin",
+      description: "Founder",
+      url: "",
+      linkedin: "linkedin.com/in/gin",
+    },
+  ];
+  let writes = 0;
+  await page.route("**/api/v1/admin/about", async (route) => {
+    if (route.request().method() === "POST") writes++;
+    await route.fulfill({
+      json: {
+        revision: null,
+        publishedRevision: null,
+        publishedAt: null,
+        draft: {
+          ...draft,
+          people: draft.people.map((p) => ({ ...p, linkedin: "" })),
+        },
+      },
+    });
+  });
+  await page.goto("/admin/about");
+  const field = page.getByLabel("LinkedIn URL (optional)", { exact: true });
+  await field.fill("linkedin.com/in/gin");
+  await page.getByRole("button", { name: "Save draft", exact: true }).click();
+  const invalid = page.locator('[aria-invalid="true"]');
+  await expect(invalid).toBeFocused();
+  await expect(invalid).toHaveValue("linkedin.com/in/gin");
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Gin — LinkedIn link" }),
+  ).toContainText("https://www.linkedin.com/in/your-name");
+  await expect(page.locator("main")).not.toContainText("people.0.linkedin");
+  expect(writes).toBe(0);
+  await invalid.fill("https://www.linkedin.com/in/gin");
+  await expect(page.locator('[aria-invalid="true"]')).toHaveCount(0);
+  await page.getByRole("button", { name: "Preview", exact: true }).click();
+  const preview = page.getByRole("region", { name: "Private About preview" }),
+    person = preview
+      .locator("li")
+      .filter({ has: page.getByRole("heading", { name: "Gin", exact: true }) });
+  const name = await person.locator("h3").boundingBox(),
+    link = await person
+      .getByRole("link", { name: "Gin — LinkedIn" })
+      .boundingBox(),
+    description = await person.locator("p").boundingBox();
+  expect(link!.y).toBeGreaterThanOrEqual(name!.y + name!.height);
+  expect(description!.y).toBeGreaterThanOrEqual(link!.y + link!.height);
+  expect(Math.abs(link!.x - name!.x)).toBeLessThanOrEqual(8);
+  await page.getByRole("button", { name: "Back to editing" }).click();
+  await page
+    .getByLabel("LinkedIn URL (optional)", { exact: true })
+    .fill("invalid");
+  await page.getByRole("button", { name: "Save draft", exact: true }).click();
+  await expect(page.locator('[aria-invalid="true"]')).toHaveCount(1);
+  await page
+    .getByRole("button", { name: "Load latest saved content (replaces edits)" })
+    .click();
+  await expect(
+    page.getByLabel("LinkedIn URL (optional)", { exact: true }),
+  ).toHaveValue("");
+  await expect(page.locator('[aria-invalid="true"]')).toHaveCount(0);
+  await expect(page.locator("main")).not.toContainText("Gin — LinkedIn link:");
+});
