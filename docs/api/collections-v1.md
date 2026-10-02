@@ -92,6 +92,27 @@ reconciliation backfills older visits. The unique owner/seal constraint makes
 both paths idempotent. Unpublish stops new awards; owners retain the original
 version, date, design and credit. Generated `cartouche-v1` remains frozen.
 
+Founder artwork revision, 2 October 2026: `cartouche-v2` is the default for
+new country and locality drafts. It uses the Nib Atlas mark, a curved scope
+heading, condensed serif place name, `VERIFIED VISITS`, distressed ink and the
+small logo with NIB ATLAS curved around its left side. Countries retain the
+approved cut-glass bottle and botanical flourishes; localities
+omit both and show the parent country beneath the locality name. Dates remain
+outside this artwork. The template ID, scope, name, parent country and ink are
+preserved in each published snapshot. Custom uploads retain their existing path.
+
+The editor chooses a starting ink once per new draft from vermilion, teal, plum,
+moss, navy and brick. The admin may override it with the existing eight-ink chooser;
+save/reload, preview and collection never rerandomize the saved ink. Existing
+generated designs can opt into **Use new default design**, then the same Save
+privately / Publish saved seal workflow. Discard restores the saved version.
+No definitions, versions or awards are rewritten by this migration.
+
+`document.template` accepts `cartouche-v1` or `cartouche-v2`; omission preserves
+legacy-client behavior (`cartouche-v1`). Deploy the additive template migration
+before the new application. Once a v2 design has been saved/published, an app
+rollback must retain its v2 decoder and renderer; older builds cannot decode it.
+
 `/admin/seals` is a 50-row list dashboard (name, scope, country/locality, published
 version, Edit), with Add new, server-side name/place search and country/scope
 filters. `/admin/seals/new` and `/admin/seals/[id]` contain Design & details and
@@ -103,7 +124,7 @@ saved seal remains the workflow, with no additional approval step.
 filters before keyset pagination. `?id=UUID` reads one seal; adding `history=1`
 and optional `before=VERSION` reads history. POST accepts
 `{action: "save"|"publish"|"unpublish", id, revision, document?}`. Document adds
-name, origin, optional creatorName/creatorUrl/artworkId. The retired
+name, origin, optional creatorName/creatorUrl/artworkId/template. The retired
 eligibleShopIds field is cleared on save; the old RPC writer is revoked. New
 RPC `admin_geographic_seals_v2` locks the current editor/admin role and exact
 revision. Geographic identity is immutable; change designs through new versions.

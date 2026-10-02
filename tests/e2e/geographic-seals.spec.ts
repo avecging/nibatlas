@@ -13,7 +13,7 @@ test('seal dashboard, separate editor, publication and version history',async({p
   if(r.request().method()==='GET')return r.fulfill({json:url.searchParams.has('history')?{entries:history,nextBefore:null}:url.searchParams.has('id')?{seal:saved}:{entries:saved?[saved]:[],nextCursor:null}});
   const b=r.request().postDataJSON();actions.push(b.action);
   if(b.action==='save')saved={id,revision:id,draft:b.document,localityName:'Singapore',published:false,publishedVersion:null};
-  else {saved={...saved,published:b.action==='publish',publishedVersion:1};if(b.action==='publish')history.push({version:1,snapshot:{...(saved.draft as Record<string,unknown>),localityName:'Singapore',localitySlug:'singapore',template:'cartouche-v1',eligibleShops:[]}});}
+  else {saved={...saved,published:b.action==='publish',publishedVersion:1};if(b.action==='publish')history.push({version:1,snapshot:{...(saved.draft as Record<string,unknown>),localityName:'Singapore',localitySlug:'singapore',eligibleShops:[]}});}
   await r.fulfill({json:{seal:saved}});
  });
  await page.goto('/admin/seals');
@@ -23,7 +23,7 @@ test('seal dashboard, separate editor, publication and version history',async({p
  await expect(page.getByRole('heading',{name:'Add new seal',exact:true})).toBeVisible();
  await page.getByRole('combobox',{name:'Scope',exact:true}).selectOption('locality');
  await page.getByRole('combobox',{name:'Locality',exact:true}).selectOption(locality);
- await expect(page.getByRole('img',{name:'locality seal, Singapore'})).toBeVisible();
+ await expect(page.getByRole('img',{name:'Locality seal, Singapore, verified visits'})).toBeVisible();
  await expect(page.getByRole('button',{name:'Publish saved seal'})).toBeDisabled();
  await page.getByRole('button',{name:'Save privately',exact:true}).click();await expect(page).toHaveURL(new RegExp(`/admin/seals/${id}$`));
  expect(actions).toEqual(['save']);await page.getByRole('button',{name:'Publish saved seal'}).click();
