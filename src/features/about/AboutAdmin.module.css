@@ -1,0 +1,121 @@
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-block: 14px;
+}
+.help {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+.error {
+  border-left: 3px solid var(--error);
+  padding: 12px;
+  background: var(--bg-surface-warm);
+}
+.person {
+  margin-block: 14px !important;
+}
+.person label + label,
+.fields > label + label {
+  margin-top: 16px;
+}
+.toggle {
+  display: flex !important;
+  align-items: center;
+  gap: 12px;
+}
+.toggle input {
+  width: 24px !important;
+  min-height: 24px !important;
+  margin: 0 !important;
+}
+.editor {
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px;
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-surface-warm);
+}
+.toolbar button {
+  padding: 6px 10px;
+  font-size: 14px;
+}
+.toolbar button[aria-pressed="true"] {
+  background: var(--action-primary);
+  color: var(--bg-surface);
+}
+.richText {
+  min-height: 260px;
+  padding: 18px;
+  outline-offset: -3px;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+.richText h2,
+.richText h3 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 24px;
+}
+.richText h3 {
+  font-size: 20px;
+}
+.richText ul {
+  list-style: disc;
+  padding-left: 24px;
+}
+.richText ol {
+  list-style: decimal;
+  padding-left: 24px;
+}
+.richText a {
+  color: var(--action-secondary);
+  text-decoration: underline;
+  display: inline !important;
+}
+.linkEdit {
+  padding: 14px;
+  border-bottom: 1px solid var(--border-default);
+}
+.preview {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 16px calc(60px + var(--nav-height));
+}
+.previewBar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  margin-bottom: 32px;
+  background: var(--bg-surface-warm);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+}
+.previewBar button {
+  padding: 10px 16px;
+  min-height: 44px;
+  border: 1px solid var(--action-primary);
+  border-radius: 8px;
+  color: var(--action-primary);
+  background: var(--bg-surface);
+  cursor: pointer;
+}
+.previewBar button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+.previewing {
+  padding-bottom: 20px;
+}

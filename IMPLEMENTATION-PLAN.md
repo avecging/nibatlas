@@ -2,7 +2,7 @@
 
 **Status:** Active implementation; see current-work table
 **Version:** 1.5
-**Last updated:** 20 September 2026 (Singapore)
+**Last updated:** 2 October 2026 (Singapore)
 
 ## Working model
 
@@ -15,6 +15,18 @@ GPT owns end-to-end implementation and initiates independent review under
 and scope decisions. A conductor/orchestrator has not been onboarded. `AGENTS.md`
 is the shared working contract. This assignment covers every milestone; frontend work is not reserved for Claude.
 
+## Current follow-up — About page editor (#17), 2 October 2026
+
+Founder confirms geographic seals PR #117 merged and founder-accepted. About is
+now the approved focused Package E increment: one admin-only rich-text editor,
+private draft/preview/publish, separate team/thanks content, optional hidden
+external support CTA, and no catalogue statistics. No general CMS/media/payment
+scope, extra approval steps or Workers plan change. The implementation includes
+an additive About-only migration and meaningful privacy/publication regressions;
+see `docs/api/about-page-v1.md`. PR review/CI, founder visual acceptance and
+separately approved migration/deployment remain release gates. No hosted changes.
+Final About copy and support wording/destination remain founder content decisions.
+
 ## Current follow-up — Geographic seals (#114), 1 October 2026
 
 Founder rejected PR #117's first admin interface on 1 October. The revised scope
@@ -26,8 +38,8 @@ Changing a shop's locality changes future eligibility; earned seals stay intact.
 Generated cartouches, old-visit reconciliation, Passport progress and the combined
 ceremony remain. Special stamps and redesigned-edition recollection are deferred.
 The missed-reveal acknowledgement finding is accepted as non-blocking for MVP;
-a replay button is a future option. No hosted migration/deployment or founder
-acceptance is implied. Imports, production, #97 and anomaly UI remain deferred.
+a replay button is a future option. PR #117 is merged and founder-accepted, as confirmed on 2 October.
+The historical implementation checkpoints below do not reopen that acceptance. Imports, production, #97 and anomaly UI remain deferred.
 See `docs/api/collections-v1.md` for the revised contract.
 
 ## Current follow-up — Related shops (#112), 30 September 2026

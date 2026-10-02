@@ -41,6 +41,7 @@ This three-destination structure deliberately keeps Map central and Passport dir
 | `/privacy` | Plain-language Privacy Policy | Public |
 | `/account` | Compatibility route redirecting to the relevant Me section | Required |
 | `/admin` | Founder/editor dashboard | Admin |
+| `/admin/about` | About content editor, private preview and publication | Admin only |
 | `/admin/shops` | Shop list/import | Admin |
 | `/admin/shops/[id]` | Shop and stamp editor | Admin |
 

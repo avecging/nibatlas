@@ -48,18 +48,3 @@ export function PrivacyReviewerNote() {
     </Note>
   );
 }
-
-/** Catalogue status behind the About page's product copy. */
-export function AboutReviewerNote() {
-  return (
-    <Note title="Reviewer note">
-      <p>
-        The coverage figures above are counted from the Milestone 1 prototype
-        catalogue fixture at build time, so they track the fixture rather than a
-        live database. Country seal thresholds are evaluated against the versioned
-        curated coverage sets; the applicable version is shown in Passport and Me
-        while reviewer mode is on.
-      </p>
-    </Note>
-  );
-}

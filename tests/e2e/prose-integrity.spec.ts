@@ -52,13 +52,8 @@ for (const path of PROSE_ROUTES) {
 }
 
 
-test("/about keeps the catalogue count grammatically separated", async ({ page }) => {
+test("/about links to current coverage without prototype counts", async ({ page }) => {
   await page.goto("/about");
-
-  await expect(
-    page.getByText(
-      /Today the catalogue holds \d+ shops? across the places below\./,
-    ),
-  ).toBeVisible();
-  await expect(page.locator("main")).not.toContainText(/shops?across/i);
+  await expect(page.getByRole("link", { name: "Explore the map", exact: true })).toHaveAttribute("href", "/");
+  await expect(page.locator("main")).not.toContainText(/Today the catalogue holds|\d+ shops? across/i);
 });

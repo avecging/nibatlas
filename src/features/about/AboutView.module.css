@@ -1,0 +1,54 @@
+.page {
+  overflow-wrap: anywhere;
+}
+.introduction {
+  white-space: pre-line;
+}
+.page ol {
+  list-style: decimal;
+  padding-left: var(--space-5);
+}
+.page li > p {
+  margin: 0;
+}
+.page li + li {
+  margin-top: var(--space-2);
+}
+.page ul.people {
+  list-style: none;
+  padding: 0;
+  gap: var(--space-5);
+  margin-top: var(--space-4);
+}
+.people p {
+  white-space: pre-line;
+}
+.support {
+  background: var(--bg-surface-warm);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  padding: var(--space-6);
+  margin-top: var(--space-5);
+}
+.support h2 {
+  margin-top: 0;
+}
+.support p {
+  margin-block: var(--space-4);
+  white-space: pre-line;
+}
+.page a.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  background: var(--action-primary);
+  color: var(--bg-surface);
+  text-decoration: none;
+}
+.page a:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
