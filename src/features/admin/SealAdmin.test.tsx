@@ -81,3 +81,37 @@ it('previews selected ink, requires saving legacy artwork, and keeps historical 
  fireEvent.click(screen.getByRole('tab',{name:'Version history'}));await screen.findByText('Version 1');
  expect(screen.getByRole('img')).toHaveAttribute('src',`/api/v1/seals/artwork/${artId}`);
 });
+
+it('keeps the starting ink stable while editing, saves an override and restores it on reload',async()=>{
+ const documents:Record<string,unknown>[]=[];
+ let saved={...entry,draft:{...draft,template:'cartouche-v2'}};
+ vi.stubGlobal('fetch',vi.fn(async(input:string,init?:RequestInit)=>{
+  if(input.endsWith('/options'))return Response.json({localities:[],types:[],services:[],specialties:[],brands:[]});
+  if(!init?.body)return Response.json({seal:saved});
+  const b=JSON.parse(String(init.body));documents.push(b.document);saved={...saved,draft:b.document};return Response.json({seal:saved});
+ }));
+ const {unmount}=render(<SealEditor/>);await screen.findByLabelText('Ink');
+ const starting=(screen.getByLabelText('Ink') as HTMLSelectElement).value;
+ expect(['vermilion','teal','plum','moss','navy','brick']).toContain(starting);
+ fireEvent.change(screen.getByLabelText('Name'),{target:{value:'Singapore test'}});
+ expect(screen.getByLabelText('Ink')).toHaveValue(starting);
+ fireEvent.change(screen.getByLabelText('Ink'),{target:{value:'ochre'}});
+ fireEvent.click(screen.getByRole('button',{name:'Save privately'}));
+ await waitFor(()=>expect(documents[0]).toMatchObject({ink:'ochre',template:'cartouche-v2'}));
+ unmount();render(<SealEditor id={id}/>);await screen.findByLabelText('Ink');
+ expect(screen.getByLabelText('Ink')).toHaveValue('ochre');
+ expect(screen.getByRole('img')).toHaveAttribute('data-seal-template','cartouche-v2');
+});
+it('adopts the new template deliberately and can discard it without changing history',async()=>{
+ vi.stubGlobal('fetch',vi.fn(async(input:string)=>input.endsWith('/options')
+  ?Response.json({localities:[],types:[],services:[],specialties:[],brands:[]})
+  :Response.json({seal:{...entry,draft:{...draft,template:'cartouche-v1'}}})));
+ render(<SealEditor id={id}/>);await screen.findByLabelText('Name');
+ expect(screen.getByRole('img')).not.toHaveAttribute('data-seal-template');
+ fireEvent.click(screen.getByRole('button',{name:'Use new default design'}));
+ expect(screen.getByRole('img')).toHaveAttribute('data-seal-template','cartouche-v2');
+ expect(screen.getByRole('button',{name:'Publish saved seal'})).toBeDisabled();
+ fireEvent.click(screen.getByRole('button',{name:'Discard unsaved changes'}));
+ expect(screen.getByRole('img')).not.toHaveAttribute('data-seal-template');
+ expect(screen.getByRole('button',{name:'Publish saved seal'})).toBeEnabled();
+});

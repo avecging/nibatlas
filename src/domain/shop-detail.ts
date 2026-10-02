@@ -262,7 +262,7 @@ export type StampTier = "shop" | "locality" | "country";
 
 export interface ShopStampDesign {
   readonly sealArtwork?: {readonly id:string;readonly treatment?:'ink-v1';readonly creatorName?:string;readonly creatorUrl?:string};
-  readonly generatedSealTemplate?: "cartouche-v1";
+  readonly generatedSealTemplate?: import('./seal-template').SealTemplate;
   /** Preserved approved export metadata. Asset delivery is owned by M6. */
   readonly commissioned?: {
     readonly illustratorCredit: string;

@@ -5,6 +5,7 @@ import { languageDirection } from "@/src/domain/language";
 import { STAMP_INK_LABELS } from "@/src/domain/stamp-palette";
 
 import { GeographicSealArt } from './GeographicSealArt';
+import { GeographicSealArtV2 } from './GeographicSealArtV2';
 import styles from "./StampArt.module.css";
 
 /**
@@ -203,6 +204,7 @@ export function StampArt({
       <p>Artwork temporarily unavailable</p>
     </figure>;
   }
+  if (stamp.generatedSealTemplate === 'cartouche-v2') return <GeographicSealArtV2 stamp={stamp} title={title} subtitle={subtitle} />;
   if (stamp.generatedSealTemplate === "cartouche-v1") return <GeographicSealArt stamp={stamp} title={title} subtitle={subtitle} />;
   const ink = `var(--ink-${stamp.ink})`;
   const filterId = `stamp-edge-${stamp.id}`;

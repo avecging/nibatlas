@@ -48,3 +48,18 @@ Social and messaging marks in `src/components/ui/PlatformIcon.tsx` are from
 licensed under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
 Brand names and marks remain the property of their respective owners; inclusion
 identifies a destination and does not imply endorsement.
+
+### Geographic seal template v2
+
+The cartouche ornament stencils in `public/stamps/` are vector conversions of
+founder-directed, AI-assisted artwork approved in the 2 October 2026 design
+session. The bottle illustration was inspired by Mita Sanshodo's Edo Kiriko
+ink bottle; it does not represent an affiliation or endorsement. These assets
+belong to the protected branding/artwork category above. The logo uses the
+existing founder-supplied `NibAtlasMark` geometry.
+
+`public/fonts/roboto-slab-bold-v1.woff` is Roboto Slab Bold, retrieved from
+Google Fonts (Roboto Slab v36) and converted from TTF to WOFF without changing
+its outlines. It is distributed under the Apache License 2.0; see
+`public/fonts/RobotoSlab-LICENSE.txt` and
+<https://github.com/googlefonts/robotoslab>.

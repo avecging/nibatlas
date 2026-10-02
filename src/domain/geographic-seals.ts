@@ -4,6 +4,7 @@ import type { EarnedSeal } from './seals';
 import type { ShopStampDesign } from './shop-detail';
 import { STAMP_INKS, type StampInk } from './stamp-palette';
 import {validCreatorCredit} from './creator-credit';
+import type { SealTemplate } from './seal-template';
 export function object(v: unknown): Record<string, unknown> {
  if (!v || typeof v !== 'object' || Array.isArray(v)) throw Error('Invalid seal');
  return v as Record<string, unknown>;
@@ -11,6 +12,7 @@ export function object(v: unknown): Record<string, unknown> {
 function text(v: unknown, max=300): string { if(typeof v !== 'string' || !v.trim() || v.length>max) throw Error('Invalid seal'); return v; }
 export function uuid(v: unknown): string { const s=text(v,36); if(!isShopId(s)) throw Error('Invalid seal ID'); return s.toLowerCase(); }
 export interface SealDocument {
+ template?: SealTemplate;
  scope: 'country' | 'locality'; countryCode: CountryCode; countryLabel: string;
  localityId: string | null; ink: StampInk; eligibleShopIds: string[];
  artworkTreatment?: 'ink-v1';
@@ -18,13 +20,14 @@ export interface SealDocument {
  creatorName?: string|undefined; creatorUrl?: string|undefined; artworkId?: string|null;
 }
 export interface SealSnapshot extends SealDocument {
- localitySlug: string | null; localityName: string | null; template: 'cartouche-v1';
+ localitySlug: string | null; localityName: string | null; template: SealTemplate;
  eligibleShops: {id:string;name:string}[];
 }
 export function sealDocument(v: unknown): SealDocument {
  const d=object(v), code=text(d.countryCode,2);
  if(!isCountryCode(code) || !['country','locality'].includes(String(d.scope)) || !STAMP_INKS.includes(d.ink as StampInk)) throw Error('Invalid seal');
  const scope=d.scope as SealDocument['scope'];
+ if(d.template!==undefined && d.template!=='cartouche-v1' && d.template!=='cartouche-v2') throw Error('Invalid seal template');
  if(!Array.isArray(d.eligibleShopIds) || d.eligibleShopIds.length>(scope==='locality'?1:4)) throw Error('Invalid eligible set');
  const eligibleShopIds=d.eligibleShopIds.map(uuid);
  if(new Set(eligibleShopIds).size!==eligibleShopIds.length) throw Error('Duplicate eligible shop');
@@ -33,6 +36,7 @@ export function sealDocument(v: unknown): SealDocument {
  if(d.origin!==undefined && !['generated','founder_created','ai_assisted','commissioned'].includes(String(d.origin))) throw Error('Invalid origin');
  if(!validCreatorCredit(d.creatorName,d.creatorUrl)) throw Error('Invalid creator credit');
  return {scope,countryCode:code,countryLabel:text(d.countryLabel,100),localityId:scope==='locality'?uuid(d.localityId):null,ink:d.ink as StampInk,eligibleShopIds,
+  ...(d.template!==undefined?{template:d.template as SealTemplate}:{}),
   ...(d.artworkTreatment==='ink-v1'?{artworkTreatment:'ink-v1' as const}:{}),
   ...(d.name!==undefined?{name:text(d.name,100)}:{}),...(d.origin!==undefined?{origin:d.origin as SealDocument['origin']}:{}),
   ...(d.creatorName!=null?{creatorName:d.creatorName as string}:{}),...(d.creatorUrl!=null?{creatorUrl:d.creatorUrl as string}:{}),
@@ -40,13 +44,13 @@ export function sealDocument(v: unknown): SealDocument {
 }
 export function sealSnapshot(v: unknown): SealSnapshot {
  const d=object(v), base=sealDocument(v);
- if(d.template!=='cartouche-v1' || !Array.isArray(d.eligibleShops) || d.eligibleShops.length!==base.eligibleShopIds.length) throw Error('Invalid seal snapshot');
+ if(!base.template || !Array.isArray(d.eligibleShops) || d.eligibleShops.length!==base.eligibleShopIds.length) throw Error('Invalid seal snapshot');
  const eligibleShops=d.eligibleShops.map(v=>{const r=object(v);return {id:uuid(r.id),name:text(r.name)};});
  if(new Set(eligibleShops.map(s=>s.id)).size!==eligibleShops.length || eligibleShops.some(s=>!base.eligibleShopIds.includes(s.id))) throw Error('Invalid membership');
- return {...base,template:'cartouche-v1',localitySlug:base.scope==='locality'?text(d.localitySlug):null,localityName:base.scope==='locality'?text(d.localityName):null,eligibleShops};
+ return {...base,template:base.template,localitySlug:base.scope==='locality'?text(d.localitySlug):null,localityName:base.scope==='locality'?text(d.localityName):null,eligibleShops};
 }
 export function sealDesign(id:string,s:SealDocument,version=1,localityName=''): ShopStampDesign {
- return {id,tier:s.scope,motif:'nib',ink:s.ink,localityLabel:localityName,countryLabel:s.countryLabel,designVersion:version,paletteVersion:1,generatedSealTemplate:'cartouche-v1',
+ return {id,tier:s.scope,motif:'nib',ink:s.ink,localityLabel:localityName,countryLabel:s.countryLabel,designVersion:version,paletteVersion:1,generatedSealTemplate:s.template??'cartouche-v1',
   ...(s.artworkId?{sealArtwork:{id:s.artworkId,...(s.artworkTreatment?{treatment:s.artworkTreatment}:{}),...(s.creatorName?{creatorName:s.creatorName}:{}),...(s.creatorUrl?{creatorUrl:s.creatorUrl}:{})}}:{})};
 }
 export interface SealRow {
