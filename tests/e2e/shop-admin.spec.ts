@@ -1156,7 +1156,7 @@ test('admin can create a locality and replace the single main store type @short'
   await save(page);
   await expect(page.getByRole('main').getByRole('status').first()).toContainText('Saved privately');
   expect(state.actions).toContain('save');
-  expect(state.current().document.types).toEqual([{shop_type_id:newType,is_primary:true}]);
+  expect(state.current().document.types).toEqual([{shop_type_id:newType,is_primary:true,source_id:null,note:null,last_verified_at:null}]);
   await page.reload();
   await open(page,'Experiences');
   await expect(page.locator('select:has(option[value="'+newType+'"]:checked)')).toHaveCount(1);
