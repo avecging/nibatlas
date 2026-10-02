@@ -113,3 +113,23 @@ assert sql(f"select count(*) from public.stamps where shop_id='{import_shop}';")
 assert sql(f"select count(*) from public.import_audit_events where operation_id='{import_op}' and status='imported';") == '1'
 assert sql(f"select count(*) from public.admin_audit_log where entity_id='{import_shop}' and entity_type='shop_working_copies';") == '1'
 print('PASS: eight concurrent import submissions create one private shop/default/save and one completed operation.')
+
+# #112: manual save and D4 review share role -> catalogue -> shop lock order.
+# Force the old inversion by holding the review actor's profile before a save.
+related_actor, related_shop = [str(uuid.uuid4()) for _ in range(2)]
+sql(f"insert into auth.users(id) values('{related_actor}'); select public.assign_profile_role('{related_actor}','admin');")
+def related_session(source):
+    return sql("begin; set local lock_timeout='4s'; set local statement_timeout='10s'; "
+               + f"select set_config('request.jwt.claims','{{\"sub\":\"{related_actor}\",\"role\":\"authenticated\"}}',true);"
+               + source + '; commit;')
+related_session(f"select public.admin_shop_write('create','{related_shop}',null,jsonb_build_object('name','Synthetic related race','slug','related-race-{related_shop}'))")
+def review_with_held_profile():
+    return related_session(f"select 1 from public.profiles where id='{related_actor}' for update; select pg_sleep(0.3); select public.shop_review_operation('{related_actor}','staging','{related_shop}')")
+def save_during_review():
+    return related_session(f"select pg_sleep(0.1); select public.admin_shop_write('save','{related_shop}',public.admin_shop_read('{related_shop}')->>'revision',public.admin_shop_read('{related_shop}')->'document')")
+with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+    first=executor.submit(review_with_held_profile)
+    second=executor.submit(save_during_review)
+    first.result(timeout=15)
+    second.result(timeout=15)
+print('PASS: concurrent D4 review and manual save complete without lock inversion.')

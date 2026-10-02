@@ -41,6 +41,7 @@ This three-destination structure deliberately keeps Map central and Passport dir
 | `/privacy` | Plain-language Privacy Policy | Public |
 | `/account` | Compatibility route redirecting to the relevant Me section | Required |
 | `/admin` | Founder/editor dashboard | Admin |
+| `/admin/about` | About content editor, private preview and publication | Admin only |
 | `/admin/shops` | Shop list/import | Admin |
 | `/admin/shops/[id]` | Shop and stamp editor | Admin |
 
@@ -366,11 +367,11 @@ The same hierarchy holds in both modes.
 
 ### Completion
 
-Only show `x / y` where `y` is a clearly versioned curated coverage set. Otherwise show counts without implying completeness.
+- Progress may show the current automatic threshold. Catalogue growth or a shop moving changes future eligibility, never an already-earned seal. Original shop impressions and published design snapshots remain immutable.
 
-- Derive a locality seal from the first verified shop stamp in that locality.
-- Derive a country seal after five verified shop stamps, or the complete eligible curated set when it contains fewer than five shops.
-- Record the applicable coverage-set version and never revoke an earned country seal because the catalogue later changes.
+- A locality seal requires two distinct verified visits to eligible shops, or the sole eligible shop when only one is published in that locality. Eligible shops follow current published country/locality assignments automatically.
+- A country seal requires five distinct eligible shop visits, or all eligible published shops when fewer than five exist. Zero eligible shops cannot award. There is no manual shop-selection step.
+- Preserve the exact published design version and never revoke an earned seal because the catalogue later changes.
 - Treat a future check-in as an interface over the same verified-visit event; do not create a second unlock source.
 
 ## Authentication and interruption

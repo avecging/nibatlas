@@ -626,3 +626,67 @@ Desktop founder checklist after approved migration/deployment:
 
 Founder admin acceptance is on PC. Automated coverage continues across desktop,
 tablet and both mobile viewports; public field/device/launch acceptance is separate.
+
+### Related shops
+
+In **Shop & story**, search for an existing shop and add it to **Related shops**.
+Choose **Branch** or **Related shop**; the label is shared on both sides. Different
+branch names may show a helpful, non-blocking note. **Show on this shop's public
+page** affects only this page. The other shop gets a private backlink after Save;
+open that shop separately if its backlink should be public. Use the existing
+Save/Publish flow. Another open editor may need to reload after a reciprocal edit.
+
+Nearby takes priority. When a linked shop is already in the actual Nearby list,
+the display switch is off/disabled; the information control explains why. If it
+later leaves Nearby, enable display deliberately and publish again. It does not
+switch itself back on. Only published target listings can appear publicly.
+
+**Remove** removes both links when saved, and public links when published. Turn
+off public display instead to hide only one side. No extra confirmation is added.
+
+Founder staging check after an approved migration/deployment: link two synthetic
+shops far enough apart that neither appears in Nearby; publish one side and check
+its card/name/place/tag. Confirm the other side is still hidden and its unrelated
+private edits remain. Enable/publish the other side, then hide one side and remove
+the pair. Check that a Nearby target has a disabled switch and no duplicate card.
+On a narrow viewport Related shops follows Nearby; on desktop it is in the left
+column. Actual founder acceptance remains separate from automated checks.
+
+## Geographic seals — revised founder acceptance
+
+After an authorized staging migration/deployment, open **Shops → Stamps & seals**
+(`/admin/seals`). The landing page lists name, Country/Locality scope, place,
+published version and Edit. Use search/country/scope filters and Previous/Next
+for large catalogues. Add new is at the top right.
+
+1. Choose **Add new seal**, enter the name, select Country or Locality and its
+   place. Singapore country and Singapore locality are separate entries.
+2. For a generated cartouche choose its ink. For an upload choose its truthful
+   origin, PNG or SVG, and optional creator name/link. A link needs a name.
+3. **Save privately** uploads selected artwork and opens the saved editor.
+   Inspect the saved design, then **Publish saved seal**. Save alone awards nothing.
+4. **Version history** shows every published design with name, origin, creator
+   name/link and ink. Publishing changed artwork retains the earlier version.
+5. Check Passport with earlier verified visits. Shops qualify automatically by
+   their published geography: two distinct shops per locality, five per country,
+   or all eligible shops when fewer exist. There is no shop selection step.
+6. Move a synthetic shop's locality through ordinary shop Save/Publish. Its future
+   eligibility follows the new locality. Already-earned seals remain collected.
+7. Change a seal's design/name/credit, save and publish. Existing collectors keep
+   their old design and credit; new collectors receive the current version.
+   Unpublish and verify old impressions remain in List and Book.
+
+PNG accepts RGB/RGBA exports up to 2048 px per side and 5 MiB. If a file named
+`.png` contains JPEG data, the uploader explains the mismatch: export an actual
+PNG from the image editor, then select it and save again. Renaming does not convert
+the format; saved seal details are retained after a rejected upload. SVG accepts a
+self-contained static path/shape/text export up to 512 KiB with a viewBox up to
+2048 units per side; export text as paths if an unavailable font matters. Scripts,
+CSS, external links/resources, embedded images and unsupported exports are
+rejected. Safe inline presentation styles, XML declarations and comments are accepted.
+SVG uses the selected Ink in the editor preview and newly published versions;
+transparent areas remain clear. PNG keeps its original colours. Saving an older
+uploaded design adopts the new SVG ink treatment; earlier published versions and
+already-collected impressions keep their original appearance. Use a transparent
+SVG background: opaque white shapes are painted areas and take the chosen ink too.
+No founder acceptance or hosted deployment is claimed by these instructions.

@@ -13,6 +13,7 @@ function describe(value: Value | undefined): string {
 export function RevisionComparison({mine,latest}: {mine:Document;latest:Document}) {
   const rows = [
     ...SHOP_FIELDS.map(f => ({label:f.label,mine:mine.shop[f.key],latest:latest.shop[f.key]})),
+    {label:'Related shops',mine:mine.related_shops,latest:latest.related_shops},
     {label:'Opening hours',mine:mine.shop.opening_hours,latest:latest.shop.opening_hours},
     ...GROUPS.map(g => ({label:g.label,mine:mine[g.key],latest:latest[g.key]})),
   ].filter(row => JSON.stringify(row.mine) !== JSON.stringify(row.latest));

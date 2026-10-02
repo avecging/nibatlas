@@ -401,13 +401,13 @@ test("editor supports zoom and reduced motion", async ({ page }) => {
   await expect(page.getByRole("main").getByRole("status").first()).toContainText(
     "Saved privately",
   );
-  expect(
-    await page.evaluate(
-      () =>
-        globalThis.document.documentElement.scrollWidth <=
-        globalThis.document.documentElement.clientWidth,
-    ),
-  ).toBe(true);
+  const dimensions=await page.evaluate(()=>({
+    fits:globalThis.document.documentElement.scrollWidth<=globalThis.document.documentElement.clientWidth,
+    width:globalThis.document.documentElement.clientWidth,scrollWidth:globalThis.document.documentElement.scrollWidth,
+    overflowing:[...globalThis.document.querySelectorAll('body *')].filter(el=>el.getBoundingClientRect().right>globalThis.document.documentElement.clientWidth+1)
+      .slice(0,20).map(el=>({tag:el.tagName,text:el.textContent?.slice(0,60),className:el.className,right:el.getBoundingClientRect().right,width:el.getBoundingClientRect().width})),
+  }));
+  expect(dimensions.fits,JSON.stringify(dimensions)).toBe(true);
 });
 
 test("dirty edits survive global links and browser Back @short", async ({ page }) => {
@@ -1617,4 +1617,36 @@ test('social and contact picker saves into the existing flow and public preview'
   await expect(frame.getByRole('heading',{name:'Website & social'})).toBeVisible();
   await expect(frame.getByRole('button',{name:'WeChat',exact:true})).toBeDisabled();
   await expect(frame.getByRole('link',{name:/Instagram: https/})).toHaveText('https://www.instagram.com/syntheticshop');
+});
+
+test('related shops use normal save and render compact cards in the correct column',async({page},info)=>{
+  const target='b1000000-0000-4000-8000-000000000020';
+  const initial=fixture();
+  initial.relatedContext={nearbyIds:[],shops:[{id:target,name:'Synthetic North',slug:'synthetic-north',localityName:'Kobe',countryCode:'JP',publicationStatus:'published'}]};
+  const state=await setup(page,initial);
+  await page.route('**/api/v1/admin/shops?q=*',route=>route.fulfill({json:{entries:[{...initial.relatedContext!.shops[0],operationalStatus:'open',hasChanges:false}],nextCursor:null}}));
+  await page.goto(`/admin/shops/${id}`);
+  const section=page.getByRole('region',{name:'Related shops',exact:true});
+  await section.getByLabel('Find an existing shop').fill('Synthetic');
+  await section.getByRole('button',{name:'Search shops'}).click();
+  await section.getByRole('button',{name:'Add Synthetic North'}).click();
+  await section.getByLabel('Relationship label').selectOption('branch');
+  await section.getByRole('checkbox').check();
+  expect((await new AxeBuilder({page}).include('[data-field-path="related_shops"]').analyze()).violations).toEqual([]);
+  await section.screenshot({path:info.outputPath('admin-related-editor.png')});
+  await saveAndReview(page);
+  expect(state.actions).toEqual(['save']);
+  expect(state.current().document.related_shops).toEqual([{shop_id:target,kind:'branch',show_public:true}]);
+  const frame=publicPreview(page);
+  const card=frame.getByRole('region',{name:'Related shops',exact:true});
+  await expect(card).toBeVisible();
+  await expect(card.getByRole('link',{name:/Synthetic North/})).toContainText('Kobe · Japan');
+  await expect(card.getByText('Branch',{exact:true})).toBeVisible();
+  // Preview switch deliberately exercises both responsive render locations.
+  await page.getByRole('button',{name:'Desktop',exact:true}).click();
+  await expect(frame.locator('[id="related-shops-desktop"]')).toBeVisible();
+  await card.screenshot({path:info.outputPath('admin-related-public-desktop.png')});
+  await page.getByRole('button',{name:'Mobile',exact:true}).click();
+  await expect(frame.locator('[id="related-shops-mobile"]')).toBeVisible();
+  await card.screenshot({path:info.outputPath('admin-related-public-mobile.png')});
 });

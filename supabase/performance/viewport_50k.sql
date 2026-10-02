@@ -61,6 +61,8 @@ from public.shops s
 where s.slug like 'perf-global-%'
   and substring(s.slug from '([0-9]+)$')::integer <= 10000;
 
+-- Finish deferred catalogue reconciliation before changing table trigger state.
+set constraints all immediate;
 alter table public.shops enable trigger shops_validate_timezone;
 alter table public.shops enable trigger shops_require_active_atlas_stamp;
 analyze public.shops;

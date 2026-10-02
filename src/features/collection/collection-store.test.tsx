@@ -201,7 +201,8 @@ describe("collection store", () => {
     // country seal is earned by completing a set smaller than five.
     expect(result.current.collection.countrySeal("SG")).toBeDefined();
     expect(result.current.collection.countrySeal("JP")).toBeUndefined();
-    expect(result.current.collection.localitySeal("TW", "east-tainan")).toBeDefined();
+    expect(result.current.collection.localitySeal("TW", "east-tainan")).toBeUndefined();
+    expect(result.current.collection.localitySeal("SG", "singapore")).toBeDefined();
   });
 
   it("keeps a seal earned in an earlier session", () => {
@@ -291,7 +292,7 @@ describe("collection store", () => {
     expect(locality?.collections.some((item) => item.shopId === shop.id)).toBe(true);
   });
 
-  it("derives a locality seal from a newly collected first visit", () => {
+  it("withholds a locality seal after only a first visit", () => {
     const { result } = renderStore();
     const shop = findPrototypeShop("ty-lee-pen-shop")!;
 
@@ -301,7 +302,7 @@ describe("collection store", () => {
       result.current.collection.collectStamp(shop, new Date("2026-08-18T02:00:00Z"));
     });
 
-    expect(result.current.collection.localitySeal("TW", "daan-taipei")).toBeDefined();
+    expect(result.current.collection.localitySeal("TW", "daan-taipei")).toBeUndefined();
   });
 
   it("restores the reviewer baseline on reset", () => {

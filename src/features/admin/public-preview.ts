@@ -49,6 +49,10 @@ export function projectSavedShopPreview(record: ShopRecord, options: Options): S
         // Add their preview shape after public decoding, without inventing a review timestamp.
         services: [],
         links: d.links.filter(r => r.is_official === true).sort((a,b) => Number(a.sort_order ?? 0)-Number(b.sort_order ?? 0) || String(a.id).localeCompare(String(b.id))).map(r => ({type:r.link_type,label:r.label,url:r.url,accountValue:r.account_value,isOfficial:true})),
+        relatedShops: (d.related_shops ?? []).filter(r=>r.show_public === true && !record.relatedContext?.nearbyIds.includes(String(r.shop_id))).flatMap(r=> {
+          const other=record.relatedContext?.shops.find(s=>s.id===r.shop_id && s.publicationStatus==='published');
+          return other ? [{id:other.id,slug:other.slug,name:other.name,localityName:other.localityName,countryCode:other.countryCode,kind:r.kind}] : [];
+        }),
         sources: d.sources.map(r => ({id:r.id,label:r.label,kind:r.source_type,url:r.source_url,retrievedOn:String(r.checked_at).slice(0,10),confirms:r.claims ?? []})),
       }) as Record<string, unknown>,
       specialtyLine: specialties[0] ?? services[0]?.label ?? null,

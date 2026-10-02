@@ -652,10 +652,10 @@ describe("derived seals", () => {
     seed({ collection: "seeded" });
     await renderPassport();
 
-    // Five localities are collected, so five locality seals derive.
-    expect(sealButtons("Locality")).toHaveLength(5);
+    // Only Singapore has two distinct collected shops.
+    expect(sealButtons("Locality")).toHaveLength(1);
     expect(
-      screen.getByRole("button", { name: /^Locality seal, Chūō, Tokyo, earned/ }),
+      screen.getByRole("button", { name: /^Locality seal, Singapore, earned/ }),
     ).toBeInTheDocument();
   });
 
@@ -713,21 +713,21 @@ describe("derived seals", () => {
     await renderPassport();
 
     const opener = screen.getByRole("button", {
-      name: /^Locality seal, Chūō, Tokyo, earned/,
+      name: /^Locality seal, Singapore, earned/,
     });
     opener.focus();
     fireEvent.click(opener);
 
     const dialog = screen.getByRole("dialog");
 
-    expect(dialog).toHaveAccessibleName("Chūō, Tokyo");
+    expect(dialog).toHaveAccessibleName("Singapore");
     expect(within(dialog).getByText("Locality seal")).toBeInTheDocument();
 
     const facts = within(dialog).getAllByRole("definition");
 
-    expect(facts[0]).toHaveTextContent("Chūō, Tokyo");
-    expect(facts[1]).toHaveTextContent("Japan");
-    expect(facts[2]).toHaveTextContent("2026-03-14");
+    expect(facts[0]).toHaveTextContent("Singapore");
+    expect(facts[1]).toHaveTextContent("Singapore");
+    expect(facts[2]).toHaveTextContent("2026-06-03");
 
     expect(
       within(dialog).queryByRole("link", { name: /open shop/i }),

@@ -1114,7 +1114,7 @@ test("seal logic is shown against an explicit versioned set", async ({ page }) =
   }
 
   await expect(page.getByText(/Geographic seals/i)).toBeVisible();
-  await expect(page.getByText(/curated set of 2 complete/i)).toBeVisible();
+  await expect(page.getByText("Earned 2026-06-03", {exact:true}).first()).toBeVisible();
   await expect(page.getByText(/2 of 4 curated shops/).first()).toBeVisible();
   await expect(page.getByText(/set sg-prototype-/)).toHaveCount(0);
 });
@@ -1134,7 +1134,7 @@ test("seal logic is shown against an explicit versioned set", async ({ page }) =
  */
 test.describe("derived seals", () => {
   const COUNTRY_SEAL = /^Country seal, Singapore, earned 2026-06-03$/;
-  const LOCALITY_SEAL = /^Locality seal, Chūō, Tokyo, earned 2026-03-14$/;
+  const LOCALITY_SEAL = /^Locality seal, Singapore, earned 2026-06-03$/;
 
   test.beforeEach(async ({ page }) => {
     await useNormalMode(page);
@@ -1201,20 +1201,20 @@ test.describe("derived seals", () => {
   test("List shows every locality seal as artwork, and opens one", async ({ page }) => {
     await page.goto("/passport");
 
-    // Five localities are collected, so five locality seals derive.
-    await expect(page.getByRole("button", { name: /^Locality seal,/ })).toHaveCount(5);
+    // Only Singapore has two distinct collected shops.
+    await expect(page.getByRole("button", { name: /^Locality seal,/ })).toHaveCount(1);
 
     const seal = page.getByRole("button", { name: LOCALITY_SEAL });
     await seal.click();
 
     const dialog = await expectSealOverlay(page, "Locality");
-    await expect(dialog).toHaveAccessibleName("Chūō, Tokyo");
+    await expect(dialog).toHaveAccessibleName("Singapore");
 
     const facts = dialog.getByRole("definition");
     await expect(facts).toHaveCount(3);
-    await expect(facts.nth(0)).toHaveText("Chūō, Tokyo");
-    await expect(facts.nth(1)).toHaveText("Japan");
-    await expect(facts.nth(2)).toHaveText("2026-03-14");
+    await expect(facts.nth(0)).toHaveText("Singapore");
+    await expect(facts.nth(1)).toHaveText("Singapore");
+    await expect(facts.nth(2)).toHaveText("2026-06-03");
 
     // The obvious close control, and focus back where it came from.
     await page.getByRole("button", { name: /close seal/i }).click();
@@ -1241,7 +1241,7 @@ test.describe("derived seals", () => {
     page,
   }) => {
     await seedPassportView(page, { mode: "book", coverSeen: true });
-    await openBook(page, "/passport/jp/chuo-tokyo");
+    await openBook(page, "/passport/sg/singapore");
 
     // The WP3 text-only treatment is gone.
     await expect(page.getByText(/^Locality seal earned/)).toHaveCount(0);

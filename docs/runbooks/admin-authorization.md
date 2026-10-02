@@ -10,6 +10,11 @@ operational responsibility, not a fourth role. Assign the founder `admin`.
 | Founder | The person responsible for Nib Atlas; their account uses `admin`. It is not a stored role, claim or membership. |
 | `user` | Ordinary account; no catalogue administration access. |
 
+About editing at `/admin/about` is admin-only, including draft reads, preview and
+publication. Team/thanks entries grant no account access. See
+`../api/about-page-v1.md` for the content workflow. Existing catalogue editor
+permissions are unchanged.
+
 Role assignment itself remains a database-owner operation. Full administration
 access does not bypass publication evidence, approved artwork, revision checks,
 private user data boundaries, or functions that have not been built yet.

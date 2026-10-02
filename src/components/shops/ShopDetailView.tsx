@@ -1,3 +1,4 @@
+import { ShopRelated } from "./ShopRelated";
 import { ShopMessaging, ShopWebsiteSocial } from "./ShopChannels";
 import type { ReactNode } from "react";
 
@@ -186,7 +187,8 @@ export function ShopDetailView({
    * that depends on the two never diverging is a silent empty heading waiting
    * for the day they do.
    */
-  const hasGettingThere = facts.gettingThere.length > 0 || nearby.length > 0;
+  const related = (shop.relatedShops ?? []).filter(r => r.id !== shop.id && !nearby.some(n=>n.shop.id===r.id));
+  const hasGettingThere = facts.gettingThere.length > 0 || nearby.length > 0 || related.length > 0;
 
   /*
    * Whether the page is worth splitting in two.
@@ -207,7 +209,7 @@ export function ShopDetailView({
       shop.editorial?.editions_text,
     ) ||
     (shop.exclusives?.length ?? 0) > 0 ||
-    brands.length > 0;
+    brands.length > 0 || related.length > 0;
   const hasRail =
     facts.gettingThere.length + facts.beforeYouGo.length + links.length > 0 ||
     hours.length > 0;
@@ -261,6 +263,7 @@ export function ShopDetailView({
           <div className={styles.mainColumn}>
             <ShopEditorial content={shop.editorial} />
             <ShopValueGap shop={shop} />
+            <div className={styles.relatedDesktop}><ShopRelated shops={related} headingId="related-shops-desktop"/></div>
             <ShopExclusives shop={shop} />
 
             {brands.length > 0 ? (
@@ -317,6 +320,7 @@ export function ShopDetailView({
                     reach is part of how you plan getting to this one.
                   */}
                   <ShopNearby nearby={nearby} localityName={shop.localityName} />
+                  <div className={styles.relatedMobile}><ShopRelated shops={related} headingId="related-shops-mobile"/></div>
                 </div>
               ) : null}
 

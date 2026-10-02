@@ -22,6 +22,7 @@ import {
 import type { EarnedSeal } from "@/src/domain/seals";
 import { useAccountSession } from "@/src/features/account/AccountSessionProvider";
 import { useSignInPrompt } from "@/src/features/auth/SignInProvider";
+import { GeographicSealProgress } from './GeographicSealProgress';
 import { useCollection } from "@/src/features/collection/collection-store";
 import { noopTelemetry } from "@/src/features/map/telemetry";
 import {
@@ -587,6 +588,7 @@ export function PassportScreen({ target }: { readonly target: PassportTarget }) 
         </div>
       </div>
 
+      <GeographicSealProgress />
       {/*
         Nothing collected reads the same in both modes. An empty book is a real
         object with real pages, but it cannot offer the one thing this state

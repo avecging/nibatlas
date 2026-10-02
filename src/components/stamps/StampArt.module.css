@@ -66,3 +66,16 @@
   font-weight: 700;
   letter-spacing: 1.4px;
 }
+
+@font-face {
+  font-family: 'Roboto Slab Stamp';
+  src: url('/fonts/roboto-slab-bold-v1.woff') format('woff');
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+.countrySealType {
+  font-family: 'Roboto Slab Stamp', Georgia, serif;
+  font-weight: 700;
+}

@@ -370,15 +370,12 @@ test.describe("product-facing destinations", () => {
 
     await expect(page.getByRole("heading", { name: /about nib atlas/i })).toBeVisible();
     await expect(page.getByRole("heading", { name: /what the catalogue is/i })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /where it covers today/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /explore the catalogue/i })).toBeVisible();
 
     const text = await visibleText(page);
 
-    // Product-facing: the three launch countries by name, and none of the
-    // vocabulary the implementation uses about itself.
-    for (const country of ["Singapore", "Japan", "Taiwan"]) {
-      expect(text).toContain(country);
-    }
+    // Coverage follows the map, with no fixture counts or hardcoded country promise.
+    await expect(page.getByRole("link", { name: "Explore the map", exact: true })).toHaveAttribute("href", "/");
     expect(text).not.toMatch(/milestone|fixture|prototype|coverage set/i);
 
     // Me stays the current primary section while About is open.

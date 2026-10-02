@@ -2,7 +2,7 @@
 
 **Status:** Active implementation; see current-work table
 **Version:** 1.5
-**Last updated:** 20 September 2026 (Singapore)
+**Last updated:** 2 October 2026 (Singapore)
 
 ## Working model
 
@@ -14,6 +14,57 @@ GPT owns end-to-end implementation and initiates independent review under
 `AGENTS.md`; Claude is an optional reviewer. The founder approves product
 and scope decisions. A conductor/orchestrator has not been onboarded. `AGENTS.md`
 is the shared working contract. This assignment covers every milestone; frontend work is not reserved for Claude.
+
+## Current follow-up — About page editor (#17), 2 October 2026
+
+Founder confirms geographic seals PR #117 merged and founder-accepted. About is
+now the approved focused Package E increment: one admin-only rich-text editor,
+private draft/preview/publish, separate team/thanks content, optional hidden
+external support CTA, and no catalogue statistics. No general CMS/media-library/payment
+scope, extra approval steps or Workers plan change. The implementation includes
+an additive About-only migration and meaningful privacy/publication regressions;
+see `docs/api/about-page-v1.md`. PR review/CI, founder visual acceptance and
+separately approved migration/deployment remain release gates. No hosted changes.
+Founder deployed PR #118 to staging and reports it generally works. Approved
+follow-up: responsive unboxed team/thanks grid, larger two-line serif names,
+Website/LinkedIn/Instagram icons below each name (founder visual correction), and main-body image upload with
+alt text/captions. Team/thanks remain text-only. This follow-up uses an additive
+migration and the existing private upload/publication boundaries; hosted migration,
+redeployment and visual acceptance of the follow-up remain separate.
+Founder authorized squash merge after the final icon-position and clear field-error
+corrections pass checks/review. Final About copy and support wording/destination
+remain founder content decisions.
+
+## Current follow-up — Geographic seals (#114), 1 October 2026
+
+Founder rejected PR #117's first admin interface on 1 October. The revised scope
+is a paginated/searchable seal dashboard with explicit country/locality scope,
+separate editors, published version history, and PNG/SVG artwork with credits.
+Eligible shops follow current published geography automatically. Founder confirmed
+all eligible shops qualify when fewer than two (locality) or five (country) exist.
+Changing a shop's locality changes future eligibility; earned seals stay intact.
+Generated cartouches, old-visit reconciliation, Passport progress and the combined
+ceremony remain. Special stamps and redesigned-edition recollection are deferred.
+The missed-reveal acknowledgement finding is accepted as non-blocking for MVP;
+a replay button is a future option. PR #117 is merged and founder-accepted, as confirmed on 2 October.
+The historical implementation checkpoints below do not reopen that acceptance. Imports, production, #97 and anomaly UI remain deferred.
+See `docs/api/collections-v1.md` for the revised contract.
+
+## Current follow-up — Related shops (#112), 30 September 2026
+
+Founder confirms Package D, social/contact #111 and Website & social card #115
+merged, deployed and accepted. #113 is explicitly rejected; never revive it.
+The approved next task is #112 before Package E. Shared Branch/Related shop label,
+independent per-side visibility, private reciprocal links and Nearby deduplication
+are being implemented through the existing Save/Publish flow. Once Nearby stops
+showing a target, Related shops stays off until explicitly enabled. No separate
+approval step, group manager or Workers plan change. Technical review/CI and
+founder staging acceptance are separate; no hosted changes are implied.
+
+After #112, discuss #114's geographic-seal rules, visitor explanations and minimal
+admin controls before implementing Package E's persisted awards. The anomaly
+screen is deferred until concrete cost/monetisation risk warrants it. Catalogue
+imports, production, #97 and hosted reset/seed remain outside this increment.
 
 ## Current work — Q4 stability and admin/import sequence, 20 September 2026
 

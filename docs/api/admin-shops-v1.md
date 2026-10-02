@@ -503,3 +503,51 @@ Public `links` retain `type` and optionally expose `accountValue`; `url` can now
 be absent for a copy-only contact. Consumers must not run URL parsing on IDs.
 The shared saved/public projector carries both forms. Public page behaviour and
 verified link formats are documented in `v1-shop-reads.md`.
+
+## Related shops (#112)
+
+`document.related_shops` is an optional bounded array (100) of
+`{shop_id, kind: "branch" | "related", show_public: boolean}`. The target must
+exist and differ from the source; duplicates are rejected. Omission preserves
+existing relationships for older clients and imports; `[]` explicitly removes
+all. Package C updates carry this section unchanged; no new CSV columns.
+
+Save propagates only membership/shared-label changes to the counterpart's private
+working copy, initially with public display off. Other private fields and position
+confirmation are preserved; the counterpart revision changes so stale editors,
+imports and durable reviews must reload. A pre-existing canonical conflict is
+never silently rebased. Discard reverses the private relationship delta. There is
+no transitive grouping or separate relationship approval.
+
+Publish applies the source's display flag and the shared label using the existing
+writer. It never publishes the counterpart listing or its unrelated working copy.
+Removing a relationship deletes both directions on publication. Canonical
+relationship changes rebase only the known relationship delta in a non-conflicting
+counterpart draft; public visibility remains independent. Existing publication
+requirements (including position confirmation) continue to apply.
+
+After reconciliation, a counterpart working copy is removed only when its
+document and position confirmation match canonical state, no retained removal
+choices remain, and its base is current. An omitted or empty related-shop list
+is equivalent for this comparison. Actual private edits, confirmation changes,
+removal choices and canonical conflicts remain protected; a fully reconciled
+shop does not require a manual discard before closure or archival.
+
+Private `relatedContext` on shop reads supplies selected shop identities and the
+actual Nearby IDs. The durable D4 review binds this context as well as the saved
+document. `shop_relationships` has forced RLS and no direct client grants;
+private helpers are not exposed. Changes retain attributed fingerprint-only audit.
+
+Nearby membership matches the deployed adapter: call `nearby_shops` with its
+5 km/5-result inputs, remove self/closed entries, retain four. It is result
+membership, not a second radius test. Catalogue writes clear overlapping public
+flags and saved selections, with fresh revisions; they never re-enable flags when
+a shop leaves Nearby. Shop/type SQL maintenance also runs this suppression. The
+public detail projection additionally excludes Nearby duplicates and unpublished
+targets before returning JSON. Hidden/internal relationships never enter public
+HTML or JSON. The UI explanation supports hover, focus and tap.
+
+Migration `20260930155607_related_shops.sql` creates an empty relationship table,
+adds guarded helpers and extends the existing writer/read/review functions. It
+does not import/backfill catalogue records or alter artwork/history. Hosted
+migration, merge and deployment require separate founder authorization.
