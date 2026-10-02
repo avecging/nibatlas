@@ -14,6 +14,7 @@ Rules are shared by Astra, Sol and Claude; no model-specific copies are needed.
 | Fixtures/domain mapping | Relevant sections of `docs/api/fixture-contract.md`; current domain types |
 | Auth/saves | `docs/runbooks/auth-local-staging.md`; `docs/api/saved-shops-v1.md` |
 | Collection/verification | `docs/api/stamp-verification-v1.md`, `docs/api/collections-v1.md`; operations in `docs/runbooks/stamp-verification.md` |
+| About page editing | `docs/api/about-page-v1.md` |
 | Shop administration | `docs/api/admin-shops-v1.md`, `docs/adr/0012-shop-administration.md`; founder steps in `docs/runbooks/shop-administration.md`; open frontend/backend boundary in `docs/api/admin-b3-contract-handoff.md` |
 | Bulk onboarding / private import, review, selected publication and resume | `docs/api/admin-import-v1.md`; shared validation/publication in `docs/api/admin-shops-v1.md` |
 | Roles/audit | `docs/runbooks/admin-authorization.md` |
