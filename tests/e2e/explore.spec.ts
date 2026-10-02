@@ -492,7 +492,7 @@ test("the filter drawer holds a draft until it is applied", async ({ page }) => 
   await drawer.getByRole("button", { name: "Apply filters" }).click();
 
   // Committed: the drawer closes, the badge appears, and the results follow. No
-  // shop in the sourced subset is a vintage dealer, so the honest result is an
+  // shop in the sourced subset is a bookshop, so the honest result is an
   // empty set plus a way to recover.
   await expect(drawer).toHaveCount(0);
   await expect(page.getByTestId("filter-count")).toHaveText(/1/);

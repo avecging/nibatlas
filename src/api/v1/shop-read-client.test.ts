@@ -70,7 +70,7 @@ describe("HTTP shop read client", () => {
       zoom: 12,
       operationalStatuses: ["open", "unknown"],
       statuses: ["saved"],
-      shopTypes: ["fountain_pen_specialist", "nib_repair_services"],
+      shopTypes: ["fountain_pen_specialist", "distributor"],
       limit: 75,
     });
 
@@ -84,7 +84,7 @@ describe("HTTP shop read client", () => {
       north: "1.5000000",
       zoom: "12",
       operationalStatus: "open,unknown",
-      shopType: "fountain_pen_specialist,nib_repair_services",
+      shopType: "fountain_pen_specialist,distributor",
       limit: "75",
     });
     expect(parsed.searchParams.has("statuses")).toBe(false);

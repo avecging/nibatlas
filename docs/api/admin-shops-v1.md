@@ -228,10 +228,9 @@ events. Selecting a newly created item stays in the editor until private save.
 
 New type codes are immutable `type_<UUID with underscores>`. Public projections
 carry `primaryTypeLabel` and detail `shopTypeLabels`, and readers require these
-bounded labels for custom codes. Existing codes and the four approved public
-filter categories remain unchanged. Custom types appear in unfiltered discovery,
-Saved and detail; this slice adds no new filter categories or inferred mapping to
-an existing category. The `test_venue` demo-only boundary remains intact.
+bounded labels for custom codes. The main-store-type follow-up below replaces the original four public
+filter categories with the approved nine. Custom types appear in unfiltered discovery,
+Saved and detail, with no inferred mapping to an existing category. The `test_venue` demo-only boundary remains intact.
 
 
 ## C3 saved-batch publication reuse
