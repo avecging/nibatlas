@@ -70,12 +70,14 @@ export function AboutAdmin() {
 function Workspace() {
   const [saved, setSaved] = useState<AboutState | null>(null),
     [draft, setDraft] = useState<AboutContent | null>(null);
-  const [busy, setBusy] = useState(false),
+  const [working, setBusy] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
   const [denied, setDenied] = useState(false),
     [reload, setReload] = useState(0),
     [editorKey, setEditorKey] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const busy = working || uploading;
   const [preview, setPreview] = useState<AboutContent | null>(null);
   const dirty = Boolean(
     draft && saved && JSON.stringify(draft) !== JSON.stringify(saved.draft),
@@ -107,13 +109,54 @@ function Workspace() {
     return () => controller.abort();
   }, [reload]);
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty && !uploading) return;
+    let leaving = false;
     const warn = (event: BeforeUnloadEvent) => {
+      if (!leaving) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    };
+    const guard = (event: MouseEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        event.altKey
+      )
+        return;
+      const link = (
+        event.target instanceof Element ? event.target.closest("a[href]") : null
+      ) as HTMLAnchorElement | null;
+      if (
+        !link ||
+        link.hasAttribute("download") ||
+        (link.target && link.target !== "_self")
+      )
+        return;
+      const target = new URL(link.href);
+      if (
+        target.pathname === location.pathname &&
+        target.search === location.search &&
+        target.origin === location.origin
+      )
+        return;
       event.preventDefault();
+      event.stopImmediatePropagation();
+      if (window.confirm("Leave without saving your edits?")) {
+        leaving = true;
+        window.location.assign(link.href);
+      }
     };
     window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+    document.addEventListener("click", guard, true);
+    return () => {
+      window.removeEventListener("beforeunload", warn);
+      document.removeEventListener("click", guard, true);
+    };
+  }, [dirty, uploading]);
   const change = (next: AboutContent) => {
     setDraft(next);
     setNotice("");
@@ -301,6 +344,7 @@ function Workspace() {
                 <RichTextEditor
                   key={editorKey}
                   initial={draft.body}
+                  onBusyChange={setUploading}
                   disabled={busy}
                   onChange={(body) => change({ ...draft, body })}
                 />
@@ -358,7 +402,7 @@ function Workspace() {
                           />
                         </label>
                         <label>
-                          External link (optional)
+                          Website (optional)
                           <input
                             type="url"
                             maxLength={2000}
@@ -369,6 +413,26 @@ function Workspace() {
                             }
                           />
                         </label>
+                        {(["linkedin", "instagram"] as const).map(
+                          (platform) => (
+                            <label key={platform}>
+                              {platform === "linkedin"
+                                ? "LinkedIn URL (optional)"
+                                : "Instagram URL (optional)"}
+                              <input
+                                type="url"
+                                maxLength={2000}
+                                placeholder={`https://www.${platform}.com/…`}
+                                value={person[platform] ?? ""}
+                                onChange={(e) =>
+                                  setPerson(person.id, {
+                                    [platform]: e.target.value,
+                                  })
+                                }
+                              />
+                            </label>
+                          ),
+                        )}
                         <div className={styles.actions}>
                           <button
                             type="button"
@@ -500,7 +564,7 @@ function Workspace() {
             <p>Private preview · includes unsaved edits</p>
             <button onClick={() => setPreview(null)}>Back to editing</button>
           </div>
-          <AboutView content={preview} />
+          <AboutView content={preview} preview />
         </section>
       )}
     </>

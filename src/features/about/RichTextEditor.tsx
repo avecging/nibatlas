@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
+import { AboutImageEditor, AboutImageNode } from "./AboutImageEditor";
 import StarterKit from "@tiptap/starter-kit";
 import { aboutUrl, richDocument, type RichNode } from "./content";
 import styles from "./AboutAdmin.module.css";
@@ -9,11 +10,14 @@ export function RichTextEditor({
   initial,
   onChange,
   disabled,
+  onBusyChange,
 }: {
+  onBusyChange: (busy: boolean) => void;
   initial: RichNode;
   disabled: boolean;
   onChange: (value: RichNode) => void;
 }) {
+  const [imageOpen, setImageOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false),
     [url, setUrl] = useState(""),
     [error, setError] = useState("");
@@ -21,6 +25,7 @@ export function RichTextEditor({
     immediatelyRender: false,
     shouldRerenderOnTransaction: true,
     extensions: [
+      AboutImageNode,
       StarterKit.configure({
         heading: { levels: [2, 3] },
         blockquote: false,
@@ -55,11 +60,17 @@ export function RichTextEditor({
     },
   });
   useEffect(() => {
-    editor?.setEditable(!disabled, false);
-  }, [editor, disabled]);
+    editor?.setEditable(!disabled && !imageOpen, false);
+  }, [editor, disabled, imageOpen]);
   if (!editor) return <p role="status">Loading text editor…</p>;
   const button = (label: string, action: () => void, active = false) => (
-    <button type="button" key={label} aria-pressed={active} onClick={action}>
+    <button
+      type="button"
+      key={label}
+      disabled={imageOpen}
+      aria-pressed={active}
+      onClick={action}
+    >
       {label}
     </button>
   );
@@ -107,15 +118,24 @@ export function RichTextEditor({
         )}
         <button
           type="button"
+          onClick={() => {
+            setImageOpen((v) => !v);
+            setLinkOpen(false);
+          }}
+        >
+          Image
+        </button>
+        <button
+          type="button"
           onClick={() => editor.chain().focus().undo().run()}
-          disabled={!editor.can().undo()}
+          disabled={imageOpen || !editor.can().undo()}
         >
           Undo
         </button>
         <button
           type="button"
           onClick={() => editor.chain().focus().redo().run()}
-          disabled={!editor.can().redo()}
+          disabled={imageOpen || !editor.can().redo()}
         >
           Redo
         </button>
@@ -180,6 +200,13 @@ export function RichTextEditor({
           </div>
           {error && <p role="alert">{error}</p>}
         </div>
+      )}
+      {imageOpen && (
+        <AboutImageEditor
+          editor={editor}
+          close={() => setImageOpen(false)}
+          onBusyChange={onBusyChange}
+        />
       )}
       <EditorContent editor={editor} />
     </div>

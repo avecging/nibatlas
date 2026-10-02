@@ -80,6 +80,7 @@ function auditRows(value: unknown) {
         "shop_images",
         "stamps",
         "stamp_artwork_versions", "geographic_seals", "geographic_seal_versions", "geographic_seal_assets", "about_page",
+        "about_images",
       ].includes(String(row["entityType"]));
     const summary = (value: Record<string, unknown> | null) => {
       if (!value || typeof value !== "object" || Array.isArray(value))

@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { aboutContent, aboutUrl, richDocument } from "./content";
+import {
+  aboutContent,
+  aboutUrl,
+  aboutSocialUrl,
+  richDocument,
+} from "./content";
 import { DEFAULT_ABOUT } from "./default-content";
 import { AboutView } from "./AboutView";
 const copy = () => structuredClone(DEFAULT_ABOUT);
@@ -123,4 +128,73 @@ describe("About content and public rendering", () => {
     expect(html).not.toContain("Our team");
     expect(html.indexOf("Beta")).toBeLessThan(html.indexOf("Alpha"));
   });
+});
+
+it("validates social hosts and renders accessible icons in website/LinkedIn/Instagram order", () => {
+  expect(() =>
+    aboutSocialUrl("https://linkedin.com.evil.test/me", "linkedin"),
+  ).toThrow();
+  expect(() => aboutSocialUrl("javascript:alert(1)", "instagram")).toThrow();
+  const d = copy();
+  d.people = [
+    {
+      id: crypto.randomUUID(),
+      group: "team",
+      name: "A long contributor name",
+      description: "Research",
+      url: "https://example.com",
+      linkedin: "https://www.linkedin.com/in/test",
+      instagram: "https://instagram.com/test",
+    },
+  ];
+  const html = renderToStaticMarkup(<AboutView content={aboutContent(d)} />);
+  expect(html.indexOf("— Website")).toBeLessThan(html.indexOf("— LinkedIn"));
+  expect(html.indexOf("— LinkedIn")).toBeLessThan(html.indexOf("— Instagram"));
+  expect(html).toContain("<h3");
+});
+it("keeps body images constrained and uses private endpoints only in admin preview", () => {
+  const d = copy();
+  const id = crypto.randomUUID();
+  d.body = {
+    type: "doc",
+    content: [
+      {
+        type: "aboutImage",
+        attrs: {
+          imageId: id,
+          alt: "A pen shop",
+          caption: "<script>caption</script>",
+          width: 2,
+          height: 2,
+        },
+      },
+    ],
+  };
+  const valid = aboutContent(d, true);
+  const publicHtml = renderToStaticMarkup(<AboutView content={valid} />),
+    privateHtml = renderToStaticMarkup(<AboutView content={valid} preview />);
+  expect(publicHtml).toContain(`/api/v1/about/images/${id}`);
+  expect(publicHtml).not.toContain("/admin/");
+  expect(privateHtml).toContain(`/api/v1/admin/about/images/${id}`);
+  expect(publicHtml).toContain("&lt;script&gt;");
+  expect(() =>
+    richDocument({
+      type: "doc",
+      content: [
+        {
+          type: "aboutImage",
+          attrs: { ...d.body.content![0]!.attrs, src: "https://evil.test/x" },
+        },
+      ],
+    }),
+  ).toThrow();
+  expect(() =>
+    richDocument({
+      type: "doc",
+      content: [{ type: "paragraph", content: d.body.content }],
+    }),
+  ).toThrow();
+  expect(() =>
+    richDocument({ type: "doc", content: Array(21).fill(d.body.content![0]) }),
+  ).toThrow();
 });

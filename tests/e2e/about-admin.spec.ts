@@ -36,7 +36,9 @@ test("About rich text, private save, preview, people and explicit publication", 
   await page.goto("/admin/about");
   const body = page.getByRole("textbox", { name: "Main body", exact: true });
   await expect(body).toBeVisible();
-  await expect(page.getByRole("status").filter({ hasNotText: "Loading text editor" })).toHaveText("Private draft");
+  await expect(
+    page.getByRole("status").filter({ hasNotText: "Loading text editor" }),
+  ).toHaveText("Private draft");
   await page.getByLabel("Page title", { exact: true }).fill("Our atlas");
   await body.fill("Places worth the journey");
   await body.press("ControlOrMeta+a");
@@ -74,7 +76,7 @@ test("About rich text, private save, preview, people and explicit publication", 
   await expect(
     preview.getByRole("heading", { name: "Support Nib Atlas" }),
   ).toHaveCount(0);
-  expect(await preview.locator("li strong").allTextContents()).toEqual([
+  expect(await preview.locator("li h3").allTextContents()).toEqual([
     "Bo",
     "Ada",
   ]);
@@ -85,7 +87,9 @@ test("About rich text, private save, preview, people and explicit publication", 
   });
   await page.getByRole("button", { name: "Back to editing" }).click();
   await page.getByRole("button", { name: "Save draft", exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasNotText: "Loading text editor" })).toContainText("Draft saved privately");
+  await expect(
+    page.getByRole("status").filter({ hasNotText: "Loading text editor" }),
+  ).toContainText("Draft saved privately");
   await expect(
     page.getByRole("button", { name: "Publish", exact: true }),
   ).toBeEnabled();
@@ -96,7 +100,9 @@ test("About rich text, private save, preview, people and explicit publication", 
     page.getByRole("button", { name: "Publish", exact: true }),
   ).toBeEnabled();
   await page.getByRole("button", { name: "Publish", exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasNotText: "Loading text editor" })).toContainText("About published");
+  await expect(
+    page.getByRole("status").filter({ hasNotText: "Loading text editor" }),
+  ).toContainText("About published");
   expect(actions).toEqual(["save", "publish"]);
   expect(
     (
@@ -145,9 +151,11 @@ test("stale save keeps edits; reloading locks controls until saved state arrives
   await page.goto("/admin/about");
   await page.getByLabel("Page title", { exact: true }).fill("Keep my typing");
   await page.getByRole("button", { name: "Save draft", exact: true }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "Someone saved a newer version" })).toContainText(
-    "Someone saved a newer version",
-  );
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "Someone saved a newer version" }),
+  ).toContainText("Someone saved a newer version");
   await expect(page.getByLabel("Page title", { exact: true })).toHaveValue(
     "Keep my typing",
   );
@@ -168,4 +176,164 @@ test("stale save keeps edits; reloading locks controls until saved state arrives
     "About Nib Atlas",
   );
   await expect(page.getByLabel("Page title", { exact: true })).toBeEnabled();
+});
+
+test("About images stay editable after reopen; people grid and social icons match preview", async ({
+  page,
+}, testInfo) => {
+  await stubSession(page, { kind: "signed-in" });
+  const imageA = "a1800000-0000-4000-8000-000000000001",
+    imageB = "a1800000-0000-4000-8000-000000000002";
+  const draft = structuredClone(DEFAULT_ABOUT);
+  draft.people = Array.from({ length: 6 }, (_, i) => ({
+    id: `a1900000-0000-4000-8000-00000000000${i}`,
+    group: "team",
+    name:
+      i === 0
+        ? "Alexandra Catherine Long Contributor Name"
+        : "Contributor " + (i + 1),
+    description: "Community research and local knowledge.",
+    url: "https://example.com",
+    linkedin: "https://www.linkedin.com/in/test",
+    instagram: "https://instagram.com/test",
+  }));
+  let saved: AboutState = {
+    revision: id,
+    publishedRevision: null,
+    publishedAt: null,
+    draft,
+  };
+  let uploads = 0;
+  await page.route("**/api/v1/admin/about", async (route) => {
+    if (route.request().method() === "POST") {
+      const b = route.request().postDataJSON();
+      saved = { ...saved, draft: aboutContent(b.document), revision: id };
+    }
+    await route.fulfill({ json: saved });
+  });
+  // Real file chooser/PNG normalization/editor interaction; HTTP transport is tested separately.
+  const { png } = await import("../../src/server/media/png.fixture");
+  const image = png(120, 80, { opaque: true });
+  await page.route("**/api/v1/admin/about/images", async (route) => {
+    uploads++;
+    await route.fulfill({
+      status: 201,
+      json: { id: uploads === 1 ? imageA : imageB, width: 120, height: 80 },
+    });
+  });
+  await page.route("**/api/v1/admin/about/images/*", (route) =>
+    route.fulfill({ contentType: "image/png", body: image }),
+  );
+  await page.goto("/admin/about");
+  const body = page.getByRole("textbox", { name: "Main body", exact: true });
+  await body.fill("A story with pictures");
+  await page.getByRole("button", { name: "Bullet list", exact: true }).click();
+  await body.press("End");
+  await body.press("Enter");
+  await page.getByRole("button", { name: "Image", exact: true }).click();
+  await expect(body).toHaveAttribute("contenteditable", "false");
+  await page
+    .getByLabel("Image file", { exact: true })
+    .setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: image });
+  await page
+    .getByLabel("Image description (alt text)", { exact: true })
+    .fill("First story image");
+  await page
+    .getByLabel("Caption (optional)", { exact: true })
+    .fill("First caption");
+  await page.getByRole("button", { name: "Insert image", exact: true }).click();
+  await expect(body.locator("img")).toHaveAttribute("alt", "First story image");
+  await expect(body).toHaveAttribute("contenteditable", "true");
+  await page.getByRole("button", { name: "Save draft", exact: true }).click();
+  await expect(
+    page.getByRole("status").filter({ hasNotText: "Loading text editor" }),
+  ).toContainText("Draft saved privately");
+  await page.reload();
+  await expect(body.locator("img")).toHaveAttribute(
+    "src",
+    `/api/v1/admin/about/images/${imageA}`,
+  );
+  await body.locator("img").click();
+  await page.getByRole("button", { name: "Image", exact: true }).click();
+  await expect(
+    page.getByLabel("Caption (optional)", { exact: true }),
+  ).toHaveValue("First caption");
+  await expect(body).toHaveAttribute("contenteditable", "false");
+  await expect(
+    page.getByRole("button", { name: "Undo", exact: true }),
+  ).toBeDisabled();
+  await page
+    .getByLabel("Replacement image (optional)", { exact: true })
+    .setInputFiles({
+      name: "replacement.png",
+      mimeType: "image/png",
+      buffer: image,
+    });
+  await page
+    .getByLabel("Caption (optional)", { exact: true })
+    .fill("Replacement caption");
+  await page
+    .getByRole("button", { name: "Apply image changes", exact: true })
+    .click();
+  await expect(body.locator("img")).toHaveAttribute(
+    "src",
+    `/api/v1/admin/about/images/${imageB}`,
+  );
+  await page.getByRole("button", { name: "Preview", exact: true }).click();
+  const preview = page.getByRole("region", { name: "Private About preview" });
+  await expect(preview.locator("figcaption")).toHaveText("Replacement caption");
+  expect(
+    (await preview.getByRole("link").allTextContents()).every((t) => t === ""),
+  ).toBe(true);
+  const people = preview.locator("ul").filter({ has: page.locator("h3") });
+  const first = people.locator("li").first();
+  const links = await first
+    .getByRole("link")
+    .evaluateAll((nodes) => nodes.map((n) => n.getAttribute("aria-label")));
+  expect(links.map((v) => v?.split("— ")[1])).toEqual([
+    "Website",
+    "LinkedIn",
+    "Instagram",
+  ]);
+  const cols = await people.evaluate(
+    (n) => getComputedStyle(n).gridTemplateColumns.split(" ").length,
+  );
+  const width = page.viewportSize()!.width;
+  expect(cols).toBe(width >= 1100 ? 3 : width >= 640 ? 2 : 1);
+  expect(
+    await first
+      .locator("h3")
+      .evaluate(
+        (n) =>
+          n.getBoundingClientRect().height <=
+          parseFloat(getComputedStyle(n).lineHeight) * 2 + 1,
+      ),
+  ).toBe(true);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .include("main")
+        .withTags(["wcag2a", "wcag2aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
+  await page.screenshot({
+    path: testInfo.outputPath("about-grid-images.png"),
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "Back to editing" }).click();
+  await body.locator("img").click();
+  await page.getByRole("button", { name: "Image", exact: true }).click();
+  await page.getByRole("button", { name: "Remove image", exact: true }).click();
+  await expect(body.locator("img")).toHaveCount(0);
+  // Client-side site links must not silently discard the changed document.
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await page.getByRole("link", { name: "Map", exact: true }).last().click();
+  await expect(page).toHaveURL(/\/admin\/about$/);
+  expect(uploads).toBe(2);
 });

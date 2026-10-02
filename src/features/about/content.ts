@@ -11,8 +11,17 @@ export interface RichNode {
     | "orderedList"
     | "listItem"
     | "text"
-    | "hardBreak";
-  attrs?: { level?: number; start?: number };
+    | "hardBreak"
+    | "aboutImage";
+  attrs?: {
+    level?: number;
+    start?: number;
+    imageId?: string;
+    alt?: string;
+    caption?: string;
+    width?: number;
+    height?: number;
+  };
   content?: RichNode[];
   text?: string;
   marks?: RichMark[];
@@ -23,6 +32,8 @@ export interface AboutPerson {
   name: string;
   description: string;
   url: string;
+  linkedin?: string;
+  instagram?: string;
 }
 export interface AboutContent {
   title: string;
@@ -106,7 +117,8 @@ export function aboutUrl(
 }
 export function richDocument(value: unknown): RichNode {
   let nodes = 0,
-    characters = 0;
+    characters = 0,
+    images = 0;
   const walk = (value: unknown, parent: string, depth: number): RichNode => {
     if (++nodes > 2000 || depth > 8)
       invalid("body", "The body is too large or too deeply nested.");
@@ -117,6 +129,7 @@ export function richDocument(value: unknown): RichNode {
       parent === "root"
         ? ["doc"]
         : ["paragraph", "heading", "bulletList", "orderedList"];
+    if (parent === "doc") allowed.push("aboutImage");
     if (parent === "paragraph" || parent === "heading")
       allowed.splice(0, allowed.length, "text", "hardBreak");
     if (parent === "bulletList" || parent === "orderedList")
@@ -132,6 +145,42 @@ export function richDocument(value: unknown): RichNode {
     if (typeof type !== "string" || !allowed.includes(type))
       invalid("body", "Unsupported body formatting.");
     const result: RichNode = { type: type as RichNode["type"] };
+    if (type === "aboutImage") {
+      if (
+        ++images > 20 ||
+        n.content !== undefined ||
+        n.text !== undefined ||
+        n.marks !== undefined
+      )
+        invalid("body", "Use at most 20 images.");
+      const a = aboutObject(n.attrs);
+      keys(a, ["imageId", "alt", "caption", "width", "height"], "body");
+      if (
+        typeof a.imageId !== "string" ||
+        !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu.test(a.imageId)
+      )
+        invalid("body", "Upload this image again.");
+      for (const size of [a.width, a.height])
+        if (
+          !Number.isInteger(size) ||
+          (size as number) < 1 ||
+          (size as number) > 2048
+        )
+          invalid("body");
+      result.attrs = {
+        imageId: a.imageId as string,
+        alt: text(a.alt, 500, "Image description"),
+        caption: text(a.caption, 1000, "Image caption"),
+        width: a.width as number,
+        height: a.height as number,
+      };
+      if (!result.attrs.alt?.trim())
+        invalid(
+          "Image description",
+          "Describe the image for people who cannot see it.",
+        );
+      return result;
+    }
     if (type === "text") {
       result.text = text(n.text, 60000, "body");
       characters += [...result.text].length;
@@ -227,7 +276,11 @@ export function aboutContent(value: unknown, publish = false): AboutContent {
   const people = (d.people as unknown[]).map((value, i): AboutPerson => {
     const p = aboutObject(value),
       field = `people.${i}`;
-    keys(p, ["id", "group", "name", "description", "url"], field);
+    keys(
+      p,
+      ["id", "group", "name", "description", "url", "linkedin", "instagram"],
+      field,
+    );
     if (
       typeof p.id !== "string" ||
       !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu.test(p.id) ||
@@ -242,6 +295,24 @@ export function aboutContent(value: unknown, publish = false): AboutContent {
       name: text(p.name, 120, `${field}.name`),
       description: text(p.description, 500, `${field}.description`),
       url: aboutUrl(p.url, true, `${field}.url`),
+      ...(p.linkedin !== undefined
+        ? {
+            linkedin: aboutSocialUrl(
+              p.linkedin,
+              "linkedin",
+              `${field}.linkedin`,
+            ),
+          }
+        : {}),
+      ...(p.instagram !== undefined
+        ? {
+            instagram: aboutSocialUrl(
+              p.instagram,
+              "instagram",
+              `${field}.instagram`,
+            ),
+          }
+        : {}),
     };
   });
   const s = aboutObject(d.support);
@@ -310,4 +381,23 @@ export function aboutState(value: unknown): AboutState {
     publishedAt: d.publishedAt as string | null,
     draft: aboutContent(d.draft),
   };
+}
+
+export function aboutSocialUrl(
+  value: unknown,
+  platform: "linkedin" | "instagram",
+  field: string = platform,
+): string {
+  const url = aboutUrl(value, true, field);
+  if (!url) return "";
+  const host = new URL(url).hostname.toLowerCase();
+  if (host !== `${platform}.com` && !host.endsWith(`.${platform}.com`))
+    invalid(
+      field,
+      `Use a ${platform === "linkedin" ? "LinkedIn" : "Instagram"} URL.`,
+    );
+  return url;
+}
+export function aboutImageUrl(id: string, preview = false) {
+  return `/api/v1/${preview ? "admin/" : ""}about/images/${id}`;
 }

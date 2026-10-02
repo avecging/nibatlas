@@ -20,11 +20,17 @@ is the shared working contract. This assignment covers every milestone; frontend
 Founder confirms geographic seals PR #117 merged and founder-accepted. About is
 now the approved focused Package E increment: one admin-only rich-text editor,
 private draft/preview/publish, separate team/thanks content, optional hidden
-external support CTA, and no catalogue statistics. No general CMS/media/payment
+external support CTA, and no catalogue statistics. No general CMS/media-library/payment
 scope, extra approval steps or Workers plan change. The implementation includes
 an additive About-only migration and meaningful privacy/publication regressions;
 see `docs/api/about-page-v1.md`. PR review/CI, founder visual acceptance and
 separately approved migration/deployment remain release gates. No hosted changes.
+Founder deployed PR #118 to staging and reports it generally works. Approved
+follow-up: responsive unboxed team/thanks grid, larger two-line serif names,
+right-aligned Website/LinkedIn/Instagram icons, and main-body image upload with
+alt text/captions. Team/thanks remain text-only. This follow-up uses an additive
+migration and the existing private upload/publication boundaries; hosted migration,
+redeployment and visual acceptance of the follow-up remain separate.
 Final About copy and support wording/destination remain founder content decisions.
 
 ## Current follow-up — Geographic seals (#114), 1 October 2026

@@ -119,3 +119,22 @@
 .previewing {
   padding-bottom: 20px;
 }
+
+.richText figure {
+  margin: 16px 0;
+}
+.richText figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+.richText figcaption {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-top: 8px;
+}
+.richText :global(.ProseMirror-selectednode) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
