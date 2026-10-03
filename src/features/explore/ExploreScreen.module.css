@@ -253,32 +253,45 @@
 }
 
 /*
- * `Search this area` sits above the results sheet, so it has to move with it.
+ * Search and location controls sit above the results sheet and move with it.
  * At Full the sheet covers the map and the pill would have nowhere to sit that
  * is not on top of the results, so it steps aside until the sheet is lowered.
  */
 .searchAreaSlot {
+  --map-controls-bottom: calc(11rem + var(--space-3));
   position: absolute;
   z-index: 24;
   left: 0;
   right: 0;
-  bottom: calc(11rem + var(--space-3));
+  bottom: var(--map-controls-bottom);
   display: grid;
-  justify-items: center;
+  grid-template-columns: var(--tap-target) minmax(0, 1fr) var(--tap-target);
+  align-items: end;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
   pointer-events: none;
 }
 
 .layout[data-sheet-state="half"] .searchAreaSlot {
-  bottom: calc(52dvh + var(--space-3));
+  --map-controls-bottom: calc(52dvh + var(--space-3));
 }
 
 .layout[data-sheet-state="full"] .searchAreaSlot {
   display: none;
 }
 
-.searchAreaSlot > * {
+.searchAreaAction {
+  grid-column: 2;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+.searchAreaAction > * {
   pointer-events: auto;
 }
+
+.searchAreaAction > * { max-width: 100%; }
 
 .desktopPanel {
   display: none;
@@ -323,7 +336,7 @@
   .layout[data-sheet-state="half"] .searchAreaSlot,
   .layout[data-sheet-state="full"] .searchAreaSlot {
     display: grid;
-    bottom: var(--space-6);
+    --map-controls-bottom: var(--space-6);
   }
 
   .desktopPanel {
@@ -358,5 +371,12 @@
     max-width: 26rem;
     right: auto;
     width: min(26rem, calc(100% - var(--space-6)));
+  }
+}
+
+@media (max-width: 1023px) and (max-height: 480px) {
+  /* Let the compact landscape disclosure sit over the sheet while it is open. */
+  .searchAreaSlot:has([aria-expanded="true"]) {
+    z-index: 26;
   }
 }
