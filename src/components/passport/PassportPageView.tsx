@@ -187,9 +187,7 @@ export function PassportPageView({
               Geographic seals
             </h3>
             <p className={styles.pageNote}>
-              Seals are not collected. They derive from verified shop visits: a
-              locality seal from two distinct shops (or an explicit sole eligible shop),
-              a country seal from five distinct shops or its complete smaller eligible set.
+              Collect 5 unique stamps per country to acquire!
             </p>
             <ul className={styles.sealList}>
               {page.countries.map((country) => {
