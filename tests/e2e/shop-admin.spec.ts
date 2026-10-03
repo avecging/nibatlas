@@ -591,7 +591,7 @@ test('stamp draft upload previews and explicit activation preserve earlier versi
   await page.goto(`/admin/shops/${id}`);
   await open(page,'Stamp');
   const section=page.getByRole('region',{name:'Atlas Stamp artwork'});
-  await section.getByLabel('Stamp design',{exact:true}).selectOption('uploaded');
+  await section.getByRole('combobox',{name:'Stamp design',exact:true}).selectOption('uploaded');
   await expect(section.getByLabel('Creator name (optional)',{exact:true})).toBeEnabled();
   await section.getByRole('combobox',{name:/^Origin/}).selectOption('ai_assisted');
   await section.getByLabel('Creator name (optional)',{exact:true}).fill('Gin + AI');
@@ -1669,13 +1669,13 @@ test('default shop seals randomise locally, retain manual ink and save/activate 
   });
   await page.goto(`/admin/shops/${id}`);await open(page,'Stamp');
   const section=page.getByRole('region',{name:'Atlas Stamp artwork'});
-  await expect(section.getByLabel('Shape',{exact:true})).toHaveValue('oval');
+  await expect(section.getByRole('combobox',{name:'Shape',exact:true})).toHaveValue('oval');
   await section.getByRole('button',{name:'Randomise shape and ink'}).click();
-  await expect(section.getByLabel('Shape',{exact:true})).not.toHaveValue('oval');
-  await expect(section.getByLabel('Ink',{exact:true})).not.toHaveValue('teal');
+  await expect(section.getByRole('combobox',{name:'Shape',exact:true})).not.toHaveValue('oval');
+  await expect(section.getByRole('combobox',{name:'Ink',exact:true})).not.toHaveValue('teal');
   expect(writes).toEqual([]);
-  await section.getByLabel('Ink',{exact:true}).selectOption('plum');
-  const shape=await section.getByLabel('Shape',{exact:true}).inputValue();
+  await section.getByRole('combobox',{name:'Ink',exact:true}).selectOption('plum');
+  const shape=await section.getByRole('combobox',{name:'Shape',exact:true}).inputValue();
   await section.getByRole('button',{name:'Save default seal privately'}).click();
   await expect(section.getByRole('status')).toContainText('Default seal saved privately');
   expect(writes).toEqual([{action:'create_generated',shape,ink:'plum',baseVersionId:versionId,baseRevision:'a'.repeat(32)}]);
@@ -1688,11 +1688,11 @@ test('default shop seals randomise locally, retain manual ink and save/activate 
   await section.getByRole('button',{name:'Confirm activation'}).click();
   await expect(section.getByRole('status')).toContainText('Stamp design activated');
   await expect(section.getByText('Design v1',{exact:true})).toBeVisible();
-  await section.getByLabel('Stamp design',{exact:true}).selectOption('uploaded');
+  await section.getByRole('combobox',{name:'Stamp design',exact:true}).selectOption('uploaded');
   await expect(section.getByRole('button',{name:'Randomise shape and ink'})).toHaveCount(0);
-  await section.getByLabel('Stamp design',{exact:true}).selectOption('default');
+  await section.getByRole('combobox',{name:'Stamp design',exact:true}).selectOption('default');
   for(const next of ['shield','oval','rectangle']){
-    await section.getByLabel('Shape',{exact:true}).selectOption(next);
+    await section.getByRole('combobox',{name:'Shape',exact:true}).selectOption(next);
     await expect(section.locator('details [data-shop-seal-shape]')).toHaveAttribute('data-shop-seal-shape',next);
     await section.screenshot({path:testInfo.outputPath(`admin-shop-seal-${next}.png`)});
   }
