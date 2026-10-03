@@ -318,14 +318,34 @@ collection geography is snapshotted on issuance. Ordinary renames do not generat
 artwork versions. Existing older API responses without template data remain
 readable and do not receive an invented preview.
 
-The generated design uses the established FNV-1a motif/palette selectors over
-`stamp-<shop UUID>` (and `motif:` namespace), pinned as template/palette v1. The
-approval reference `system-generated-default:v1` describes system initialization,
-not an external artist sign-off or catalogue field verification. Existing approval
-immutability remains enforced. Later uploaded drafts reuse that stamp identity;
-only explicit admin activation changes its current version. This checkpoint does
-not complete the
-rich public preview/Review integration (D). Unique `(user_id, stamp_id)` duplicate
+New defaults use frozen `shop-seal-v1` with `templateData` containing `tier:shop`,
+a supported legacy `motif`, `template:shop-seal-v1`, and `shape` (`shield`, `oval`,
+`rectangle`). Shape is selected blindly by the `shape:stamp-<shop UUID>` FNV-1a
+namespace, independently of the established ink/motif namespaces, then saved.
+The approval reference `system-generated-default:shop-seal-v1` describes system
+initialization, not external artist approval or catalogue field verification.
+No existing row is backfilled; absent template/shape retains the original renderer.
+
+`POST {action:"create_generated",shape,ink,baseVersionId,baseRevision}` saves a
+new private generated version on the same stamp identity. Both base fields are
+explicitly null only when no active artwork exists. Otherwise the exact loaded
+active version/revision is required; stale choices return `409 revision_conflict`.
+Only editor/admin accounts can save; the SQL boundary rechecks current authority,
+environment and shop under locks. Identical existing private drafts are reused
+on retry without additional versions/audit. The shared 50-version bound applies.
+Randomise is local only and chooses a different shape AND ink on every click;
+manual shape/ink selectors remain available. No request is sent until Save.
+Uploaded artwork has no randomisation controls and keeps its existing contract.
+
+The existing admin-only revision-checked activation accepts a generated draft
+without a PNG receipt. It approves an additive version and advances the same
+stamp identity; old approved versions stay immutable. Generated drafts are also
+eligible for exact saved review/preview and combined publication, retaining its
+position confirmation, revision binding and shop/stamp rollback unit. Upload
+receipts remain mandatory for uploaded versions. Shape/template join the private
+review allowlist/fingerprint and public/issued snapshot decoders. Names/geography
+continue to use saved shop details, while issued impressions retain their snapshots.
+Unique `(user_id, stamp_id)` duplicate
 protection is unchanged, so collecting a later design again is still deferred to
 #70. Commissioning/source/SVG/sign-off requirements are #71 and photo metadata is
 #72. Imports remain WP4. Remote JPEG, photo/logo display, and the new stamp flow

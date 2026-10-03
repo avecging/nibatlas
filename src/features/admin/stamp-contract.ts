@@ -1,6 +1,5 @@
 import { validStoredCreatorCredit } from '@/src/domain/creator-credit';
-import { STAMP_MOTIFS } from '@/src/domain/stamp-design';
-import type { StampMotif } from '@/src/domain/shop-detail';
+import { decodeShopTemplate, type ShopTemplateData } from '@/src/domain/shop-seal';
 import { object, UUID } from './shop-contract';
 
 export const STAMP_ORIGINS=['founder_created','ai_assisted','commissioned'] as const;
@@ -13,7 +12,7 @@ export interface AdminStampVersion {
   origin:'generated_template'|StampOrigin;
   status:'draft'|'approved'; ink:StampInk;
   creatorName:string|null; creatorUrl:string|null;
-  templateData?: {tier:'shop';motif:StampMotif} | null;
+  templateData?: ShopTemplateData | null;
   hasArtwork:boolean; active:boolean; revision:string;
 }
 export function decodeAdminStamps(value:unknown):AdminStampVersion[] {
@@ -33,9 +32,8 @@ export function decodeAdminStamps(value:unknown):AdminStampVersion[] {
     // Older deployed Workers may omit templateData. Do not invent a preview;
     // once supplied it must be an actual supported stored template.
     if(r.templateData !== undefined && r.templateData !== null) {
-      const template=object(r.templateData);
-      if(r.kind!=='generated_template'||template.tier!=='shop'
-        ||!STAMP_MOTIFS.includes(template.motif as StampMotif)) throw Error('Invalid stamp template');
+      if(r.kind!=='generated_template') throw Error('Invalid stamp template');
+      r.templateData=decodeShopTemplate(r.templateData);
     }
     return r as unknown as AdminStampVersion;
   });

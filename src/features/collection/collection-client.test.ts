@@ -60,3 +60,10 @@ it.each(['https://','https://example.test/a b'])('preserves historical credit pr
   const c=decodeCollection({...ISSUED_STAMP,stamp:{...ISSUED_STAMP.stamp,artworkKind:'uploaded',artworkOrigin:'founder_created',creatorName:'Original creator',creatorUrl,transparentPngSha256:'e'.repeat(64)}});
   expect(c.stamp.uploaded).toMatchObject({creatorName:'Original creator',creatorUrl});
 });
+
+it('keeps the issued shop seal shape and ink, leaving legacy impressions unchanged',()=>{
+  const input={...ISSUED_STAMP,stamp:{...ISSUED_STAMP.stamp,ink:'plum',templateData:{tier:'shop',motif:'nib',template:'shop-seal-v1',shape:'rectangle'}}};
+  expect(decodeCollection(input).stamp).toMatchObject({generatedShopSeal:'rectangle',ink:'plum'});
+  expect(decodeCollection(ISSUED_STAMP).stamp.generatedShopSeal).toBeUndefined();
+  expect(()=>decodeCollection({...input,stamp:{...input.stamp,templateData:{...input.stamp.templateData,shape:'circle'}}})).toThrow();
+});

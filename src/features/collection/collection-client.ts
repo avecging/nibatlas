@@ -1,3 +1,4 @@
+import { decodeShopTemplate, type ShopSealShape } from '@/src/domain/shop-seal';
 import { validStoredCreatorCredit } from '@/src/domain/creator-credit';
 import { isShopId } from '@/src/api/v1/saved-shops';
 import { STAMP_FAILURE_STATUS, type StampFailureCode, type StampResponseV1 } from '@/src/api/v1/stamp-verification';
@@ -18,7 +19,6 @@ function id(value: unknown): string {
   if (!isShopId(result)) throw new Error('Invalid response');
   return result;
 }
-const MOTIFS = ['storefront','shophouse','ink-bottle','nib','arcade','harbour','counter','workbench'];
 
 /** Historical fields are read only from the issued snapshot, never today's catalogue. */
 export function decodeCollection(input: unknown, currentShopSlug = ''): StampCollection {
@@ -36,10 +36,11 @@ export function decodeCollection(input: unknown, currentShopSlug = ''): StampCol
   let commissioned: ShopStampDesign['commissioned'];
   let uploaded: ShopStampDesign['uploaded'];
   let motif: StampMotif = 'storefront';
+  let generatedShopSeal: ShopSealShape | undefined;
   if (art['artworkKind'] === 'generated_template') {
-    const template = record(art['templateData']);
-    if (template['tier'] !== 'shop' || !MOTIFS.includes(string(template['motif']))) throw new Error('Invalid response');
-    motif = template['motif'] as StampMotif;
+    const template = decodeShopTemplate(art['templateData']);
+    motif = template.motif;
+    generatedShopSeal = template.shape;
   } else if (art['artworkKind'] === 'commissioned') {
     const creditUrl = art['illustratorCreditUrl'];
     if (creditUrl !== null && creditUrl !== undefined &&
@@ -75,7 +76,7 @@ export function decodeCollection(input: unknown, currentShopSlug = ''): StampCol
     countryCode: countryCode as StampCollection['countryCode'], countryLabel, localityName, localitySlug, simulated: false,
     stamp: { id: stampId, tier: 'shop', motif, ink: art['ink'] as ShopStampDesign['ink'],
       localityLabel: localityName, countryLabel, designVersion: Number(art['designVersion']), paletteVersion: 1,
-      ...(commissioned ? { commissioned } : {}), ...(uploaded ? { uploaded } : {}) },
+      ...(generatedShopSeal ? {generatedShopSeal} : {}), ...(commissioned ? { commissioned } : {}), ...(uploaded ? { uploaded } : {}) },
   };
 }
 

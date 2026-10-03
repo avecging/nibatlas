@@ -30,7 +30,7 @@ export function resolvePreviewSelection(snapshot: MediaReviewSnapshot, selection
   const {media, stamps} = snapshot;
   if (selection.photos.some(id => !media.some(m => m.id === id && m.kind === 'photo' && m.status !== 'rejected'))
     || (selection.logo !== null && !media.some(m => m.id === selection.logo && m.kind === 'logo' && m.status !== 'rejected'))
-    || (selection.stamp !== null && !stamps.some(s => s.id === selection.stamp && (s.active || (s.kind === 'uploaded' && s.status === 'draft' && s.hasArtwork)))))
+    || (selection.stamp !== null && !stamps.some(s => s.id === selection.stamp && (s.active || (s.status === 'draft' && (s.kind === 'generated_template' || (s.kind === 'uploaded' && s.hasArtwork)))))))
     throw Error('These preview choices are unavailable. Reload the media comparison and choose again.');
   return {media: comparisonMedia(media, selection.photos, selection.logo), stamp: stamps.find(s => s.id === selection.stamp)};
 }

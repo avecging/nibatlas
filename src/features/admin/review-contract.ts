@@ -38,7 +38,7 @@ export function decodeReviewState(value: unknown): ReviewState {
   return {record:decodeShop(r.record), media:decodeShopMedia(r.media,true), stamps:decodeAdminStamps(r.stamps).map(s => ({
       id:s.id,stampId:s.stampId,designVersion:s.designVersion,kind:s.kind,origin:s.origin,status:s.status,
       ink:s.ink,creatorName:s.creatorName,creatorUrl:s.creatorUrl,hasArtwork:s.hasArtwork,active:s.active,revision:s.revision,
-      ...(s.templateData === undefined ? {} : {templateData:s.templateData === null ? null : {tier:s.templateData.tier,motif:s.templateData.motif}}),
+      ...(s.templateData === undefined ? {} : {templateData:s.templateData === null ? null : {...s.templateData}}),
     })),
     availableStampIds:[...r.availableStampIds] as string[], reviewKey:r.reviewKey, conflict:r.conflict, review};
 }

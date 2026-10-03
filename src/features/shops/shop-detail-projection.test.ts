@@ -188,3 +188,9 @@ it('retains custom type labels for public detail and metadata rendering',()=>{
   expect(shop.primaryTypeLabel).toBe('Synthetic type');
   expect(shop.shopTypeLabels?.[type]).toBe('Synthetic type');
 });
+
+it('projects the saved shop seal without choosing new art on each read',()=>{
+  const generatedStamp={id:'00000000-0000-4000-8000-000000000601',designVersion:3,ink:'plum' as const,paletteVersion:1,
+    templateData:{tier:'shop' as const,motif:'nib' as const,template:'shop-seal-v1' as const,shape:'oval' as const}};
+  expect(projectShopDetail(wire({generatedStamp}),{demoRecords:false}).stamp).toMatchObject({generatedShopSeal:'oval',ink:'plum',designVersion:3});
+});

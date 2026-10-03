@@ -48,7 +48,7 @@ export async function mediaReviewFingerprint({media, stamps}: Pick<MediaReviewSn
     throw new MediaReviewFailure('Saved images and artwork could not load. Try loading them again.');
   const value = JSON.stringify([
     media.map(m => [m.id,m.revision,m.kind,m.status,m.width,m.height,m.altText,m.creditText,m.sortOrder ?? null,m.caption ?? null]),
-    stamps.map(s => [s.id,s.revision,s.stampId,s.designVersion,s.kind,s.origin,s.status,s.active,s.hasArtwork,s.ink,s.creatorName,s.creatorUrl,s.templateData?.tier ?? null,s.templateData?.motif ?? null]),
+    stamps.map(s => [s.id,s.revision,s.stampId,s.designVersion,s.kind,s.origin,s.status,s.active,s.hasArtwork,s.ink,s.creatorName,s.creatorUrl,s.templateData?.tier ?? null,s.templateData?.motif ?? null,s.templateData?.template ?? null,s.templateData?.shape ?? null]),
   ]);
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');

@@ -96,7 +96,7 @@ function Choices({record, localityName, snapshot, state, canPublish, publication
   const selected = comparisonMedia(media, photos, logo);
   const selectedLogo = selected.find(m => m.kind === 'logo');
   const selectedStamp = stamps.find(s => s.id === stamp);
-  const stampChoices = stamps.filter(s => s.active || (s.kind === 'uploaded' && s.status === 'draft'));
+  const stampChoices = stamps.filter(s => s.active || (s.status === 'draft' && (s.kind === 'uploaded' || s.kind === 'generated_template')));
   const name = String(record.document.shop.name);
   const live = record.publicationStatus === 'published';
   return <>

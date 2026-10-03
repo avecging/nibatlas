@@ -15,6 +15,17 @@ GPT owns end-to-end implementation and initiates independent review under
 and scope decisions. A conductor/orchestrator has not been onboarded. `AGENTS.md`
 is the shared working contract. This assignment covers every milestone; frontend work is not reserved for Claude.
 
+## Current follow-up — Shop default seals, 3 October 2026
+
+Founder approved horizontal shield, oval and rectangle shop seals using the
+locality-style content. New defaults pin shape and one global ink once. Default
+seal editing offers Randomise shape and ink plus manual selectors; choices remain
+private until explicit activation or reviewed combined publication. The frozen
+`shop-seal-v1` template and saved shape travel through public reads and collection
+snapshots. Legacy/custom artwork and existing impressions remain unchanged.
+Founder authorizes PR, independent senior review, checks, merge and staging
+migration/deployment. Production is excluded. See the media contract/runbook.
+
 ## Current follow-up — Bulk importer table (#123), 3 October 2026
 
 Replace the 1–6 wizard with one whole-job table: automatic valid-row selection,
