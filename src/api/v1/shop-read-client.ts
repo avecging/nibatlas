@@ -9,6 +9,7 @@ import {
   type ShopSearchV1,
 } from "@/src/api/v1/shop-read";
 import type { ViewportShopRequest, ViewportShopResponse } from "@/src/domain/shops";
+import { longitudeSpan, normalizeLongitude } from "@/src/domain/geo";
 import {
   ShopReadAbortedError,
   ShopReadHttpError,
@@ -63,6 +64,11 @@ function isAbort(cause: unknown, signal?: AbortSignal): boolean {
 
 function coordinate(value: number): string {
   return value.toFixed(7);
+}
+
+function viewportLongitude(value: number): number {
+  // Keep exact API endpoints (including +180) intact when already in range.
+  return value >= -180 && value <= 180 ? value : normalizeLongitude(value);
 }
 
 function endpoint(baseUrl: string | undefined, path: string, query?: URLSearchParams): string {
@@ -127,14 +133,23 @@ export function createHttpShopReadClient(
 
   return {
     async fetchViewport(request, signal) {
+      // MapLibre bounds can extend into adjacent world copies. Wrap partial
+      // views across the date line, but represent a full world explicitly:
+      // wrapping both ends of a 360-degree view would collapse it to zero width.
+      const west = coordinate(viewportLongitude(request.bounds.west));
+      const east = coordinate(viewportLongitude(request.bounds.east));
+      const span = longitudeSpan(request.bounds);
+      // A nearly full world can also collapse after wire precision rounding.
+      const wholeWorld = span >= 360 || (span > 180 && Number(west) === Number(east));
       const query = new URLSearchParams({
-        west: coordinate(request.bounds.west),
+        west: wholeWorld ? coordinate(-180) : west,
         south: coordinate(request.bounds.south),
-        east: coordinate(request.bounds.east),
+        east: wholeWorld ? coordinate(180) : east,
         north: coordinate(request.bounds.north),
         // Map renderers report fractional zoom after fitBounds, while the
         // public RPC deliberately accepts an integer zoom bucket.
-        zoom: String(Math.round(request.zoom)),
+        // The renderer also permits negative zoom at its widest world view.
+        zoom: String(Math.max(0, Math.min(24, Math.round(request.zoom)))),
       });
 
       if (request.operationalStatuses && request.operationalStatuses.length > 0) {

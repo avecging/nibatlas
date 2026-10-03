@@ -144,6 +144,12 @@ describe("hasMovedMeaningfully", () => {
     expect(hasMovedMeaningfully(tokyo, { ...tokyo, zoom: 12 })).toBe(true);
   });
 
+  it("offers a search after a small pinch in either direction", () => {
+    expect(hasMovedMeaningfully(tokyo, { ...tokyo, zoom: 11.2 })).toBe(true);
+    expect(hasMovedMeaningfully(tokyo, { ...tokyo, zoom: 10.8 })).toBe(true);
+    expect(hasMovedMeaningfully(tokyo, { ...tokyo, zoom: 11.001 })).toBe(false);
+  });
+
   it("detects a pan to another city", () => {
     const kyoto = {
       bounds: { west: 135.68, south: 34.94, east: 135.83, north: 35.08 },

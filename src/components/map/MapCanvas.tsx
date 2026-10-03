@@ -44,6 +44,7 @@ interface MapCanvasProps {
   readonly styleProvider: MapStyleProvider;
   readonly cameraTarget: CameraTarget | null;
   readonly onSelectShop: (shopId: string | null) => void;
+  readonly onUserMoveStart?: () => void;
   /**
    * `user` means a gesture moved the camera and a new search may be offered.
    * `programmatic` means the application or the renderer moved it, so the new
@@ -123,6 +124,7 @@ export function MapCanvas({
   cameraTarget,
   onSelectShop,
   onCameraSettled,
+  onUserMoveStart,
 }: MapCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -139,6 +141,7 @@ export function MapCanvas({
   const shopsRef = useRef<readonly ShopMapSummary[]>(shops);
   const onSelectRef = useRef(onSelectShop);
   const onCameraSettledRef = useRef(onCameraSettled);
+  const onUserMoveStartRef = useRef(onUserMoveStart);
   const syncRef = useRef<() => void>(() => {});
   const applyHighlightRef = useRef<() => void>(() => {});
   /**
@@ -148,6 +151,8 @@ export function MapCanvas({
    * mistaken for an application move.
    */
   const cameraIntent = useRef<CameraMoveSource>("programmatic");
+  const stoppingSupersededMove = useRef(false);
+  const hasRequestedCameraMove = useRef(false);
 
   const [created, setCreated] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -163,6 +168,7 @@ export function MapCanvas({
     shopsRef.current = shops;
     onSelectRef.current = onSelectShop;
     onCameraSettledRef.current = onCameraSettled;
+    onUserMoveStartRef.current = onUserMoveStart;
   });
 
   useEffect(() => {
@@ -219,14 +225,33 @@ export function MapCanvas({
     map.on("zoom", reproject);
     map.on("resize", reproject);
 
+    // Renderer movement events do not always retain originalEvent. Recognise
+    // actual input at the map surface so the first gesture and interruptions
+    // of a destination flight are never mistaken for application navigation.
+    const takeUserControl = (event: Event) => {
+      if (event instanceof KeyboardEvent && !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "+", "-", "="].includes(event.key)) return;
+      // Keep the release on the canvas even when a drag ends over an overlay
+      // control; otherwise the renderer can remain stuck in its moving state.
+      if (typeof PointerEvent !== "undefined" && event instanceof PointerEvent
+        && event.type === "pointerdown" && event.target instanceof HTMLCanvasElement) {
+        event.target.setPointerCapture(event.pointerId);
+      }
+      cameraIntent.current = "user";
+      onUserMoveStartRef.current?.();
+    };
+    const inputEvents = ["pointerdown", "touchstart", "wheel", "keydown"] as const;
+    for (const event of inputEvents) container.addEventListener(event, takeUserControl, { capture: true, passive: true });
+
     // A gesture that interrupts an application move outranks it.
     map.on("movestart", (event) => {
       if ((event as { originalEvent?: unknown }).originalEvent) {
         cameraIntent.current = "user";
+        onUserMoveStartRef.current?.();
       }
     });
 
     map.on("moveend", () => {
+      if (stoppingSupersededMove.current) return;
       const source = cameraIntent.current;
       cameraIntent.current = "user";
 
@@ -236,6 +261,9 @@ export function MapCanvas({
 
     // A container resize re-frames the same place; it is never user movement.
     map.on("resize", () => {
+      // A phone's browser chrome can resize the map during a pinch. Do not
+      // relabel that gesture or adopt its in-flight camera as already searched.
+      if (readyMap.isMoving()) return;
       cameraIntent.current = "resize";
       onCameraSettledRef.current(readViewport(readyMap), "resize");
     });
@@ -245,8 +273,9 @@ export function MapCanvas({
     // deliberately does not wait for `load`: a basemap that never finishes
     // loading must not strand the rest of the experience.
     requestAnimationFrame(() => {
-      if (mapRef.current === map) {
+      if (mapRef.current === map && !hasRequestedCameraMove.current && cameraIntent.current === "programmatic") {
         onCameraSettledRef.current(readViewport(readyMap), "programmatic");
+        cameraIntent.current = "user";
         syncRef.current();
       }
     });
@@ -262,6 +291,7 @@ export function MapCanvas({
         marker.remove();
       }
       markers.clear();
+      for (const event of inputEvents) container.removeEventListener(event, takeUserControl, true);
       readyMap.remove();
       mapRef.current = null;
     };
@@ -299,6 +329,7 @@ export function MapCanvas({
           // Expanding a cluster is navigation the user asked for, so the new
           // viewport may offer a fresh search.
           cameraIntent.current = "user";
+          onUserMoveStartRef.current?.();
           const bounds = clusterBounds(cluster);
           instance.fitBounds(
             [
@@ -489,7 +520,12 @@ export function MapCanvas({
     }
 
     const { bounds } = cameraTarget.viewport;
+    hasRequestedCameraMove.current = true;
 
+    // stop() emits moveend synchronously for the old flight. It must not consume
+    // the pending search belonging to this new destination (or late GPS fix).
+    stoppingSupersededMove.current = true;
+    try { map.stop(); } finally { stoppingSupersededMove.current = false; }
     cameraIntent.current = "programmatic";
 
     map.fitBounds(
