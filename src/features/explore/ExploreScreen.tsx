@@ -7,6 +7,8 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 
 import { DestinationSearch } from "@/src/components/map/DestinationSearch";
 import { MapFilters } from "@/src/components/map/MapFilters";
+import { NearMe } from "@/src/components/map/NearMe";
+import { useNearMe } from "@/src/features/map/use-near-me";
 import type { CameraMoveSource, CameraTarget } from "@/src/components/map/MapCanvas";
 import { ResultsSheet } from "@/src/components/map/ResultsSheet";
 import { SearchThisArea } from "@/src/components/map/SearchThisArea";
@@ -109,8 +111,25 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
     [],
   );
 
+  const moveCamera = useCallback((viewport: Viewport, label: string | null) => {
+    pendingCommit.current = { label };
+    cameraToken.current += 1;
+    setCameraTarget({ viewport, token: cameraToken.current });
+  }, []);
+
+  const onLocated = useCallback((viewport: Viewport) => {
+    locateToken.current += 1;
+    setLocatingSlug(null);
+    dispatch({ type: "selectShop", shopId: null });
+    dispatch({ type: "setSheetState", sheetState: "peek" });
+    moveCamera(viewport, "Near you");
+  }, [moveCamera]);
+  const nearMe = useNearMe(onLocated);
+  const cancelNearMe = nearMe.cancel;
+
   const onCameraSettled = useCallback((viewport: Viewport, source: CameraMoveSource) => {
     if (source === "user") {
+      cancelNearMe();
       // The user has taken over, so any camera commit we had queued — a
       // destination fly they interrupted, for example — is abandoned rather
       // than applied to wherever they end up.
@@ -139,13 +158,7 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
     }
 
     dispatch({ type: "adoptCamera", camera: viewport });
-  }, []);
-
-  const moveCamera = useCallback((viewport: Viewport, label: string | null) => {
-    pendingCommit.current = { label };
-    cameraToken.current += 1;
-    setCameraTarget({ viewport, token: cameraToken.current });
-  }, []);
+  }, [cancelNearMe]);
 
   useEffect(() => {
     // Hydrating a dismissal flag from session storage is an external-system read
@@ -166,6 +179,7 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
    */
   const focusShopBySlug = useCallback(
     (slug: string) => {
+      cancelNearMe();
       const token = (locateToken.current += 1);
 
       setLocatingSlug(slug);
@@ -196,7 +210,7 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
           router.push(`/shops/${slug}?from=map`);
         });
     },
-    [locator, moveCamera, router],
+    [cancelNearMe, locator, moveCamera, router],
   );
 
   // Restore the previous map context after shop-detail navigation, or honour a
@@ -703,8 +717,9 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
           <DestinationSearch
             geocoder={geocoder}
             locatingSlug={locatingSlug}
-            onChooseDestination={(viewport, label) => moveCamera(viewport, label)}
+            onChooseDestination={(viewport, label) => { cancelNearMe(); moveCamera(viewport, label); }}
             onChooseShop={(shop: ShopMapSummary, viewport) => {
+              cancelNearMe();
               moveCamera(viewport, shop.name);
               dispatch({ type: "selectShop", shopId: shop.id });
             }}
@@ -714,6 +729,7 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
             }
           />
           {modeSwitch}
+          {mode === "area" ? <NearMe location={nearMe} /> : null}
           {/*
             The reviewer strip. Map is the one screen with no header at mobile
             widths, so the marker, the way out, and the basemap diagnostic sit in
@@ -762,6 +778,7 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
           cameraTarget={cameraTarget}
           onSelectShop={handleSelect}
           onCameraSettled={onCameraSettled}
+          onUserMoveStart={() => { cancelNearMe(); pendingCommit.current = null; }}
         />
 
         <div className={styles.searchAreaSlot}>

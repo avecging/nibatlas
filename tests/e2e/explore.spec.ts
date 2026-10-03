@@ -87,6 +87,42 @@ test("first visit explains the product and never asks for an account", async ({ 
   await expect(page.getByRole("button", { name: /sign in|log in/i })).toHaveCount(0);
 });
 
+test("Near me asks once, searches the approximate area, then leaves panning in control", async ({ page, context }) => {
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 1.2934567, longitude: 103.856789, accuracy: 10 });
+  await page.addInitScript(() => {
+    const original = navigator.geolocation.getCurrentPosition.bind(navigator.geolocation);
+    let calls = 0;
+    Object.defineProperty(window, "locationRequests", { get: () => calls });
+    navigator.geolocation.getCurrentPosition = (...args) => { calls++; return original(...args); };
+  });
+  await openMap(page);
+  await expectSettled(page);
+  await page.getByRole("button", { name: "Near me", exact: true }).click();
+  expect(await page.evaluate(() => (window as unknown as { locationRequests: number }).locationRequests)).toBe(0);
+  await page.getByRole("button", { name: "Use my location", exact: true }).click();
+  await expect(page.getByTestId("explore")).toHaveAttribute("data-committed-label", "Near you");
+  await expectSettled(page);
+  const stored = await page.evaluate(() => sessionStorage.getItem("nib-atlas.explore-viewport.v1"));
+  expect(stored).not.toMatch(/1\.2934567|103\.856789/);
+  await panMap(page, -0.55, -0.2);
+  await expect(page.getByRole("button", { name: "Search this area", exact: true })).toBeVisible();
+  expect(await page.evaluate(() => (window as unknown as { locationRequests: number }).locationRequests)).toBe(1);
+});
+
+test("a small zoom offers Search this area without searching automatically", async ({ page }) => {
+  await openMap(page);
+  await expectSettled(page);
+  const before = await page.evaluate(() => sessionStorage.getItem("nib-atlas.explore-viewport.v1"));
+  const box = await page.getByTestId("map-canvas").boundingBox();
+  await page.mouse.move(box!.x + box!.width * 0.7, box!.y + box!.height * 0.5);
+  await page.mouse.wheel(0, -240);
+  await expect(page.getByRole("button", { name: "Search this area", exact: true })).toBeVisible();
+  expect(await page.evaluate(() => sessionStorage.getItem("nib-atlas.explore-viewport.v1"))).toBe(before);
+  await page.getByRole("button", { name: "Search this area", exact: true }).click();
+  await expectSettled(page);
+});
+
 test("primary navigation is exactly Map, Passport, and Me", async ({ page }) => {
   await page.goto("/");
 

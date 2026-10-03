@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MapCanvas } from './MapCanvas';
 import { createMapStyleProvider } from '@/src/features/map/map-style';
@@ -38,5 +38,48 @@ describe('map initialization recovery', () => {
     show();
     expect(screen.getByText('Map unavailable')).toBeVisible();
     expect(mock.remove).toHaveBeenCalledOnce();
+  });
+
+  it('keeps a user pinch searchable when browser chrome resizes mid-gesture', () => {
+    const handlers = new Map<string, Array<(event?: unknown) => void>>();
+    const moving = { current: true };
+    const stop = vi.fn(() => { for (const handler of handlers.get('moveend') ?? []) handler(); });
+    const fitBounds = vi.fn();
+    mock.construct.mockReturnValue({
+      stop, fitBounds,
+      touchZoomRotate: { disableRotation: vi.fn() }, addControl: vi.fn(), remove: mock.remove,
+      on: (name: string, handler: (event?: unknown) => void) => {
+        handlers.set(name, [...(handlers.get(name) ?? []), handler]);
+      },
+      isMoving: () => moving.current,
+      getBounds: () => ({ getWest: () => 103, getEast: () => 104, getSouth: () => 1, getNorth: () => 2 }),
+      getZoom: () => 10.2,
+    });
+    const settled = vi.fn(); const start = vi.fn();
+    const props = { shops: [], selectedShopId: null,
+      initialViewport: { bounds: { west: 103, east: 104, south: 1, north: 2 }, zoom: 10 },
+      styleProvider: createMapStyleProvider(), onSelectShop: vi.fn(), onCameraSettled: settled, onUserMoveStart: start };
+    const view = render(<MapCanvas {...props}
+      cameraTarget={null} />);
+    const emit = (name: string, event = {}) => act(() => {
+      for (const handler of handlers.get(name) ?? []) handler(event);
+    });
+    fireEvent.wheel(screen.getByTestId('map-canvas'));
+    emit('movestart'); // Renderer dropped originalEvent.
+    expect(start).toHaveBeenCalledOnce();
+    emit('resize');
+    expect(settled).not.toHaveBeenCalled();
+    moving.current = false;
+    emit('moveend');
+    expect(settled).toHaveBeenLastCalledWith(expect.objectContaining({ zoom: 10.2 }), 'user');
+    emit('resize');
+    expect(settled).toHaveBeenLastCalledWith(expect.anything(), 'resize');
+    settled.mockClear();
+    view.rerender(<MapCanvas {...props} cameraTarget={{ viewport: props.initialViewport, token: 2 }} />);
+    expect(stop).toHaveBeenCalledOnce();
+    expect(fitBounds).toHaveBeenCalledOnce();
+    expect(settled).not.toHaveBeenCalled(); // Old flight's synchronous moveend.
+    emit('moveend');
+    expect(settled).toHaveBeenLastCalledWith(expect.anything(), 'programmatic');
   });
 });

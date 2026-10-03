@@ -67,6 +67,13 @@ Acceptance intent: a first-time user can reach a credible shop page without crea
 4. Manual panning is respected; the map does not recenter automatically.
 5. If denied, destination search remains fully functional.
 
+The visible **Near me** button opens the brief explanation and **Use my
+location** action. It makes one foreground request, never prompts on page load
+and never follows the user. Exact coordinates are rounded to a 0.01-degree area
+before reaching map state, provider requests, viewport queries or saved return
+context. This is an approximate nearby-area view, not a precise location dot.
+Cancelling, choosing another destination or moving the map abandons a pending fix.
+
 ### Explore anywhere
 
 1. User pans and zooms freely worldwide.
@@ -74,6 +81,10 @@ Acceptance intent: a first-time user can reach a credible shop page without crea
 3. After meaningful movement settles, **Search this area** appears.
 4. User commits the new viewport.
 5. Map and result list update together.
+
+Small deliberate zoom changes (0.1 zoom level) also offer **Search this area**;
+a full zoom step is not required. Browser-chrome resizes during a gesture must
+not mark the new view as already searched. Gestures still make no data requests.
 
 ### Search destination or shop
 
