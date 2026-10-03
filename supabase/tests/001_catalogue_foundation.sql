@@ -44,8 +44,8 @@ select ok(
       and column_name in ('source_url', 'evidence_note')
   ), 'provenance evidence is absent from the public detail projection'
 );
-select is((select count(*)::integer from public.shop_types where code <> 'test_venue'), 4,
-  'the four MVP shop types are seeded');
+select is((select count(*)::integer from public.shop_types where code <> 'test_venue'), 9,
+  'the nine main store types are available');
 select is((select count(*)::integer from public.shops where source_quality = 'demo'), 3,
   'all deterministic shop fixtures are marked demo');
 

@@ -15,6 +15,18 @@ GPT owns end-to-end implementation and initiates independent review under
 and scope decisions. A conductor/orchestrator has not been onboarded. `AGENTS.md`
 is the shared working contract. This assignment covers every milestone; frontend work is not reserved for Claude.
 
+## Current follow-up — Main store type, 3 October 2026
+
+Founder approved one main store type per shop. Add Bookshop, Art Supply Store,
+Brand Boutique, Luxury Shop, Maker / Workshop, Department Store and Distributor
+alongside Fountain Pen Specialist and Stationery Store. Retire Vintage / Used
+and Nib / Repair Services; those features belong in manually authored Experiences.
+The editor uses one selector. A supplied bulk-import type replaces the old type;
+blank values preserve it. Preserve selected-type provenance, other relationships,
+draft/public boundaries and historical impressions. Migration checks for live,
+draft and pending-import use before retirement. No automatic shop reclassification
+or experience creation. Staging delivery and founder acceptance are separate.
+
 ## Current follow-up — About page editor (#17), 2 October 2026
 
 Founder confirms geographic seals PR #117 merged and founder-accepted. About is

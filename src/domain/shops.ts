@@ -4,12 +4,18 @@ import type { LanguageTag } from "@/src/domain/language";
 export const SHOP_TYPES = [
   "fountain_pen_specialist",
   "stationery_store",
-  "vintage_used",
-  "nib_repair_services",
+  "bookshop",
+  "art_supply_store",
+  "brand_boutique",
+  "luxury_shop",
+  "maker_workshop",
+  "department_store",
+  "distributor",
 ] as const;
 
+// Retired types remain readable in historical records; never offered as filters.
 // Test venues are renderable records, never a public pen-shop filter.
-export const SHOP_RECORD_TYPES = [...SHOP_TYPES, "test_venue"] as const;
+export const SHOP_RECORD_TYPES = [...SHOP_TYPES, "vintage_used", "nib_repair_services", "test_venue"] as const;
 export type ShopType = (typeof SHOP_RECORD_TYPES)[number] | `type_${string}`;
 /** Only server-generated custom identities extend the fixed filter vocabulary. */
 export function isShopType(value: unknown): value is ShopType {

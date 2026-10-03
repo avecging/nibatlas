@@ -162,9 +162,13 @@ Readers continue accepting legacy canonical codes without these optional fields.
 An administrator-created `type_<UUID with underscores>` code requires a nonblank
 label of at most 300 characters (and a matching detail-map label for each custom
 attached type). Unknown codes outside that namespace remain invalid. These labels
-are plain text and contain no account or private working-copy data. Existing
-public type filters retain their four canonical categories; new types remain
-visible in All and are not silently categorized.
+are plain text and contain no account or private working-copy data. Current public filter codes are `fountain_pen_specialist`, `stationery_store`,
+`bookshop`, `art_supply_store`, `brand_boutique`, `luxury_shop`, `maker_workshop`,
+`department_store` and `distributor`. Retired `vintage_used` and
+`nib_repair_services` codes remain readable in historical records but are not
+accepted as public filter requests. Saved map context drops those retired filters
+while preserving viewport, label, visit status and availability. Administrator-created
+custom types remain visible in All and are not silently categorized.
 
 ## Social and messaging presentation (#110)
 

@@ -311,6 +311,13 @@ export const SHOP_TYPE_LABELS: Record<ShopType, string> = {
   test_venue: "Staging test venue",
   fountain_pen_specialist: "Fountain Pen Specialist",
   stationery_store: "Stationery Store",
+  bookshop: "Bookshop",
+  art_supply_store: "Art Supply Store",
+  brand_boutique: "Brand Boutique",
+  luxury_shop: "Luxury Shop",
+  maker_workshop: "Maker / Workshop",
+  department_store: "Department Store",
+  distributor: "Distributor",
   vintage_used: "Vintage / Used",
   nib_repair_services: "Nib / Repair Services",
 };
