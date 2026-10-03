@@ -67,8 +67,10 @@ Acceptance intent: a first-time user can reach a credible shop page without crea
 4. Manual panning is respected; the map does not recenter automatically.
 5. If denied, destination search remains fully functional.
 
-The visible **Near me** button opens the brief explanation and **Use my
-location** action. It makes one foreground request, never prompts on page load
+An icon-only location control, labelled **Near me** for assistive technology,
+sits at the lower-right of the map above the results sheet. It moves with the
+sheet and hides while the sheet is full. Its explanation opens upward, with a
+**Use my location** action. It makes one foreground request, never prompts on page load
 and never follows the user. Exact coordinates are rounded to a 0.01-degree area
 before reaching map state, provider requests, viewport queries or saved return
 context. This is an approximate nearby-area view, not a precise location dot.

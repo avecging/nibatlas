@@ -1,4 +1,4 @@
-.control { position: relative; justify-self: start; }
+.control { position: relative; grid-column: 3; justify-self: end; pointer-events: auto; }
 .button {
   display: inline-flex;
   align-items: center;
@@ -13,13 +13,22 @@
   font-weight: 600;
   cursor: pointer;
 }
-.button:disabled { cursor: wait; }
+.button:disabled { cursor: wait; opacity: 0.6; }
+.locateButton {
+  justify-content: center;
+  width: var(--tap-target);
+  height: var(--tap-target);
+  padding: 0;
+  box-shadow: var(--shadow-card);
+}
 .panel {
   position: absolute;
-  top: calc(100% + var(--space-2));
-  left: 0;
+  bottom: calc(100% + var(--space-2));
+  right: 0;
   z-index: 1;
   width: min(20rem, calc(100vw - var(--space-6)));
+  max-height: calc(100dvh - var(--nav-height) - var(--map-controls-bottom) - var(--tap-target) - var(--space-6));
+  overflow-y: auto;
   padding: var(--space-3);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
