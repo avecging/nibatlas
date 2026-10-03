@@ -1,5 +1,5 @@
 /*
- * The Passport screen: toolbar, optional seal progress, then the chosen mode.
+ * The Passport screen: toolbar and chosen mode, with seal progress in List only.
  *
  * The two modes want opposite layouts. Book mode is an object in a fixed field
  * that must not scroll, so its row is constrained and the field fills it. List
@@ -14,24 +14,15 @@
 /*
  * Book mode fills the locked frame exactly.
  *
- * Reserve room for the book's minimum scale, wrapped pager, hint and padding.
- * The progress row can shrink and scroll instead of pushing the book underneath
- * its controls. The percentage cap leaves room for the toolbar on shorter screens.
+ * The book takes the space below the toolbar. A zero minimum lets it shrink on
+ * short screens while its pager remains reachable.
  */
 .screen[data-passport-mode="book"] {
   display: grid;
-  grid-template-rows: auto minmax(0, auto) minmax(min(20rem, 70%), 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
   min-height: 0;
   overflow: hidden;
-}
-
-/* Keep the optional panel in its own row even when it has no content. Expanded
-   progress scrolls here so it cannot consume the book's viewport. List mode
-   retains normal document flow. */
-.screen[data-passport-mode="book"] .sealProgress {
-  max-height: 25dvh;
-  overflow-y: auto;
 }
 
 .toolbar {
