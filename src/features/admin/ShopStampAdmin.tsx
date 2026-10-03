@@ -1,4 +1,5 @@
 'use client';
+import { initialShopSeal, randomiseShopSeal, SHOP_SEAL_SHAPES, SHOP_SEAL_SHAPE_LABELS, type ShopSealShape } from '@/src/domain/shop-seal';
 import { validCreatorCredit } from '@/src/domain/creator-credit';
 /* eslint-disable @next/next/no-img-element -- private stamp previews use authenticated byte routes. */
 import { StampArt } from '@/src/components/stamps/StampArt';
@@ -19,7 +20,7 @@ const messages:Record<string,string>={
   invalid_upload:'Use a 1200 × 800 transparent PNG up to 5 MiB with supported RGB/RGBA export settings.',
   invalid_request:'Check the stamp fields and try again.',
   invalid_stamp_target:'This stamp draft changed or no longer accepts that file. Reload stamps.',
-  revision_conflict:'This stamp changed in another session. Reload before activating.',
+  revision_conflict:'This stamp changed in another session. Reload before saving or activating.',
   stamp_conflict:'This stamp already has different artwork attached.',
   forbidden:'Only an admin can activate stamp artwork.',
   authentication_required:'Sign in again to continue.',
@@ -70,7 +71,7 @@ export function ShopStampAdmin({shopId,shopName,archived,localityName='',country
         await onPrepared?.();
       })}>Prepare generated default</button>
     </div>:null}
-    <CreateStamp disabled={busy||archived||!loaded} run={run} path={path} saved={rows=>{setEntries(rows);setNotice('Draft stamp version created. Add its PNG below.');}} />
+    <CreateStamp key={shopId} shopId={shopId} shopName={shopName} countryCode={countryCode} entries={entries} disabled={busy||archived||!loaded} run={run} path={path} saved={(rows,generated)=>{setEntries(rows);setNotice(generated?'Default seal saved privately. Review it below, then activate when ready.':'Draft stamp version created. Add its PNG below.');}} />
     <div className={styles.versions}>
       {entries.map(entry=><article className={styles.version} key={entry.id}>
         <header><strong>Design v{entry.designVersion}</strong><span>{entry.active?'active':entry.status}</span></header>
@@ -79,13 +80,14 @@ export function ShopStampAdmin({shopId,shopName,archived,localityName='',country
         {entry.kind==='generated_template'&&entry.templateData?<div className={styles.generatedPreview}>
           <StampArt title={shopName} stamp={{id:entry.stampId,tier:'shop',motif:entry.templateData.motif,
             ink:entry.ink,designVersion:entry.designVersion,paletteVersion:1,
+            ...(entry.templateData.shape ? {generatedShopSeal:entry.templateData.shape} : {}),
             localityLabel:localityName,countryLabel:isCountryCode(countryCode)?countryLabel(countryCode):''}} />
           <p className={styles.help}>Generated default · no upload or creator credit needed. Name and place labels use the saved shop details; collected impressions retain their original labels.</p>
         </div>:null}
         {entry.kind==='uploaded'&&entry.hasArtwork?<StampPreview shopId={shopId} entry={entry}/>:null}
         {entry.kind==='uploaded'&&entry.status==='draft'&&!entry.hasArtwork?
           <ArtworkPicker shopId={shopId} version={entry} disabled={busy||archived} run={run} attached={rows=>{setEntries(rows);setNotice('Stamp PNG attached privately. Review all three sizes before activation.');}}/>:null}
-        {entry.kind==='uploaded'&&entry.status==='draft'&&entry.hasArtwork?<button type="button" disabled={busy||archived}
+        {entry.status==='draft'&&(entry.kind==='generated_template'||(entry.kind==='uploaded'&&entry.hasArtwork))?<button type="button" disabled={busy||archived}
           onClick={()=>setConfirm(entry)}>Activate this design (admin)</button>:null}
       </article>)}
     </div>
@@ -101,21 +103,54 @@ export function ShopStampAdmin({shopId,shopName,archived,localityName='',country
   </section>;
 }
 
-function CreateStamp({disabled,run,path,saved}:{disabled:boolean;run:(w:(s:AbortSignal)=>Promise<void>)=>void;path:string;saved:(r:AdminStampVersion[])=>void}) {
-  return <details className={styles.create}><summary>Create uploaded stamp version</summary>
+function CreateStamp({disabled,run,path,saved,shopId,shopName,countryCode,entries}:{
+  disabled:boolean; run:(w:(s:AbortSignal)=>Promise<void>)=>Promise<void>; path:string;
+  saved:(r:AdminStampVersion[],generated:boolean)=>void; shopId:string; shopName:string; countryCode:string; entries:AdminStampVersion[];
+}) {
+  const [kind,setKind]=useState('default');
+  const [design,setDesign]=useState(()=>initialShopSeal(shopId));
+  const [changed,setChanged]=useState(false);
+  const [randomised,setRandomised]=useState(false);
+  const active=entries.find(entry=>entry.active);
+  // Until the editor makes a choice, start from the actual saved default.
+  const choice=changed ? design : active?.templateData?.shape ? {shape:active.templateData.shape,ink:active.ink} : design;
+  function update(next:typeof design) {setDesign(next);setChanged(true);setRandomised(false);}
+  return <details className={styles.create} open><summary>Create stamp version</summary>
     <form onSubmit={(e:FormEvent<HTMLFormElement>)=>{
       e.preventDefault();const formElement=e.currentTarget;const form=new FormData(formElement);
       void run(async signal=>{
-        const value=await call(path,signal,post({action:'create',origin:form.get('origin'),creatorName:form.get('creatorName'),creatorUrl:String(form.get('creatorUrl')||'')||undefined,ink:form.get('ink')}));
-        saved(decodeAdminStamps(value.entries));formElement.reset();
+        const generated=kind==='default';
+        const payload=generated ? {action:'create_generated',shape:choice.shape,ink:choice.ink,
+          baseVersionId:active?.id??null,baseRevision:active?.revision??null} :
+          {action:'create',origin:form.get('origin'),creatorName:form.get('creatorName'),creatorUrl:String(form.get('creatorUrl')||'')||undefined,ink:form.get('ink')};
+        const value=await call(path,signal,post(payload));
+        saved(decodeAdminStamps(value.entries),generated);
+        if(!generated)formElement.reset();
       });
-    }}><fieldset disabled={disabled}><legend>Truthful artwork attributes</legend>
-      <label>Origin<select name="origin" defaultValue="founder_created"><option value="founder_created">Founder-created</option><option value="ai_assisted">AI-assisted</option><option value="commissioned">Commissioned</option></select></label>
-      <label>Creator name (optional)<input name="creatorName" maxLength={300}/></label>
-      <label>Creator link (optional)<input name="creatorUrl" type="url" maxLength={2000} placeholder="https://…"/></label>
-      <label>Ink<select name="ink" defaultValue="teal">{STAMP_INKS.map(ink=><option key={ink} value={ink}>{ink}</option>)}</select></label>
-      <p className={styles.help}>Choose the origin and optional credit that accurately describe this artwork. A creator link requires a name.</p>
-      <button>Create private draft</button>
+    }}><fieldset disabled={disabled}><legend>New artwork</legend>
+      <label>Stamp design<select value={kind} onChange={e=>setKind(e.target.value)}><option value="default">Default seal</option><option value="uploaded">Uploaded artwork</option></select></label>
+      {kind==='default' ? <>
+        <label>Shape<select value={choice.shape} onChange={e=>update({...choice,shape:e.target.value as ShopSealShape})}>
+          {SHOP_SEAL_SHAPES.map(shape=><option key={shape} value={shape}>{SHOP_SEAL_SHAPE_LABELS[shape]}</option>)}
+        </select></label>
+        <label>Ink<select value={choice.ink} onChange={e=>update({...choice,ink:e.target.value as typeof choice.ink})}>
+          {STAMP_INKS.map(ink=><option key={ink} value={ink}>{ink}</option>)}
+        </select></label>
+        <button type="button" onClick={()=>{update(randomiseShopSeal(choice));setRandomised(true);}}>Randomise shape and ink</button>
+        <p aria-live="polite">{randomised ? `${SHOP_SEAL_SHAPE_LABELS[choice.shape]} · ${choice.ink}. You can still choose another ink.` : ''}</p>
+        <div className={styles.generatedPreview}><StampArt title={shopName} stamp={{id:shopId,tier:'shop',motif:'nib',
+          generatedShopSeal:choice.shape,ink:choice.ink,designVersion:1,paletteVersion:1,localityLabel:'',
+          countryLabel:isCountryCode(countryCode)?countryLabel(countryCode):''}}/></div>
+        <p className={styles.help}>Randomise as often as you like, or choose the shape and ink yourself. Save a private version, then activate it for future collectors. Existing collected stamps keep their original design.</p>
+        <button>Save default seal privately</button>
+      </> : <>
+        <label>Origin<select name="origin" defaultValue="founder_created"><option value="founder_created">Founder-created</option><option value="ai_assisted">AI-assisted</option><option value="commissioned">Commissioned</option></select></label>
+        <label>Creator name (optional)<input name="creatorName" maxLength={300}/></label>
+        <label>Creator link (optional)<input name="creatorUrl" type="url" maxLength={2000} placeholder="https://…"/></label>
+        <label>Ink<select name="ink" defaultValue="teal">{STAMP_INKS.map(ink=><option key={ink} value={ink}>{ink}</option>)}</select></label>
+        <p className={styles.help}>Choose the origin and optional credit that accurately describe this artwork. A creator link requires a name.</p>
+        <button>Create private draft</button>
+      </>}
     </fieldset></form>
   </details>;
 }

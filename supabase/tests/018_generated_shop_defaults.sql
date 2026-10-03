@@ -42,7 +42,7 @@ insert into snapshot values('audit',(select to_jsonb(count(*)) from public.admin
 select is((select count(*)::int from public.stamps where shop_id='78000000-0000-4000-8000-000000000010'),1,'one stable identity');
 select ok((select av.template_data ?& array['tier','motif'] and av.template_data->>'tier'='shop'
  and av.artwork_origin='generated_template' and av.approval_status='approved'
- and av.approval_evidence_ref='system-generated-default:v1' and av.approved_at is not null
+ and av.approval_evidence_ref='system-generated-default:shop-seal-v1' and av.approved_at is not null
  and av.creator_name is null and av.creator_url is null and av.upload_id is null and av.rights_basis is null
  from public.stamp_artwork_versions av join public.stamps st on st.id=av.stamp_id
  where st.shop_id='78000000-0000-4000-8000-000000000010'),'truthful system default has no fabricated creator/rights/upload');

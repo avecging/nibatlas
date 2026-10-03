@@ -261,6 +261,7 @@ export interface ShopDetail extends ShopMapSummary {
 export type StampTier = "shop" | "locality" | "country";
 
 export interface ShopStampDesign {
+  readonly generatedShopSeal?: import('./shop-seal').ShopSealShape;
   readonly sealArtwork?: {readonly id:string;readonly treatment?:'ink-v1';readonly creatorName?:string;readonly creatorUrl?:string};
   readonly generatedSealTemplate?: import('./seal-template').SealTemplate;
   /** Preserved approved export metadata. Asset delivery is owned by M6. */

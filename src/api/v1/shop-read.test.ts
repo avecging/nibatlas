@@ -225,3 +225,10 @@ it('custom catalogue types retain labels across map, detail, nearby and reject m
   expect(()=>decodeShopDetailV1({...detail(),...row,shopTypes:[type]})).toThrow(ShopReadContractError);
   expect(()=>decodeShopDetailV1({...detail(),...row,shopTypes:[type],shopTypeLabels:{[type]:'x'.repeat(301)}})).toThrow(ShopReadContractError);
 });
+
+it('retains the versioned shop seal shape in the public allowlist',()=>{
+  const art={id:'00000000-0000-4000-8000-000000000601',designVersion:3,ink:'plum',paletteVersion:1,
+    templateData:{tier:'shop',motif:'nib',template:'shop-seal-v1',shape:'shield'}};
+  expect(decodeShopDetailV1({...detail(),generatedStamp:art})?.generatedStamp).toEqual(art);
+  expect(()=>decodeShopDetailV1({...detail(),generatedStamp:{...art,templateData:{...art.templateData,template:'unknown'}}})).toThrow();
+});

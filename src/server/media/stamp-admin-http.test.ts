@@ -83,3 +83,15 @@ it('requires a name for a valid creator link and rejects malformed links',async(
     expect((await handleStampAdmin(req('POST',{action:'create',origin:'ai_assisted',ink:'teal',...body}),shop,null,gateway)).status).toBe(400);
   expect(gateway.operation).not.toHaveBeenCalled();
 });
+
+it('accepts only bounded generated choices tied to the loaded active version',async()=>{
+  gateway.getAccess=async()=>({role:'editor'});
+  const body={action:'create_generated',shape:'oval',ink:'plum',baseVersionId:id,baseRevision:row.revision};
+  expect((await handleStampAdmin(req('POST',body),shop,null,gateway)).status).toBe(200);
+  expect(gateway.operation).toHaveBeenCalledWith('create_generated',shop,{shape:'oval',ink:'plum',baseVersionId:id,baseRevision:row.revision});
+  vi.mocked(gateway.operation).mockClear();
+  for(const patch of [{shape:'circle'},{ink:'red'},{template:'future'},{baseRevision:null},{baseVersionId:null},{baseRevision:'bad'}])
+    expect((await handleStampAdmin(req('POST',{...body,...patch}),shop,null,gateway)).status).toBe(400);
+  expect((await handleStampAdmin(req('POST',body,'https://evil.test'),shop,null,gateway)).status).toBe(403);
+  expect(gateway.operation).not.toHaveBeenCalled();expect(gateway.store.putOnce).not.toHaveBeenCalled();
+});

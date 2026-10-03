@@ -53,3 +53,14 @@ it('rejects shop/revision mismatches and ambiguous duplicate identities',async()
 it('canonicalizes JSON key order without ignoring display metadata',async()=>{
   expect(await mediaReviewFingerprint({media,stamps})).toBe(await mediaReviewFingerprint({media:media.map(m=>Object.fromEntries(Object.entries(m).reverse()) as unknown as ShopMedia),stamps:stamps.map(s=>Object.fromEntries(Object.entries(s).reverse()) as unknown as AdminStampVersion)}));
 });
+
+it('previews a private generated seal and binds review to its saved shape',async()=>{
+  const {snapshot,selection}=await fixture();
+  Object.assign(snapshot.stamps[1]!,{kind:'generated_template',origin:'generated_template',hasArtwork:false,
+    templateData:{tier:'shop',motif:'nib',template:'shop-seal-v1',shape:'shield'}});
+  snapshot.fingerprint=await mediaReviewFingerprint(snapshot);selection.fingerprint=snapshot.fingerprint;
+  expect(resolvePreviewSelection(snapshot,selection).stamp?.templateData?.shape).toBe('shield');
+  snapshot.stamps[1]!.templateData={tier:'shop',motif:'nib',template:'shop-seal-v1',shape:'oval'};
+  snapshot.fingerprint=await mediaReviewFingerprint(snapshot);
+  expect(()=>resolvePreviewSelection(snapshot,selection)).toThrow('have changed');
+});
