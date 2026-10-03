@@ -37,9 +37,12 @@ values('e5000000-0000-4000-8000-000000000010','e5000000-0000-4000-8000-000000000
  'Asia/Singapore','geofence',1,'Synthetic historical shop','{"countryCode":"SG","countryLabel":"Singapore","localityName":"Singapore","localitySlug":"singapore"}',
  '{"id":"00000000-0000-4000-8000-000000000601","designVersion":1,"artworkKind":"generated_template","ink":"teal","paletteVersion":1,"templateData":{"tier":"shop","motif":"storefront"}}');
 insert into state values('collection',(select to_jsonb(c) from public.stamp_collections c where id='e5000000-0000-4000-8000-000000000010'));
+-- Complete the synthetic fixture's required address before exercising publication.
+update public.shops set address_line_1='Synthetic seal test address' where id='00000000-0000-4000-8000-000000000301';
 -- Real combined publication path, including deliberate position confirmation.
 select set_config('request.jwt.claims','{"sub":"e5000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
 select public.admin_shop_write('confirm_position','00000000-0000-4000-8000-000000000301',pg_temp.review()->'record'->>'revision');
+select is(pg_temp.review()->'record'->'publicationErrors','[]'::jsonb,'synthetic fixture meets existing publication requirements');
 select pg_temp.review(jsonb_build_object('id','e5000000-0000-4000-8000-000000000020','previousId',null,'reviewKey',pg_temp.review()->>'reviewKey',
  'choices',jsonb_build_object('photos','[]'::jsonb,'logo',null,'stamp',(select v->'id' from state where k='draft'))));
 select is(public.shop_publication_operation('e5000000-0000-4000-8000-000000000001','staging','00000000-0000-4000-8000-000000000301','publish','e5000000-0000-4000-8000-000000000020')->'publication'->>'status','complete','combined publication activates generated draft');
@@ -51,6 +54,26 @@ select throws_ok($$select pg_temp.op('create_generated',(select v from state whe
 select is(public.shop_detail('m2-singapore-demo-fixture')->'generatedStamp'->'templateData'->>'shape','oval','public projection carries saved shape');
 select ok(not has_function_privilege('authenticated','public.stamp_artwork_draft_operation(uuid,text,uuid,text,jsonb)','EXECUTE'),'actor RPC stays service-only');
 select ok(not has_function_privilege('anon','public.stamp_artwork_draft_operation(uuid,text,uuid,text,jsonb)','EXECUTE'),'anonymous cannot call actor RPC');
+-- A matching old draft is not a retry once another version has become active.
+update state set v=(select entry from jsonb_array_elements(pg_temp.op('list')) entry where (entry->>'active')::boolean) where k='base';
+update state set v=jsonb_build_object('shape','rectangle','ink','ochre','baseVersionId',(select v->'id' from state where k='base'),'baseRevision',(select v->'revision' from state where k='base')) where k='payload';
+select pg_temp.op('create_generated',(select v from state where k='payload'));
+insert into state values('olderDraft',pg_temp.op('list')->0);
+select pg_temp.op('create_generated',(select v from state where k='payload')||'{"shape":"shield","ink":"moss"}');
+insert into state values('newerDraft',pg_temp.op('list')->0);
+select pg_temp.op('activate',jsonb_build_object('versionId',(select v->'id' from state where k='newerDraft'),'revision',(select v->'revision' from state where k='newerDraft')));
+update state set v=(select entry from jsonb_array_elements(pg_temp.op('list')) entry where (entry->>'active')::boolean) where k='base';
+update state set v=v||jsonb_build_object('baseVersionId',(select v->'id' from state where k='base'),'baseRevision',(select v->'revision' from state where k='base')) where k='payload';
+update state set v=to_jsonb((select count(*) from public.admin_audit_log)) where k='audit';
+select pg_temp.op('create_generated',(select v from state where k='payload'));
+insert into state values('replacement',pg_temp.op('list')->0);
+select is((select (v->>'designVersion')::int from state where k='replacement'),5,'changed base creates v5 instead of reusing matching v3');
+select isnt((select v->>'id' from state where k='replacement'),(select v->>'id' from state where k='olderDraft'),'fresh save has new identity');
+select is((select entry from jsonb_array_elements(pg_temp.op('list')) entry where entry->>'id'=(select v->>'id' from state where k='olderDraft')),(select v from state where k='olderDraft'),'old private draft is unchanged');
+select is((select count(*) from public.admin_audit_log),(select (v::text)::bigint+1 from state where k='audit'),'changed-base save adds one audit event');
+select pg_temp.op('create_generated',(select v from state where k='payload'));
+select is(pg_temp.op('list')->0,(select v from state where k='replacement'),'exact new-base replay returns the same v5');
+select is((select count(*) from public.admin_audit_log),(select (v::text)::bigint+1 from state where k='audit'),'exact new-base replay adds no audit event');
 -- New identities get a pinned shape, and preparing twice never replaces it.
 insert into public.shops(id,name,slug) values('78000000-0000-4000-8000-000000000010','Synthetic new seal','synthetic-new-seal');
 select public.ensure_shop_generated_default('e5000000-0000-4000-8000-000000000001','78000000-0000-4000-8000-000000000010');

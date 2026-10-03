@@ -60,7 +60,7 @@ create or replace function public.stamp_artwork_draft_operation(
   p_actor uuid,p_environment text,p_shop uuid,p_action text,p_payload jsonb default '{}')
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare s public.shops; st public.stamps; a public.stamp_artwork_versions;
-  u public.media_uploads; base_art public.stamp_artwork_versions; v integer; old_actor text; result jsonb; actor_role text;
+  u public.media_uploads; base_art public.stamp_artwork_versions; v integer; old_actor text; result jsonb; actor_role text; generated_evidence text;
 begin
   select role into actor_role from public.profiles where id=p_actor and role in ('editor','admin') for share;
   if not found then raise exception 'Admin access denied' using errcode='42501'; end if;
@@ -93,11 +93,14 @@ begin
       raise exception 'Stamp artwork changed; reload' using errcode='40001'; end if;
     select * into st from public.stamps where shop_id=p_shop and stamp_type='atlas'
       order by (status='active') desc,created_at,id limit 1 for update;
-    -- A lost response can be retried without spending another retained version.
+    -- Reuse only an exact retry against the same validated active artwork.
+    generated_evidence:='admin-generated-default:shop-seal-v1:base:'||
+      coalesce(base_art.id::text||':'||md5(to_jsonb(base_art)::text),'none');
     select * into a from public.stamp_artwork_versions av where av.stamp_id=st.id
       and av.approval_status='draft' and av.artwork_kind='generated_template'
       and av.template_data=jsonb_build_object('tier','shop','motif','nib','template','shop-seal-v1','shape',p_payload->>'shape')
-      and av.ink::text=p_payload->>'ink' order by av.design_version desc limit 1;
+      and av.ink::text=p_payload->>'ink' and av.approval_evidence_ref=generated_evidence
+      order by av.design_version desc limit 1;
     if a.id is null then
       if (select count(*) from public.stamp_artwork_versions av join public.stamps x on x.id=av.stamp_id
         where x.shop_id=p_shop and x.stamp_type='atlas')>=50 then
@@ -111,7 +114,7 @@ begin
       insert into public.stamp_artwork_versions(stamp_id,design_version,artwork_kind,template_data,ink,palette_version,approval_evidence_ref)
         values(st.id,v,'generated_template',
           jsonb_build_object('tier','shop','motif','nib','template','shop-seal-v1','shape',p_payload->>'shape'),
-          (p_payload->>'ink')::public.stamp_ink,1,'admin-generated-default:shop-seal-v1');
+          (p_payload->>'ink')::public.stamp_ink,1,generated_evidence);
       perform set_config('nibatlas.media_actor',coalesce(old_actor,''),true);
     end if;
   elsif p_action='create' then

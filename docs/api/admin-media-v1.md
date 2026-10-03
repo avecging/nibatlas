@@ -331,8 +331,9 @@ new private generated version on the same stamp identity. Both base fields are
 explicitly null only when no active artwork exists. Otherwise the exact loaded
 active version/revision is required; stale choices return `409 revision_conflict`.
 Only editor/admin accounts can save; the SQL boundary rechecks current authority,
-environment and shop under locks. Identical existing private drafts are reused
-on retry without additional versions/audit. The shared 50-version bound applies.
+environment and shop under locks. Identical existing private drafts from the same
+validated base ID/revision are reused on retry without additional versions/audit.
+A changed active base creates a new version even if an older draft matches the design. The shared 50-version bound applies.
 Randomise is local only and chooses a different shape AND ink on every click;
 manual shape/ink selectors remain available. No request is sent until Save.
 Uploaded artwork has no randomisation controls and keeps its existing contract.
