@@ -15,6 +15,16 @@ GPT owns end-to-end implementation and initiates independent review under
 and scope decisions. A conductor/orchestrator has not been onboarded. `AGENTS.md`
 is the shared working contract. This assignment covers every milestone; frontend work is not reserved for Claude.
 
+## Current follow-up — Bulk importer table (#123), 3 October 2026
+
+Replace the 1–6 wizard with one whole-job table: automatic valid-row selection,
+blocked invalid/duplicates, correction CSV and targeted row_id re-upload, direct
+draft save and selected publication, partial outcomes and exceptions focus.
+Existing guarded APIs remain authoritative. Same-target corrections use a fresh
+reviewed operation revision while retaining completed outcomes. All supported
+fields and coordinates get persistence regressions. See `docs/api/admin-import-v1.md`.
+PR only: no merge, hosted migration, deployment or founder acceptance is authorized.
+
 ## Current follow-up — Main store type, 3 October 2026
 
 Founder approved one main store type per shop. Add Bookshop, Art Supply Store,

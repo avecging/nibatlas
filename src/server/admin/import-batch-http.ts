@@ -51,8 +51,15 @@ export async function handleImportBatch(request: Request, gateway: ShopAdminGate
     }
     const [prepared] = await prepareImport(parseRows([op.patch]), batchId, gateway);
     const valid = prepared && eligible(prepared.preview) && prepared.preview.reviewKey === op.review_key;
-    return json(await gateway.call('admin_import_operation', { p_action: 'execute', p_batch: batchId, p_operation: operationId,
+    const result = object(await gateway.call('admin_import_operation', { p_action: 'execute', p_batch: batchId, p_operation: operationId,
       p_payload: valid ? { document: prepared.document, reviewKey: prepared.preview.reviewKey } : {} }));
+    // The table can bind immediate publication to exactly the draft this action
+    // saved, without a full-batch read per row or trusting a later editor revision.
+    if (result.status === 'imported') {
+      const saved = object(await gateway.call('admin_import_operation_read', { p_batch: batchId, p_operation: operationId }));
+      result.resultRevision = saved.result_revision;
+    }
+    return json(result);
   } catch (e) {
     if (e instanceof ImportConflictError) return json({ error: { code: 'conflict' }, message: 'The operation or record changed. Reopen the batch and review again.' }, 409);
     return adminFailure(e instanceof AdminForbiddenError ? 'forbidden' : 'service_unavailable');

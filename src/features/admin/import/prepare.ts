@@ -128,6 +128,11 @@ export function prepareRow(row: MappedRow, context: Context, options: Options, p
         });
       }
     }
+    preview.position = {
+      latitude: typeof normalized.shop.latitude === 'number' ? normalized.shop.latitude : null,
+      longitude: typeof normalized.shop.longitude === 'number' ? normalized.shop.longitude : null,
+      address: typeof normalized.shop.address_line_1 === 'string' ? normalized.shop.address_line_1 : null,
+    };
     for (const [key, after] of Object.entries(normalized.shop)) {
       const before = base.shop[key] ?? null;
       if (JSON.stringify(before) !== JSON.stringify(after) || !target && after !== null) preview.changes.push({ field: key, before: target ? before : null, after, clear: clears.has(key) || clears.has(key === 'country_code' ? 'country' : key === 'locality_id' ? 'locality' : '') });
