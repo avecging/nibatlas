@@ -7,10 +7,11 @@ import styles from "./NearMe.module.css";
 export function NearMe({ location }: { readonly location: ReturnType<typeof useNearMe> }) {
   return (
     <div className={styles.control}>
-      <button className={styles.button} type="button" onClick={location.explain}
+      <button className={`${styles.button} ${styles.locateButton}`} type="button" onClick={location.explain}
+        aria-label={location.status === "locating" ? "Finding you…" : "Near me"}
+        title="Near me" aria-busy={location.status === "locating"}
         disabled={location.status === "locating"} aria-expanded={location.status !== "idle"}>
-        <Icon name="locate" size={18} />
-        {location.status === "locating" ? "Finding you…" : "Near me"}
+        <Icon name="locate" size={22} />
       </button>
       {location.status !== "idle" ? (
         <div className={styles.panel}>

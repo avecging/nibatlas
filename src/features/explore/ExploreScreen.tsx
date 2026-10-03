@@ -729,7 +729,6 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
             }
           />
           {modeSwitch}
-          {mode === "area" ? <NearMe location={nearMe} /> : null}
           {/*
             The reviewer strip. Map is the one screen with no header at mobile
             widths, so the marker, the way out, and the basemap diagnostic sit in
@@ -782,16 +781,19 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
         />
 
         <div className={styles.searchAreaSlot}>
-          <SearchThisArea
-            mode={offerMode}
-            onSearch={() =>
-              dispatch(
-                // Retry re-runs the query the visible results are under. Only an
-                // offer commits the camera the reader has moved to.
-                offerMode === "error" ? { type: "retryQuery" } : { type: "commitSearch" },
-              )
-            }
-          />
+          <div className={styles.searchAreaAction}>
+            <SearchThisArea
+              mode={offerMode}
+              onSearch={() =>
+                dispatch(
+                  // Retry re-runs the query the visible results are under. Only an
+                  // offer commits the camera the reader has moved to.
+                  offerMode === "error" ? { type: "retryQuery" } : { type: "commitSearch" },
+                )
+              }
+            />
+          </div>
+          {mode === "area" ? <NearMe location={nearMe} /> : null}
         </div>
 
         {isDesktop ? null : (
