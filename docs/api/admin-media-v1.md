@@ -192,7 +192,11 @@ actual staging verification remains a release gate. See
   limit; 503 storage/database/Images unavailable or decoder failure. Database-detected expiry during a
   finalization race is 422. Finalization bodies with data are rejected.
 - Initiation limit: 100 manifests per account per rolling 24 hours, serialized
-  through the actor row. Maximum newly accepted bytes is therefore 500 MiB/day.
+  through a dedicated per-actor transaction advisory lock across environments.
+  Media transport and gallery operations use shared live-role locks, compatible
+  with catalogue saves while still blocking concurrent role changes. Existing
+  shop/receipt locks preserve attachment and publication serialization.
+  Maximum newly accepted bytes is therefore 500 MiB/day.
 - Pending uploads expire after 24 hours. GET still reports their expiry; they
   cannot finalize. Initiate again for a new attempt. No multipart upload exists.
 - Missing, invalid or interrupted uploads never become validated or public.
@@ -249,6 +253,19 @@ CSP and private/no-store headers; no raw bucket URL, provider key, redirect, pub
 image proxy or persistent cache is exposed. Already downloaded pixels cannot be
 retracted by hiding; new requests are denied. Private preview is attached media
 only and permits current editors/admins, not just the original uploader.
+
+Database statement/lock timeouts return `503 media_busy` without provider details.
+Reload a failed image list; retry selected uploads with their existing session
+and exact bytes. Do not automatically retry ambiguous publication mutations.
+
+The photo and logo pickers can prepare and transfer files concurrently, including
+while catalogue details are saving. Each picker keeps its own upload identity and
+retry state. Attachment responses are applied in order so an older gallery
+snapshot cannot discard the other image. Reload, caption/order, publication and
+deletion controls wait for the active transfers to finish; each image stays private
+until an admin explicitly shows it. Database shop/revision locks still protect
+conflicting writes to the same record; unrelated shop saves do not lock media out
+through the actor's shared role check.
 
 Errors: 400 malformed; 401 identity; 403 role/origin; 404 absent/nonpublic/wrong
 environment; 409 stale revision; 422 wrong/unvalidated target; 429 50-image limit;
