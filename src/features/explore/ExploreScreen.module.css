@@ -373,3 +373,10 @@
     width: min(26rem, calc(100% - var(--space-6)));
   }
 }
+
+@media (max-width: 1023px) and (max-height: 480px) {
+  /* Let the compact landscape disclosure sit over the sheet while it is open. */
+  .searchAreaSlot:has([aria-expanded="true"]) {
+    z-index: 26;
+  }
+}
