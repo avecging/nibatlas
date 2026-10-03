@@ -7,6 +7,8 @@ import {
   ShopReadContractError,
 } from "@/src/api/v1/shop-read";
 
+import { SHOP_TYPES } from "@/src/domain/shops";
+
 const SOURCE_ID = "00000000-0000-4000-8000-000000000501";
 const OTHER_SOURCE_ID = "00000000-0000-4000-8000-000000000502";
 
@@ -45,6 +47,10 @@ function detail() {
 }
 
 describe("v1 shop read runtime contract", () => {
+  it.each(SHOP_TYPES)('decodes the main store type %s in detail and map records', primaryType => {
+    expect(decodeShopDetailV1({...detail(),primaryType,shopTypes:[primaryType]})?.primaryType).toBe(primaryType);
+    expect(decodeViewportShopsV1({shops:[{...MAP_SHOP,primaryType}],truncated:false,committedBounds:{west:103,south:1,east:104,north:2}}).shops[0]?.primaryType).toBe(primaryType);
+  });
   it('decodes bounded local date exceptions and rejects impossible dates', () => {
     const exceptions = [{date:'2026-12-25',closed:true,note:'Holiday'},{date:'2026-12-31',opens:'22:00',closes:'02:00'}];
     expect(decodeShopDetailV1({...detail(),openingHoursExceptions:exceptions})?.openingHoursExceptions).toEqual(exceptions);

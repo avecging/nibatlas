@@ -37,20 +37,35 @@ describe('bounded import file contract', () => {
   });
 });
 describe('mapping and safe merged previews', () => {
+  it('replaces a supplied main type, preserves blanks and selected metadata, and leaves experiences intact',()=>{
+    const base=record();
+    base.document.types=[{shop_type_id:id,is_primary:true,note:'Original type note'}];
+    base.document.experiences=[{id,category:'other',title:'Nib repair',description:'Manually maintained'}];
+    const choices={...options,types:[{id,label:'Fountain Pen Specialist'},{id:brand,label:'Brand Boutique'}]};
+    const prepare=(cells:Record<string,string>)=>prepareRow(mapRows(parse([{shop_id:id,...cells}]),choices,{})[0]!,{...context(),record:base},choices,id);
+    const replaced=prepare({shop_type:'Brand Boutique'});
+    expect(replaced.document?.types).toEqual([expect.objectContaining({shop_type_id:brand,is_primary:true,note:null})]);
+    expect(replaced.document?.experiences).toEqual(base.document.experiences);
+    expect(replaced.preview.changes.find(c=>c.field==='shop_type')).toMatchObject({before:base.document.types,clear:false});
+    expect(prepare({shop_type:''}).document?.types).toEqual(base.document.types);
+    expect(prepare({shop_type:'Fountain Pen Specialist'}).document?.types).toEqual(base.document.types);
+    expect(prepare({clear_fields:'shop_type'}).document?.types).toEqual([]);
+    expect(prepare({shop_type:'Fountain Pen Specialist|Brand Boutique'}).preview.action).toBe('blocked');
+  });
   it('maps canonical type codes and reviewed brand names without creating choices', () => {
     const canonical: Options = {
       localities: [{ id: local, label: 'Singapore (SG)', countryCode: 'SG' }],
       types: [
         { id, label: 'Fountain Pen Specialist', code: 'fountain_pen_specialist' },
         { id: '60000000-0000-4000-8000-000000000004', label: 'Stationery Store', code: 'stationery_store' },
-        { id: '60000000-0000-4000-8000-000000000005', label: 'Nib / Repair Services', code: 'nib_repair_services' },
+        { id: '60000000-0000-4000-8000-000000000005', label: 'Distributor', code: 'distributor' },
       ],
       brands: ['Waterman', 'LAMY', 'Graf von Faber-Castell', 'Faber-Castell', 'Kaweco']
         .map((label, index) => ({ id: `60000000-0000-4000-8000-0000000000${10 + index}`, label })),
       specialties: [], services: [],
     };
     const rows = parse([
-      { row_id: 'sg-1', country: 'Singapore', locality: 'Singapore', shop_type: 'nib_repair_services', brands: 'Waterman' },
+      { row_id: 'sg-1', country: 'Singapore', locality: 'Singapore', shop_type: 'distributor', brands: 'Waterman' },
       { row_id: 'sg-2', country: 'SG', locality: 'Singapore', shop_type: 'fountain_pen_specialist', brands: 'Lamy|Graf von Faber-Castell' },
       { row_id: 'sg-3', country: 'SG', locality: 'Singapore', shop_type: 'stationery_store', brands: 'Faber-Castell|Kaweco' },
     ]);

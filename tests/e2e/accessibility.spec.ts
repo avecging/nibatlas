@@ -132,7 +132,7 @@ test("the filter drawer is accessible and keyboard-complete", async ({ page }) =
   expect((await analyze(page)).violations).toEqual([]);
 
   // A drafted change and an Escape: closed, discarded, focus returned.
-  await drawer.getByRole("button", { name: "Vintage / Used", exact: true }).click();
+  await drawer.getByRole("button", { name: "Bookshop", exact: true }).click();
   await page.keyboard.press("Escape");
 
   await expect(drawer).toHaveCount(0);

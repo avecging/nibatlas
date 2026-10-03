@@ -8,7 +8,7 @@ import { decodeOptions, type Options } from '../shop-contract';
 import { FIELDS, MAX_REPORT_BYTES, VERSION, type BatchSummary, type ColumnMap, type InputRow, type Upload, type ValueMap } from './contract';
 import { defaultColumns, parseFile, safeCsvCell } from './parse';
 import { mapRows, projectRows, vocabularyGroups, vocabularyOptions } from './mapping';
-import { correctionCsv, decodeCorrection, guidance, matches, mergeCorrections, problems, published, sameCells, selectable, status, type Filter, type JobRow } from './job';
+import { correctionCsv, decodeCorrection, displayedPosition, guidance, matches, mergeCorrections, problems, published, sameCells, selectable, status, type Filter, type JobRow } from './job';
 import { actOnRow, ImportAccessError, importRequest, listJobs, previewRows, publicationRows, readJob } from './job-api';
 import styles from './ImportAdmin.module.css';
 
@@ -74,8 +74,7 @@ function ImportWorkspace() {
       if (saved.has(input.rowId)) return saved.get(input.rowId)!;
       const checkedRow = checked.find(r => r.input.rowId === input.rowId)!, previous = old.find(r => r.input.rowId === input.rowId);
       const correction = previous?.operation?.status === 'imported' && checkedRow.preview?.action !== 'no_change';
-      return { ...checkedRow, operation: previous?.operation, correction,
-        publication: correction ? undefined : previous?.publication };
+      return { ...checkedRow, operation: previous?.operation, correction, publication: previous?.publication };
     });
     setRows(next);
     setSelected(new Set(next.filter(r => selectable(r) && (corrected.has(r.input.rowId) || selected.has(r.input.rowId) || !old.some(o => o.input.rowId === r.input.rowId && selectable(o)))).map(r => r.input.rowId)));
@@ -187,7 +186,7 @@ function ImportWorkspace() {
           help={rows.length ? 'Re-upload corrections with the same row_id. Other rows stay in this job.' : 'UTF-8 CSV or JSON · up to 500 rows and 2 MiB. Valid rows are selected automatically.'}
           onSelect={file => { void loadFile(file); }} onClear={() => { controller.current?.abort(); setBusy(false); setFilename(''); setFileError(''); setUpload(null); }} />
         {upload && Object.entries(columns).some(([k, v]) => !v && !['correction_format', 'errors', 'how_to_fix'].includes(k)) && <p role="alert">Columns not imported: {Object.entries(columns).filter(([k, v]) => !v && !['correction_format', 'errors', 'how_to_fix'].includes(k)).map(([k]) => k).join(', ')}. Open Column and value mapping to match these fields.</p>}
-        <details><summary>Field instructions</summary><p>Blank cells preserve existing values. Use an exact shop_id to update an existing shop. To clear a value, name it in clear_fields, separated by |. Supplied brands and specialties are added; shop_type sets the primary type. Names never authorize overwrites.</p><p>Supply latitude and longitude together as decimal numbers. Saving retains the coordinates; publication requires a deliberate position confirmation. Country, locality, shop type, brands and specialties must match existing catalogue choices.</p><p>Supply local_name with local_name_language, for example ja-JP. Opening hours, media, sources and experiences are not supported by this template. Keep the correction CSV as UTF-8 to preserve non-English characters.</p><p>Reviewed operations and outcomes can be reopened for 30 days. Unsubmitted rows stay in this page; keep your source file to restore them after a reload. Corrections to saved rows create a fresh reviewed update to the same shop; completed operations are never replayed.</p></details>
+        <details><summary>Field instructions</summary><p>Blank cells preserve existing values. Use an exact shop_id to update an existing shop. To clear a value, name it in clear_fields, separated by |. Supplied brands and specialties are added; a supplied shop_type replaces the previous main store type. Add secondary features manually under Experiences. Names never authorize overwrites.</p><p>Supply latitude and longitude together as decimal numbers. Saving retains the coordinates; publication requires a deliberate position confirmation. Country, locality, shop type, brands and specialties must match existing catalogue choices.</p><p>Supply local_name with local_name_language, for example ja-JP. Opening hours, media, sources and experiences are not supported by this template. Keep the correction CSV as UTF-8 to preserve non-English characters.</p><p>Reviewed operations and outcomes can be reopened for 30 days. Unsubmitted rows stay in this page; keep your source file to restore them after a reload. Corrections to saved rows create a fresh reviewed update to the same shop; completed operations are never replayed.</p></details>
         {!!sources.length && <details onToggle={e => setMappingOpen(e.currentTarget.open)}><summary>Column and value mapping · {groups.filter(g => !g.resolved).length} unresolved values</summary>
           {mappingOpen && <>{upload && <><p>Unrecognized columns are ignored until mapped. Check the sample before applying changes.</p><div className={styles.grid}>{upload.columns.filter(c => !['correction_format', 'errors', 'how_to_fix'].includes(c)).map((column, index) => <label key={column}>{column}<select aria-label={`Map ${column}`} disabled={busy} value={columns[column] ?? ''} onChange={e => { const next = { ...columns, [column]: e.target.value }; setColumns(next); setSelected(new Set()); setRows(r => r.filter(x => x.operation?.status === 'imported')); }}><option value="">Ignore this column</option>{FIELDS.map(f => <option key={f} value={f}>{f}</option>)}</select><small>Example: {upload.rows.find(r => r.cells[column])?.cells[column]?.slice(0, 70) || '(blank)'} · column {index + 1}</small></label>)}</div><button disabled={busy} onClick={() => void remap(columns)}>Apply column mapping</button></>}
           <div className={styles.grid}>{groups.map(g => { const choices = vocabularyOptions(g.kind, options, g.country); return <SearchSelect key={g.key} label={`${g.kind}: ${g.raw} (${g.count} rows)`} path={g.key} value={g.resolved ?? ''} valueLabel={choices.find(c => c.id === g.resolved)?.label ?? ''} search={q => choices.filter(c => `${c.label} ${c.id}`.toLowerCase().includes(q.toLowerCase())).slice(0, 60)} onChange={id => {
@@ -206,8 +205,16 @@ function ImportWorkspace() {
           <button disabled={busy} onClick={() => void refresh()}>Refresh job</button>
         </div>
         {publishDecision && <div className={styles.confirmation} role="region" aria-label="Confirm publication">
-          <h3>Publish {chosen.length} selected shops?</h3><p>Selected data will be saved and published after validation. Check the selected rows and their changes below. Each shop succeeds or fails independently.</p>
-          <label><input type="checkbox" checked={positionsChecked} onChange={e => setPositionsChecked(e.target.checked)} />I have checked the selected addresses and coordinates and confirm these positions.</label>
+          <h3>Publish {chosen.length} selected shops?</h3><p>Selected data will be saved and published after validation. Every selected position is listed here even when the job table is filtered. Each shop succeeds or fails independently.</p>
+          <div className={styles.tableScroll} role="region" aria-label="Selected positions" tabIndex={0}><table className={styles.table}>
+            <caption className={styles.caption}>Addresses and coordinates covered by this confirmation</caption>
+            <thead><tr><th scope="col">Row ID</th><th scope="col">Shop</th><th scope="col">Address</th><th scope="col">Latitude</th><th scope="col">Longitude</th></tr></thead>
+            <tbody>{chosen.map(row => { const coordinates = displayedPosition(row); return <tr key={row.input.rowId}>
+              <th scope="row">{row.input.rowId}</th><td>{row.publication?.name || row.preview?.name || row.input.cells.name || '(name missing)'}</td>
+              <td>{coordinates?.address ?? row.input.cells.address_line_1 ?? '—'}</td><td>{coordinates?.latitude ?? row.input.cells.latitude ?? '—'}</td><td>{coordinates?.longitude ?? row.input.cells.longitude ?? '—'}</td>
+            </tr>; })}</tbody>
+          </table></div>
+          <label><input type="checkbox" checked={positionsChecked} onChange={e => setPositionsChecked(e.target.checked)} />I have checked every selected address and coordinate shown above and confirm these positions.</label>
           <p>Existing confirmed positions remain valid. Without this check, unconfirmed positions stay as drafts with a clear error.</p>
           <div className={styles.actions}><button onClick={() => void act('publish')}>Confirm and publish selected</button><button onClick={() => setPublishDecision(false)}>Cancel</button></div>
         </div>}
@@ -220,7 +227,7 @@ function ImportWorkspace() {
         <div className={styles.tableScroll} role="region" aria-label="Import rows" tabIndex={0}><table className={styles.table}>
           <caption className={styles.caption}>All job rows · selection applies across filters</caption>
           <thead><tr><th scope="col">Select</th><th scope="col">Row ID</th><th scope="col">Shop</th><th scope="col">Status</th><th scope="col">Country / locality</th><th scope="col">Address</th><th scope="col">Latitude</th><th scope="col">Longitude</th><th scope="col">Problems / changes</th></tr></thead>
-          <tbody>{visible.map(row => { const input = row.input, issues = problems(row), coordinates = row.correction ? undefined : row.publication?.coordinates; return <tr key={input.rowId} data-status={status(row)}>
+          <tbody>{visible.map(row => { const input = row.input, issues = problems(row), coordinates = displayedPosition(row); return <tr key={input.rowId} data-status={status(row)}>
             <td><input type="checkbox" aria-label={`Select ${input.rowId}`} disabled={busy || !selectable(row)} checked={selected.has(input.rowId) && selectable(row)} onChange={e => { setSelected(s => { const next = new Set(s); if (e.target.checked) next.add(input.rowId); else next.delete(input.rowId); return next; }); setPublishDecision(false); }} /></td>
             <th scope="row">{input.rowId}<small>Source row {input.line}</small></th>
             <td><strong>{row.publication?.name || row.preview?.name || input.cells.name || '(name missing)'}</strong>{row.operation?.status === 'imported' && <Link href={`/admin/shops/${row.operation.target_id}`}>Open saved shop</Link>}</td>

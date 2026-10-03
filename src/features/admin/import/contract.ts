@@ -28,6 +28,7 @@ export interface PreviewRow {
   action: 'new_private_draft' | 'update_private_draft' | 'no_change' | 'review_duplicates' | 'blocked';
   issues: FieldIssue[]; candidates: Candidate[]; fileDuplicates: string[]; changes: Change[];
   publicationErrors: string[]; hasPrivateChanges: boolean; reviewKey?: string;
+  position?: { latitude: number | null; longitude: number | null; address: string | null };
 }
 export interface Prepared { preview: PreviewRow; document: Document | null; proposedId: string }
 export interface Bootstrap { options: Options }

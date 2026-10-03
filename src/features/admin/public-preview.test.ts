@@ -3,11 +3,17 @@ import { document, type Options, type ShopRecord } from './shop-contract';
 import { projectSavedShopPreview } from './public-preview';
 import { projectShopDetail } from '@/src/features/shops/shop-detail-projection';
 import { decodeShopDetailV1 } from '@/src/api/v1/shop-read';
+import { SHOP_TYPES } from '@/src/domain/shops';
+import { SHOP_TYPE_LABELS } from '@/src/domain/shop-detail';
 const id='61000000-0000-4000-8000-000000000001', type='61000000-0000-4000-8000-000000000002';
 const options:Options={localities:[],types:[{id:type,code:'fountain_pen_specialist',label:'Fountain Pen Specialist'}],services:[],specialties:[],brands:[]};
 function fixture():ShopRecord { return {id,revision:'a'.repeat(32),publicationStatus:'draft',publicationErrors:[],hasChanges:true,document:document({sources:[],aliases:[],links:[],services:[],specialties:[],brands:[],shop:{name:'Synthetic shop',slug:'synthetic-shop',country_code:'SG',city_display:'Singapore',timezone:'Asia/Singapore',latitude:0,longitude:0,position_precision:'street',operational_status:'unknown',source_quality:'community_unverified'},types:[{shop_type_id:type,is_primary:true}]})}; }
 
 describe('saved public renderer projection',()=>{
+  it.each(SHOP_TYPES)('renders the main store type %s in saved previews', code=>{
+    const preview=projectSavedShopPreview(fixture(),{...options,types:[{id:type,code,label:SHOP_TYPE_LABELS[code]}]});
+    expect(preview?.primaryType).toBe(code);
+  });
   it('matches the public adapter for a saved document, without asserting a review',()=>{
     const record=fixture();
     record.document.shop.short_description='Synthetic introduction';

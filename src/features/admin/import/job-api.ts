@@ -1,7 +1,7 @@
 import { readAdminResponse } from '../read-response';
 import { BATCH_SIZE, VERSION, type BatchSummary, type ImportBatch, type ImportOperation, type MappedRow, type PreviewRow } from './contract';
 import type { PublicationPage, PublicationRow } from './publication-contract';
-import { guidance, type JobRow } from './job';
+import { displayedPosition, guidance, type JobRow } from './job';
 
 export class ImportAccessError extends Error {}
 export async function importRequest<T>(path: string, signal: AbortSignal, payload?: unknown): Promise<T> {
@@ -102,9 +102,8 @@ export async function actOnRow(row: JobRow, batchId: string, action: 'draft' | '
       reviewKey: publication.reviewKey, previousOperation: publication.publication?.id ?? null });
     replace({ publication: reviewed });
     if (reviewed.canConfirm && confirmPosition) {
-      const shown = row.publication?.coordinates ?? { latitude: Number(row.input.cells.latitude), longitude: Number(row.input.cells.longitude), address: row.input.cells.address_line_1 || null };
-      if ((!row.publication && (!row.input.cells.latitude?.trim() || !row.input.cells.longitude?.trim())) ||
-        shown.latitude !== reviewed.coordinates.latitude || shown.longitude !== reviewed.coordinates.longitude || shown.address !== reviewed.coordinates.address) {
+      const shown = displayedPosition(row);
+      if (shown.latitude === null || shown.longitude === null || shown.latitude !== reviewed.coordinates.latitude || shown.longitude !== reviewed.coordinates.longitude || shown.address !== reviewed.coordinates.address) {
         throw Error('The saved position differs from the displayed input. Refresh this job, check its saved coordinates and address, then publish.');
       }
       replace({ publication: await importRequest<PublicationRow>('/publication', signal, { version: VERSION, action: 'confirm_position', batchId,

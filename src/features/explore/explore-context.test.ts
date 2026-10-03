@@ -17,7 +17,7 @@ const CONTEXT: ExploreContext = {
   label: "Taipei",
   filters: {
     status: "saved",
-    shopTypes: ["stationery_store", "vintage_used"],
+    shopTypes: ["stationery_store", "bookshop"],
     availability: "not_closed",
   },
 };
@@ -52,6 +52,15 @@ describe("explore return context", () => {
     ).toBeNull();
   });
 
+  it("drops retired type filters while preserving the saved map and other filters", () => {
+    const old = {...CONTEXT, filters: {...CONTEXT.filters, shopTypes: ["vintage_used", "stationery_store", "nib_repair_services"]}};
+    expect(decodeExploreContext(JSON.stringify(old))).toEqual({...CONTEXT, filters: {...CONTEXT.filters, shopTypes: ["stationery_store"]}});
+    window.sessionStorage.setItem(EXPLORE_CONTEXT_STORAGE_KEY, JSON.stringify(old));
+    const url = new URL(withExploreContext("/shops/synthetic?from=map"), "https://test.invalid");
+    expect(decodeExploreContext(url.searchParams.get(EXPLORE_CONTEXT_PARAM))).toEqual({...CONTEXT, filters: {...CONTEXT.filters, shopTypes: ["stationery_store"]}});
+    expect(decodeExploreContext(JSON.stringify({...old, filters: {...old.filters, shopTypes: ["invented_code"]}}))).toBeNull();
+  });
+
   it("canonicalises duplicate and unordered shop types", () => {
     expect(
       decodeExploreContext(
@@ -59,11 +68,11 @@ describe("explore return context", () => {
           ...CONTEXT,
           filters: {
             ...CONTEXT.filters,
-            shopTypes: ["vintage_used", "stationery_store", "vintage_used"],
+            shopTypes: ["bookshop", "stationery_store", "bookshop"],
           },
         }),
       )?.filters.shopTypes,
-    ).toEqual(["stationery_store", "vintage_used"]);
+    ).toEqual(["stationery_store", "bookshop"]);
   });
 
   it("adds persisted context only to map and shop paths", () => {

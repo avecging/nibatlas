@@ -19,7 +19,9 @@ function setup(loseResponse = false) {
 }
 async function upload(content: string, name = 'shops.csv') {
   fireEvent.change(await screen.findByLabelText('CSV or JSON file'), { target: { files: [{ name, size: content.length, arrayBuffer: async () => new TextEncoder().encode(content).buffer }] } });
-  await waitFor(() => expect(screen.getByText(/rows checked/)).toBeInTheDocument());
+  // A 102-row job is previewed in five deliberately sequential API batches.
+  // CI can exceed Testing Library's one-second default while still progressing.
+  await screen.findByText(/rows checked/, {}, { timeout: 15_000 });
 }
 it('shows 102 rows together, auto-selects valid rows, excludes invalid/duplicates and saves directly with partial success', async () => {
   const fixture = setup(true);
@@ -51,12 +53,17 @@ it('merges correction subsets by row_id, selects newly valid rows and retains un
 });
 it('publishes selected directly with explicit position confirmation and isolates publication blockers', async () => {
   const fixture = setup(); await upload(syntheticCsv(3).replace('row-1,Synthetic 1,SG,Synthetic City,stationery,Synthetic address', 'row-1,Synthetic 1,SG,Synthetic City,stationery,'));
+  fireEvent.change(screen.getByLabelText('Find row or shop'), { target: { value: 'Synthetic 0' } });
+  expect(screen.queryByText('Synthetic 2')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Publish selected' }));
+  const confirmation = screen.getByRole('region', { name: 'Confirm publication' });
+  expect(within(confirmation).getByRole('region', { name: 'Selected positions' })).toHaveTextContent('Synthetic 2');
   expect(fixture.writes.size).toBe(0);
-  fireEvent.click(screen.getByLabelText(/I have checked the selected addresses/));
+  fireEvent.click(screen.getByLabelText(/I have checked every selected address/));
   fireEvent.click(screen.getByRole('button', { name: 'Confirm and publish selected' }));
   await screen.findByText('2 published · 1 remaining');
   expect(fixture.writes.size).toBe(3); expect(fixture.publishWrites.size).toBe(2);
+  fireEvent.change(screen.getByLabelText('Find row or shop'), { target: { value: '' } });
   expect(screen.getAllByText(/Add the street address/).length).toBeGreaterThan(0);
   const record = [...fixture.records.values()][0]!;
   expect(record.document.shop).toMatchObject({ latitude: 1.3, longitude: 103.8 });
@@ -74,6 +81,40 @@ it('does not infer confirmation and can correct an imported draft by row_id with
   await screen.findByText('2 imported · 0 remaining');
   expect(fixture.writes.get('row-0')).toBe(2); expect(fixture.writes.get('row-1')).toBe(1);
   expect(fixture.records.get(target)?.document.shop).toMatchObject({ name: 'Changed', latitude: -1.2, longitude: -103.4, country_code: 'SG' });
+});
+it('shows preserved saved coordinates and directly publishes a correction that omits them', async () => {
+  const fixture = setup(); await upload(syntheticCsv(1));
+  fireEvent.click(screen.getByRole('button', { name: 'Save selected as drafts' }));
+  await screen.findByText('1 imported · 0 remaining');
+  await upload('row_id,name\nrow-0,Corrected name only');
+  fireEvent.click(screen.getByRole('button', { name: 'Publish selected' }));
+  const positions = screen.getByRole('region', { name: 'Selected positions' });
+  expect(positions).toHaveTextContent('Synthetic address');
+  expect(positions).toHaveTextContent('1.3');
+  expect(positions).toHaveTextContent('103.8');
+  fireEvent.click(screen.getByLabelText(/I have checked every selected address/));
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm and publish selected' }));
+  await screen.findByText('1 published · 0 remaining');
+  expect(fixture.writes.get('row-0')).toBe(2);
+  expect(fixture.publishWrites.size).toBe(1);
+});
+it('shows preserved coordinates on the first exact-ID update and publishes without re-entry', async () => {
+  const fixture = setup(); await upload(syntheticCsv(1));
+  fireEvent.click(screen.getByRole('button', { name: 'Save selected as drafts' }));
+  await screen.findByText('1 imported · 0 remaining');
+  const target = [...fixture.records.keys()][0]!;
+  fireEvent.click(screen.getByRole('button', { name: 'Start a new job' }));
+  await upload(`row_id,shop_id,name\nupdate-1,${target},First exact-ID update`);
+  fireEvent.click(screen.getByRole('button', { name: 'Publish selected' }));
+  const positions = screen.getByRole('region', { name: 'Selected positions' });
+  expect(positions).toHaveTextContent('Synthetic address');
+  expect(positions).toHaveTextContent('1.3');
+  expect(positions).toHaveTextContent('103.8');
+  fireEvent.click(screen.getByLabelText(/I have checked every selected address/));
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm and publish selected' }));
+  await screen.findByText('1 published · 0 remaining');
+  expect(fixture.writes.get('update-1')).toBe(1);
+  expect(fixture.publishWrites.get('update-1')).toBe(1);
 });
 it('reopens saved outcomes without writes and offers drafts in the same table', async () => {
   const fixture = setup(); await upload(syntheticCsv(2));

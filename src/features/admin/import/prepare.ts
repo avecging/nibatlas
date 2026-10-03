@@ -46,9 +46,14 @@ export function prepareRow(row: MappedRow, context: Context, options: Options, p
     if (clears.has(field)) merged[group] = [];
     else if (input[field]?.trim() && !row.issues.some(i => i.path === field)) {
       const ids = input[field]!.split('|');
-      // Supplied relationships add/reuse, preserving legacy notes and source links.
-      if (group === 'types') merged.types.forEach(r => { r.is_primary = r[key] === ids[0]; });
-      for (const id of ids) if (!merged[group].some(r => r[key] === id)) merged[group].push({ [key]: id, ...(group === 'types' ? { is_primary: true } : {}) });
+      if (group === 'types') {
+        if (ids.length !== 1) { fail(field, 'Choose one main store type. Add secondary features under Experiences.'); continue; }
+        const existing = merged.types.find(r => r.shop_type_id === ids[0]);
+        merged.types = [{...existing, shop_type_id: ids[0]!, is_primary: true}];
+      } else {
+        // Brands and specialties still add/reuse existing relationships.
+        for (const id of ids) if (!merged[group].some(r => r[key] === id)) merged[group].push({ [key]: id });
+      }
     }
   }
   for (const platform of PLATFORMS) {
@@ -123,6 +128,11 @@ export function prepareRow(row: MappedRow, context: Context, options: Options, p
         });
       }
     }
+    preview.position = {
+      latitude: typeof normalized.shop.latitude === 'number' ? normalized.shop.latitude : null,
+      longitude: typeof normalized.shop.longitude === 'number' ? normalized.shop.longitude : null,
+      address: typeof normalized.shop.address_line_1 === 'string' ? normalized.shop.address_line_1 : null,
+    };
     for (const [key, after] of Object.entries(normalized.shop)) {
       const before = base.shop[key] ?? null;
       if (JSON.stringify(before) !== JSON.stringify(after) || !target && after !== null) preview.changes.push({ field: key, before: target ? before : null, after, clear: clears.has(key) || clears.has(key === 'country_code' ? 'country' : key === 'locality_id' ? 'locality' : '') });

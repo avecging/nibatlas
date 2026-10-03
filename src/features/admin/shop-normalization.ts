@@ -184,7 +184,8 @@ export function normalizeShopDocument(input: unknown, options?: Options): Docume
       seen.add(comparable);
     });
   }
-  if (result.types.filter(r => r.is_primary === true).length > 1) issue('types', 'Choose only one primary shop type.');
+  if (result.types.length > 1 || result.types.some(r => r.is_primary !== true))
+    issue('types', 'Choose one main store type. Add secondary features under Experiences.');
   const sources = new Set(result.sources.map(r => r.id));
   for (const group of ['types', 'services', 'specialties', 'brands'] as const) result[group].forEach((r, i) => {
     if (r.source_id != null && !sources.has(r.source_id)) issue(`${group}.${i}.source_id`, 'Choose a source belonging to this shop.');

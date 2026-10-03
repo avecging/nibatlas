@@ -9,6 +9,19 @@ export type JobRow = {
 export type Filter = 'all' | 'ready' | 'fixing' | 'duplicates' | 'failed';
 export const sameCells = (a: Record<string, string>, b: Record<string, string>) =>
   Object.keys(a).length === Object.keys(b).length && Object.keys(a).every(key => a[key] === b[key]);
+/** The exact position shown for an attestation, including saved values preserved by a correction. */
+export function displayedPosition(r: JobRow): PublicationRow['coordinates'] {
+  if (!r.correction && r.publication) return r.publication.coordinates;
+  if (r.preview?.position) return r.preview.position;
+  const cleared = new Set((r.input.cells.clear_fields ?? '').split('|').map(value => value.trim()));
+  const saved = r.publication?.coordinates;
+  const latitude = r.input.cells.latitude?.trim(), longitude = r.input.cells.longitude?.trim(), address = r.input.cells.address_line_1?.trim();
+  return {
+    latitude: cleared.has('latitude') ? null : latitude ? Number(latitude) : saved?.latitude ?? null,
+    longitude: cleared.has('longitude') ? null : longitude ? Number(longitude) : saved?.longitude ?? null,
+    address: cleared.has('address_line_1') ? null : address || saved?.address || null,
+  };
+}
 export const published = (r: JobRow) => !r.correction && (r.publication?.publication?.status === 'published' || r.publication?.kind === 'already_published');
 export const duplicate = (r: JobRow) => !!r.input.fileDuplicates.length || !!r.preview?.candidates.length || r.preview?.action === 'review_duplicates';
 export const selectable = (r: JobRow) => !duplicate(r) && !published(r) && !r.input.issues.length &&

@@ -1,5 +1,6 @@
 "use client";
 import { RelatedShopsEditor } from "./RelatedShopsEditor";
+import { MainShopType } from "./MainShopType";
 import { ShopChannelsEditor } from "./ShopChannelsEditor";
 import { Fragment } from "react";
 import { ExperienceIconPicker } from './ExperienceIconPicker';
@@ -717,9 +718,13 @@ function Workspace({ id }: { id: string | null }) {
   const groupEditor = (key: string) => {
     const g = groupByKey.get(key);
     if (!g || !draft) return null;
+    if (g.key === "types") return <MainShopType key="types" rows={draft.types}
+      options={options.types ?? []} disabled={busy || record?.publicationStatus === "archived"}
+      error={fieldErrors.find(e => e.path === "types" || e.path.startsWith("types."))?.message}
+      onChange={types => { clearError("types"); setDraft({...draft, types}); }} />;
     const vocabulary = g.fields[0]?.vocabulary;
     const empty = !!vocabulary && !options[vocabulary]?.length;
-    const creatable = ["brands", "specialties"].includes(g.key) || (g.key === "types" && role === "admin");
+    const creatable = ["brands", "specialties"].includes(g.key);
     return (
       <fieldset className={styles.group} key={g.key} data-field-path={g.key} tabIndex={-1}>
         <legend>

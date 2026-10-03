@@ -43,7 +43,10 @@ The draft execute HTTP response now includes the ledger's `resultRevision`.
 Immediate publication compares this with the saved publication state, refusing
 concurrent unseen edits. Refresh/reopen loads current saved documents when their
 revision differs from the import result, so inspection shows current content
-before binding publication to it. Database authorization, vocabulary, duplicate,
+before binding publication to it. Preview supplies the effective merged address
+and coordinates, including preserved existing values, for the explicit position
+attestation; publication rejects any mismatch with the freshly saved state.
+Database authorization, vocabulary, duplicate,
 revision, transaction, position, publication and audit rules remain authoritative.
 
 ## Shipped boundary
@@ -102,9 +105,14 @@ from all existing localities, with the merged country enforced by shared/SQL
 validation. Selections apply once to every matching value and can be reused when
 reselecting a corrected file in the same signed-in workspace. Nothing creates
 vocabulary. Brands/specialties use `|`-separated cells and add/reuse relationships;
-shop_type sets the primary type while retaining other type rows and legacy notes.
+shop_type selects exactly one main store type, replacing the previous type rows.
+Reusing the same type retains its legacy notes and source metadata; a different
+type does not inherit that evidence. Blank/omitted shop_type preserves the saved
+type, and an explicit clear leaves it unassigned in the private draft. Multiple
+legacy types require deliberate selection before saving. Secondary features such
+as vintage/used stock and nib/repair work are maintained manually in Experiences.
 
-Canonical shop-type codes (for example `nib_repair_services`) resolve from the
+Canonical shop-type codes (for example `distributor`) resolve from the
 existing database `shop_types.code` via the admin options response, as do
 unique UUIDs and display labels. The importer never creates a missing choice.
 The forward migration `20260925000100_singapore_import_vocabulary.sql` supplies
@@ -362,7 +370,7 @@ canonical map geometry, relationship values and same-target corrections.
 | All supported scalar fields, including editorial text, visit/contact details and private notes | `document.shop.<field>` through shared normalization and the normal private writer; canonical scalar fields on publication. Internal notes/reference links remain private. |
 | latitude / longitude | Numeric private shop fields, including negative values and zero; same normal editor fields; published PostGIS point uses longitude as X and latitude as Y. Position confirmation is independent and invalidated by location changes. |
 | country / locality | `shop.country_code` / `shop.locality_id`, canonical choices validated together. |
-| shop_type / brands / specialties | Primary type and relationship IDs; supplied entries add/reuse while retaining untouched metadata. |
+| shop_type / brands / specialties | A supplied shop type replaces the previous main type; blank preserves it. Supplied brands/specialties add or reuse relationships while retaining untouched metadata. Secondary features stay in manually authored Experiences. |
 | local_name / local_name_language | Deterministic local-name alias and its explicit language tag. |
 | All 13 social/contact columns | Deterministic links using the shared channel normalizer; copy-only contact IDs remain IDs. |
 | clear_fields | Explicit clearing instruction, reflected in before/after; not a stored catalogue field. |
