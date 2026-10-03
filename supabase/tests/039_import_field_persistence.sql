@@ -42,7 +42,7 @@ select public.admin_import_publication('confirm_position','e1230000-0000-4000-80
 select is(public.admin_import_publication('publish','e1230000-0000-4000-8000-000000000020','e1230000-0000-4000-8000-000000000030','e1230000-0000-4000-8000-000000000040')->'publication'->>'status','published','publish same imported coordinates without re-entry');
 update field_audit set saved=public.admin_shop_read('e1230000-0000-4000-8000-000000000010');
 select is(saved->'document'->'shop'->e.key,e.value,'published/editor roundtrip retains '||e.key) from field_audit,jsonb_each(d->'shop') e;
-select ok(saved->'document'->g @> d->g,'published/editor roundtrip retains relationship '||g) from field_audit,unnest(array['aliases','links','types','brands','specialties']) g;
+select ok((saved->'document'->g) @> (d->g),'published/editor roundtrip retains relationship '||g) from field_audit,unnest(array['aliases','links','types','brands','specialties']) g;
 -- The next row_id revision may update only the exact original target, with a fresh review.
 update field_audit set d=jsonb_set(saved->'document','{shop,latitude}','-34');
 update field_audit set payload=pg_temp.payload(d,saved->>'revision','e1230000-0000-4000-8000-000000000030');
