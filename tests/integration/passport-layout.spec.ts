@@ -47,23 +47,24 @@ async function expectBookFits(page: Page) {
 
 for (const reducedMotion of ['reduce', 'no-preference'] as const) {
  for (const viewport of [{ width: 360, height: 568 }, { width: 393, height: 700 }, { width: 768, height: 1024 }, { width: 1440, height: 900 }]) {
-  test(`account book fits with collapsed and expanded seals at ${viewport.width}x${viewport.height} (${reducedMotion})`, async ({ page }, info) => {
+  test(`account book uses pages while List keeps seal progress at ${viewport.width}x${viewport.height} (${reducedMotion})`, async ({ page }, info) => {
     await page.setViewportSize(viewport);
     await page.emulateMedia({ reducedMotion });
     await account(page);
     await page.goto('/passport/jp/tokyo');
+    const progress = page.locator('summary').filter({ hasText: 'Geographic seals' });
+    await expect(progress).toBeVisible();
+    await progress.click();
+    await expect(page.getByRole('heading', { name: 'Japan · country seal' })).toBeVisible();
     await page.getByRole('button', { name: 'Book', exact: true }).click();
-    await expect(page.locator('summary').filter({ hasText: 'Geographic seals' })).toBeVisible();
+    await expect(progress).toHaveCount(0);
     await expectBookFits(page);
-    await page.screenshot({ path: info.outputPath('passport-collapsed.png') });
-    await page.locator('summary').filter({ hasText: 'Geographic seals' }).click();
-    await expectBookFits(page);
-    await page.screenshot({ path: info.outputPath('passport-expanded.png') });
-    await page.locator('summary').filter({ hasText: 'Geographic seals' }).click();
+    await page.screenshot({ path: info.outputPath('passport-book.png') });
     await page.getByRole('button', { name: 'Contents', exact: true }).click();
     await expectBookFits(page);
     await page.getByRole('button', { name: 'Next page', exact: true }).click();
     await expect(page.locator('[class*="turner"]')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Geographic seals', exact: true })).toBeVisible();
     await expectBookFits(page);
     await page.getByRole('button', { name: 'Cover', exact: true }).click();
     await expect(page.locator('[data-mode][data-opened]')).toHaveAttribute('data-opened', 'false');
@@ -71,6 +72,9 @@ for (const reducedMotion of ['reduce', 'no-preference'] as const) {
     await page.getByRole('button', { name: 'Open Passport', exact: true }).click();
     await expectBookFits(page);
     await page.getByRole('button', { name: 'List', exact: true }).click();
+    await expect(progress).toBeVisible();
+    await progress.click();
+    await expect(page.getByRole('heading', { name: 'Japan · country seal' })).toBeVisible();
     await expect(page.getByRole('button', { name: /Historical Demo Shop/ })).toBeVisible();
   });
  }
@@ -82,8 +86,12 @@ for (const seals of ['empty', 'error'] as const) {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await account(page, seals);
     await page.goto('/passport/jp/tokyo');
-    await page.getByRole('button', { name: 'Book', exact: true }).click();
     if (seals === 'error') await expect(page.getByRole('status')).toContainText('Seals could not refresh');
+    await page.getByRole('button', { name: 'Book', exact: true }).click();
+    await expect(page.locator('summary').filter({ hasText: 'Geographic seals' })).toHaveCount(0);
+    await expect(page.getByText(/Seals could not refresh/)).toHaveCount(0);
     await expectBookFits(page);
+    await page.getByRole('button', { name: 'List', exact: true }).click();
+    if (seals === 'error') await expect(page.getByRole('status')).toContainText('Seals could not refresh');
   });
 }
