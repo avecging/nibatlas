@@ -62,6 +62,7 @@ export async function handleShopMedia(request: Request, shopId: string, id: stri
   } catch (error) {
     if (error instanceof AdminForbiddenError) return adminFailure('forbidden');
     if (error instanceof MediaOperationError) {
+      if (['57014','55P03'].includes(error.code)) return failure('media_busy',503);
       if (error.code === 'P0002') return failure('media_not_found',404);
       if (error.code === '40001') return failure('revision_conflict',409);
       if (error.code === '54000') return failure('media_limit',429);

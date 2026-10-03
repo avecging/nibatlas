@@ -146,6 +146,8 @@ jobs:
         run: python3 scripts/test-staging-catalogue-reset.py
       - name: Concurrent stamp issuance
         run: python3 scripts/verification/concurrency.py
+      - name: Media upload concurrency and role revocation
+        run: python3 scripts/verification/media-concurrency.py
       - name: Read performance (50k synthetic shops)
         run: |
           project_id="$(awk -F'"' '/^project_id = / { print $2; exit }' supabase/config.toml)"
