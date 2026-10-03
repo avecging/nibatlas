@@ -131,6 +131,7 @@ export async function handleMedia(request: Request, id: string | null, gateway: 
     if (error instanceof AdminForbiddenError) return adminFailure('forbidden');
     if (error instanceof InvalidMedia) return fail('invalid_upload',422);
     if (error instanceof MediaOperationError) {
+      if (['57014','55P03'].includes(error.code)) return fail('media_busy',503);
       if (error.code==='P0002') return fail('upload_not_found',404);
       if (error.code==='54000') return fail('upload_limit',429);
       if (['22023','23514','23502','23503','22P02','22003'].includes(error.code)) return fail('invalid_upload',422);

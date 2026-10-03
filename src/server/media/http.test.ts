@@ -21,6 +21,13 @@ beforeEach(()=>{
     store:{putOnce:vi.fn(async()=>{}),get:vi.fn(async()=>({size:bytes.length,contentType:'image/png',body:stream()}))}};
 });
 describe('private media HTTP boundary',()=>{
+  it.each(['57014','55P03'])('reports retryable contention without losing the upload identity for %s',async code=>{
+    gateway.operation=async()=>{throw new MediaOperationError(code);};
+    const response=await handleMedia(req('POST'),id,gateway);
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ok:false,error:{code:'media_busy'}});
+    expect(gateway.store.putOnce).not.toHaveBeenCalled();
+  });
   it.each(['GET','PUT','POST'])('requires identity for %s',async method=>{
     gateway.getIdentity=async()=>null;
     expect((await handleMedia(req(method),id,gateway)).status).toBe(401);

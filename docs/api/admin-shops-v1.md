@@ -79,6 +79,25 @@ of older drafts and the plan for the mandatory 200-row import workflow.
 
 ## Shared input normalization
 
+### Main store type (3 October 2026)
+
+Manual editing and bulk import choose one main store type. Private drafts may
+leave it blank; publication still requires a primary type. Shared normalization
+and SQL validation reject multiple types or a non-primary type. The wire format
+retains the existing `types` array with zero or one row and `is_primary: true`.
+The editor uses one selector, with no secondary-type rows or primary checkbox.
+Choosing a replacement preserves metadata only when reusing that same type.
+Experiences remain manually authored; no experience is inferred or generated.
+
+The approved choices are Fountain Pen Specialist, Stationery Store, Bookshop,
+Art Supply Store, Brand Boutique, Luxury Shop, Maker / Workshop, Department Store,
+and Distributor. Vintage / Used and Nib / Repair Services are retired. Migration
+refuses to remove either while referenced by a shop, draft or pending import;
+operators must arrange deliberate reassignment first. Existing UUIDs are reused.
+The internal staging test venue remains available for fixtures.
+
+### Complete documents
+
 `normalizeShopDocument` is the shared pure boundary for manual save and future
 mapped imports. It accepts a complete document with all relationship arrays.
 Manual UI and HTTP call the same function. It trims surrounding whitespace,
@@ -209,10 +228,9 @@ events. Selecting a newly created item stays in the editor until private save.
 
 New type codes are immutable `type_<UUID with underscores>`. Public projections
 carry `primaryTypeLabel` and detail `shopTypeLabels`, and readers require these
-bounded labels for custom codes. Existing codes and the four approved public
-filter categories remain unchanged. Custom types appear in unfiltered discovery,
-Saved and detail; this slice adds no new filter categories or inferred mapping to
-an existing category. The `test_venue` demo-only boundary remains intact.
+bounded labels for custom codes. The main-store-type follow-up below replaces the original four public
+filter categories with the approved nine. Custom types appear in unfiltered discovery,
+Saved and detail, with no inferred mapping to an existing category. The `test_venue` demo-only boundary remains intact.
 
 
 ## C3 saved-batch publication reuse

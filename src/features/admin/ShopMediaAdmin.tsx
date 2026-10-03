@@ -20,6 +20,7 @@ const messages: Record<string,string> = {
   invalid_request:'That request was refused. Nothing was changed. Reload images and try again.',
   authentication_required:'Sign in again to continue.', forbidden:'Your account cannot do this. Showing an image on the public page, taking it off again and deleting it all need an admin account.',
   service_unavailable:'Media service is unavailable. Your file was not lost — try again.',
+  media_busy:'The media request timed out while the service was busy. Wait a moment, then reload images or retry saving your selected file.',
   upload_expired:'This upload expired. Try again to start a fresh upload.', upload_conflict:'Try again to start a fresh upload.',
   revision_conflict:'This image changed in another session. Reload images before trying again.',
   invalid_media_target:'The shop or upload changed. Reload images and try again.',
@@ -44,10 +45,12 @@ export function ShopMediaAdmin({shopId,shopName,published,archived,role,onSummar
   role?:'editor'|'admin'|null;onSummary?:(summary:MediaSummary)=>void;
 }) {
   const [entries,setEntries] = useState<ShopMedia[]>([]), [capabilities,setCapabilities] = useState<string[]>([]);
-  const [busy,setBusy] = useState(false), [error,setError] = useState('');
+  const [actionBusy,setActionBusy] = useState(false), [uploadCount,setUploadCount] = useState(0), [error,setError] = useState('');
   const [loaded,setLoaded] = useState(false), [notice,setNotice] = useState('');
   const [confirmation,setConfirmation] = useState<Pending | null>(null);
   const controller = useRef<AbortController | null>(null), lock = useRef(false);
+  const uploads = useRef(0), attachments = useRef(Promise.resolve());
+  const busy = actionBusy || uploadCount > 0;
   const feedback = useRef<HTMLDivElement>(null);
   const path = mediaPath(shopId);
 
@@ -71,12 +74,32 @@ export function ShopMediaAdmin({shopId,shopName,published,archived,role,onSummar
   },[path,apply]);
 
   async function run(work: (signal:AbortSignal) => Promise<void>) {
-    if (lock.current) return;
-    lock.current = true; setBusy(true); setError(''); setNotice('');
+    if (lock.current || uploads.current) return;
+    lock.current = true; setActionBusy(true); setError(''); setNotice('');
     const signal = controller.current!.signal;
     try { await work(signal); }
     catch (e) { if (!signal.aborted) setError(e instanceof Error ? e.message : 'Media operation failed.'); }
-    finally { lock.current = false; if (!signal.aborted) setBusy(false); }
+    finally { lock.current = false; if (!signal.aborted) setActionBusy(false); }
+  }
+
+  async function runUpload(work: (signal:AbortSignal) => Promise<void>) {
+    if (lock.current) return;
+    uploads.current++; setUploadCount(uploads.current); setError(''); setNotice('');
+    const signal = controller.current!.signal;
+    try { await work(signal); }
+    finally { uploads.current--; if (!signal.aborted) setUploadCount(uploads.current); }
+  }
+
+  async function attach(id:string, signal:AbortSignal) {
+    // Transfers run together, but apply attachment snapshots in request order:
+    // a late response must not replace a gallery containing the other upload.
+    const task = attachments.current.then(async () => {
+      signal.throwIfAborted();
+      apply(await call(path,signal,post({action:'attach',id})));
+      setNotice('Saved privately. Review the preview, then choose “Show on public page” when it is right.');
+    });
+    attachments.current = task.catch(() => {});
+    await task;
   }
 
   // Two separate gates. `canChange` is about the ACTOR: showing, hiding and
@@ -108,7 +131,7 @@ export function ShopMediaAdmin({shopId,shopName,published,archived,role,onSummar
     </p>
     <div ref={feedback} tabIndex={-1} className={styles.feedback}>
       {error ? <p role="alert" className={styles.error}>{error}</p> : null}
-      <p role="status" aria-live="polite">{notice || (busy ? 'Working…' : loaded ? `${entries.length} saved · ${live} ${published ? "on the public page" : "marked for publication"}` : 'Loading images…')}</p>
+      <p role="status" aria-live="polite">{notice || (busy ? 'Working…' : loaded ? `${entries.length} saved · ${live} ${published ? "on the public page" : "marked for publication"}` : error ? 'Images could not be loaded. Use Reload images to try again.' : 'Loading images…')}</p>
     </div>
 
     {canArrange && <p className={styles.help}>Cover, order and caption changes save separately. Changes to images already on the public page are visible immediately; private images stay private.</p>}
@@ -117,9 +140,7 @@ export function ShopMediaAdmin({shopId,shopName,published,archived,role,onSummar
         const rows = kind === 'photo' ? photos : logos;
         return <div key={kind}>
           <h3>{kind === 'photo' ? 'Shop photos' : 'Shop logo'}</h3>
-          <UploadPicker kind={kind} shopId={shopId} shopName={shopName} disabled={busy || archived || !loaded} run={run} saved={value => {
-            apply(value); setNotice(`Saved privately. Review the preview, then choose “Show on public page” when it is right.`);
-          }}/>
+          <UploadPicker kind={kind} shopId={shopId} shopName={shopName} disabled={actionBusy || archived || !loaded} run={runUpload} attach={attach}/>
           {loaded && !rows.length ? <p className={styles.help}>No {kind === 'photo' ? 'photos' : 'logo'} saved yet.</p> : null}
           {rows.map((entry,index) => <figure className={styles.card} key={entry.id}>
             <img className={kind === 'logo' ? styles.logo : styles.photo} src={`${path}/${entry.id}`} alt={entry.altText} width={entry.width} height={entry.height}/>
@@ -259,15 +280,15 @@ function MediaDialog({pending,shopName,published,busy,fallback,onCancel,onConfir
   </div>;
 }
 
-function UploadPicker({kind,shopId,shopName,disabled,run,saved}: {
+function UploadPicker({kind,shopId,shopName,disabled,run,attach}: {
   kind:'photo'|'logo';shopId:string;shopName:string;disabled:boolean;
-  run:(work:(signal:AbortSignal)=>Promise<void>)=>Promise<void>;saved:(value:{entries?:unknown})=>void;
+  run:(work:(signal:AbortSignal)=>Promise<void>)=>Promise<void>;attach:(id:string,signal:AbortSignal)=>Promise<void>;
 }) {
   const label=kind==='logo'?'logo':'photo';
   const upload=usePrivateUpload({disabled,run,request:call,
     prepare:file=>prepareShopImage(file,kind==='logo'),
     manifest:{shopId,purpose:kind==='logo'?'shop_logo':'shop_photo'},
-    attach:async(id,signal)=>{saved(await call(mediaPath(shopId),signal,post({action:'attach',id})));},
+    attach,
   });
   return <UploadField label={`Choose a ${label}`} accept="image/png,image/jpeg,.png,.jpg,.jpeg"
     filename={upload.filename} disabled={disabled||upload.busy} status={upload.status} error={upload.error}

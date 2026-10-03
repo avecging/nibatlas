@@ -20,9 +20,10 @@ apply to every permitted operator.
    a collapsed, explicitly-not-required block on **Review**; no claim tokens or
    dated evidence forms are needed. Admins can create or reuse a missing locality
    in **Location**, after choosing its country and entering an administrative area
-   code when applicable. Admins can also create or reuse a shop type in
-   **Experiences**. Select the resulting choices and save the draft; editors can
-   select existing choices and ask an admin to add missing localities or types.
+   code when applicable. Choose one **Main store type** in **Experiences**.
+   Add secondary features such as vintage stock and nib repair as manually
+   written experiences. Select the choices and save the draft; editors can ask
+   an admin to add missing localities.
 3. **Save** keeps working without leaving the section. **Save and review** saves
    privately and opens **Review** on the saved version. Either way the confirmation
    appears at the top of the work area, not below the fold, and the public listing
@@ -287,8 +288,8 @@ capability advertisement, gallery cover/order/captions and admin locality/type
 creation. The Photos summary callback is stable (fixing a render loop), and an
 unknown account role never enables admin image controls. After deploying the
 additive migrations with the application, an admin can add/reuse a locality in
-Location using the selected country/area and add/reuse a shop type in Experiences.
-Select a type as primary before publishing when needed. New custom types have
+Location using the selected country/area. The 3 October refinement replaces the
+type rows and primary checkbox with one **Main store type** selector. Types have
 public labels across discovery, detail and Saved; fixed public filter tabs stay
 unchanged.
 

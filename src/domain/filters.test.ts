@@ -32,7 +32,7 @@ describe("filters", () => {
 
     const set = filters({
       status: "unvisited",
-      shopTypes: ["vintage_used", "stationery_store"],
+      shopTypes: ["bookshop", "stationery_store"],
       availability: "open",
     });
 
@@ -44,8 +44,8 @@ describe("filters", () => {
   it("compares filters regardless of type order", () => {
     expect(
       filtersEqual(
-        filters({ shopTypes: ["stationery_store", "vintage_used"] }),
-        filters({ shopTypes: ["vintage_used", "stationery_store"] }),
+        filters({ shopTypes: ["stationery_store", "bookshop"] }),
+        filters({ shopTypes: ["bookshop", "stationery_store"] }),
       ),
     ).toBe(true);
     expect(filtersEqual(EMPTY_FILTERS, filters({ status: "visited" }))).toBe(false);
@@ -53,11 +53,11 @@ describe("filters", () => {
   });
 
   it("toggles a shop type on and off in a stable order", () => {
-    const once = toggleShopType(EMPTY_FILTERS, "vintage_used");
+    const once = toggleShopType(EMPTY_FILTERS, "bookshop");
     const twice = toggleShopType(once, "fountain_pen_specialist");
 
-    expect(twice.shopTypes).toEqual(["fountain_pen_specialist", "vintage_used"]);
-    expect(toggleShopType(twice, "vintage_used").shopTypes).toEqual([
+    expect(twice.shopTypes).toEqual(["fountain_pen_specialist", "bookshop"]);
+    expect(toggleShopType(twice, "bookshop").shopTypes).toEqual([
       "fountain_pen_specialist",
     ]);
   });
@@ -102,7 +102,7 @@ describe("filters", () => {
 
     expect(matchesFilters(shop!, EMPTY_FILTERS)).toBe(true);
     expect(matchesFilters(shop!, filters({ status: "visited" }))).toBe(false);
-    expect(matchesFilters(shop!, filters({ shopTypes: ["vintage_used"] }))).toBe(false);
+    expect(matchesFilters(shop!, filters({ shopTypes: ["bookshop"] }))).toBe(false);
     expect(
       matchesFilters({ ...shop!, operationalStatus: "unknown" }, filters({ availability: "open" })),
     ).toBe(false);

@@ -120,10 +120,12 @@ describe("MapFilters", () => {
   it("edits the draft rather than the applied filters", () => {
     const { onToggleDraftType, onDraftAvailabilityChange } = renderFilters({ open: true });
 
-    fireEvent.click(screen.getByRole("button", { name: "Vintage / Used" }));
+    expect(screen.queryByRole("button", { name: "Vintage / Used" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Nib / Repair Services" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Bookshop" }));
     fireEvent.click(screen.getByRole("button", { name: "Hide recorded closures" }));
 
-    expect(onToggleDraftType).toHaveBeenCalledWith("vintage_used");
+    expect(onToggleDraftType).toHaveBeenCalledWith("bookshop");
     expect(onDraftAvailabilityChange).toHaveBeenCalledWith("not_closed");
   });
 
@@ -131,10 +133,10 @@ describe("MapFilters", () => {
     renderFilters({
       open: true,
       filters: EMPTY_FILTERS,
-      draftFilters: filters({ shopTypes: ["vintage_used"], availability: "open" }),
+      draftFilters: filters({ shopTypes: ["bookshop"], availability: "open" }),
     });
 
-    expect(screen.getByRole("button", { name: "Vintage / Used" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Bookshop" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -148,7 +150,7 @@ describe("MapFilters", () => {
     const { onApply } = renderFilters({
       open: true,
       hasUnapplied: true,
-      draftFilters: filters({ shopTypes: ["vintage_used"], availability: "open" }),
+      draftFilters: filters({ shopTypes: ["bookshop"], availability: "open" }),
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Apply filters" }));
@@ -167,7 +169,7 @@ describe("MapFilters", () => {
   it("clears the draft controls without applying them", () => {
     const { onClearDraft, onApply } = renderFilters({
       open: true,
-      draftFilters: filters({ shopTypes: ["vintage_used"] }),
+      draftFilters: filters({ shopTypes: ["bookshop"] }),
     });
 
     fireEvent.click(screen.getByRole("button", { name: /^clear$/i }));
@@ -198,7 +200,7 @@ describe("MapFilters", () => {
     renderFilters({
       filters: filters({
         status: "saved",
-        shopTypes: ["vintage_used", "stationery_store"],
+        shopTypes: ["bookshop", "stationery_store"],
         availability: "open",
       }),
       draftFilters: EMPTY_FILTERS,
@@ -210,7 +212,7 @@ describe("MapFilters", () => {
   it("carries no badge for an unapplied draft", () => {
     renderFilters({
       filters: EMPTY_FILTERS,
-      draftFilters: filters({ shopTypes: ["vintage_used"] }),
+      draftFilters: filters({ shopTypes: ["bookshop"] }),
     });
 
     expect(screen.queryByTestId("filter-count")).not.toBeInTheDocument();
@@ -218,7 +220,7 @@ describe("MapFilters", () => {
 
   it("clears every applied filter in one action", () => {
     const { onClear } = renderFilters({
-      filters: filters({ status: "saved", shopTypes: ["vintage_used"], availability: "open" }),
+      filters: filters({ status: "saved", shopTypes: ["bookshop"], availability: "open" }),
     });
 
     fireEvent.click(screen.getByRole("button", { name: /clear filters/i }));

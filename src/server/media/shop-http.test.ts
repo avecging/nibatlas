@@ -14,6 +14,13 @@ beforeEach(()=>{
     store:{putOnce:vi.fn(),get:vi.fn(async()=>({size:4,contentType:'image/png',body:new ReadableStream({start(c){c.enqueue(new Uint8Array([1,2,3,4]));c.close();}})}))}};
 });
 describe('shop media authorization and delivery',()=>{
+  it.each(['57014','55P03'])('reports a retryable busy response for database timeout %s',async code=>{
+    gateway.operation=async()=>{throw new MediaOperationError(code);};
+    const response=await handleShopMedia(req(),shop,null,false,gateway);
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({error:{code:'media_busy'}});
+    expect(gateway.store.get).not.toHaveBeenCalled();
+  });
   it('denies signed-out and revoked private reads before storage',async()=>{
     gateway.getIdentity=async()=>null;
     expect((await handleShopMedia(req(),shop,id,false,gateway)).status).toBe(401);

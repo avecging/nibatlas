@@ -83,7 +83,8 @@ function parseFilters(value: unknown): ShopFilters | null {
     shopTypes.some(
       (shopType) =>
         typeof shopType !== "string" ||
-        !SHOP_TYPES.includes(shopType as (typeof SHOP_TYPES)[number]),
+        (!SHOP_TYPES.includes(shopType as (typeof SHOP_TYPES)[number]) &&
+          shopType !== "vintage_used" && shopType !== "nib_repair_services"),
     )
   ) {
     return null;
