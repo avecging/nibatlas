@@ -21,6 +21,14 @@ PostgREST messages and database identifiers are never relayed.
 
 Required query parameters: `west`, `south`, `east`, `north`, `zoom`.
 
+Longitude inputs stay within `-180..180`; `west > east` means a date-line
+crossing. The browser client wraps renderer bounds from adjacent world copies
+before requesting this endpoint. Views spanning at least 360 degrees use
+`west=-180, east=180` so a whole-world search cannot collapse or omit meridians.
+The camera itself is unchanged. Fractional renderer zoom is rounded and bounded
+to the API's `0..24` buckets, including negative zoom at the widest world view.
+This remains one explicit viewport request with the existing result cap.
+
 Optional:
 
 - `operationalStatus`: comma-separated `open`, `temporarily_closed`,

@@ -6,6 +6,7 @@ import { POST as postNearby } from "@/app/api/v1/shops/nearby/route";
 import { GET as getSearch } from "@/app/api/v1/shops/search/route";
 import { GET as getDetail } from "@/app/api/v1/shops/[slug]/route";
 import { GET as getViewport } from "@/app/api/v1/shops/viewport/route";
+import { createHttpShopReadClient } from "@/src/api/v1/shop-read-client";
 
 const MAP_SHOP = {
   id: "00000000-0000-4000-8000-000000000301",
@@ -47,6 +48,45 @@ afterEach(() => {
 });
 
 describe("GET /api/v1/shops/viewport", () => {
+  it.each([
+    { name: "wide Asia view", west: -20, east: 220, zoom: 2, expectedWest: -20, expectedEast: -140, expectedZoom: 2 },
+    { name: "western date-line crossing", west: -220, east: -140, zoom: 3, expectedWest: 140, expectedEast: -140, expectedZoom: 3 },
+    { name: "already wrapped crossing", west: 170, east: -170, zoom: 4, expectedWest: 170, expectedEast: -170, expectedZoom: 4 },
+    { name: "panned world copy", west: 463, east: 464, zoom: 10, expectedWest: 103, expectedEast: 104, expectedZoom: 10 },
+    { name: "exact whole world", west: 0, east: 360, zoom: 0, expectedWest: -180, expectedEast: 180, expectedZoom: 0 },
+    { name: "whole-world rounding", west: 10, east: 369.999999999, zoom: 0, expectedWest: -180, expectedEast: 180, expectedZoom: 0 },
+    { name: "world centered on Tokyo", west: -40.30000000000001, east: 319.69999999999993, zoom: 0, expectedWest: -180, expectedEast: 180, expectedZoom: 0 },
+    { name: "signed-zero world rounding", west: 0.000000001, east: 359.999999999, zoom: 0, expectedWest: -180, expectedEast: 180, expectedZoom: 0 },
+    { name: "multiple world copies", west: -400, east: 400, zoom: -1.5, expectedWest: -180, expectedEast: 180, expectedZoom: 0 },
+    { name: "canonical whole world", west: -180, east: 180, zoom: 0, expectedWest: -180, expectedEast: 180, expectedZoom: 0 },
+    { name: "exact eastern boundary", west: 170, east: 180, zoom: 4, expectedWest: 170, expectedEast: 180, expectedZoom: 4 },
+  ])("accepts renderer bounds through the real client and route: $name", async ({
+    west, east, zoom, expectedWest, expectedEast, expectedZoom,
+  }) => {
+    const committedBounds = { west: expectedWest, south: -80, east: expectedEast, north: 85 };
+    const rpcFetch = accepts({ shops: [MAP_SHOP], truncated: true, committedBounds });
+    vi.stubGlobal("fetch", rpcFetch);
+    const routeFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
+      getViewport(new Request(input, init)));
+    const client = createHttpShopReadClient({ baseUrl: "https://nibatlas.test", fetch: routeFetch });
+    const bounds = { west, south: -80, east, north: 85 };
+
+    const response = await client.fetchViewport({
+      bounds, zoom, shopTypes: ["fountain_pen_specialist"], limit: 75,
+    });
+
+    expect(response.shops).toHaveLength(1);
+    expect(response.truncated).toBe(true);
+    expect(response.committedBounds).toEqual(committedBounds);
+    expect(bounds).toEqual({ west, south: -80, east, north: 85 });
+    expect(routeFetch).toHaveBeenCalledTimes(1);
+    expect(rpcFetch).toHaveBeenCalledTimes(1);
+    expect(lastBody(rpcFetch)).toMatchObject({
+      p_west: expectedWest, p_east: expectedEast, p_south: -80, p_north: 85,
+      p_zoom: expectedZoom, p_shop_type_codes: ["fountain_pen_specialist"], p_limit: 75,
+    });
+  });
+
   it("validates, translates and returns only the versioned public projection", async () => {
     const fetchMock = accepts({
       shops: [{ ...MAP_SHOP, publicationStatus: "published" }],

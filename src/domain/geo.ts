@@ -181,14 +181,14 @@ export interface MovementThreshold {
 
 export const DEFAULT_MOVEMENT_THRESHOLD: MovementThreshold = {
   centerDriftRatio: 0.25,
-  zoomDelta: 1,
+  zoomDelta: 0.1,
 };
 
 /**
  * `Search this area` must appear only after meaningful movement, never on every
  * frame or every `moveend`. Movement is meaningful when the camera centre has
  * drifted a noticeable fraction of the committed viewport, when the zoom level
- * has changed by a whole step, or when the camera no longer overlaps the
+ * has changed by a small deliberate step, or when the camera no longer overlaps the
  * committed centre.
  */
 export function hasMovedMeaningfully(
