@@ -86,7 +86,7 @@ test("draws a shop's location preview from real MapTiler geography", async ({
   });
 
   const catalogue = await stagingCatalogue(request);
-  let selected: { slug: string; name: string; fact: string } | undefined;
+  let selected: { slug: string; name: string; label: string; fact: string } | undefined;
   // Bounded read-only discovery. Missing eligible data is an explicit coverage
   // gap, never a reason to publish a fixture into the founder's catalogue.
   for (const candidate of catalogue.shops.slice(0, 20)) {
@@ -96,14 +96,18 @@ test("draws a shop's location preview from real MapTiler geography", async ({
     expect(detail).not.toBeNull();
     const projected = projectShopDetail(detail!, { demoRecords: true });
     const fact = shopVisitFacts(projected).gettingThere[0];
-    if (fact) { selected = { slug: candidate.slug, name: candidate.name, fact: fact.value }; break; }
+    if (fact) { selected = { slug: candidate.slug, name: candidate.name, label: fact.label, fact: fact.value }; break; }
   }
   test.skip(!selected, "No eligible published shop among the first 20 staging records; location-preview coverage pending catalogue publication.");
   // Load detail directly so map-screen traffic cannot satisfy this map's checks.
   await page.goto(`/shops/${encodeURIComponent(selected!.slug)}`);
   await expect(page.getByRole("heading", { level: 1, name: selected!.name, exact: true })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Plan your visit" })
-    .getByText(selected!.fact)).toBeVisible();
+  // The address and its local-script counterpart can legitimately be equal.
+  // Check the selected labelled row rather than matching its value everywhere.
+  const factRow = page.getByRole("region", { name: "Plan your visit" })
+    .locator("p").filter({ has: page.getByText(selected!.label, { exact: true }) });
+  await expect(factRow).toBeVisible();
+  await expect(factRow).toContainText(selected!.fact);
 
   // Server-rendered text can appear before account initialization remounts the
   // detail subtree. Wait for the existing session-ready control before scrolling.
