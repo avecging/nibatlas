@@ -4,6 +4,8 @@ import type { FieldIssue } from '../shop-normalization';
 
 export const VERSION = 'nibatlas-shops-v1';
 export const MAX_BYTES = 2 * 1024 * 1024;
+// Generated reports repeat source cells plus bounded explanatory annotations.
+export const MAX_REPORT_BYTES = 4 * MAX_BYTES;
 export const MAX_ROWS = 500;
 export const BATCH_SIZE = 25;
 export const MAX_COLUMNS = 64;
@@ -34,6 +36,7 @@ export interface ImportOperation {
   id: string; row_id: string; operation_revision: number; target_id: string;
   review_key: string; patch: MappedRow | null; preview: PreviewRow | null;
   status: 'ready' | 'imported' | 'skipped' | 'conflicted' | 'failed'; reason: string | null;
+  result_revision?: string | null;
 }
 export interface ImportBatch { id: string; operations: ImportOperation[] }
 export interface BatchSummary { id: string; createdAt: string; expiresAt: string; rows: number }

@@ -1,4 +1,4 @@
-import { FIELDS, MAX_BYTES, MAX_COLUMNS, MAX_ROWS, VERSION, type Cells, type Upload } from './contract';
+import { FIELDS, MAX_BYTES, MAX_REPORT_BYTES, MAX_COLUMNS, MAX_ROWS, VERSION, type Cells, type Upload } from './contract';
 
 export class ImportFileError extends Error {}
 /** RFC 4180-style CSV including BOM, escaped quotes and multiline cells. No coercion. */
@@ -23,7 +23,9 @@ function csv(text: string): { cells: string[]; line: number }[] {
   return rows;
 }
 export function parseFile(text: string, format: 'csv' | 'json'): Upload {
-  if (new TextEncoder().encode(text).length > MAX_BYTES) throw new ImportFileError('Use a file no larger than 2 MiB.');
+  const bytes = new TextEncoder().encode(text).length;
+  if (bytes > MAX_REPORT_BYTES) throw new ImportFileError('Use a source file no larger than 2 MiB, or a generated correction report no larger than 8 MiB.');
+  if (bytes > MAX_BYTES && (format !== 'csv' || !text.slice(0, text.indexOf('\n')).includes('correction_format'))) throw new ImportFileError('Use a file no larger than 2 MiB.');
   text = text.replace(/^\uFEFF/, '');
   let columns: string[], entries: { cells: Cells; line: number }[];
   if (format === 'csv') {
@@ -55,13 +57,18 @@ export function parseFile(text: string, format: 'csv' | 'json'): Upload {
     });
     columns = [...columnSet];
   }
+  if (bytes > MAX_BYTES && !(format === 'csv' && columns.includes('correction_format') && entries.length && entries.every(e => e.cells.correction_format === 'nibatlas-corrections-v1'))) throw new ImportFileError('Use a file no larger than 2 MiB.');
   if (!entries.length || entries.length > MAX_ROWS || columns.length > MAX_COLUMNS) throw new ImportFileError(`Use 1–${MAX_ROWS} rows and at most ${MAX_COLUMNS} columns.`);
-  if (entries.some(e => Object.values(e.cells).some(v => v.length > 4000))) throw new ImportFileError('Use at most 4,000 characters per cell.');
+  if (entries.some(e => Object.entries(e.cells).some(([k, v]) => v.length > (e.cells.correction_format === 'nibatlas-corrections-v1' && FIELDS.includes(k) && v.startsWith("'") ? 4001 : 4000)))) throw new ImportFileError('Use at most 4,000 characters per cell.');
   // Identities are bound to source positions until an explicit row_id mapping is applied.
   return { version: VERSION, columns, rows: entries.map(e => ({ ...e, rowId: `line-${e.line}` })) };
 }
 export function defaultColumns(columns: string[]) {
-  return Object.fromEntries(columns.map(c => [c, FIELDS.includes(c) ? c : '']));
+  return Object.fromEntries(columns.map(c => {
+    const key = c.trim().toLowerCase().replace(/[ -]+/g, '_');
+    const target = ({ lat: 'latitude', lng: 'longitude', lon: 'longitude' } as Record<string, string>)[key] ?? key;
+    return [c, FIELDS.includes(target) ? target : ''];
+  }));
 }
 export function safeCsvCell(value: unknown): string {
   let text = String(value ?? '');

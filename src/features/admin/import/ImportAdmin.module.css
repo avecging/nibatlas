@@ -32,3 +32,32 @@
 
 .change dd > div { flex: 1 1 240px; min-width: 0; padding: 12px; background: var(--bg-base); border-radius: 6px; }
 .change dd p { white-space: pre-wrap; }
+
+.main { max-width: 1600px; }
+.main header { margin: 24px 0; }
+.jobHeading, .toolbar { display: flex; gap: 16px; justify-content: space-between; flex-wrap: wrap; align-items: center; }
+.jobHeading h2 { margin: 0; }
+.toolbar > label { flex: 0 1 260px; }
+.filters { display: flex; flex-wrap: wrap; gap: 4px; }
+.filters button { border-color: transparent; padding: 8px 10px; }
+.filters button[aria-pressed="true"], .main .primary { color: var(--bg-surface); background: var(--action-primary); }
+.tableScroll { overflow: auto; max-height: 70vh; border: 1px solid var(--border-default); border-radius: 6px; }
+.table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; text-align: left; }
+.table th, .table td { border-bottom: 1px solid var(--border-default); padding: 8px 10px; vertical-align: top; min-width: 95px; max-width: 380px; }
+.table th:first-child, .table td:first-child { min-width: 64px; white-space: nowrap; }
+.table th:nth-child(3), .table td:nth-child(3) { min-width: 180px; }
+.table td:last-child { min-width: 290px; }
+.table thead th { position: sticky; top: 0; background: var(--bg-base); z-index: 1; }
+.table tbody th { font-weight: 500; }
+.table small, .table td > a { display: block; margin-top: 4px; }
+.table li { margin: 0 0 4px; }
+.table ul { padding-left: 16px; margin: 0; }
+.table p { margin: 6px 0; }
+.table summary { padding: 4px 0; min-height: 32px; }
+.table dd { margin: 0 0 6px; white-space: pre-wrap; }
+.table dt { font-weight: 600; }
+.table tr:nth-child(even) { background: var(--bg-base); }
+.badge { display: inline-block; padding: 3px 6px; border: 1px solid var(--border-default); border-radius: 5px; white-space: nowrap; }
+.caption { text-align: left; padding: 8px 10px; color: var(--text-secondary); }
+.confirmation { padding: 16px; border: 2px solid var(--action-primary); border-radius: 8px; }
+@media(max-width: 600px) { .main .job { padding: 12px; } .actions { gap: 8px; } }

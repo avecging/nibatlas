@@ -11,7 +11,7 @@ const payload = { version: VERSION, batchId: batch, operationId: op, action: 're
 function gateway(role = 'admin', status = 'ready') {
  return { getIdentity: vi.fn(async () => batch), getAccess: vi.fn(async () => ({ role })), listAudit: vi.fn(), call: vi.fn(async (name: string, args?: Record<string, unknown>): Promise<unknown> => {
   if (name === 'admin_shop_options') return options;
-  if (name === 'admin_import_operation_read') return { id: op, row_id: 'one', status, patch: row, review_key: key };
+  if (name === 'admin_import_operation_read') return { id: op, row_id: 'one', status, patch: row, review_key: key, result_revision: op };
   if (name === 'admin_import_operation') return { id: op, rowId: 'one', status: 'imported', targetId: batch };
   if (name === 'admin_import_preview') return args?.p_mode === 'context' ? [{ rowId: 'one', record: null, candidates: [], truncated: false, conflict: false }] : [{ rowId: 'one', issues: [], publicationErrors: ['Missing location'], reviewKey: key }];
   throw Error();
@@ -37,13 +37,13 @@ describe('private import HTTP', () => {
  });
  it('loads persisted patch at execution, reparses and validates, then delegates atomic binding check', async () => {
   const g = gateway(); expect((await handleImportBatch(request({ version: VERSION, batchId: batch, operationId: op, action: 'execute' }), g)).status).toBe(200);
-  expect(g.call.mock.calls.map(([name]) => name)).toEqual(['admin_import_operation_read', 'admin_shop_options', 'admin_import_preview', 'admin_import_preview', 'admin_import_operation']);
-  expect(g.call.mock.calls.at(-1)?.[1]).toMatchObject({ p_payload: { reviewKey: key, document: { shop: { name: 'Synthetic' } } } });
+  expect(g.call.mock.calls.map(([name]) => name)).toEqual(['admin_import_operation_read', 'admin_shop_options', 'admin_import_preview', 'admin_import_preview', 'admin_import_operation', 'admin_import_operation_read']);
+  expect(g.call.mock.calls.findLast(([name]) => name === 'admin_import_operation')?.[1]).toMatchObject({ p_payload: { reviewKey: key, document: { shop: { name: 'Synthetic' } } } });
  });
  it('replays a completed operation without repreparing/repeating its update', async () => {
   const g = gateway('admin', 'imported'); await handleImportBatch(request({ version: VERSION, batchId: batch, operationId: op, action: 'execute' }), g);
   expect(g.call.mock.calls.map(([name]) => name)).toEqual(['admin_import_operation_read', 'admin_import_operation']);
-  expect(g.call.mock.calls.at(-1)?.[1]?.p_payload).toEqual({});
+  expect(g.call.mock.calls.findLast(([name]) => name === 'admin_import_operation')?.[1]?.p_payload).toEqual({});
  });
  it('keeps the same local-name alias through review and resumed execution', async () => {
   const localRow = {...row, cells: {...row.cells, local_name: '試験店', local_name_language: 'ja-JP'}};
@@ -56,13 +56,13 @@ describe('private import HTTP', () => {
   expect(reviewed).toMatchObject({row: localRow, document: {aliases: [{id: expect.any(String), alias: '試験店', language_tag: 'ja-JP', alias_type: 'local_name'}]}});
   g.call.mockClear();
   expect((await handleImportBatch(request({version: VERSION, batchId: batch, operationId: op, action: 'execute'}), g)).status).toBe(200);
-  expect(g.call.mock.calls.at(-1)?.[1]?.p_payload).toMatchObject({document: (reviewed as {document: unknown}).document});
+  expect(g.call.mock.calls.findLast(([name]) => name === 'admin_import_operation')?.[1]?.p_payload).toMatchObject({document: (reviewed as {document: unknown}).document});
  });
  it('records a conflict if authoritative validation changes after review', async () => {
   const g = gateway(), original = g.call.getMockImplementation()!;
   g.call.mockImplementation((name, args) => name === 'admin_import_preview' && args?.p_mode === 'validate' ? Promise.resolve([{ rowId: 'one', issues: [{ path: 'shop_id', message: 'Changed' }], publicationErrors: [] }]) : original(name, args));
   await handleImportBatch(request({ version: VERSION, batchId: batch, operationId: op, action: 'execute' }), g);
-  expect(g.call.mock.calls.at(-1)?.[1]?.p_payload).toEqual({});
+  expect(g.call.mock.calls.findLast(([name]) => name === 'admin_import_operation')?.[1]?.p_payload).toEqual({});
  });
  it('redacts provider errors, handles revocation and preserves conflict status', async () => {
   for (const [error, expected] of [[new AdminForbiddenError(), 403], [new ImportConflictError(), 409], [Error('secret raw source'), 503]] as const) {
