@@ -588,7 +588,9 @@ export function PassportScreen({ target }: { readonly target: PassportTarget }) 
         </div>
       </div>
 
-      <GeographicSealProgress />
+      <div className={styles.sealProgress}>
+        <GeographicSealProgress />
+      </div>
       {/*
         Nothing collected reads the same in both modes. An empty book is a real
         object with real pages, but it cannot offer the one thing this state
