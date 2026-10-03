@@ -111,6 +111,8 @@ Below 1024 px, the MVP uses a portrait single-page reader.
 - Keep a restrained page edge and gutter cue, but do not squeeze a two-page spread onto portrait screens.
 - The header identifies Passport and the current geographic grouping.
 - Previous/next buttons remain visible and labelled.
+- Geographic seal progress occupies a separate row above the book. Expanded
+  progress scrolls within a bounded area so the book and pager retain their space.
 - Horizontal drag/swipe follows reading order and has a distance/velocity threshold.
 - A partial drag tracks the pointer; release below threshold returns to the current page.
 - Vertical document scrolling wins over page navigation when gesture intent is primarily vertical.
