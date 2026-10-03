@@ -68,7 +68,7 @@ test('102 selected publications reuse imported coordinates and keep incomplete r
   await upload(page, syntheticCsv(102).replace('row-2,Synthetic 2,SG,Synthetic City,stationery,Synthetic address', 'row-2,Synthetic 2,SG,Synthetic City,stationery,'));
   await page.getByRole('button', { name: 'Publish selected', exact: true }).click();
   expect(fixture.writes.size).toBe(0);
-  await page.getByLabel(/I have checked the selected addresses/).check();
+  await page.getByLabel(/I have checked every selected address/).check();
   await page.getByRole('button', { name: 'Confirm and publish selected' }).click();
   await expect(page.getByText('101 published · 1 remaining', { exact: true })).toBeVisible({ timeout: 90000 });
   await expect(page.getByRole('button', { name: 'Refresh job' })).toBeEnabled();
