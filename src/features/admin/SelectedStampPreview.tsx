@@ -15,7 +15,7 @@ export function SelectedStampPreview({record, localityName, selectedStamp, headi
       {selectedStamp.creatorName && <p>created by: {selectedStamp.creatorUrl && validCreatorCredit(selectedStamp.creatorName, selectedStamp.creatorUrl)
         ? <a href={selectedStamp.creatorUrl} target="_blank" rel="noreferrer">{selectedStamp.creatorName}</a> : selectedStamp.creatorName}</p>}
       {selectedStamp.kind === 'uploaded' && selectedStamp.hasArtwork ? <StampPreview key={selectedStamp.id} shopId={record.id} entry={selectedStamp}/>
-        : selectedStamp.kind === 'generated_template' && selectedStamp.templateData ? <div className={styles.generated}><StampArt title={name} stamp={{id:selectedStamp.stampId, tier:'shop', motif:selectedStamp.templateData.motif, ink:selectedStamp.ink, designVersion:selectedStamp.designVersion, paletteVersion:1, localityLabel:localityName, countryLabel:isCountryCode(country) ? countryLabel(country) : ''}}/></div>
+        : selectedStamp.kind === 'generated_template' && selectedStamp.templateData ? <div className={styles.generated}><StampArt title={name} stamp={{id:selectedStamp.stampId, tier:'shop', motif:selectedStamp.templateData.motif, ...(selectedStamp.templateData.shape ? {generatedShopSeal:selectedStamp.templateData.shape} : {}), ink:selectedStamp.ink, designVersion:selectedStamp.designVersion, paletteVersion:1, localityLabel:localityName, countryLabel:isCountryCode(country) ? countryLabel(country) : ''}}/></div>
           : <p>Artwork preview unavailable. No substitute artwork is shown.</p>}
       <p className={styles.help}>Comparison only. Activation changes the design for future collections; existing impressions retain their original artwork.</p>
     </div>;

@@ -1,3 +1,4 @@
+import { decodeShopTemplate, type ShopTemplateData } from '@/src/domain/shop-seal';
 import { EXPERIENCE_ICON_KEYS } from '@/src/domain/experience-icons';
 import { STAMP_MOTIFS } from '@/src/domain/stamp-design';
 import { STAMP_INK_LABELS } from '@/src/domain/stamp-palette';
@@ -100,7 +101,7 @@ export interface PublicGeneratedStampV1 {
   readonly designVersion: number;
   readonly ink: ShopStampDesign['ink'];
   readonly paletteVersion: number;
-  readonly templateData: { readonly tier: 'shop'; readonly motif: ShopStampDesign['motif'] };
+  readonly templateData: ShopTemplateData;
 }
 export interface ShopDetailReadV1 extends ShopMapSummary {
   readonly review?: EditorialReview;
@@ -580,7 +581,7 @@ function decodeGeneratedStamp(value: unknown): PublicGeneratedStampV1 {
     throw new ShopReadContractError('Invalid active generated stamp');
   }
   return { id, designVersion: Number(r.designVersion), paletteVersion: 1, ink: r.ink as ShopStampDesign['ink'],
-    templateData: { tier: 'shop', motif: template.motif as ShopStampDesign['motif'] } };
+    templateData: decodeShopTemplate(template) };
 }
 
 function decodeEditorialReview(value: unknown): EditorialReview {

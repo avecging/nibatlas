@@ -691,3 +691,19 @@ uploaded design adopts the new SVG ink treatment; earlier published versions and
 already-collected impressions keep their original appearance. Use a transparent
 SVG background: opaque white shapes are painted areas and take the chosen ink too.
 No founder acceptance or hosted deployment is claimed by these instructions.
+
+
+## Default shop seal designs
+
+In a shop's **Stamp** section, **Create stamp version → Stamp design → Default
+seal** shows the proposed design. Choose a shape/ink, or use **Randomise shape and
+ink** as often as desired. Both change on each click; the Ink selector remains
+available afterward. These local choices are not saved yet.
+
+Use **Save default seal privately**, inspect the saved version, then **Activate
+this design (admin) → Confirm activation**. Alternatively select the private seal
+in Review and complete the existing reviewed publication flow, including position
+confirmation. Reloading shows the exact saved shape/ink in version history.
+New collectors get the activated version; existing collectors keep their original.
+Existing default/custom artwork is only changed by these explicit actions.
+Choose **Uploaded artwork** for the unchanged private PNG/credit workflow.

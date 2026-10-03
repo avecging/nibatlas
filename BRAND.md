@@ -332,6 +332,7 @@ shared or printed without the interface does not identify its level by itself.
 - Level is communicated by the interface, never by a compulsory border, shape or colour.
 - Every generated stamp pins the palette version used so regeneration remains deterministic.
 - Shop stamps are the primary collected objects.
+- Founder-approved generated shop defaults (3 October 2026) use horizontal shield, oval or rectangle frames, the small Nib Atlas mark/curved branding, SHOP, the shop name, country and VERIFIED VISITS. Shape and one ink are saved on a frozen template; admin randomisation creates local choices for a new version. This system-generated exception does not add labels or recolouring to custom artwork.
 - A locality seal requires two distinct verified visits to eligible shops, or the sole eligible shop when only one is published in that locality. Eligible shops follow current published country/locality assignments automatically.
 - A country seal requires five distinct eligible shop visits, or all eligible published shops when fewer than five exist. Zero eligible shops cannot award. There is no manual shop-selection step.
 - Once earned, a geographic seal is never revoked because the curated catalogue later expands.

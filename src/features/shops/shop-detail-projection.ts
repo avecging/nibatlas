@@ -193,6 +193,7 @@ export function projectShopDetail(
     sources: wire.sources,
     stamp: wire.generatedStamp ? {
       id: wire.generatedStamp.id, tier: 'shop', motif: wire.generatedStamp.templateData.motif,
+      ...(wire.generatedStamp.templateData.shape ? {generatedShopSeal: wire.generatedStamp.templateData.shape} : {}),
       ink: wire.generatedStamp.ink, designVersion: wire.generatedStamp.designVersion,
       paletteVersion: wire.generatedStamp.paletteVersion,
       localityLabel: wire.localityName, countryLabel: countryLabel(wire.countryCode),

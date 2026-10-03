@@ -591,7 +591,7 @@ test('stamp draft upload previews and explicit activation preserve earlier versi
   await page.goto(`/admin/shops/${id}`);
   await open(page,'Stamp');
   const section=page.getByRole('region',{name:'Atlas Stamp artwork'});
-  await section.getByText('Create uploaded stamp version',{exact:true}).click();
+  await section.getByRole('combobox',{name:'Stamp design',exact:true}).selectOption('uploaded');
   await expect(section.getByLabel('Creator name (optional)',{exact:true})).toBeEnabled();
   await section.getByRole('combobox',{name:/^Origin/}).selectOption('ai_assisted');
   await section.getByLabel('Creator name (optional)',{exact:true}).fill('Gin + AI');
@@ -1649,4 +1649,53 @@ test('related shops use normal save and render compact cards in the correct colu
   await page.getByRole('button',{name:'Mobile',exact:true}).click();
   await expect(frame.locator('[id="related-shops-mobile"]')).toBeVisible();
   await card.screenshot({path:info.outputPath('admin-related-public-mobile.png')});
+});
+
+test('default shop seals randomise locally, retain manual ink and save/activate exact versions',async({page},testInfo)=>{
+  await setup(page);
+  const versionId='e5000000-0000-4000-8000-000000000031';
+  let rows=[{id:versionId,stampId:id,designVersion:1,kind:'generated_template',origin:'generated_template',status:'approved',
+    ink:'teal',creatorName:null,creatorUrl:null,hasArtwork:false,active:true,revision:'a'.repeat(32),
+    templateData:{tier:'shop',motif:'nib',template:'shop-seal-v1',shape:'oval'}}];
+  const original=JSON.stringify(rows[0]);const writes:Record<string,unknown>[]=[];
+  await page.route(`**/api/v1/admin/shops/${id}/stamp`,async route=>{
+    if(route.request().method()==='POST'){
+      const body=route.request().postDataJSON();writes.push(body);
+      if(body.action==='create_generated')rows=[{...rows[0]!,id:'e5000000-0000-4000-8000-000000000032',designVersion:2,
+        status:'draft',active:false,ink:body.ink,templateData:{tier:'shop',motif:'nib',template:'shop-seal-v1',shape:body.shape}},...rows];
+      if(body.action==='activate') rows=rows.map(row=>({...row,status:'approved',active:row.id===body.versionId}));
+    }
+    await route.fulfill({json:{entries:rows}});
+  });
+  await page.goto(`/admin/shops/${id}`);await open(page,'Stamp');
+  const section=page.getByRole('region',{name:'Atlas Stamp artwork'});
+  await expect(section.getByRole('combobox',{name:'Shape',exact:true})).toHaveValue('oval');
+  await section.getByRole('button',{name:'Randomise shape and ink'}).click();
+  await expect(section.getByRole('combobox',{name:'Shape',exact:true})).not.toHaveValue('oval');
+  await expect(section.getByRole('combobox',{name:'Ink',exact:true})).not.toHaveValue('teal');
+  expect(writes).toEqual([]);
+  await section.getByRole('combobox',{name:'Ink',exact:true}).selectOption('plum');
+  const shape=await section.getByRole('combobox',{name:'Shape',exact:true}).inputValue();
+  await section.getByRole('button',{name:'Save default seal privately'}).click();
+  await expect(section.getByRole('status')).toContainText('Default seal saved privately');
+  expect(writes).toEqual([{action:'create_generated',shape,ink:'plum',baseVersionId:versionId,baseRevision:'a'.repeat(32)}]);
+  expect(JSON.stringify(rows[1])).toBe(original);
+  await page.reload();await open(page,'Stamp');
+  const saved=section.getByRole('article').filter({hasText:'Design v2'});
+  await expect(saved.locator('[data-shop-seal-shape]')).toHaveAttribute('data-shop-seal-shape',shape);
+  await expect(saved.getByRole('img')).toHaveCSS('color','rgb(107, 63, 99)');
+  await saved.getByRole('button',{name:'Activate this design (admin)'}).click();expect(writes).toHaveLength(1);
+  await section.getByRole('button',{name:'Confirm activation'}).click();
+  await expect(section.getByRole('status')).toContainText('Stamp design activated');
+  await expect(section.getByText('Design v1',{exact:true})).toBeVisible();
+  await section.getByRole('combobox',{name:'Stamp design',exact:true}).selectOption('uploaded');
+  await expect(section.getByRole('button',{name:'Randomise shape and ink'})).toHaveCount(0);
+  await section.getByRole('combobox',{name:'Stamp design',exact:true}).selectOption('default');
+  for(const next of ['shield','oval','rectangle']){
+    await section.getByRole('combobox',{name:'Shape',exact:true}).selectOption(next);
+    await expect(section.locator('details [data-shop-seal-shape]')).toHaveAttribute('data-shop-seal-shape',next);
+    await section.screenshot({path:testInfo.outputPath(`admin-shop-seal-${next}.png`)});
+  }
+  expect((await new AxeBuilder({page}).include('[aria-label="Atlas Stamp artwork"]').analyze()).violations).toEqual([]);
+  expect(await page.evaluate(()=>window.document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
