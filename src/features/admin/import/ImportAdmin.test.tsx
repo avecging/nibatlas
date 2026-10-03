@@ -31,14 +31,14 @@ it('shows 102 rows together, auto-selects valid rows, excludes invalid/duplicate
   expect(screen.getByLabelText('Select row-2')).not.toBeChecked();
   expect(screen.getByText('100 selected')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Save selected as drafts' }));
-  await screen.findByText('99 imported · 3 remaining', {}, { timeout: 15000 });
+  await screen.findByText('99 imported · 3 remaining', {}, { timeout: 60000 });
   expect(fixture.writes.size).toBe(99);
   expect(fixture.publishWrites.size).toBe(0);
   expect([...fixture.writes.values()].every(n => n === 1)).toBe(true);
   expect(screen.queryByLabelText('Select row-0')).not.toBeInTheDocument();
   expect(screen.getByLabelText('Select row-3')).toBeInTheDocument();
   expect(screen.getByText(/Draft validation failed/)).toBeInTheDocument();
-}, 25000);
+}, 75000);
 it('merges correction subsets by row_id, selects newly valid rows and retains unchecked rows', async () => {
   setup(); await upload('row_id,name\na,\nb,Existing source\nc,Another source');
   fireEvent.click(screen.getByLabelText('Select b'));

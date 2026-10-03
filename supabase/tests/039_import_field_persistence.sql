@@ -1,6 +1,8 @@
 -- Synthetic full-document persistence and same-row correction regression for #123.
 begin;
 select no_plan();
+insert into public.brands(id,slug,name) values ('e1230000-0000-4000-8000-000000000004','synthetic-import-audit-brand','Synthetic import audit brand');
+insert into public.specialties(id,code,label,sort_order) values ('e1230000-0000-4000-8000-000000000005','synthetic_import_audit','Synthetic import audit specialty',999);
 insert into auth.users(id) values ('e1230000-0000-4000-8000-000000000001');
 select public.assign_profile_role('e1230000-0000-4000-8000-000000000001','admin');
 create temp table field_audit(d jsonb, payload jsonb, saved jsonb, result jsonb);
@@ -10,8 +12,8 @@ insert into field_audit(d) values (jsonb_build_object(
  'sources','[]'::jsonb,'aliases','[{"id":"e1230000-0000-4000-8000-000000000002","alias":"試験店","language_tag":"ja-JP","alias_type":"local_name"}]'::jsonb,
  'links','[{"id":"e1230000-0000-4000-8000-000000000003","link_type":"wechat","account_value":"synthetic-id","url":null,"label":null,"is_official":true,"sort_order":1}]'::jsonb,
  'types','[{"shop_type_id":"00000000-0000-4000-8000-000000000101","is_primary":true}]'::jsonb,
- 'brands',jsonb_build_array(jsonb_build_object('brand_id',(select id from public.brands order by id limit 1))),
- 'specialties',jsonb_build_array(jsonb_build_object('specialty_id',(select id from public.specialties order by id limit 1))),
+ 'brands',jsonb_build_array(jsonb_build_object('brand_id','e1230000-0000-4000-8000-000000000004'::uuid)),
+ 'specialties',jsonb_build_array(jsonb_build_object('specialty_id','e1230000-0000-4000-8000-000000000005'::uuid)),
  'services','[]'::jsonb,'experiences','[]'::jsonb));
 create function pg_temp.payload(d jsonb, rev text default null, previous_op uuid default null) returns jsonb language sql as $$
  select jsonb_build_object('row',jsonb_build_object('rowId','audit','line',2,'cells',jsonb_build_object('name',d->'shop'->>'name','shop_id',case when rev is not null then 'e1230000-0000-4000-8000-000000000010' end),'issues','[]'::jsonb,'fileDuplicates','[]'::jsonb),
@@ -33,13 +35,14 @@ select is(pg_temp.run('execute','e1230000-0000-4000-8000-000000000030',jsonb_bui
 update field_audit set saved=public.admin_shop_read('e1230000-0000-4000-8000-000000000010');
 select is(saved->'document'->'shop'->e.key,e.value,'normal editor read retains '||e.key) from field_audit,jsonb_each(d->'shop') e;
 select is(saved->'document'->g,d->g,'normal editor read retains relationship '||g) from field_audit,unnest(array['aliases','links','types','brands','specialties']) g;
-select is(saved->>'positionConfirmed','false','coordinates saved without falsely confirming');
+select is(saved->>'positionConfirmed','false','coordinates saved without falsely confirming') from field_audit;
 select public.admin_import_publication('review','e1230000-0000-4000-8000-000000000020','e1230000-0000-4000-8000-000000000030','e1230000-0000-4000-8000-000000000040',jsonb_build_object('reviewKey',pg_temp.state()->>'reviewKey','previousOperation',null));
 select is(public.admin_import_publication('publish','e1230000-0000-4000-8000-000000000020','e1230000-0000-4000-8000-000000000030','e1230000-0000-4000-8000-000000000040')->'publication'->>'status','failed','cannot publish without explicit position confirmation');
 select public.admin_import_publication('confirm_position','e1230000-0000-4000-8000-000000000020','e1230000-0000-4000-8000-000000000030','e1230000-0000-4000-8000-000000000040');
 select is(public.admin_import_publication('publish','e1230000-0000-4000-8000-000000000020','e1230000-0000-4000-8000-000000000030','e1230000-0000-4000-8000-000000000040')->'publication'->>'status','published','publish same imported coordinates without re-entry');
 update field_audit set saved=public.admin_shop_read('e1230000-0000-4000-8000-000000000010');
 select is(saved->'document'->'shop'->e.key,e.value,'published/editor roundtrip retains '||e.key) from field_audit,jsonb_each(d->'shop') e;
+select ok(saved->'document'->g @> d->g,'published/editor roundtrip retains relationship '||g) from field_audit,unnest(array['aliases','links','types','brands','specialties']) g;
 -- The next row_id revision may update only the exact original target, with a fresh review.
 update field_audit set d=jsonb_set(saved->'document','{shop,latitude}','-34');
 update field_audit set payload=pg_temp.payload(d,saved->>'revision','e1230000-0000-4000-8000-000000000030');

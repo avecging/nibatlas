@@ -91,7 +91,7 @@ JSON values, wrong JSON version and oversized input fail with correction guidanc
 `row_id` is optional but recommended (unique 1–100 letters/numbers/`_.:-`);
 otherwise source line/array position identifies the row. Keep it through source
 corrections. Proposed creation UUIDs derive from batch UUID + row identity. Corrections within
-an opened batch retain those identities. Use **Start a separate new batch** only
+an opened batch retain those identities. Use **Start a new job** only
 for a distinct import; changing a file does not reset the current batch identity.
 
 Grouped values resolve countries using the existing country selector and
@@ -162,13 +162,12 @@ admin cannot read/execute another owner's batch. No service key is introduced.
 Each environment's existing isolated Supabase project owns its own ledger;
 no client-selected environment or cross-project route exists.
 
-The UI selects only valid new or exact-ID update rows. Invalid and duplicate rows
-remain unresolved; no-change rows are skipped by selection. **Review selected
-rows** persists the selected plans and shows new/update counts and explicit clears.
-**Import selected as drafts** runs exactly the confirmed operation IDs sequentially,
-with per-row progress, partial outcomes and links to successful private drafts.
-Cancellation before this action changes no shop. Publication warnings do not
-block an otherwise valid draft. Existing canonical/public records remain intact.
+The UI automatically selects valid new or exact-ID update rows. Invalid and
+possible-duplicate rows stay blocked; no-change rows need no draft write.
+**Save selected as drafts** performs reviewed plans and their execution sequentially
+within one bulk action, with per-row progress, partial outcomes and links to saved
+drafts. Publication warnings do not block an otherwise valid draft. Existing
+canonical/public records remain intact.
 
 New rows call the existing atomic `admin_shop_write(create)` generated-default
 initializer and then save the full normalized document inside the same operation
@@ -182,11 +181,13 @@ manual edits/publication and protect revision checks. No whole-batch transaction
 
 Persisted UUID operation identities and `(batch,row,operation_revision)` uniqueness
 make repeated requests return the existing result. Completed operations cannot be
-revised. Corrected unresolved rows use a new UUID and incrementing revision,
-require the latest previousOperation ID and fresh preview/review; the superseded
-operation becomes skipped and drops its payload. A failed/interrupted request can
+revised. Corrections use a new UUID and incrementing revision,
+require the latest previousOperation ID and fresh preview/review; a superseded unresolved
+operation becomes skipped and drops its payload, while completed operations remain
+intact. Corrections after a completed operation must retain its original target. A failed/interrupted request can
 be reopened after reload: confirmed successful outcomes are never executed twice.
-An unknown transport outcome stops the UI and directs the admin to reopen/recover.
+An unknown transport outcome is shown on that row while independent rows continue;
+the final ledger read recovers outcomes, or Refresh job retries recovery.
 
 ## Access, audit and retention
 
@@ -214,43 +215,37 @@ in an import row transaction or removes tombstones/audit/catalogue data.
 
 ## Saved-batch review, position confirmation and publication (C3)
 
-From a reopened batch, **Load publication review** reads the latest saved shop
-state in pages of 25 summaries (maximum 500 batch rows). Search/filter operate on
-those bounded summaries; the display also paginates 25 at a time. No rows are
-selected automatically. **Select reviewable rows on this page** is explicit;
-the total selected count includes other pages/filters. Published, unresolved
-private-import, archived and base-conflicted rows cannot be selected for a new
-publication review. New drafts and private updates are distinguished.
+The whole-job table loads saved publication summaries through the existing
+25-row API pages (maximum 500 rows), without exposing pagination or a separate
+publication workflow. Published, unresolved private-import, archived and
+base-conflicted rows cannot be selected for a new publication review. Imported
+drafts can be selected for publication without repeating the private save.
 
-**Inspect saved / public content** loads one complete current normalized document
-and its published base, using the shared field/relationship labels and vocabulary.
-It includes opening hours and clearly labelled private fields; those fields do
-not become public. Inspecting refreshes and deselects that row. Correction links
-open the existing editor. Incomplete rows show the existing exact publication
-requirements and can be reviewed before correcting their blockers.
+**Inspect fields and changes** exposes imported values and their before/after
+projection. When a saved revision differs from the import result, refresh and
+recovery load the current complete document for inspection before publication.
+Private fields stay private. **Open saved shop** opens the normal editor.
+Incomplete rows show the existing exact publication requirements.
 
-**Mark selected reviewed** persists a new publication operation for each selected
-row, binding its exact private revision and complete document plus canonical
-base/status using the existing review hash. It creates no public review date.
-**Confirm selected positions** lists the selected eligible addresses/coordinates
-and requires a second deliberate confirmation. SQL calls the existing
-`admin_shop_write('confirm_position')`; the revision advances and that exact
-result replaces the publication operation's binding atomically. Confirmation is
-never derived from import/cells/precision/duplicates. Existing valid manual
-confirmation is honored. Any later private revision change invalidates this
-C3 review; location changes also invalidate manual position confirmation under
-the unchanged location fingerprint rules. Old confirmations do not revive when
-coordinates are reverted. Canonical-base conflicts need editor reconciliation.
+**Publish selected** displays one deliberate confirmation panel. It drives the
+existing per-row publication review, optional position confirmation and publication
+calls. Review binds the exact private revision, complete document and canonical
+base/status using the existing review hash; it creates no public review date.
+The position checkbox explicitly attests to the displayed selected addresses and
+coordinates. SQL calls `admin_shop_write('confirm_position')`; the revision
+advances and replaces that publication operation's binding atomically. Confirmation
+is never inferred from imported coordinates. Existing valid manual confirmation
+is honored. Later private changes invalidate the publication review; location
+changes also invalidate position confirmation under unchanged fingerprint rules.
+Old confirmations do not revive when coordinates are reverted.
 
-**Publish selected rows** is enabled only when every selected row is currently
-publishable, shows the precise count/list, and requires explicit confirmation.
-Each one-row POST is a separate transaction. SQL checks the current reviewed
-binding under the shop lock, then calls the unchanged trusted-admin
-`admin_shop_write('publish')`. The normal prerequisites, document validation,
-canonical relationships, source IDs, stable IDs/slugs and review attribution
-apply. Catalogue publication neither publishes images nor activates artwork,
-and never creates visits, collections or impressions. Existing active approved
-artwork is required; no extra activation/default operation is performed.
+Each one-row POST remains a separate transaction. A row with unmet publication
+prerequisites stays a draft with actionable blockers; other selected rows continue.
+SQL checks the current reviewed binding under the shop lock, then calls unchanged
+`admin_shop_write('publish')`. Document validation, canonical relationships, source
+IDs, stable IDs/slugs and review attribution apply. Catalogue publication neither
+publishes images nor activates artwork, and never creates visits, collections or
+impressions. Existing active approved artwork is required.
 
 ### Wire contract
 
@@ -279,20 +274,20 @@ revisions, hashes, actual event times and statuses (`reviewed`, `published`,
 `conflicted`, `failed`). It retains no source cells or full documents. Review
 operation UUIDs bind their initial hash; repeating review/confirmation/publication
 returns current outcomes without repeating a completed write. A superseded
-operation cannot publish a newer review. Successful rows cannot be republished
-from that batch. Later independent changes to those shops use the normal editor.
+operation cannot publish a newer review. Successful publication operations cannot be replayed. A later correction to the
+same row needs a new reviewed private operation and a separate publication decision.
 
 Known per-row validation/conflict failures persist without rolling back successes
-in other rows. Unexpected transaction/transport failure stops the UI and clears
-selection; **Reload publication review** recovers durable outcomes before more
-actions. A transient failed row can retry its same operation if the reviewed
+in other rows. Unexpected transaction/transport failure is recorded per row; independent rows
+continue and the final ledger read recovers durable outcomes. **Refresh job**
+recovers again if that final read fails. A transient failed row can retry its same operation if the reviewed
 binding remains current. Corrections/staleness require a new explicit review
 revision (maximum 100, matching C2). Published rows are excluded from retry.
 
 Minimal `publication_*` events append to the existing immutable import audit;
 confirmation/publication events link to catalogue request IDs. Superseded review
-and failure history remains available to operators. The UI shows latest attempt,
-actual publication time and outcomes; it does not expose audit tables. Existing
+and failure history remains available to operators. The UI concentrates on current outcomes and exceptions; it does not expose
+audit tables or add a dedicated history workflow. Existing
 30-day owner-private recovery expiry applies. Publication tombstones contain no
 payload needing the C2 cleanup job; all original C2 retention/export protections
 remain intact. No remote schedule is changed.
