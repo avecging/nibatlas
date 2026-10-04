@@ -32,7 +32,7 @@ Failures use WP2's `{ok:false,error:{code}}`: `invalid_request` (400),
   interface hint; it cannot request GPS or issue a stamp. The user must activate
   **Check my location**, then **I am at this shop** after server verification.
 - The GPS adapter requests one fresh foreground sample (`maximumAge: 0`, high
-  accuracy, 20-second timeout). Hidden pages, page exit, cancellation, account
+  accuracy, 12-second timeout). Hidden pages, page exit, cancellation, account
   changes and shop changes discard in-flight location/confirmation state. No watch
   or stored fix. Once confirmation has sent issuance, Cancel/Escape closes the
   dialog and refreshes history, but lets that already-authorized response settle.

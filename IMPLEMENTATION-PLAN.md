@@ -15,6 +15,18 @@ GPT owns end-to-end implementation and initiates independent review under
 and scope decisions. A conductor/orchestrator has not been onboarded. `AGENTS.md`
 is the shared working contract. This assignment covers every milestone; frontend work is not reserved for Claude.
 
+## Current follow-up — Tighter check-ins, 4 October 2026
+
+Founder approved a 45 m default (replacing the initially proposed 60 m), tighter
+accuracy, fresh tap-triggered location acquisition, clearer waiting/permission
+recovery and per-shop radius controls with reasons. Location and nonce requests
+start in parallel; phone fix is limited to 12 seconds and preflight to 20 seconds.
+Server enforcement remains private, encrypted and explicit-confirmation bound.
+Preserve controlled overrides, immutable impressions and all existing catalogue
+contracts. PR/review/CI only; no hosted migration, merge or deployment authorized.
+See `docs/api/stamp-verification-v1.md` and the verification runbook. Real iPhone
+permission and indoor acceptance remain separate.
+
 ## Current follow-up — Shop default seals, 3 October 2026
 
 Founder approved horizontal shield, oval and rectangle shop seals using the

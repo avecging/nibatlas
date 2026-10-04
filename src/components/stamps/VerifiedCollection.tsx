@@ -20,7 +20,7 @@ import styles from '@/src/components/shops/ShopActions.module.css';
 type Failure = StampFailureCode | PositionFailure;
 const MESSAGES: Record<Failure,string> = {
   authentication_required:'Please sign in again, then restart the location check.',
-  permission_denied:'Location permission was denied. Enable location for this site in your browser settings, then try again.',
+  permission_denied:'Location is blocked for this site. Allow location in your browser and device settings, then try again. If you opened this inside another app, open the page in Safari or Chrome.',
   untrusted_origin:'This request could not be accepted. Reopen the shop page and try again.',
   poor_accuracy:'Your location is not clear enough. Try near an entrance or window, then take a fresh reading.',
   stale_position:'The location check was interrupted or took too long. Keep this page visible and start again.',
@@ -32,6 +32,7 @@ const MESSAGES: Record<Failure,string> = {
   shop_unavailable:'Stamp collection is currently unavailable at this shop.',
   service_unavailable:'The location check is unavailable right now. Please try again.',
   invalid_request:'The request could not be accepted. Reopen the shop page and try again.',
+  position_timeout:'Your phone could not find a location in time. Try near an entrance or window, keep this page open, then try again.',
   position_unavailable:'Your browser could not find your location. Check your device location settings and try again.',
 };
 
@@ -43,6 +44,7 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
   const [open, setOpen] = useState(() => typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('collect') === '1');
   const [stage,setStage] = useState<'preflight'|'checking'|'confirm'|'issuing'|'error'>('preflight');
+  const [checkPhase,setCheckPhase] = useState<'locating'|'verifying'>('locating');
   const [failure,setFailure] = useState<Failure>('service_unavailable');
   const [poorRetries,setPoorRetries] = useState(0);
   // A nonce or verification failure cannot issue an impression. Once a collect
@@ -113,24 +115,41 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
     if (pending.current || !owner) return;
     binding.current=null;
     const controller = new AbortController(); pending.current=controller;
-    setStage('checking');
+    setStage('checking'); setCheckPhase('locating');
     const valid = () => !controller.signal.aborted && pending.current === controller && document.visibilityState === 'visible';
-    const nonce = await stampRequest('nonce',{shopId:shop.id},controller.signal);
-    if (!valid()) { if (!controller.signal.aborted) fail('stale_position'); return; }
-    if (!nonce.ok) { fail(nonce.error.code); return; }
-    if (receiveCollection(nonce)) return;
-    if (nonce.status !== 'nonce_issued') { fail('service_unavailable'); return; }
-    const proof = {shopId:shop.id,requestId:nonce.requestId,nonce:nonce.nonce};
-    const fix = await foregroundPosition(controller.signal);
-    if (!valid()) return;
-    if (!fix.ok && fix.code !== 'permission_denied') { fail(fix.code); return; }
-    const response = await stampRequest('verify',fix.ok ? {...proof,position:fix.position}
-      : {...proof,permission:'denied'},controller.signal);
-    if (!valid()) return;
-    if (!response.ok) { fail(response.error.code); return; }
-    if (receiveCollection(response)) return;
-    if (response.status !== 'confirmation_required') { fail('service_unavailable'); return; }
-    binding.current=proof; pending.current=null; setStage('confirm');
+    // Start in the button's call stack, before any server await, so mobile
+    // browsers receive a foreground, user-initiated permission request.
+    const fixPromise = foregroundPosition(controller.signal).then(fix => {
+      if (valid() && fix.ok) setCheckPhase('verifying');
+      else if (valid() && !fix.ok && fix.code !== 'permission_denied') { fail(fix.code); controller.abort(); }
+      return { fix, receivedAt: performance.now() };
+    });
+    // Bound the whole nonce + verification wait as well as the phone's 12s fix.
+    // Issuance is separate: this timeout never aborts an authorized collect.
+    const deadline = setTimeout(() => {
+      if (valid()) { fail('service_unavailable'); controller.abort(); }
+    }, 20000);
+    try {
+      const nonce = await stampRequest('nonce',{shopId:shop.id},controller.signal);
+      if (!valid()) { if (!controller.signal.aborted) fail('stale_position'); return; }
+      if (!nonce.ok) { controller.abort(); fail(nonce.error.code); return; }
+      if (receiveCollection(nonce)) return;
+      if (nonce.status !== 'nonce_issued') { controller.abort(); fail('service_unavailable'); return; }
+      const proof = {shopId:shop.id,requestId:nonce.requestId,nonce:nonce.nonce};
+      const {fix,receivedAt} = await fixPromise;
+      if (!valid()) return;
+      if (!fix.ok && fix.code !== 'permission_denied') { fail(fix.code); return; }
+      // A quick fix must not wait indefinitely for a slow nonce response.
+      if (fix.ok && performance.now() - receivedAt > 12000) { fail('stale_position'); return; }
+      setCheckPhase('verifying');
+      const response = await stampRequest('verify',fix.ok ? {...proof,position:fix.position}
+        : {...proof,permission:'denied'},controller.signal);
+      if (!valid()) return;
+      if (!response.ok) { fail(response.error.code); return; }
+      if (receiveCollection(response)) return;
+      if (response.status !== 'confirmation_required') { fail('service_unavailable'); return; }
+      binding.current=proof; pending.current=null; setStage('confirm');
+    } finally { clearTimeout(deadline); }
   }
   async function confirm() {
     if (pending.current || !binding.current || !owner) return;
@@ -183,7 +202,7 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
       <h2 className={styles.dialogTitle} id="verified-collect-title">{stage === 'confirm' ? 'Confirm your visit':'Before you collect'}</h2>
       <div className={styles.dialogBody}>
         {stage === 'preflight' ? <p>Use your location once to check that you are at this shop. Your precise position is checked and discarded, never stored. <Link href="/privacy" className={styles.dialogLink}>How location is used</Link>.</p> : null}
-        {stage === 'checking' || stage === 'issuing' ? <p role="status">{stage === 'checking' ? 'Checking your location… Keep this page visible.':'Keeping your impression…'}</p> : null}
+        {stage === 'checking' || stage === 'issuing' ? <p role="status">{stage === 'checking' ? checkPhase === 'locating' ? 'Finding your location… Allow location if your browser asks. This can take up to 12 seconds; keep this page visible.' : 'Checking your visit… Keep this page visible.':'Keeping your impression…'}</p> : null}
         {stage === 'confirm' ? <p>Your location check passed. Confirm that you are at {shop.name} to collect its stamp.</p> : null}
         {stage === 'error' ? <><p role="alert">{issuanceUncertain && ['service_unavailable','reused_nonce','stale_position'].includes(failure)
           ? 'We could not confirm the result of your collection request. Check your Passport before trying again; an issued stamp will not be issued twice.'

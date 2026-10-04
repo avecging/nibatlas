@@ -1,4 +1,5 @@
 "use client";
+import { ShopVerificationPolicy } from "./ShopVerificationPolicy";
 import { RelatedShopsEditor } from "./RelatedShopsEditor";
 import { MainShopType } from "./MainShopType";
 import { ShopChannelsEditor } from "./ShopChannelsEditor";
@@ -1196,6 +1197,7 @@ function Workspace({ id }: { id: string | null }) {
               </div>
 
               {section === "location" && (
+                <>
                 <div className={styles.box}>
                   <h3>Map position</h3>
                   <p className={styles.help}>
@@ -1235,6 +1237,8 @@ function Workspace({ id }: { id: string | null }) {
                     </small>
                   )}
                 </div>
+                <ShopVerificationPolicy key={`${id}:${record.revision}`} shop={id!} disabled={busy || dirty || archived} />
+                </>
               )}
 
               {section === "visit" && <HoursEditor value={draft.shop.opening_hours} errors={fieldErrors} onChange={value => {
