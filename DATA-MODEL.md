@@ -397,10 +397,11 @@ saved and visited state separately.
 ### Near Me and collection verification
 
 - Use `ST_DWithin(shop.location::geography, user_point::geography, radius_m)`.
-- Compute exact `ST_Distance` server-side for diagnostic output.
+- Compute exact `ST_Distance` in server memory; retain only private coarse diagnostic buckets.
 - User coordinates exist only in request/transaction memory.
-- Default geofence: 150 m; shop override requires admin reason.
-- Require reported accuracy ≤100 m and fresh position timestamp.
+- Default geofence: 45 m; a controlled 25–300 m shop override or reset requires an editor/admin reason.
+- Require reported accuracy ≤min(shop radius, 45 m) and a fresh foreground fix.
+  Server clocks bound the nonce/verification window; reject client timestamps.
 
 ### Search
 

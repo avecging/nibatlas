@@ -91,8 +91,8 @@ The loop must remain useful before merchant partnerships exist. Standard Atlas S
 - One active standard Atlas Stamp for each published shop.
 - Account-gated **Collect Stamp** action.
 - Foreground location requested only at collection time.
-- Server-side adaptive geofence check; default 150 metres, configurable per shop.
-- Accept location only when reported accuracy is 100 metres or better, with one immediate retry.
+- Server-side adaptive geofence check; default 45 metres, configurable per shop.
+- Accept location only when reported accuracy is at most the smaller of 45 metres and the shop radius, with one immediate retry.
 - Explicit user confirmation that they are at the shop.
 - Idempotent issuance: one collection per user and stamp.
 - Short, tasteful stamp-press ceremony with reduced-motion alternative.
@@ -210,7 +210,9 @@ Changes require an explicit product decision if they alter any of these:
 Adaptive geofencing uses controlled shop-specific settings with a recorded
 admin/editor reason. A poor-accuracy retry never automatically widens the radius.
 Verification precedes explicit confirmation and does not itself issue a stamp.
-The 150 m default and maximum accepted reported accuracy of 100 m are unchanged.
+Founder-approved beta tightening, 4 October 2026: the default is 45 m, and
+reported accuracy must be at most min(shop radius, 45 m). Existing explicit
+shop exceptions and collected impressions remain intact.
 See [the backend contract](docs/api/stamp-verification-v1.md) for request timing,
 privacy, recovery and frontend integration.
 
