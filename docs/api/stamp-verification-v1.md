@@ -1,6 +1,6 @@
 # Atlas Stamp verification v1 — Milestone 5 WP2
 
-Backend contract, 12 September 2026. WP1 remains the immutable data foundation;
+Backend contract, updated 4 October 2026. WP1 remains the immutable data foundation;
 WP2 adds the sole service-role issuance path. Presentation integration is WP3.
 
 ## Request flow
@@ -10,12 +10,20 @@ All calls are same-origin `POST`, JSON, cookie authenticated, with `credentials:
 or token in a URL, analytics event, exception, console log, storage or trace.
 
 1. User taps Collect and accepts the one-time location explanation.
-2. `POST /api/v1/stamps/nonce` with `{ "shopId": "canonical UUID" }`.
+2. Start the fresh foreground location request synchronously from the consent
+   button tap, before any server await. In parallel, `POST /api/v1/stamps/nonce` with `{ "shopId": "canonical UUID" }`.
    Returns `{ok:true,status:"nonce_issued",requestId,nonce}` or an existing collection.
 3. Acquire a new foreground fix with `getCurrentPosition`, `maximumAge: 0`,
-   `enableHighAccuracy: true`, `timeout: 20000`. Require `document.visibilityState
+   `enableHighAccuracy: true`, `timeout: 12000`. Require `document.visibilityState
    === "visible"` at acquisition and submission. Discard the fix when hidden,
    navigating, switching shop/account, or retrying. Do not reuse Near Me samples.
+   The browser watchdog reports a distinct timeout after 12 seconds, even if
+   permission UI never resolves. Nonce plus verification has a 20-second overall
+   client deadline. A sample waiting over 12 seconds for the nonce is discarded;
+   every retry starts a new fix and nonce. Authorized collection is never aborted
+   by the preflight deadline. Browser denial explains device/site settings and
+   opening an embedded page in Safari/Chrome; actual iPhone permission behavior
+   still needs device acceptance.
 4. `POST /api/v1/stamps/verify` with `{shopId,requestId,nonce,position:
    {latitude,longitude,accuracy}}`. For denied permission send
    `{shopId,requestId,nonce,permission:"denied"}` without a position.
@@ -93,14 +101,20 @@ or silently connect fixture Passport records to authenticated collections.
   they cannot cryptographically attest GPS freshness or truth. A browser can
   fabricate a location or foreground status. Hardware attestation is outside MVP.
   The honest client must use the foreground/no-cache flow above.
-- PostGIS geography uses `ST_DWithin` with an inclusive 150 m default and reported
-  accuracy at most 100 m. Accuracy is never subtracted from distance or used to
+- PostGIS geography uses `ST_DWithin` with an inclusive 45 m default and reported
+  accuracy at most `min(shop radius, 45 m)`. Accuracy is never subtracted from distance or used to
   expand the radius. Eligibility is evaluated before diagnostic bucketing. A one-micrometre
   numerical tolerance absorbs floating-point roundoff at the inclusive boundary.
 - Adaptation is a controlled per-shop policy (25–300 m) requiring an editor/admin
   actor and a meaningful reason. It is intentionally not an automatic widening
-  algorithm. The public response never exposes the selected policy. Admin UI and
-  full administrative audit history follow in Milestone 6.
+  algorithm. The private Location section provides a separate, immediate setting
+  save and a reset to the 45 m default. Both require a reason of 10–500 characters.
+  Cookie-bound administration rechecks/locks the live editor/admin role, locks
+  the shop, rejects stale policy revisions and records a succinct fingerprint
+  audit. Archived shops cannot change policy. The service-only adapter retains
+  its protected actor check. Existing overrides and collected impressions are
+  preserved; the new default applies only where no override exists.
+  The public response never exposes the selected policy.
 - Only published, non-closed shops with a canonical locality, active/in-window
   Atlas Stamp, and approved artwork can issue. An unknown operational status is
   not a recorded closure; opening hours are not inferred. Missing locality is
@@ -140,3 +154,16 @@ any future observability integration from capturing request/response bodies.
 The application catches errors without logging their potentially sensitive payloads.
 
 See [deployment and operations](../runbooks/stamp-verification.md).
+
+
+## Private radius administration
+
+`GET /api/v1/admin/shops/:id/verification-policy` returns only the saved
+`{radiusMeters, custom, reason, revision}` to a cookie-authenticated editor/admin.
+`POST` on the same path requires same-origin JSON with exactly
+`{revision, radiusMeters, reason}`; `radiusMeters: null` restores the default.
+The radius is an integer 25–300, reason is 10–500 characters, and revision is the
+last loaded 32-character policy fingerprint. Stale writes return 409;
+unauthorized accounts return 401/403. The database rechecks authority and
+serializes against shop verification even after the HTTP guard passes.
+Policy state is private/no-store and excluded from public shop responses.

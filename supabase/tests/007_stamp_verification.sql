@@ -41,17 +41,17 @@ select is(pg_temp.action(1,'collect','{"confirmedAtShop":true,"countryLabel":"Si
 select is(pg_temp.action(1,'context_verify','{}','10000000-0000-4000-8000-000000000052')->>'code','invalid_nonce','wrong user fails');
 select is(pg_temp.action(1,'context_verify','{}','10000000-0000-4000-8000-000000000051','00000000-0000-4000-8000-000000000302')->>'code','invalid_nonce','wrong shop fails');
 select is(public.stamp_verification_action('verify','10000000-0000-4000-8000-000000000051','00000000-0000-4000-8000-000000000301','20000000-0000-4000-8000-000000000001',repeat('0',64))->>'code','invalid_nonce','wrong nonce hash fails');
-select is(pg_temp.action(1,'verify',pg_temp.fix(1,149.999,100))->>'code','confirmation_required','immediately inside geofence; accuracy exactly 100 accepted');
+select is(pg_temp.action(1,'verify',pg_temp.fix(1,44.999,45))->>'code','confirmation_required','immediately inside geofence; accuracy exactly 45 accepted');
 select is(pg_temp.action(1,'context_verify')->>'code','reused_nonce','successful verification nonce cannot verify again');
 select ok((select encryption_key is null from stamp_private.verification_nonces where request_id='20000000-0000-4000-8000-000000000001'),'key destroyed after verification');
 select is(pg_temp.action(1,'collect','{"confirmedAtShop":false,"countryLabel":"Singapore"}')->>'code','invalid_request','explicit confirmation required');
 
 select pg_temp.start_nonce(2);
-select is(pg_temp.action(2,'verify',pg_temp.fix(2,150.00001))->>'code','outside_radius','immediately outside geofence rejected');
+select is(pg_temp.action(2,'verify',pg_temp.fix(2,45.00001))->>'code','outside_radius','immediately outside geofence rejected');
 select pg_temp.start_nonce(3);
-select is(pg_temp.action(3,'verify',pg_temp.fix(3,150))->>'code','confirmation_required','exact boundary is inclusive');
+select is(pg_temp.action(3,'verify',pg_temp.fix(3,45))->>'code','confirmation_required','exact boundary is inclusive');
 select pg_temp.start_nonce(4);
-select is(pg_temp.action(4,'verify',pg_temp.fix(4,0,100.001))->>'code','poor_accuracy','worse than 100 rejected');
+select is(pg_temp.action(4,'verify',pg_temp.fix(4,0,45.001))->>'code','poor_accuracy','worse than 45 rejected');
 select pg_temp.start_nonce(5);
 update stamp_private.verification_nonces set created_at=clock_timestamp()-interval '31 seconds' where request_id='20000000-0000-4000-8000-000000000005';
 select is(pg_temp.action(5,'verify',pg_temp.fix(5))->>'code','stale_position','server acquisition window rejects stale fix');
@@ -66,9 +66,25 @@ select pg_temp.start_nonce(9);
 select is(pg_temp.action(9,'verify',pg_temp.fix(9,170))->>'code','outside_radius','poor accuracy never silently widens radius');
 select ok((select 'repeated_failure'=any(anomaly_flags) from public.verification_attempts where request_id='20000000-0000-4000-8000-000000000009'),'privacy-safe repeated failure flag recorded');
 
+-- Tight default rejects the former 150m zone and imprecise fixes at the pin.
+select pg_temp.start_nonce(40);
+select is(pg_temp.action(40,'verify',pg_temp.fix(40,60,10))->>'code','outside_radius','60m is outside the new default');
+select pg_temp.start_nonce(41);
+select is(pg_temp.action(41,'verify',pg_temp.fix(41,0,100))->>'code','poor_accuracy','old 100m uncertainty is rejected even at the shop pin');
+select ok((select radius_m=45 from public.verification_attempts where request_id='20000000-0000-4000-8000-000000000040'),'diagnostics record the effective 45m default');
+
 select throws_ok($$select public.set_shop_verification_policy('10000000-0000-4000-8000-000000000051','00000000-0000-4000-8000-000000000301',200,'Mall entrance coordinate review')$$,'42501','Permission denied','ordinary user cannot authorize override');
 update public.profiles set role='admin' where id='10000000-0000-4000-8000-000000000052';
+select public.set_shop_verification_policy('10000000-0000-4000-8000-000000000052','00000000-0000-4000-8000-000000000301',25,'Precisely checked synthetic shop entrance');
+select pg_temp.start_nonce(43);
+select is(pg_temp.action(43,'verify',pg_temp.fix(43,25,25))->>'code','confirmation_required','25m override accepts exact distance and accuracy boundaries');
+select pg_temp.start_nonce(44);
+select is(pg_temp.action(44,'verify',pg_temp.fix(44,0,25.001))->>'code','poor_accuracy','small override caps accuracy to its own radius');
+select pg_temp.start_nonce(45);
+select is(pg_temp.action(45,'verify',pg_temp.fix(45,25.00001,1))->>'code','outside_radius','small override rejects just beyond its distance boundary');
 select public.set_shop_verification_policy('10000000-0000-4000-8000-000000000052','00000000-0000-4000-8000-000000000301',200,'Mall entrance coordinate review');
+select pg_temp.start_nonce(42);
+select is(pg_temp.action(42,'verify',pg_temp.fix(42,0,45.001))->>'code','poor_accuracy','wider shop override never loosens the accuracy ceiling');
 select pg_temp.start_nonce(10);
 select is(pg_temp.action(10,'verify',pg_temp.fix(10,175))->>'code','confirmation_required','controlled shop override adapts geofence');
 select is(pg_temp.action(1,'collect','{"confirmedAtShop":true,"countryLabel":"Singapore"}')->>'code','shop_unavailable','policy change invalidates previously verified proof');

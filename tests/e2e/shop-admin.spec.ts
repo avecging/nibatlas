@@ -78,7 +78,8 @@ async function setup(page: Page, initial?: ShopRecord) {
     const url = new URL(route.request().url());
     let body: unknown,
       status = 200;
-    if (url.pathname.endsWith("/publication")) body = {publication:null};
+    if (url.pathname.endsWith("/verification-policy")) body = {radiusMeters:45,custom:false,reason:null,revision:"a".repeat(32)};
+    else if (url.pathname.endsWith("/publication")) body = {publication:null};
     else if (url.pathname.endsWith("/media") || url.pathname.endsWith("/stamp")) body = {entries: []};
     else if (url.pathname.endsWith("/options"))
       body = {
@@ -1698,4 +1699,40 @@ test('default shop seals randomise locally, retain manual ink and save/activate 
   }
   expect((await new AxeBuilder({page}).include('[aria-label="Atlas Stamp artwork"]').analyze()).violations).toEqual([]);
   expect(await page.evaluate(()=>window.document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
+
+test('Location saves a justified check-in exception and restores the 45m default',async({page},testInfo)=>{
+  await setup(page);
+  let policy={radiusMeters:45,custom:false,reason:null as string|null,revision:'a'.repeat(32)};
+  const writes:Record<string,unknown>[]=[];
+  await page.route('**/api/v1/admin/shops/*/verification-policy',route=>{
+    if(route.request().method()==='POST') {
+      const body=route.request().postDataJSON();writes.push(body);
+      if(body.revision!==policy.revision) return route.fulfill({status:409,json:{error:{code:'revision_conflict'}}});
+      policy={radiusMeters:body.radiusMeters??45,custom:body.radiusMeters!==null,
+        reason:body.radiusMeters!==null?body.reason:null,revision:String.fromCharCode(97+writes.length).repeat(32)};
+    }
+    return route.fulfill({json:policy});
+  });
+  await page.goto(`/admin/shops/${id}`);await open(page,'Location');
+  const box=page.getByRole('heading',{name:'Check-in radius'}).locator('..');
+  const submit=box.getByRole('button',{name:'Save check-in radius'});
+  await expect(submit).toBeEnabled();
+  await box.getByLabel('Radius setting').selectOption('custom');
+  await box.getByLabel('Radius in metres').fill('60');await submit.click();
+  await expect(box.getByRole('alert')).toContainText('10–500');expect(writes).toHaveLength(0);
+  await box.getByLabel('Reason for this change').fill('Validated synthetic mall entrance');await submit.click();
+  await expect(box.getByRole('status')).toHaveText('Check-in radius saved. This applies immediately.');
+  expect(writes[0]).toMatchObject({radiusMeters:60,revision:'a'.repeat(32)});
+  await box.getByRole('button',{name:'Reload saved radius'}).click();
+  await expect(box.getByLabel('Radius in metres')).toHaveValue('60');
+  await box.getByLabel('Radius setting').selectOption('default');
+  await expect(box.getByLabel('Reason for this change')).toHaveValue('');
+  await box.getByLabel('Reason for this change').fill('Restore the verified default');await submit.click();
+  await expect(box.getByRole('status')).toHaveText('Check-in radius saved. This applies immediately.');
+  expect(writes[1]).toMatchObject({radiusMeters:null,revision:'b'.repeat(32)});
+  expect(await page.locator('body').evaluate(el=>el.scrollWidth<=window.innerWidth)).toBe(true);
+  expect((await new AxeBuilder({page}).include('#shop-editor').analyze()).violations).toEqual([]);
+  await page.screenshot({path:testInfo.outputPath('admin-check-in-radius.png'),fullPage:true});
 });

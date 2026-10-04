@@ -117,11 +117,11 @@ describe('verified collection journey',()=>{
     expect(screen.queryByRole('link',{name:'Check Passport'})).not.toBeInTheDocument();
     expect(screen.getByRole('alert')).not.toHaveTextContent(/Passport/);
   });
-  it('keeps a nonce failure at the shop without requesting location or Passport recovery',async()=>{
+  it('discards the parallel location request after a nonce failure without Passport recovery',async()=>{
     nonceFailure='service_unavailable';await open();fireEvent.click(screen.getByRole('button',{name:'Check my location'}));
     expect(await screen.findByRole('alert')).not.toHaveTextContent(/Passport/);
     expect(screen.queryByRole('link',{name:'Check Passport'})).not.toBeInTheDocument();
-    expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
+    expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
     expect(calls.map(c=>c.action)).toEqual(['nonce']);
   });
   it('retains uncertain issuance recovery across cancel and a later failed check',async()=>{
@@ -366,4 +366,59 @@ it('acknowledges every displayed past-visit seal across bounded receipt batches'
  fireEvent.click(screen.getByRole('button',{name:'Acknowledge seals'}));
  await waitFor(()=>expect(screen.getByTestId('new-seals')).toHaveTextContent('0'));
  expect(screen.getByTestId('seals')).toHaveTextContent('53');
+});
+
+it('starts geolocation synchronously from the tap while the nonce is still pending',async()=>{
+  const original=fetch;
+  let release:(response:Response)=>void=()=>{};
+  vi.stubGlobal('fetch',vi.fn((input:string,init?:RequestInit)=>input.endsWith('/nonce')
+    ? new Promise<Response>(resolve=>{release=resolve;}) : original(input,init)));
+  await open();
+  fireEvent.click(screen.getByRole('button',{name:'Check my location'}));
+  expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole('button',{name:'I am at this shop'})).not.toBeInTheDocument();
+  await act(async()=>release(Response.json({ok:true,status:'nonce_issued',requestId:STAMP_OWNER,nonce:'a'.repeat(64)})));
+  await screen.findByRole('button',{name:'I am at this shop'});
+  expect(calls.map(c=>c.action)).toEqual(['verify']);
+});
+it('discards a quick fix that grows stale while the nonce is delayed',async()=>{
+  const original=fetch;
+  let release:(response:Response)=>void=()=>{};
+  vi.stubGlobal('fetch',vi.fn((input:string,init?:RequestInit)=>input.endsWith('/nonce')
+    ? new Promise<Response>(resolve=>{release=resolve;}) : original(input,init)));
+  const clock=vi.spyOn(performance,'now').mockReturnValue(1);
+  await open();fireEvent.click(screen.getByRole('button',{name:'Check my location'}));
+  await act(async()=>{});clock.mockReturnValue(12002);
+  await act(async()=>release(Response.json({ok:true,status:'nonce_issued',requestId:STAMP_OWNER,nonce:'a'.repeat(64)})));
+  expect(await screen.findByRole('alert')).toHaveTextContent('interrupted or took too long');
+  expect(calls).toHaveLength(0);
+});
+it('bounds a stalled server check without offering Passport recovery or submitting a late fix',async()=>{
+  const original=fetch;
+  let release:(response:Response)=>void=()=>{};
+  vi.stubGlobal('fetch',vi.fn((input:string,init?:RequestInit)=>input.endsWith('/nonce')
+    ? new Promise<Response>(resolve=>{release=resolve;}) : original(input,init)));
+  await open();vi.useFakeTimers();
+  try {
+    fireEvent.click(screen.getByRole('button',{name:'Check my location'}));
+    await act(async()=>{await vi.advanceTimersByTimeAsync(20000);});
+    expect(screen.getByRole('alert')).toHaveTextContent('unavailable');
+    expect(screen.queryByRole('link',{name:'Check Passport'})).not.toBeInTheDocument();
+    await act(async()=>release(Response.json({ok:true,status:'nonce_issued',requestId:STAMP_OWNER,nonce:'a'.repeat(64)})));
+    expect(calls).toHaveLength(0);
+  } finally {vi.useRealTimers();}
+});
+it('reports the phone timeout at 12 seconds even when the nonce is stalled',async()=>{
+  const original=fetch;
+  vi.stubGlobal('fetch',vi.fn((input:string,init?:RequestInit)=>input.endsWith('/nonce')
+    ? new Promise<Response>(()=>{}) : original(input,init)));
+  Object.defineProperty(navigator,'geolocation',{configurable:true,value:{getCurrentPosition:vi.fn()}});
+  await open();vi.useFakeTimers();
+  try {
+    fireEvent.click(screen.getByRole('button',{name:'Check my location'}));
+    expect(within(screen.getByRole('dialog')).getByRole('status')).toHaveTextContent('up to 12 seconds');
+    await act(async()=>{await vi.advanceTimersByTimeAsync(12000);});
+    expect(screen.getByRole('alert')).toHaveTextContent('could not find a location in time');
+    expect(calls).toHaveLength(0);
+  } finally {vi.useRealTimers();}
 });
