@@ -1,6 +1,9 @@
 # Stamp verification deployment and operations
 
-The backend and account presentation are connected. A fixture ceremony is still
+The backend and account presentation are connected. The 4 October beta follow-up
+requires forward migration `20261004063050_tighter_shop_check_in.sql` together with
+the application update. It tightens the default to 45 m; existing explicit shop
+policies and historical collections remain intact. A fixture ceremony is still
 not evidence of live issuance; use the account contract and phone-test runbook.
 
 ## Staging activation
@@ -41,11 +44,20 @@ attempt histories into logs or another analytics store.
 
 ## Controlled shop adaptation
 
+Open the shop editor → Location → Check-in radius. Save shop edits first and
+verify/confirm the shop entrance pin. Leave **Use the default 45 metres** selected
+unless a documented location issue needs a custom 25–300 m radius. Enter a reason
+(10–500 characters) and click **Save check-in radius**. This changes verification
+immediately, independently of catalogue publication. To restore the default,
+select it and supply a reason. Reload saved radius after a competing-tab conflict
+or uncertain response. Ordinary users cannot read or write these settings.
+
 `set_shop_verification_policy(actor UUID, shop UUID, radius integer, reason text)`
-is server-only and checks the actor's protected editor/admin profile role. Use it
-only after validating the shop entrance/coordinates; record the reason. The
-private row records the latest actor and timestamp. Milestone 6 supplies the
-founder UI and general audit log. Never edit policy using a browser Supabase key.
+remains service-only, rechecks/locks the actor's protected editor/admin role and
+records a succinct audit. A null radius restores the default. Cookie-bound UI
+uses `admin_shop_verification_policy`, deriving its actor solely from `auth.uid()`.
+The private row records the latest override actor/reason/time. Never grant direct
+browser table access or use an account-metadata role as authorization.
 
 ## Logging and rollback
 
@@ -71,3 +83,18 @@ CI resets the database, runs all pgTAP/RLS tests, then runs
 Supabase database, and the existing 50k-shop performance gate. The concurrency
 script must never target hosted environments. The seed remains deterministic and
 contains no verification sessions or collections.
+
+
+## Beta device acceptance after a separately approved deployment
+
+- On an iPhone in Safari, tap Collect Stamp → Check my location. With undecided
+  site permission, confirm the browser prompt appears; allow it, then explicitly
+  confirm the visit. If already blocked, check the settings/retry guidance.
+- On Android, try a slow fix indoors. The dialog should explain the wait and offer
+  retry after about 12 seconds; cancellation and hiding must discard late fixes.
+- Test at a verified shop entrance, inside the shop and across the street. The
+  tighter radius must not substitute for correcting an inaccurate shop pin.
+  GPS cannot prove which shop/floor someone entered within the same building.
+- On desktop, save a justified shop exception, refresh, then restore default.
+  A stale second tab must require reloading. Policy changes must not alter
+  existing Passport impressions.
