@@ -464,25 +464,52 @@ test.describe("the signed-in structure", () => {
     await expect(page.getByText(/reviewer preview/i)).toHaveCount(0);
   });
 
-  test("a display name replaces the account address in the headline", async ({
-    page,
-  }) => {
+  test("edits, saves, and reloads a display name", async ({ page }) => {
     await stubSession(page, { kind: "signed-in", displayName: "Ada Lovelace" });
+
+    let submitted: unknown = null;
+
+    await page.route("**/api/v1/account/profile", async (route) => {
+      submitted = route.request().postDataJSON();
+
+      await route.fulfill({
+        status: 200,
+        headers: { "cache-control": "private, no-store" },
+        contentType: "application/json",
+        body: JSON.stringify({ displayName: "Grace Hopper" }),
+      });
+    });
+
     await page.goto("/me");
 
     const account = page.getByRole("region", { name: /^account$/i });
+    const displayName = page.getByLabel("Display name");
 
     await expect(account.getByText("Ada Lovelace")).toBeVisible();
     await expect(account.getByText(SESSION_IDENTITY)).toBeVisible();
+    await expect(displayName).toHaveValue("Ada Lovelace");
 
-    /*
-     * And it is not editable here. WP2 built a profile read and no profile
-     * write, so the form that used to sit under this heading had a Save button
-     * with nothing to call.
-     */
-    await expect(page.getByLabel(/display name/i)).toHaveCount(0);
-    await expect(account).toContainText("Display name");
-    await expect(account).toContainText("Not available yet");
+    await displayName.fill("  Grace   Hopper  ");
+    await account.getByRole("button", { name: /^save$/i }).click();
+
+    await expect.poll(() => submitted).toEqual({
+      displayName: "  Grace   Hopper  ",
+    });
+    await expect(account.getByRole("status")).toHaveText("Display name saved.");
+    await expect(displayName).toHaveValue("Grace Hopper");
+    await expect(account.getByText("Grace Hopper")).toBeVisible();
+
+    // A later session read returns the saved profile value, as it does after a
+    // real page load through the server-owned profile row.
+    await stubSession(page, { kind: "signed-in", displayName: "Grace Hopper" });
+    await page.reload();
+
+    await expect(page.getByLabel("Display name")).toHaveValue("Grace Hopper");
+
+    await page.goto("/passport");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Grace Hopper’s Passport",
+    );
   });
 
   /*
