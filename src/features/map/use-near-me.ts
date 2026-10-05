@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { normalizeLongitude, type GeoPoint, type Viewport } from "@/src/domain/geo";
+import { captureProductEvent } from "@/src/features/analytics/posthog";
 import { foregroundPosition } from "@/src/features/collection/foreground-position";
 
 /** Round before any map state, URL, provider request or return-context storage. */
@@ -53,5 +54,5 @@ export function useNearMe(onLocated: (viewport: Viewport) => void) {
     }
   }, [onLocated]);
 
-  return { status, message, explain: () => setStatus("explaining"), locate, cancel };
+  return { status, message, explain: () => { captureProductEvent("near_me_clicked"); setStatus("explaining"); }, locate, cancel };
 }

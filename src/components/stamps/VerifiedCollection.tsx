@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { VerificationBindingV1, StampFailureCode, StampResponseV1 } from '@/src/api/v1/stamp-verification';
 import type { StampCollection } from '@/src/domain/passport';
 import type { ShopDetail } from '@/src/domain/shop-detail';
+import { captureProductEvent, type FailureReason } from '@/src/features/analytics/posthog';
 import { useAccountSession } from '@/src/features/account/AccountSessionProvider';
 import { useSignInPrompt } from '@/src/features/auth/SignInProvider';
 import { currentReturnTo } from '@/src/features/auth/return-to';
@@ -18,6 +19,12 @@ import { StampCeremony } from './StampCeremony';
 import styles from '@/src/components/shops/ShopActions.module.css';
 
 type Failure = StampFailureCode | PositionFailure;
+export function coarseFailure(code: Failure): FailureReason {
+  if (code === 'permission_denied') return 'permission_denied';
+  if (code === 'outside_radius') return 'too_far_away';
+  if (code === 'position_timeout' || code === 'position_unavailable' || code === 'poor_accuracy') return 'location_unavailable';
+  return 'unknown';
+}
 const MESSAGES: Record<Failure,string> = {
   authentication_required:'Please sign in again, then restart the location check.',
   permission_denied:'Location is blocked for this site. Allow location in your browser and device settings, then try again. If you opened this inside another app, open the page in Safari or Chrome.',
@@ -99,6 +106,7 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
     setIssuanceUncertain(false);
   };
   const fail = (code:Failure, mayHaveIssued = uncertainRequests.current.size > 0) => {
+    captureProductEvent('check_in_failed', coarseFailure(code));
     binding.current=null; pending.current=null; setFailure(code); setStage('error');
     if (mayHaveIssued && (code === 'reused_nonce' || code === 'service_unavailable')) store.retryRead?.();
   };
@@ -106,6 +114,7 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
     if (!response.ok || (response.status !== 'success' && response.status !== 'duplicate')) return false;
     const collection = decodeCollection(response.collection,shop.slug);
     if (collection.shopId !== shop.id) { fail('service_unavailable'); return true; }
+    captureProductEvent('check_in_succeeded');
     store.acceptIssued?.(collection);
     settleIssued();
     close(); setCeremony({collection,duplicate:response.status === 'duplicate'});
@@ -115,6 +124,7 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
     if (pending.current || !owner) return;
     binding.current=null;
     const controller = new AbortController(); pending.current=controller;
+    captureProductEvent('check_in_started');
     setStage('checking'); setCheckPhase('locating');
     const valid = () => !controller.signal.aborted && pending.current === controller && document.visibilityState === 'visible';
     // Start in the button's call stack, before any server await, so mobile

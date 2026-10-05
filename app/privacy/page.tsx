@@ -71,6 +71,14 @@ export default function PrivacyPage() {
         abuse indicators. They contain no raw coordinates. Short-lived verification
         proofs and rate-limit counters are deleted separately.</p>
 
+      <h2 className="type-h2">Beta usage analytics</h2>
+      <p>When configured, PostHog receives anonymous page visits, a few app actions and
+        masked session replays to help us find beta usability problems. Replay hides
+        text and typed input. We do not send email, account identifiers, raw location
+        or authentication tokens. Page visit URLs omit search parameters.
+        PostHog may process browser and network information such as an IP address.
+        Analytics is disabled in builds without a PostHog project token.</p>
+
       <h2 className="type-h2">Signing in</h2>
       <p>
         Signing in is optional. If you choose an email link, Nib Atlas sends your

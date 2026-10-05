@@ -25,6 +25,7 @@ import {
   type AccountDeletionOutcome,
   type SignOutOutcome,
 } from "@/src/features/auth/auth-client";
+import { captureProductEvent } from "@/src/features/analytics/posthog";
 import { parseCallbackError } from "@/src/features/auth/auth-copy";
 import { forgetPendingFlow } from "@/src/features/auth/pending-flow";
 import type { AuthErrorCode } from "@/src/server/auth/continuation";
@@ -174,6 +175,7 @@ export function AccountSessionProvider({ children }: { readonly children: ReactN
     }
 
     if (result?.kind === "signed-in") {
+      captureProductEvent("login_succeeded");
       // The flow completed, so the tab's note about what it was for has done its
       // job: from here the pending intent is the server's cookie, which is the
       // copy that completes the action.
