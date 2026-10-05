@@ -5,7 +5,12 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { NibAtlasMark } from "@/src/components/brand/NibAtlasMark";
 import { Icon, type IconName } from "@/src/components/ui/Icon";
-import { accountHeadline } from "@/src/features/account/account-session";
+import {
+  accountHeadline,
+  DISPLAY_NAME_MAX_LENGTH,
+  validateDisplayName,
+} from "@/src/features/account/account-session";
+import type { DisplayNameUpdateOutcome } from "@/src/features/auth/auth-client";
 import { useAccountSession } from "@/src/features/account/AccountSessionProvider";
 import { useSignInPrompt } from "@/src/features/auth/SignInProvider";
 import { useCollection } from "@/src/features/collection/collection-store";
@@ -510,6 +515,106 @@ function Contribute() {
   );
 }
 
+function DisplayNameForm({
+  initialName,
+  onSave,
+}: {
+  readonly initialName: string | null;
+  onSave(displayName: string): Promise<DisplayNameUpdateOutcome>;
+}) {
+  const inputId = useId();
+  const hintId = useId();
+  const [value, setValue] = useState(initialName ?? "");
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{
+    readonly tone: "success" | "error";
+    readonly text: string;
+  } | null>(null);
+
+  const handleSubmit = useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      setMessage(null);
+
+      const validated = validateDisplayName(value);
+
+      if (!validated.ok) {
+        setMessage({
+          tone: "error",
+          text: `Use ${DISPLAY_NAME_MAX_LENGTH} characters or fewer.`,
+        });
+        return;
+      }
+
+      setSaving(true);
+      const outcome = await onSave(value);
+      setSaving(false);
+
+      if (!outcome.ok) {
+        setMessage({
+          tone: "error",
+          text:
+            outcome.code === "invalid"
+              ? `Use ${DISPLAY_NAME_MAX_LENGTH} characters or fewer.`
+              : outcome.code === "unauthorized"
+                ? "Your session has ended. Sign in again to save your display name."
+                : "Your display name could not be saved. Try again.",
+        });
+        return;
+      }
+
+      setValue(outcome.displayName ?? "");
+      setMessage({
+        tone: "success",
+        text: outcome.displayName
+          ? "Display name saved."
+          : "Display name removed.",
+      });
+    },
+    [onSave, value],
+  );
+
+  return (
+    <form className={styles.displayNameForm} onSubmit={handleSubmit}>
+      <label className={styles.displayNameLabel} htmlFor={inputId}>
+        Display name
+      </label>
+      <p className={styles.displayNameHint} id={hintId}>
+        What Nib Atlas calls you instead of your email address. Optional, up to{" "}
+        {DISPLAY_NAME_MAX_LENGTH} characters.
+      </p>
+      <div className={styles.displayNameControls}>
+        <input
+          aria-describedby={hintId}
+          autoComplete="name"
+          className={styles.displayNameInput}
+          disabled={saving}
+          id={inputId}
+          onChange={(event) => setValue(event.target.value)}
+          type="text"
+          value={value}
+        />
+        <button
+          className={styles.displayNameSave}
+          disabled={saving}
+          type="submit"
+        >
+          {saving ? "Saving…" : "Save"}
+        </button>
+      </div>
+      {message ? (
+        <p
+          className={styles.displayNameResult}
+          data-tone={message.tone}
+          role={message.tone === "error" ? "alert" : "status"}
+        >
+          {message.text}
+        </p>
+      ) : null}
+    </form>
+  );
+}
+
 export function MeScreen() {
   const {
     source,
@@ -521,7 +626,7 @@ export function MeScreen() {
     clearLocalData,
     resetPrototypeState,
   } = useCollection();
-  const { session, refresh, signOut } = useAccountSession();
+  const { session, refresh, signOut, updateDisplayName } = useAccountSession();
   const { requestSignIn } = useSignInPrompt();
   const reviewer = useReviewerMode();
 
@@ -678,19 +783,12 @@ export function MeScreen() {
             </div>
 
             <ul className={styles.rows}>
-              {/*
-                A row, not the form this replaced. WP2 gives the interface a
-                profile read and no profile write, so the form's Save button had
-                nothing to call: the honest form of an unbuilt control is the
-                same pending row the rest of Me uses.
-              */}
-              <Row
-                action="Not available yet"
-                detail="What Nib Atlas calls you, instead of your email address."
-                icon="person"
-                reviewerAction="Needs a profile-update route; not in WP3"
-                title="Display name"
-              />
+              <li>
+                <DisplayNameForm
+                  initialName={session.displayName}
+                  onSave={updateDisplayName}
+                />
+              </li>
             </ul>
           </>
         ) : null}

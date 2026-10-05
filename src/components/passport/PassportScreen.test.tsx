@@ -883,7 +883,7 @@ describe("the identity page", () => {
     renderIdentity("Ada Lovelace");
 
     expect(screen.getByRole("heading", { level: 3 })).toHaveTextContent(
-      "Ada Lovelace",
+      "Ada Lovelace’s Passport",
     );
   });
 

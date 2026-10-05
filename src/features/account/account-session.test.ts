@@ -4,6 +4,7 @@ import {
   accountHeadline,
   normalizeDisplayName,
   parseSessionResponse,
+  validateDisplayName,
   SIGNED_OUT,
 } from "@/src/features/account/account-session";
 
@@ -86,6 +87,31 @@ describe("normalizeDisplayName", () => {
     expect(normalizeDisplayName(null)).toBeNull();
     expect(normalizeDisplayName(42)).toBeNull();
     expect(normalizeDisplayName("x".repeat(80))).toHaveLength(40);
+  });
+});
+
+describe("validateDisplayName", () => {
+  it("normalizes valid input, allows clearing, and rejects overlong input", () => {
+    expect(validateDisplayName("  Ada\n Lovelace ")).toEqual({
+      ok: true,
+      displayName: "Ada Lovelace",
+    });
+    expect(validateDisplayName("   ")).toEqual({
+      ok: true,
+      displayName: null,
+    });
+    expect(validateDisplayName("x".repeat(41))).toEqual({
+      ok: false,
+      code: "too_long",
+    });
+    expect(validateDisplayName(null)).toEqual({
+      ok: false,
+      code: "invalid",
+    });
+  });
+
+  it("counts Unicode code points rather than UTF-16 units", () => {
+    expect(validateDisplayName("✒️".repeat(20)).ok).toBe(true);
   });
 });
 

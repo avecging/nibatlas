@@ -19,6 +19,8 @@ import {
 import {
   endSession,
   fetchAccountSession,
+  updateAccountDisplayName,
+  type DisplayNameUpdateOutcome,
   type SignOutOutcome,
 } from "@/src/features/auth/auth-client";
 import { parseCallbackError } from "@/src/features/auth/auth-copy";
@@ -45,6 +47,8 @@ export interface AccountSessionStore {
   refresh(): void;
   /** Ends the session on the server. The outcome is the caller's to report. */
   signOut(): Promise<SignOutOutcome>;
+  /** Updates only this authenticated account's optional private display name. */
+  updateDisplayName(displayName: string): Promise<DisplayNameUpdateOutcome>;
   acknowledgeAuthResult(): void;
 }
 
@@ -116,6 +120,27 @@ export function AccountSessionProvider({ children }: { readonly children: ReactN
   /** Only the newest read may write state; an aborted one must not. */
   const readToken = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
+  const sessionChannelRef = useRef<BroadcastChannel | null>(null);
+
+  const publishSessionChange = useCallback((message: "changed" | "signed-out") => {
+    if (typeof BroadcastChannel === "undefined") {
+      return;
+    }
+
+    const existing = sessionChannelRef.current;
+
+    if (existing) {
+      // A BroadcastChannel never delivers to the object that sent the message.
+      // Reusing the listener prevents this tab from invalidating its own freshly
+      // saved state while still notifying every other open Nib Atlas tab.
+      existing.postMessage(message);
+      return;
+    }
+
+    const channel = new BroadcastChannel("nib-atlas.session");
+    channel.postMessage(message);
+    channel.close();
+  }, []);
 
   const read = useCallback(() => {
     const token = readToken.current + 1;
@@ -149,10 +174,7 @@ export function AccountSessionProvider({ children }: { readonly children: ReactN
       // job: from here the pending intent is the server's cookie, which is the
       // copy that completes the action.
       forgetPendingFlow();
-      if (typeof BroadcastChannel !== 'undefined') {
-        const channel = new BroadcastChannel('nib-atlas.session');
-        channel.postMessage('changed'); channel.close();
-      }
+      publishSessionChange("changed");
     }
     /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -161,7 +183,7 @@ export function AccountSessionProvider({ children }: { readonly children: ReactN
     return () => {
       abortRef.current?.abort();
     };
-  }, [read]);
+  }, [publishSessionChange, read]);
 
   const signOut = useCallback(async () => {
     const outcome = await endSession();
@@ -174,18 +196,16 @@ export function AccountSessionProvider({ children }: { readonly children: ReactN
       // structure on screen while it ran.
       setSession(SIGNED_OUT);
       setAuthResult(null);
-      if (typeof BroadcastChannel !== 'undefined') {
-        const channel = new BroadcastChannel('nib-atlas.session');
-        channel.postMessage('signed-out'); channel.close();
-      }
+      publishSessionChange("signed-out");
     }
 
     return outcome;
-  }, []);
+  }, [publishSessionChange]);
 
   useEffect(() => {
-    if (typeof BroadcastChannel === 'undefined') return;
-    const channel = new BroadcastChannel('nib-atlas.session');
+    if (typeof BroadcastChannel === "undefined") return;
+    const channel = new BroadcastChannel("nib-atlas.session");
+    sessionChannelRef.current = channel;
     channel.onmessage = (event: MessageEvent<unknown>) => {
       readToken.current += 1;
       abortRef.current?.abort();
@@ -197,8 +217,37 @@ export function AccountSessionProvider({ children }: { readonly children: ReactN
         read();
       }
     };
-    return () => channel.close();
+    return () => {
+      if (sessionChannelRef.current === channel) {
+        sessionChannelRef.current = null;
+      }
+      channel.close();
+    };
   }, [read]);
+
+  const updateDisplayName = useCallback(
+    async (displayName: string): Promise<DisplayNameUpdateOutcome> => {
+      if (session.status !== "signed-in") {
+        return { ok: false, code: "unauthorized" };
+      }
+
+      const owner = session.userId;
+      const outcome = await updateAccountDisplayName(displayName);
+
+      if (outcome.ok) {
+        setSession((current) =>
+          current.status === "signed-in" && current.userId === owner
+            ? { ...current, displayName: outcome.displayName }
+            : current,
+        );
+
+        publishSessionChange("changed");
+      }
+
+      return outcome;
+    },
+    [publishSessionChange, session],
+  );
 
   const acknowledgeAuthResult = useCallback(() => setAuthResult(null), []);
 
@@ -208,9 +257,17 @@ export function AccountSessionProvider({ children }: { readonly children: ReactN
       authResult,
       refresh: read,
       signOut,
+      updateDisplayName,
       acknowledgeAuthResult,
     }),
-    [acknowledgeAuthResult, authResult, read, session, signOut],
+    [
+      acknowledgeAuthResult,
+      authResult,
+      read,
+      session,
+      signOut,
+      updateDisplayName,
+    ],
   );
 
   return (
