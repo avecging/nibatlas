@@ -523,15 +523,21 @@ test.describe("the signed-in structure", () => {
     });
 
     await trigger.click();
-    await expect(danger.getByText(/cannot be undone/i)).toBeVisible();
-    await expect(danger.getByRole("button", { name: /^cancel$/i })).toBeFocused();
+    const dialog = page.getByRole("dialog", {
+      name: /are you sure you want to delete your account/i,
+    });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText(/cannot be undone/i)).toBeVisible();
+    await expect(dialog.getByText(/new, empty account/i)).toBeVisible();
+    await expect(dialog).not.toContainText(/catalogue|audit|contract/i);
+    await expect(dialog.getByRole("button", { name: /^cancel$/i })).toBeFocused();
     await expect(danger.getByRole("link", { name: "hello@nibatlas.com" })).toHaveAttribute(
       "href",
       /mailto:hello@nibatlas\.com/,
     );
     expect(submitted).toBeNull();
 
-    await danger.getByRole("button", { name: /permanently delete account/i }).click();
+    await dialog.getByRole("button", { name: /permanently delete account/i }).click();
 
     await expect.poll(() => submitted).toEqual({ confirmation: "delete-account" });
     await expect(page.getByRole("region", { name: /^danger$/i })).toHaveCount(0);
