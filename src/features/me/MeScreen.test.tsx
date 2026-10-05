@@ -39,7 +39,10 @@ async function renderMe({
   readonly profileUpdate?: { readonly status: number; readonly code?: string };
 } = {}) {
   seedReviewerMode(reviewer);
-  const fetched = installAuthFetch({ session, profileUpdate });
+  const fetched = installAuthFetch({
+    session,
+    ...(profileUpdate ? { profileUpdate } : {}),
+  });
 
   if (collection === "seeded") {
     window.localStorage.setItem(
