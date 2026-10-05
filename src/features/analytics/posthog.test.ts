@@ -37,6 +37,8 @@ describe("anonymous beta analytics", () => {
     expect(replay.maskCapturedNetworkRequestFn({ name: window.location.href }).name)
       .toBe(window.location.origin + "/shops/test");
     expect(replay.maskAttributeFn("href", "/shops/test?token=private")).toBe(window.location.origin + "/shops/test");
+    expect(replay.maskAttributeFn("href", "mailto:hello@example.com?subject=private")).toBe("");
+    expect(replay.maskAttributeFn("src", "data:text/plain,secret")).toBe("");
     expect(config.session_recording).toMatchObject({
       maskAllInputs: true, maskTextSelector: "*", recordBody: false, recordHeaders: false,
     });

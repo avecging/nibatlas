@@ -23,7 +23,7 @@ const safeUrl = () => window.location.origin + window.location.pathname;
 function stripUrl(value: string): string {
   try {
     const url = new URL(value, window.location.origin);
-    return url.origin + url.pathname;
+    return url.protocol === "http:" || url.protocol === "https:" ? url.origin + url.pathname : "";
   } catch { return ""; }
 }
 
