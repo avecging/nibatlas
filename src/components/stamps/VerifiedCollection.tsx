@@ -84,6 +84,11 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
   useEffect(() => {
     const invalidate = () => {
       if (!pending.current && !binding.current) return;
+      // An issuance already sent still has an outcome to settle; only the
+      // interrupted location/confirmation work is a failed check at this point.
+      if (!pending.current || !uncertainRequests.current.has(pending.current)) {
+        captureProductEvent('check_in_failed', 'unknown');
+      }
       discardPending();
       setFailure('stale_position'); setStage('error');
     };
@@ -175,7 +180,7 @@ export function VerifiedCollection({ shop }: { readonly shop:ShopDetail }) {
       // survives navigation and rejects acceptance after its owner is unmounted.
       if (response.ok && (response.status === 'success' || response.status === 'duplicate')) {
         const collection=decodeCollection(response.collection,shop.slug);
-        if (collection.shopId === shop.id) { store.acceptIssued?.(collection); settleIssued(); }
+        if (collection.shopId === shop.id) { captureProductEvent('check_in_succeeded'); store.acceptIssued?.(collection); settleIssued(); }
         else store.retryRead?.();
       } else {
         if (!response.ok && !['service_unavailable','reused_nonce'].includes(response.error.code)) settleRefusal(controller);
