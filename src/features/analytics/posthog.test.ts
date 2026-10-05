@@ -28,6 +28,17 @@ describe("anonymous beta analytics", () => {
     }])[1];
     expect(config.before_send({ properties: { $current_url: window.location.href } }))
       .toEqual({ properties: { $current_url: window.location.origin + "/shops/test" } });
-    expect(config.session_recording).toMatchObject({ maskAllInputs: true, maskTextSelector: "*" });
+    expect(config.before_send({ properties: { $session_entry_url: window.location.href } }))
+      .toEqual({ properties: { $session_entry_url: window.location.origin + "/shops/test" } });
+    const replay = config.session_recording as {
+      maskCapturedNetworkRequestFn: (request: { name: string }) => { name: string };
+      maskAttributeFn: (name: string, value: string) => string;
+    };
+    expect(replay.maskCapturedNetworkRequestFn({ name: window.location.href }).name)
+      .toBe(window.location.origin + "/shops/test");
+    expect(replay.maskAttributeFn("href", "/shops/test?token=private")).toBe(window.location.origin + "/shops/test");
+    expect(config.session_recording).toMatchObject({
+      maskAllInputs: true, maskTextSelector: "*", recordBody: false, recordHeaders: false,
+    });
   });
 });

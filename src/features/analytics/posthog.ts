@@ -20,6 +20,12 @@ const HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST;
 let active = false;
 const allowed = (path: string) => !/^\/(?:admin|auth|api)(?:\/|$)/.test(path);
 const safeUrl = () => window.location.origin + window.location.pathname;
+function stripUrl(value: string): string {
+  try {
+    const url = new URL(value, window.location.origin);
+    return url.origin + url.pathname;
+  } catch { return ""; }
+}
 
 export function captureProductEvent(event: ProductEvent, reason?: FailureReason) {
   if (!active) initAnalytics();
@@ -56,6 +62,7 @@ export function initAnalytics() {
       autocapture: false,
       capture_pageview: false,
       capture_pageleave: false,
+      disable_capture_url_hashes: true,
       disable_surveys: true,
       advanced_disable_feature_flags: true,
       person_profiles: "never",
@@ -63,16 +70,25 @@ export function initAnalytics() {
       session_recording: {
         maskAllInputs: true,
         maskTextSelector: "*",
+        blockSelector: "[data-ph-no-capture]",
+        maskAttributeFn: (name: string, value: string) => {
+          if (/^(?:href|src|action|formaction|poster)$/i.test(name)) return stripUrl(value);
+          if (/^(?:value|placeholder|title|aria-label|data-)/i.test(name)) return "[masked]";
+          return value;
+        },
+        maskCapturedNetworkRequestFn: (request: { name: string }) => ({ ...request, name: stripUrl(request.name) }),
+        recordBody: false,
+        recordHeaders: false,
         recordCanvas: false,
         recordCrossOriginIframes: false,
       },
       before_send: (event: { properties?: Record<string, unknown> }) => {
         if (!event?.properties) return event;
-        for (const key of ["$current_url", "$referrer", "$initial_referrer", "$initial_current_url"]) {
+        for (const key of Object.keys(event.properties)) {
+          if (!/(?:url|href|referr)/i.test(key)) continue;
           if (typeof event.properties[key] !== "string") continue;
           try {
-            const url = new URL(event.properties[key] as string);
-            event.properties[key] = url.origin + url.pathname;
+            event.properties[key] = stripUrl(event.properties[key] as string);
           } catch { delete event.properties[key]; }
         }
         return event;
