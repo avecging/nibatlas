@@ -506,6 +506,7 @@ test.describe("the signed-in structure", () => {
 
     await expect(page.getByLabel("Display name")).toHaveValue("Grace Hopper");
 
+    await seedSampleCollection(page);
     await page.goto("/passport");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       "Grace Hopper’s Passport",
