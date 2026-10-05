@@ -120,6 +120,27 @@ export function AccountSessionProvider({ children }: { readonly children: ReactN
   /** Only the newest read may write state; an aborted one must not. */
   const readToken = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
+  const sessionChannelRef = useRef<BroadcastChannel | null>(null);
+
+  const publishSessionChange = useCallback((message: "changed" | "signed-out") => {
+    if (typeof BroadcastChannel === "undefined") {
+      return;
+    }
+
+    const existing = sessionChannelRef.current;
+
+    if (existing) {
+      // A BroadcastChannel never delivers to the object that sent the message.
+      // Reusing the listener prevents this tab from invalidating its own freshly
+      // saved state while still notifying every other open Nib Atlas tab.
+      existing.postMessage(message);
+      return;
+    }
+
+    const channel = new BroadcastChannel("nib-atlas.session");
+    channel.postMessage(message);
+    channel.close();
+  }, []);
 
   const read = useCallback(() => {
     const token = readToken.current + 1;
@@ -153,10 +174,7 @@ export function AccountSessionProvider({ children }: { readonly children: ReactN
       // job: from here the pending intent is the server's cookie, which is the
       // copy that completes the action.
       forgetPendingFlow();
-      if (typeof BroadcastChannel !== 'undefined') {
-        const channel = new BroadcastChannel('nib-atlas.session');
-        channel.postMessage('changed'); channel.close();
-      }
+      publishSessionChange("changed");
     }
     /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -165,7 +183,7 @@ export function AccountSessionProvider({ children }: { readonly children: ReactN
     return () => {
       abortRef.current?.abort();
     };
-  }, [read]);
+  }, [publishSessionChange, read]);
 
   const signOut = useCallback(async () => {
     const outcome = await endSession();
@@ -178,18 +196,16 @@ export function AccountSessionProvider({ children }: { readonly children: ReactN
       // structure on screen while it ran.
       setSession(SIGNED_OUT);
       setAuthResult(null);
-      if (typeof BroadcastChannel !== 'undefined') {
-        const channel = new BroadcastChannel('nib-atlas.session');
-        channel.postMessage('signed-out'); channel.close();
-      }
+      publishSessionChange("signed-out");
     }
 
     return outcome;
-  }, []);
+  }, [publishSessionChange]);
 
   useEffect(() => {
-    if (typeof BroadcastChannel === 'undefined') return;
-    const channel = new BroadcastChannel('nib-atlas.session');
+    if (typeof BroadcastChannel === "undefined") return;
+    const channel = new BroadcastChannel("nib-atlas.session");
+    sessionChannelRef.current = channel;
     channel.onmessage = (event: MessageEvent<unknown>) => {
       readToken.current += 1;
       abortRef.current?.abort();
@@ -201,7 +217,12 @@ export function AccountSessionProvider({ children }: { readonly children: ReactN
         read();
       }
     };
-    return () => channel.close();
+    return () => {
+      if (sessionChannelRef.current === channel) {
+        sessionChannelRef.current = null;
+      }
+      channel.close();
+    };
   }, [read]);
 
   const updateDisplayName = useCallback(
@@ -220,16 +241,12 @@ export function AccountSessionProvider({ children }: { readonly children: ReactN
             : current,
         );
 
-        if (typeof BroadcastChannel !== "undefined") {
-          const channel = new BroadcastChannel("nib-atlas.session");
-          channel.postMessage("changed");
-          channel.close();
-        }
+        publishSessionChange("changed");
       }
 
       return outcome;
     },
-    [session],
+    [publishSessionChange, session],
   );
 
   const acknowledgeAuthResult = useCallback(() => setAuthResult(null), []);
