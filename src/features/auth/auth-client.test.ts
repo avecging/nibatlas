@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  deleteAccount,
   endSession,
   fetchAccountSession,
   requestMagicLink,
@@ -159,6 +160,56 @@ describe("endSession", () => {
     installAuthFetch({ signOut: { status: 502 } });
 
     await expect(endSession()).resolves.toEqual({ ok: false, code: "unavailable" });
+  });
+});
+
+describe("deleteAccount", () => {
+  it("sends only the fixed confirmation token to the account route", async () => {
+    const { requests } = installAuthFetch({
+      session: { kind: "signed-in" },
+    });
+
+    await expect(deleteAccount()).resolves.toEqual({ ok: true });
+    expect(requests.at(-1)).toMatchObject({
+      url: "/api/v1/account",
+      method: "DELETE",
+      body: { confirmation: "delete-account" },
+    });
+  });
+
+  it("reports expired sessions, service failures, and network failures", async () => {
+    installAuthFetch({
+      accountDeletion: { status: 401, code: "authentication_required" },
+    });
+    await expect(deleteAccount()).resolves.toEqual({
+      ok: false,
+      code: "unauthorized",
+    });
+
+    installAuthFetch({
+      accountDeletion: { status: 503, code: "account_deletion_failed" },
+    });
+    await expect(deleteAccount()).resolves.toEqual({
+      ok: false,
+      code: "unavailable",
+    });
+
+    installAuthFetch({
+      accountDeletion: {
+        status: 503,
+        code: "account_deletion_requires_sign_in",
+      },
+    });
+    await expect(deleteAccount()).resolves.toEqual({
+      ok: false,
+      code: "reauthenticate",
+    });
+
+    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("offline"))));
+    await expect(deleteAccount()).resolves.toEqual({
+      ok: false,
+      code: "network",
+    });
   });
 });
 

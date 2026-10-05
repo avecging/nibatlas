@@ -30,7 +30,18 @@ export interface AuthGateway {
     token_hash: string;
     type: "email";
   }): Promise<{ error: AuthFailure | null }>;
-  signOut(input: { scope: "local" }): Promise<{ error: AuthFailure | null }>;
+  signOut(input: { scope: "local" | "global" }): Promise<{
+    error: AuthFailure | null;
+  }>;
+  getUser(): Promise<{
+    data: { user: { id: string } | null };
+    error: AuthFailure | null;
+  }>;
+  getDeletionSession(): Promise<{
+    data: { userId: string } | null;
+    error: AuthFailure | null;
+  }>;
+  deleteUser(userId: string): Promise<{ error: AuthFailure | null }>;
   getClaims(): Promise<{
     data: { claims: Record<string, unknown> } | null;
     error: AuthFailure | null;
@@ -352,6 +363,79 @@ export async function signOut(
 
   if (error) {
     return fail(502, "sign_out_failed");
+  }
+
+  clearAuthContinuation(dependencies.cookies);
+
+  return new Response(null, { status: 204, headers: NO_STORE });
+}
+
+/** Permanently removes the live, cookie-authenticated account. */
+export async function deleteAccount(
+  request: Request,
+  dependencies: AuthRouteDependencies,
+) {
+  if (!trustedMutation(request)) {
+    return fail(403, "untrusted_origin");
+  }
+
+  const body = await readJsonObject(request);
+
+  if (
+    !body ||
+    !hasOnly(body, ["confirmation"]) ||
+    body["confirmation"] !== "delete-account"
+  ) {
+    return fail(400, "confirmation_required");
+  }
+
+  // Unlike getClaims(), getUser() asks Supabase Auth to validate the current
+  // session. A merely well-formed or previously issued JWT must never select
+  // the identity handed to the service-role deletion boundary.
+  const verified = await dependencies.auth.getUser();
+
+  if (verified.error) {
+    return fail(
+      verified.error.status === 401 || verified.error.status === 403 ? 401 : 503,
+      verified.error.status === 401 || verified.error.status === 403
+        ? "authentication_required"
+        : "session_unavailable",
+    );
+  }
+
+  if (!verified.data.user) {
+    return fail(401, "authentication_required");
+  }
+
+  const deletionSession = await dependencies.auth.getDeletionSession();
+
+  if (deletionSession.error) {
+    return deletionSession.error.code === "28000"
+      ? fail(401, "authentication_required")
+      : fail(503, "session_unavailable");
+  }
+
+  if (deletionSession.data?.userId !== verified.data.user.id) {
+    return fail(401, "authentication_required");
+  }
+
+  // Deleting an Auth user does not itself invalidate issued sessions. Revoke
+  // every refresh session before removing the identity and its cascade-owned
+  // private data.
+  const revoked = await dependencies.auth.signOut({ scope: "global" });
+
+  if (revoked.error) {
+    return fail(503, "account_deletion_failed");
+  }
+
+  const deleted = await dependencies.auth.deleteUser(verified.data.user.id);
+
+  if (deleted.error) {
+    // Global revocation has already succeeded, so the browser must not keep
+    // presenting the now-invalid cookie as a usable signed-in session. The
+    // account remains and can be retried after a fresh sign-in.
+    clearAuthContinuation(dependencies.cookies);
+    return fail(503, "account_deletion_requires_sign_in");
   }
 
   clearAuthContinuation(dependencies.cookies);

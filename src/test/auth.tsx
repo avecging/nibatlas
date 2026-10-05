@@ -38,6 +38,7 @@ export interface AuthFetchFixture {
     readonly redirectTo?: string;
   };
   readonly signOut?: { readonly status: number };
+  readonly accountDeletion?: { readonly status: number; readonly code?: string };
   readonly profileUpdate?: { readonly status: number; readonly code?: string };
   readonly savedShops?: { readonly status?: number; readonly body: unknown };
   readonly pendingSave?: { readonly status?: number; readonly body?: unknown };
@@ -164,6 +165,17 @@ export function installAuthFetch(fixture: AuthFetchFixture = {}) {
         ok: true,
         displayName: savedDisplayName,
       });
+    }
+
+    if (url.endsWith("/api/v1/account")) {
+      const outcome = fixture.accountDeletion ?? { status: 204 };
+
+      return outcome.status === 204
+        ? new Response(null, { status: 204 })
+        : jsonResponse(outcome.status, {
+            ok: false,
+            error: { code: outcome.code ?? "account_deletion_failed" },
+          });
     }
 
     if (url.includes("/api/v1/auth/magic-link")) {

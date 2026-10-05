@@ -97,9 +97,19 @@ export default function PrivacyPage() {
 
       <h2 className="type-h2">Your data, your call</h2>
       <p>Signing out clears the Passport displayed in this browser. Clearing site
-        data does not delete saved shops or stamps held with your account.
-        Account export and deletion controls are not available yet. For help,
-        see <Link href="/help">Help</Link>.</p>
+        data does not delete saved shops or stamps held with your account. You can
+        permanently delete your account under <Link href="/me#me-danger">Me</Link>.
+        This removes your profile, saved shops, Passport stamps, verification
+        working data and your private import and review choices. It cannot be undone.</p>
+      <p>
+        If you helped maintain the catalogue, catalogue contributions, uploaded
+        media (including unpublished submissions) and limited append-only audit
+        history remain so the catalogue cannot lose its provenance and rights
+        record. They retain only an opaque former-actor identifier after the
+        account and profile are gone. Account export is not available yet. For
+        help, see <Link href="/help">Help</Link> or email{" "}
+        <a href="mailto:hello@nibatlas.com">hello@nibatlas.com</a>.
+      </p>
       <h2 className="type-h2">When you send us something</h2>
       <p>
         Alongside account, save and collection requests, you may choose to send:{" "}

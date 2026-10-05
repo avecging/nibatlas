@@ -187,8 +187,9 @@ version already preserved in their private collection after a redesign. No custo
 kind is replaced with generated substitute art. Duplicate protection remains one
 collection per stamp; newer-design recollection is deferred to #70.
 
-Account export/deletion is still M8. API mode does not present local-data controls
-as deleting/exporting server records. Real-device indoor/mall acceptance requires
+Account export is still M8. Signed-in account deletion is deliberately separate
+from these collection APIs, and API mode does not present local-data controls as
+deleting/exporting server records. Real-device indoor/mall acceptance requires
 founder field checks after staging deployment. Automated geolocation fixtures do
 not establish real GPS reliability.
 

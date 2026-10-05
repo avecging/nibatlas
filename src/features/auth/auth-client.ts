@@ -58,6 +58,17 @@ export type DisplayNameUpdateOutcome =
       readonly code: "invalid" | "unauthorized" | "unavailable" | "network";
     };
 
+export type AccountDeletionOutcome =
+  | { readonly ok: true }
+  | {
+      readonly ok: false;
+      readonly code:
+        | "unauthorized"
+        | "reauthenticate"
+        | "unavailable"
+        | "network";
+    };
+
 const JSON_HEADERS = { "Content-Type": "application/json" } as const;
 
 /**
@@ -219,6 +230,39 @@ export async function endSession(): Promise<SignOutOutcome> {
   } catch {
     return { ok: false, code: "network" };
   }
+}
+
+/** Permanently deletes the cookie-authenticated account after UI confirmation. */
+export async function deleteAccount(): Promise<AccountDeletionOutcome> {
+  let response: Response;
+
+  try {
+    response = await fetch("/api/v1/account", {
+      method: "DELETE",
+      headers: JSON_HEADERS,
+      credentials: "same-origin",
+      cache: "no-store",
+      body: JSON.stringify({ confirmation: "delete-account" }),
+    });
+  } catch {
+    return { ok: false, code: "network" };
+  }
+
+  if (response.ok) {
+    return { ok: true };
+  }
+
+  const serverCode = await errorCodeOf(response);
+
+  return {
+    ok: false,
+    code:
+      serverCode === "account_deletion_requires_sign_in"
+        ? "reauthenticate"
+        : response.status === 401
+          ? "unauthorized"
+          : "unavailable",
+  };
 }
 
 
