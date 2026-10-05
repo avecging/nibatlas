@@ -6,6 +6,7 @@ import {
   type AuthCookieStore,
 } from "@/src/server/auth/continuation";
 import {
+  deleteAccount,
   finishMagicLink,
   finishOAuthCallback,
   readSession,
@@ -47,6 +48,9 @@ function gateway(overrides: Partial<AuthGateway> = {}): AuthGateway {
     exchangeCodeForSession: vi.fn(async () => ({ error: null })),
     verifyOtp: vi.fn(async () => ({ error: null })),
     signOut: vi.fn(async () => ({ error: null })),
+    getUser: vi.fn(async () => ({ data: { user: null }, error: null })),
+    getDeletionSession: vi.fn(async () => ({ data: null, error: null })),
+    deleteUser: vi.fn(async () => ({ error: null })),
     getClaims: vi.fn(async () => ({ data: null, error: null })),
     getProfile: vi.fn(async () => ({ data: null, error: null })),
     updateProfile: vi.fn(async () => ({ data: null, error: null })),
@@ -71,6 +75,17 @@ function dependencies(auth = gateway()): AuthRouteDependencies & {
 function post(path: string, body: unknown, origin = "https://nibatlas.test") {
   return new Request(`${origin}${path}`, {
     method: "POST",
+    headers: { "Content-Type": "application/json", Origin: origin },
+    body: JSON.stringify(body),
+  });
+}
+
+function removeAccount(
+  body: unknown = { confirmation: "delete-account" },
+  origin = "https://nibatlas.test",
+) {
+  return new Request(`${origin}/api/v1/account`, {
+    method: "DELETE",
     headers: { "Content-Type": "application/json", Origin: origin },
     body: JSON.stringify(body),
   });
@@ -434,5 +449,174 @@ describe("session and logout", () => {
     expect(response.status).toBe(204);
     expect(auth.signOut).toHaveBeenCalledWith({ scope: "local" });
     expect(deps.values.has(PENDING_INTENT_COOKIE)).toBe(false);
+  });
+});
+
+describe("account deletion", () => {
+  const userId = "00000000-0000-4000-8000-000000000101";
+
+  it("validates the live user, revokes every session, then deletes that identity", async () => {
+    const getUser = vi.fn(async () => ({
+      data: { user: { id: userId } },
+      error: null,
+    }));
+    const signOut = vi.fn(async () => ({ error: null }));
+    const deleteUser = vi.fn(async () => ({ error: null }));
+    const getDeletionSession = vi.fn(async () => ({
+      data: { userId },
+      error: null,
+    }));
+    const response = await deleteAccount(
+      removeAccount(),
+      dependencies(gateway({ getUser, getDeletionSession, signOut, deleteUser })),
+    );
+
+    expect(response.status).toBe(204);
+    expect(getUser).toHaveBeenCalledOnce();
+    expect(signOut).toHaveBeenCalledWith({ scope: "global" });
+    expect(deleteUser).toHaveBeenCalledWith(userId);
+    expect(getUser.mock.invocationCallOrder[0]).toBeLessThan(
+      signOut.mock.invocationCallOrder[0]!,
+    );
+    expect(signOut.mock.invocationCallOrder[0]).toBeLessThan(
+      deleteUser.mock.invocationCallOrder[0]!,
+    );
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+  });
+
+  it("does not reach the privileged deletion boundary for a revoked session", async () => {
+    const signOut = vi.fn(async () => ({ error: null }));
+    const deleteUser = vi.fn(async () => ({ error: null }));
+    const response = await deleteAccount(
+      removeAccount(),
+      dependencies(
+        gateway({
+          getUser: vi.fn(async () => ({
+            data: { user: { id: userId } },
+            error: null,
+          })),
+          getDeletionSession: vi.fn(async () => ({
+            data: null,
+            error: { code: "28000", status: 400 },
+          })),
+          signOut,
+          deleteUser,
+        }),
+      ),
+    );
+
+    expect(response.status).toBe(401);
+    expect(signOut).not.toHaveBeenCalled();
+    expect(deleteUser).not.toHaveBeenCalled();
+  });
+
+  it("reports session-check infrastructure failures without claiming sign-out", async () => {
+    const signOut = vi.fn(async () => ({ error: null }));
+    const deleteUser = vi.fn(async () => ({ error: null }));
+    const response = await deleteAccount(
+      removeAccount(),
+      dependencies(
+        gateway({
+          getUser: vi.fn(async () => ({
+            data: { user: { id: userId } },
+            error: null,
+          })),
+          getDeletionSession: vi.fn(async () => ({
+            data: null,
+            error: { code: "PGRST002", status: 503 },
+          })),
+          signOut,
+          deleteUser,
+        }),
+      ),
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "session_unavailable" },
+    });
+    expect(signOut).not.toHaveBeenCalled();
+    expect(deleteUser).not.toHaveBeenCalled();
+  });
+
+  it("requires the explicit confirmation body and same-origin request", async () => {
+    const getUser = vi.fn(async () => ({
+      data: { user: { id: userId } },
+      error: null,
+    }));
+    const auth = gateway({ getUser });
+
+    expect(
+      (await deleteAccount(removeAccount({}), dependencies(auth))).status,
+    ).toBe(400);
+    expect(
+      (
+        await deleteAccount(
+          new Request("https://nibatlas.test/api/v1/account", {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+              Origin: "https://attacker.example",
+            },
+            body: JSON.stringify({ confirmation: "delete-account" }),
+          }),
+          dependencies(auth),
+        )
+      ).status,
+    ).toBe(403);
+    expect(getUser).not.toHaveBeenCalled();
+  });
+
+  it("never deletes the identity when global session revocation fails", async () => {
+    const deleteUser = vi.fn(async () => ({ error: null }));
+    const response = await deleteAccount(
+      removeAccount(),
+      dependencies(
+        gateway({
+          getUser: vi.fn(async () => ({
+            data: { user: { id: userId } },
+            error: null,
+          })),
+          getDeletionSession: vi.fn(async () => ({
+            data: { userId },
+            error: null,
+          })),
+          signOut: vi.fn(async () => ({
+            error: { code: "service_unavailable", status: 503 },
+          })),
+          deleteUser,
+        }),
+      ),
+    );
+
+    expect(response.status).toBe(503);
+    expect(deleteUser).not.toHaveBeenCalled();
+  });
+
+  it("requires a fresh sign-in when identity deletion fails after revocation", async () => {
+    const response = await deleteAccount(
+      removeAccount(),
+      dependencies(
+        gateway({
+          getUser: vi.fn(async () => ({
+            data: { user: { id: userId } },
+            error: null,
+          })),
+          getDeletionSession: vi.fn(async () => ({
+            data: { userId },
+            error: null,
+          })),
+          signOut: vi.fn(async () => ({ error: null })),
+          deleteUser: vi.fn(async () => ({
+            error: { code: "service_unavailable", status: 503 },
+          })),
+        }),
+      ),
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "account_deletion_requires_sign_in" },
+    });
   });
 });

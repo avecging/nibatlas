@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { createClient } from "@supabase/supabase-js";
 
 import type {
   AuthFailure,
@@ -47,6 +48,40 @@ export async function createAuthRouteDependencies(): Promise<AuthRouteDependenci
     },
     signOut: async (input) => {
       const { error } = await supabase.auth.signOut(input);
+      return { error: failure(error) };
+    },
+    getUser: async () => {
+      const { data, error } = await supabase.auth.getUser();
+
+      return {
+        data: { user: data.user ? { id: data.user.id } : null },
+        error: failure(error),
+      };
+    },
+    getDeletionSession: async () => {
+      const { data, error } = await supabase.rpc("account_deletion_session");
+
+      return {
+        data: typeof data === "string" ? { userId: data } : null,
+        error: failure(error),
+      };
+    },
+    deleteUser: async (userId) => {
+      const secret = process.env["SUPABASE_SERVICE_ROLE_KEY"]?.trim();
+
+      if (!secret) {
+        return { error: { code: "auth_unavailable", status: 503 } };
+      }
+
+      const admin = createClient(config.url, secret, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+        },
+      });
+      const { error } = await admin.auth.admin.deleteUser(userId);
+
       return { error: failure(error) };
     },
     getClaims: async () => {

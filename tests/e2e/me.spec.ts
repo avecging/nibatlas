@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import {
   SESSION_IDENTITY,
+  stubAccountDeletion,
   stubSession,
   stubSignOut,
 } from "../support/auth";
@@ -447,6 +448,7 @@ test.describe("the signed-in structure", () => {
   test.beforeEach(async ({ page }) => {
     await stubSession(page, { kind: "signed-in" });
     await stubSignOut(page);
+    await stubAccountDeletion(page);
   });
 
   test("shows the account and the controls that exist", async ({ page }) => {
@@ -507,15 +509,43 @@ test.describe("the signed-in structure", () => {
     await expect(page.getByLabel("Display name")).toHaveValue("Grace Hopper");
   });
 
-  /*
-   * Deletion has no route either, and a destructive confirmation whose confirm
-   * button does something else is worse than an unbuilt control.
-   */
-  test("does not offer a deletion it cannot perform", async ({ page }) => {
+  test("requires a permanent warning before deleting the account", async ({ page }) => {
     await page.goto("/me");
 
-    await expect(page.getByRole("button", { name: /delete account/i })).toHaveCount(0);
-    await expect(page.getByText(/delete your nib atlas account\?/i)).toHaveCount(0);
+    const danger = page.getByRole("region", { name: /^danger$/i });
+    const trigger = danger.getByRole("button", { name: /delete account/i });
+    let submitted: unknown = null;
+
+    await page.unroute("**/api/v1/account");
+    await page.route("**/api/v1/account", async (route) => {
+      submitted = route.request().postDataJSON();
+      await route.fulfill({ status: 204, headers: { "cache-control": "private, no-store" }, body: "" });
+    });
+
+    await trigger.click();
+    const dialog = page.getByRole("dialog", {
+      name: /are you sure you want to delete your account/i,
+    });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText(/cannot be undone/i)).toBeVisible();
+    await expect(dialog.getByText(/new, empty account/i)).toBeVisible();
+    await expect(dialog).not.toContainText(/catalogue|audit|contract/i);
+    await expect(dialog.getByRole("button", { name: /^cancel$/i })).toBeFocused();
+    await expect(danger.getByRole("link", { name: "hello@nibatlas.com" })).toHaveAttribute(
+      "href",
+      /mailto:hello@nibatlas\.com/,
+    );
+    expect(submitted).toBeNull();
+
+    await dialog.getByRole("button", { name: /permanently delete account/i }).click();
+
+    await expect.poll(() => submitted).toEqual({ confirmation: "delete-account" });
+    await expect(page.getByRole("region", { name: /^danger$/i })).toHaveCount(0);
+    await expect(
+      page.getByRole("region", { name: /^account$/i }).getByRole("button", {
+        name: /sign in/i,
+      }),
+    ).toBeVisible();
   });
 
   test("says that saves and impressions are still kept in this browser", async ({

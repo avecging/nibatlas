@@ -15,7 +15,8 @@ afterEach(() => {
 
 /** A probe, so the provider is tested through the contract its consumers use. */
 function Probe() {
-  const { session, authResult, signOut, updateDisplayName } = useAccountSession();
+  const { session, authResult, signOut, deleteAccount, updateDisplayName } =
+    useAccountSession();
 
   return (
     <div>
@@ -29,6 +30,14 @@ function Probe() {
         type="button"
       >
         Sign out
+      </button>
+      <button
+        onClick={() => {
+          void deleteAccount();
+        }}
+        type="button"
+      >
+        Delete account
       </button>
       <button
         onClick={() => {
@@ -206,6 +215,62 @@ describe("AccountSessionProvider", () => {
 
       await waitFor(() => {
         expect(screen.getByTestId("status")).toHaveTextContent("signed-in");
+      });
+    });
+  });
+
+  describe("deleting the account", () => {
+    it("adopts the signed-out state only after deletion succeeds", async () => {
+      installAuthFetch({ session: { kind: "signed-in" } });
+      renderProbe();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("status")).toHaveTextContent("signed-in");
+      });
+
+      screen.getByRole("button", { name: "Delete account" }).click();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("status")).toHaveTextContent("signed-out");
+      });
+    });
+
+    it("keeps the signed-in state when deletion fails", async () => {
+      installAuthFetch({
+        session: { kind: "signed-in" },
+        accountDeletion: { status: 503 },
+      });
+      renderProbe();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("status")).toHaveTextContent("signed-in");
+      });
+
+      screen.getByRole("button", { name: "Delete account" }).click();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("status")).toHaveTextContent("signed-in");
+      });
+    });
+
+    it("adopts signed out when deletion fails after global revocation", async () => {
+      installAuthFetch({
+        session: { kind: "signed-in" },
+        accountDeletion: {
+          status: 503,
+          code: "account_deletion_requires_sign_in",
+        },
+      });
+      renderProbe();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("status")).toHaveTextContent("signed-in");
+      });
+
+      screen.getByRole("button", { name: "Delete account" }).click();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("status")).toHaveTextContent("signed-out");
       });
     });
   });

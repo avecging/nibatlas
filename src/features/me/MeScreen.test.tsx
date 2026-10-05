@@ -31,17 +31,20 @@ async function renderMe({
   session = { kind: "signed-out" },
   collection,
   profileUpdate,
+  accountDeletion,
 }: {
   readonly reviewer?: boolean;
   /** Arranged as the answer the session route gives, not as provider state. */
   readonly session?: SessionFixture;
   readonly collection?: "seeded";
   readonly profileUpdate?: { readonly status: number; readonly code?: string };
+  readonly accountDeletion?: { readonly status: number; readonly code?: string };
 } = {}) {
   seedReviewerMode(reviewer);
   const fetched = installAuthFetch({
     session,
     ...(profileUpdate ? { profileUpdate } : {}),
+    ...(accountDeletion ? { accountDeletion } : {}),
   });
 
   if (collection === "seeded") {
@@ -525,19 +528,37 @@ describe("Me, destructive confirmations", () => {
     expect(screen.queryByText(/cleared\./i)).not.toBeInTheDocument();
   });
 
-  /*
-   * Delete account is deliberately not one of these any more. Against a real
-   * session, a confirmation whose confirm button signs the reader out and
-   * leaves the account in place is worse than an unbuilt control, so the row
-   * says what it is until Milestone 8 builds the deletion.
-   */
-  it("has no destructive confirmation it cannot honour", async () => {
+  it("warns that account deletion is permanent and opens safely on Cancel", async () => {
     await renderMe({ session: { kind: "signed-in" } });
 
+    const danger = region(/^danger$/i);
+    const trigger = within(danger).getByRole("button", { name: /delete account/i });
+
+    fireEvent.click(trigger);
+
+    const dialog = screen.getByRole("dialog", {
+      name: /are you sure you want to delete your account/i,
+    });
+
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(within(dialog).getByText(/cannot be undone/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/new, empty account/i)).toBeInTheDocument();
+    expect(within(dialog).queryByText(/catalogue|audit|contract/i)).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /delete account/i }),
-    ).not.toBeInTheDocument();
-    expect(region(/^danger$/i)).toHaveTextContent("Delete account");
+      within(dialog).getByRole("button", { name: /permanently delete account/i }),
+    ).not.toHaveFocus();
+    expect(within(dialog).getByRole("button", { name: /^cancel$/i })).toHaveFocus();
+    expect(
+      within(danger).getByRole("link", { name: "hello@nibatlas.com" }),
+    ).toHaveAttribute("href", expect.stringContaining("mailto:hello@nibatlas.com"));
+
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole("button", { name: /^cancel$/i }));
+    expect(trigger).toHaveFocus();
   });
 });
 
@@ -648,6 +669,72 @@ describe("Me, the signed-in structure", () => {
           request.url.includes("/api/v1/auth/sign-out") && request.method === "POST",
       ),
     ).toBe(true);
+    expect(screen.queryByRole("region", { name: /^danger$/i })).not.toBeInTheDocument();
+  });
+
+  it("deletes only after the second explicit action, then shows signed out", async () => {
+    const { requests } = await renderMe({ session: { kind: "signed-in" } });
+    const trigger = screen.getByRole("button", { name: /delete account/i });
+
+    fireEvent.click(trigger);
+    expect(
+      requests.filter((request) => request.url === "/api/v1/account"),
+    ).toHaveLength(0);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /permanently delete account/i }),
+    );
+
+    await waitFor(() => {
+      expect(
+        within(region(/^account$/i)).getByRole("button", { name: /sign in/i }),
+      ).toBeInTheDocument();
+    });
+    expect(requests.at(-1)).toMatchObject({
+      url: "/api/v1/account",
+      method: "DELETE",
+      body: { confirmation: "delete-account" },
+    });
+    expect(screen.queryByRole("region", { name: /^danger$/i })).not.toBeInTheDocument();
+  });
+
+  it("keeps the account visible and offers email help when deletion fails", async () => {
+    await renderMe({
+      session: { kind: "signed-in" },
+      accountDeletion: { status: 503 },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /permanently delete account/i }),
+    );
+
+    expect(await screen.findByText(/could not be deleted/i)).toHaveTextContent(
+      /hello@nibatlas.com/i,
+    );
+    expect(screen.getByRole("button", { name: /delete account/i })).toBeInTheDocument();
+  });
+
+  it("shows signed out and asks for a fresh sign-in after revocation", async () => {
+    await renderMe({
+      session: { kind: "signed-in" },
+      accountDeletion: {
+        status: 503,
+        code: "account_deletion_requires_sign_in",
+      },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /permanently delete account/i }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /all sessions were signed out.*sign in again/i,
+    );
+    expect(
+      within(region(/^account$/i)).getByRole("button", { name: /sign in/i }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: /^danger$/i })).not.toBeInTheDocument();
   });
 
