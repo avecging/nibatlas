@@ -11,6 +11,20 @@ insert into public.saved_shops(user_id,shop_id) values
  ('f1000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000301');
 insert into public.import_batches(id,owner_id) values
  ('f1000000-0000-4000-8000-000000000002','f1000000-0000-4000-8000-000000000001');
+insert into public.import_operations(
+ id,batch_id,row_id,operation_revision,target_id,review_key,status
+) values (
+ 'f1000000-0000-4000-8000-000000000004','f1000000-0000-4000-8000-000000000002',
+ 'delete-account-fixture',1,'00000000-0000-4000-8000-000000000301',repeat('b',64),'imported'
+);
+insert into public.import_publications(
+ id,import_id,batch_id,operation_revision,expected_revision,review_key,
+ initial_review_key,status
+) values (
+ 'f1000000-0000-4000-8000-000000000008','f1000000-0000-4000-8000-000000000004',
+ 'f1000000-0000-4000-8000-000000000002',1,'synthetic-revision',repeat('b',64),
+ repeat('b',64),'published'
+);
 insert into public.shop_reviews(actor_id,shop_id,environment,id,review_key,choices) values
  ('f1000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000301','staging',
   'f1000000-0000-4000-8000-000000000003',repeat('a',64),'{}');
@@ -78,6 +92,8 @@ select ok(not exists(select 1 from public.saved_shops where user_id='f1000000-00
  'saved shops are deleted');
 select ok(not exists(select 1 from public.import_batches where owner_id='f1000000-0000-4000-8000-000000000001'),
  'private import working data is deleted');
+select ok(not exists(select 1 from public.import_publications where batch_id='f1000000-0000-4000-8000-000000000002'),
+ 'private import publication ledgers cascade with their deleted batch and operation');
 select ok(not exists(select 1 from public.shop_reviews where actor_id='f1000000-0000-4000-8000-000000000001'),
  'private durable review choices are deleted');
 
