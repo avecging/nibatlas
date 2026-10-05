@@ -10,7 +10,7 @@ describe("anonymous beta analytics", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     document.querySelector('script[src*="posthog.com"]')?.remove();
-    window.posthog = undefined;
+    delete window.posthog;
   });
   it("sends only path pageviews and coarse failure reasons", async () => {
     const { initAnalytics, trackPage, captureProductEvent } = await import("./posthog");

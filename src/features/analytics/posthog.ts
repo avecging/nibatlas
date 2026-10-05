@@ -82,8 +82,8 @@ export function initAnalytics() {
     script.async = true;
     script.crossOrigin = "anonymous";
     script.src = HOST.replace(".i.posthog.com", "-assets.i.posthog.com") + "/static/array.js";
-    script.onerror = () => { active = false; window.posthog = undefined; };
+    script.onerror = () => { active = false; delete window.posthog; };
     document.head.appendChild(script);
     active = true;
-  } catch { active = false; window.posthog = undefined; }
+  } catch { active = false; delete window.posthog; }
 }
