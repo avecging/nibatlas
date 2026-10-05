@@ -577,7 +577,7 @@ describe("Me, the signed-in structure", () => {
     expect(requests.at(-1)).toMatchObject({
       url: "/api/v1/account/profile",
       method: "PATCH",
-      body: { displayName: "  Gin\n Atlas  " },
+      body: { displayName: "  Gin Atlas  " },
     });
 
     fireEvent.change(input, { target: { value: "Gin" } });
