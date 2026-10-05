@@ -19,6 +19,8 @@ import {
 import {
   endSession,
   fetchAccountSession,
+  updateAccountDisplayName,
+  type DisplayNameUpdateOutcome,
   type SignOutOutcome,
 } from "@/src/features/auth/auth-client";
 import { parseCallbackError } from "@/src/features/auth/auth-copy";
@@ -45,6 +47,8 @@ export interface AccountSessionStore {
   refresh(): void;
   /** Ends the session on the server. The outcome is the caller's to report. */
   signOut(): Promise<SignOutOutcome>;
+  /** Updates only this authenticated account's optional private display name. */
+  updateDisplayName(displayName: string): Promise<DisplayNameUpdateOutcome>;
   acknowledgeAuthResult(): void;
 }
 
@@ -200,6 +204,34 @@ export function AccountSessionProvider({ children }: { readonly children: ReactN
     return () => channel.close();
   }, [read]);
 
+  const updateDisplayName = useCallback(
+    async (displayName: string): Promise<DisplayNameUpdateOutcome> => {
+      if (session.status !== "signed-in") {
+        return { ok: false, code: "unauthorized" };
+      }
+
+      const owner = session.userId;
+      const outcome = await updateAccountDisplayName(displayName);
+
+      if (outcome.ok) {
+        setSession((current) =>
+          current.status === "signed-in" && current.userId === owner
+            ? { ...current, displayName: outcome.displayName }
+            : current,
+        );
+
+        if (typeof BroadcastChannel !== "undefined") {
+          const channel = new BroadcastChannel("nib-atlas.session");
+          channel.postMessage("changed");
+          channel.close();
+        }
+      }
+
+      return outcome;
+    },
+    [session],
+  );
+
   const acknowledgeAuthResult = useCallback(() => setAuthResult(null), []);
 
   const value = useMemo<AccountSessionStore>(
@@ -208,9 +240,17 @@ export function AccountSessionProvider({ children }: { readonly children: ReactN
       authResult,
       refresh: read,
       signOut,
+      updateDisplayName,
       acknowledgeAuthResult,
     }),
-    [acknowledgeAuthResult, authResult, read, session, signOut],
+    [
+      acknowledgeAuthResult,
+      authResult,
+      read,
+      session,
+      signOut,
+      updateDisplayName,
+    ],
   );
 
   return (

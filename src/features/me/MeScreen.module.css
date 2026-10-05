@@ -270,6 +270,76 @@ button.row:disabled:hover {
   color: var(--text-primary);
 }
 
+/* Editable private profile name */
+
+.displayNameForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.displayNameLabel {
+  font-size: var(--type-body-size);
+  font-weight: 600;
+}
+
+.displayNameHint,
+.displayNameResult {
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+.displayNameControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.displayNameInput {
+  min-width: 0;
+  min-height: var(--tap-target);
+  flex: 1 1 14rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.displayNameInput:focus-visible {
+  outline: 2px solid var(--action-secondary);
+  outline-offset: 2px;
+}
+
+.displayNameSave {
+  min-height: var(--tap-target);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--atlas-900);
+  border-radius: var(--radius-sm);
+  background: var(--atlas-900);
+  color: var(--bg-surface);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.displayNameSave:disabled,
+.displayNameInput:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.displayNameResult {
+  font-weight: 600;
+}
+
+.displayNameResult[data-tone="error"] {
+  color: var(--error);
+}
+
 /* Signed-in identity */
 
 .identity {

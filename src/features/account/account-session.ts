@@ -69,6 +69,34 @@ export const SIGNED_OUT: SignedOutSession = { status: "signed-out" };
 /** Display names are a single line, trimmed, and bounded. */
 export const DISPLAY_NAME_MAX_LENGTH = 40;
 
+export type DisplayNameValidation =
+  | { readonly ok: true; readonly displayName: string | null }
+  | { readonly ok: false; readonly code: "invalid" | "too_long" };
+
+function collapseDisplayName(value: string) {
+  return value.replace(/\s+/gu, " ").trim();
+}
+
+/**
+ * Validates a reader-supplied display name without silently truncating it.
+ *
+ * An empty value deliberately clears the optional name. Length is counted in
+ * Unicode code points so an emoji is one character here, as it is in Postgres.
+ */
+export function validateDisplayName(value: unknown): DisplayNameValidation {
+  if (typeof value !== "string") {
+    return { ok: false, code: "invalid" };
+  }
+
+  const displayName = collapseDisplayName(value);
+
+  if (Array.from(displayName).length > DISPLAY_NAME_MAX_LENGTH) {
+    return { ok: false, code: "too_long" };
+  }
+
+  return { ok: true, displayName: displayName || null };
+}
+
 /**
  * Normalises a display name held against the profile.
  *
@@ -83,13 +111,13 @@ export function normalizeDisplayName(value: unknown): string | null {
     return null;
   }
 
-  const collapsed = value.replace(/\s+/gu, " ").trim();
+  const collapsed = collapseDisplayName(value);
 
   if (collapsed.length === 0) {
     return null;
   }
 
-  return collapsed.slice(0, DISPLAY_NAME_MAX_LENGTH);
+  return Array.from(collapsed).slice(0, DISPLAY_NAME_MAX_LENGTH).join("");
 }
 
 function unavailable(reason: SessionUnavailableReason): UnavailableSession {
