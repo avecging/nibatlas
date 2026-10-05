@@ -372,11 +372,14 @@ describe("display name update", () => {
     expect(
       (
         await updateDisplayName(
-          post(
-            "/api/v1/account/profile",
-            { displayName: "Ada" },
-            "https://attacker.example",
-          ),
+          new Request("https://nibatlas.test/api/v1/account/profile", {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Origin: "https://attacker.example",
+            },
+            body: JSON.stringify({ displayName: "Ada" }),
+          }),
           dependencies(tooLong),
         )
       ).status,
