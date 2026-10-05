@@ -15,6 +15,19 @@ GPT owns end-to-end implementation and initiates independent review under
 and scope decisions. A conductor/orchestrator has not been onboarded. `AGENTS.md`
 is the shared working contract. This assignment covers every milestone; frontend work is not reserved for Claude.
 
+## Current follow-up — Account deletion, 5 October 2026
+
+Authenticated readers may permanently delete their account from Me after an
+explicit inline warning whose safe initial focus is Cancel. The support fallback
+is `hello@nibatlas.com`. The server validates the live Supabase user, globally
+revokes sessions, then deletes only that identity through the server-held service
+role. Private account and owner-scoped working data cascade away; canonical
+catalogue contributions, uploaded media (including unpublished submissions) and
+append-only audit history retain only an unresolvable opaque actor UUID. Update
+privacy/auth documentation and cover ordinary plus admin/editor lifecycle
+blockers. PR, review and CI only; no hosted migration, merge or deployment is
+authorized by this checkpoint.
+
 ## Current follow-up — Tighter check-ins, 4 October 2026
 
 Founder approved a 45 m default (replacing the initially proposed 60 m), tighter
@@ -122,7 +135,7 @@ imports, production, #97 and hosted reset/seed remain outside this increment.
 | M6 WP3 | Issue #73 governs simplified MVP uploads. Photo/logo picker, private attachment/publication delivery, and truthful stamp draft → PNG → list/Passport/detail preview → admin activation → versioned delivery/creator credit are merged in PR #74 at `3732018a0ca023a2dc7e8ae0eef7a26061e8470a`; main CI 35446023895 and staging deployment 35446031047 passed. Remote acceptance is separate. Generated defaults/history/duplicate protection remain intact; #70/#71/#72 stay deferred. Remote JPEG, photo/logo display and stamp end-to-end acceptance remain unverified; see `docs/runbooks/media-uploads.md`. |
 | M6 WP4 | Mandatory usable CSV/JSON onboarding for approximately 200 shops: shared contracts first, then dry run/mapping/dedupe/private import, safe correction/resume/updates and selected batch review/publication. Bring forward before final rich-editor polish; no 200-form manual-entry substitute. |
 | M6 anomaly list | Inventory implementation and give an explicit disposition in Package E; not established complete by this inspection. |
-| M7/M8 | Catalogue quality, production setup, account export/deletion, monitoring, backup/restore, rollback and launch acceptance remain. Public commitment is Q4 2026. October is the working target; November/December are contingency, not expanded scope. |
+| M7/M8 | Catalogue quality, production setup, account export, monitoring, backup/restore, rollback and launch acceptance remain. Account deletion is implemented on the current follow-up branch and still requires review, CI and deployment. Public commitment is Q4 2026. October is the working target; November/December are contingency, not expanded scope. |
 
 Passport animation remains in place for launch despite known roughness;
 [issue #68](https://github.com/avecging/nibatlas/issues/68) tracks post-launch investigation and the opening-geometry decision.

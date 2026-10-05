@@ -20,6 +20,7 @@ browser code. Production setup is explicitly out of scope.
 | Verify a magic-link token hash | `GET /auth/confirm` |
 | Read the verified application session | `GET /api/v1/auth/session` |
 | Update the private display name | `PATCH /api/v1/account/profile` |
+| Permanently delete the signed-in account | `DELETE /api/v1/account` |
 | End this device's session | `POST /api/v1/auth/sign-out` |
 
 All responses are private and non-cacheable. Mutating application routes require
@@ -31,8 +32,19 @@ The update route trims and collapses whitespace, accepts clearing the value, and
 rejects names over 40 characters. It derives the owner only from verified session
 claims; RLS permits the account to update only its own row. Google profile metadata
 is not copied into this field. Deleting the auth user cascades to the profile, so
-the name follows the existing account lifecycle. Account export/deletion tools
-remain deferred and must include this profile field when they are implemented.
+the name follows the existing account lifecycle. Account export remains deferred.
+
+Account deletion first validates the live user with Supabase Auth, globally
+revokes the account's sessions, and only then uses the existing server-only
+`SUPABASE_SERVICE_ROLE_KEY` to delete that exact Auth identity. The browser can
+neither supply a user ID nor access the key. The database cascade removes the
+profile, saved shops, collections, verification working data and owner-private
+import/review choices. Catalogue contributions, uploaded media (including
+unpublished submissions), and append-only audit rows remain, but any former
+actor UUID is only an opaque identifier after its Auth/profile row is gone. A
+failed revocation or deletion is reported; it is never presented as a successful
+account deletion. If deletion fails after global revocation, the browser adopts
+the truthful signed-out state and tells the reader to sign in again before retrying.
 
 ## Local development
 

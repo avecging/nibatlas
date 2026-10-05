@@ -51,11 +51,10 @@ import styles from "./MeScreen.module.css";
  * preview was built to avoid.
  *
  * What a signed-in reader is offered is bounded by what exists. WP2 built the
- * session; the profile-update, account-export and account-deletion routes do
- * not exist, so those rows say so in the same plain form the rest of Me uses
- * rather than presenting controls that would fail. Saved shops and collected
- * impressions are still device-local until WP4 and WP5 connect them, and the
- * data group says that too.
+ * session. Account deletion is a real server-owned action with a separate
+ * permanent warning; account export remains unavailable. Saved shops and
+ * collected impressions are still device-local until WP4 and WP5 connect
+ * them, and the data group says that too.
  */
 
 interface RowProps {
@@ -626,13 +625,16 @@ export function MeScreen() {
     clearLocalData,
     resetPrototypeState,
   } = useCollection();
-  const { session, refresh, signOut, updateDisplayName } = useAccountSession();
+  const { session, refresh, signOut, deleteAccount, updateDisplayName } =
+    useAccountSession();
   const { requestSignIn } = useSignInPrompt();
   const reviewer = useReviewerMode();
 
   const [downloadStatus, setDownloadStatus] = useState<string | null>(null);
   const [clearStatus, setClearStatus] = useState<string | null>(null);
   const [signOutStatus, setSignOutStatus] = useState<string | null>(null);
+  const [deleteStatus, setDeleteStatus] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const signedIn = session.status === "signed-in";
 
@@ -655,6 +657,27 @@ export function MeScreen() {
       );
     }
   }, [signOut]);
+
+  const handleDeleteAccount = useCallback(async () => {
+    setDeleteStatus(null);
+    setDeleting(true);
+
+    const outcome = await deleteAccount();
+
+    setDeleting(false);
+
+    if (!outcome.ok) {
+      setDeleteStatus(
+        outcome.code === "network"
+          ? "Nib Atlas could not reach the network. Your account was not deleted. Try again or email hello@nibatlas.com."
+          : outcome.code === "reauthenticate"
+            ? "All sessions were signed out, but your account was not deleted. Sign in again to retry, or email hello@nibatlas.com."
+          : outcome.code === "unauthorized"
+            ? "Your session has ended. Sign in again to delete your account, or email hello@nibatlas.com."
+            : "Your account could not be deleted. Try again or email hello@nibatlas.com.",
+      );
+    }
+  }, [deleteAccount]);
 
   const handleDownload = useCallback(() => {
     const result = exportLocalData({
@@ -794,19 +817,26 @@ export function MeScreen() {
         ) : null}
 
         {session.status === "signed-out" ? (
-          <ul className={styles.rows}>
-            {/*
-              The explanation is the approved wording, unchanged. What changed is
-              that the row is now a control: it opens the interruption, which
-              returns here — to this section — once the reader is signed in.
-            */}
-            <ActionRow
-              detail="An account carries your saved shops and collected impressions between devices. Everything you can do today works without one."
-              icon="login"
-              onClick={() => requestSignIn({ returnTo: "/me#me-account" })}
-              title="Sign in"
-            />
-          </ul>
+          <>
+            {deleteStatus ? (
+              <p className={styles.sectionNote} role="alert">
+                {deleteStatus}
+              </p>
+            ) : null}
+            <ul className={styles.rows}>
+              {/*
+                The explanation is the approved wording, unchanged. What changed is
+                that the row is now a control: it opens the interruption, which
+                returns here — to this section — once the reader is signed in.
+              */}
+              <ActionRow
+                detail="An account carries your saved shops and collected impressions between devices. Everything you can do today works without one."
+                icon="login"
+                onClick={() => requestSignIn({ returnTo: "/me#me-account" })}
+                title="Sign in"
+              />
+            </ul>
+          </>
         ) : null}
 
         {/*
@@ -892,7 +922,7 @@ export function MeScreen() {
             the app from a home screen is not stated as deleting its data:
             whether it does depends on the platform, and on several it does not.
           */
-          description={source === "account" ? "Signing out clears your displayed Passport. Clearing browser data does not delete stamps held with your account. Account export and deletion tools are not available yet." : "Your saved shops and collected impressions are stored in this browser, on this device. They do not sync to your other devices, and clearing this browser's data clears them."}
+          description={source === "account" ? "Signing out clears your displayed Passport. Clearing browser data does not delete stamps held with your account. You can permanently delete your account below; account export is not available yet." : "Your saved shops and collected impressions are stored in this browser, on this device. They do not sync to your other devices, and clearing this browser's data clears them."}
           id="me-device"
           title="On this device"
         >
@@ -961,25 +991,31 @@ export function MeScreen() {
       {signedIn ? (
         <Section id="me-danger" title="Danger" tone="danger">
           <ul className={styles.rows}>
-            {/*
-              A row, not a confirmation.
-
-              While the signed-in state was a reviewer preview, this asked its
-              question and then left the preview — labelled as doing so. Against
-              a real account that would be a confirmation dialog whose confirm
-              button signs the reader out and leaves everything in place, which
-              is worse than an unbuilt control: it is a destructive control that
-              lies about what it did. Deletion arrives with account export in
-              Milestone 8, and until then the row says what it is.
-            */}
-            <Row
-              action="Not available yet"
-              detail="Removes your account and everything held against it."
+            <ConfirmRow
+              confirmLabel="Permanently delete account"
+              consequence="Your account, saved shops and Passport stamps will be permanently deleted. This cannot be undone. Catalogue contributions, uploaded media and audit history are retained without a link to your deleted profile."
+              detail="Permanently removes your account and private account data."
+              disabled={deleting}
               icon="alert"
-              reviewerAction="Account export and deletion arrive in Milestone 8"
+              onConfirm={() => {
+                void handleDeleteAccount();
+              }}
+              question="Are you sure you want to delete your account?"
+              status={deleteStatus}
               title="Delete account"
+              tone="destructive"
             />
           </ul>
+          <p className={styles.sectionNote}>
+            If you would rather ask us to delete it for you, email{" "}
+            <a
+              className={styles.inlineLink}
+              href="mailto:hello@nibatlas.com?subject=Delete%20my%20Nib%20Atlas%20account"
+            >
+              hello@nibatlas.com
+            </a>
+            .
+          </p>
         </Section>
       ) : null}
 

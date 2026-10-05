@@ -20,6 +20,7 @@ export const SESSION_ROUTE = "**/api/v1/auth/session";
 export const MAGIC_LINK_ROUTE = "**/api/v1/auth/magic-link";
 export const GOOGLE_ROUTE = "**/api/v1/auth/google";
 export const SIGN_OUT_ROUTE = "**/api/v1/auth/sign-out";
+export const ACCOUNT_DELETION_ROUTE = "**/api/v1/account";
 
 /** A stable identity for the signed-in journeys and their screenshots. */
 export const SESSION_USER_ID = "3f8a1c62-5d4b-4a7e-9b21-0c6f5d8e4a11";
@@ -152,5 +153,19 @@ export async function stubSignOut(
     outcome.ok
       ? route.fulfill({ status: 204, headers: NO_STORE, body: "" })
       : fulfil(route, 502, { ok: false, error: { code: "sign_out_failed" } }),
+  );
+}
+
+export async function stubAccountDeletion(
+  page: Page,
+  outcome: { readonly ok: boolean } = { ok: true },
+) {
+  await page.route(ACCOUNT_DELETION_ROUTE, (route) =>
+    outcome.ok
+      ? route.fulfill({ status: 204, headers: NO_STORE, body: "" })
+      : fulfil(route, 503, {
+          ok: false,
+          error: { code: "account_deletion_failed" },
+        }),
   );
 }

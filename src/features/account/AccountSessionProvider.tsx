@@ -17,10 +17,12 @@ import {
   type AccountSession,
 } from "@/src/features/account/account-session";
 import {
+  deleteAccount as requestAccountDeletion,
   endSession,
   fetchAccountSession,
   updateAccountDisplayName,
   type DisplayNameUpdateOutcome,
+  type AccountDeletionOutcome,
   type SignOutOutcome,
 } from "@/src/features/auth/auth-client";
 import { parseCallbackError } from "@/src/features/auth/auth-copy";
@@ -49,6 +51,8 @@ export interface AccountSessionStore {
   signOut(): Promise<SignOutOutcome>;
   /** Updates only this authenticated account's optional private display name. */
   updateDisplayName(displayName: string): Promise<DisplayNameUpdateOutcome>;
+  /** Permanently removes this authenticated account and all of its sessions. */
+  deleteAccount(): Promise<AccountDeletionOutcome>;
   acknowledgeAuthResult(): void;
 }
 
@@ -202,6 +206,24 @@ export function AccountSessionProvider({ children }: { readonly children: ReactN
     return outcome;
   }, [publishSessionChange]);
 
+  const deleteAccount = useCallback(async () => {
+    if (session.status !== "signed-in") {
+      return { ok: false, code: "unauthorized" } as const;
+    }
+
+    const outcome = await requestAccountDeletion();
+
+    if (outcome.ok || (!outcome.ok && outcome.code === "reauthenticate")) {
+      readToken.current += 1;
+      abortRef.current?.abort();
+      setSession(SIGNED_OUT);
+      setAuthResult(null);
+      publishSessionChange("signed-out");
+    }
+
+    return outcome;
+  }, [publishSessionChange, session.status]);
+
   useEffect(() => {
     if (typeof BroadcastChannel === "undefined") return;
     const channel = new BroadcastChannel("nib-atlas.session");
@@ -257,6 +279,7 @@ export function AccountSessionProvider({ children }: { readonly children: ReactN
       authResult,
       refresh: read,
       signOut,
+      deleteAccount,
       updateDisplayName,
       acknowledgeAuthResult,
     }),
@@ -266,6 +289,7 @@ export function AccountSessionProvider({ children }: { readonly children: ReactN
       read,
       session,
       signOut,
+      deleteAccount,
       updateDisplayName,
     ],
   );
