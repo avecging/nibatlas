@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { NibAtlasMark } from "@/src/components/brand/NibAtlasMark";
 import { Icon, type IconName } from "@/src/components/ui/Icon";
@@ -218,6 +219,7 @@ function ConfirmRow({
   consequence,
   confirmLabel,
   tone = "default",
+  presentation = "inline",
   onConfirm,
   disabled,
   status,
@@ -229,6 +231,7 @@ function ConfirmRow({
   readonly consequence: string;
   readonly confirmLabel: string;
   readonly tone?: "default" | "destructive";
+  readonly presentation?: "inline" | "modal";
   onConfirm(): void;
   /** Held while the device's own state is still being read. */
   readonly disabled?: boolean;
@@ -237,6 +240,8 @@ function ConfirmRow({
 }) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
+  const questionId = `${panelId}-question`;
+  const consequenceId = `${panelId}-consequence`;
   const triggerRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -261,6 +266,19 @@ function ConfirmRow({
     }
   }, [open, tone]);
 
+  useEffect(() => {
+    if (!open || presentation !== "modal") {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open, presentation]);
+
   // Focus returns to the row that opened the panel, whether the reader
   // cancelled or went through with it — otherwise the panel unmounts under
   // their focus and a keyboard user is dropped back to the top of the document.
@@ -268,6 +286,74 @@ function ConfirmRow({
     setOpen(false);
     triggerRef.current?.focus();
   }, []);
+
+  const confirmation = open ? (
+    <div
+      className={presentation === "modal" ? styles.modalBackdrop : undefined}
+      onMouseDown={(event) => {
+        if (presentation === "modal" && event.target === event.currentTarget) {
+          close();
+        }
+      }}
+    >
+      <div
+        aria-describedby={presentation === "modal" ? consequenceId : undefined}
+        aria-labelledby={presentation === "modal" ? questionId : undefined}
+        aria-modal={presentation === "modal" ? true : undefined}
+        className={styles.confirm}
+        data-presentation={presentation}
+        data-tone={tone}
+        id={panelId}
+        onKeyDown={(event) => {
+          if (presentation !== "modal") return;
+
+          if (event.key === "Escape") {
+            event.preventDefault();
+            close();
+          } else if (event.key === "Tab") {
+            const movingBack = event.shiftKey;
+            const atCancel = document.activeElement === cancelRef.current;
+            const atConfirm = document.activeElement === confirmRef.current;
+
+            if ((!movingBack && atCancel) || (movingBack && atConfirm)) {
+              event.preventDefault();
+              (atCancel ? confirmRef : cancelRef).current?.focus();
+            }
+          }
+        }}
+        role={presentation === "modal" ? "dialog" : undefined}
+      >
+        <p className={styles.confirmQuestion} id={questionId}>
+          {question}
+        </p>
+        <p className={styles.confirmConsequence} id={consequenceId}>
+          {consequence}
+        </p>
+        <div className={styles.confirmActions}>
+          <button
+            className={styles.confirmButton}
+            data-tone={tone}
+            onClick={() => {
+              onConfirm();
+              close();
+            }}
+            ref={confirmRef}
+            type="button"
+          >
+            {confirmLabel}
+          </button>
+          <button
+            className={styles.cancelButton}
+            onClick={close}
+            ref={cancelRef}
+            type="button"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
 
   return (
     <li>
@@ -298,34 +384,9 @@ function ConfirmRow({
       </button>
       <RowStatus label={title} status={status} />
 
-      {open ? (
-        <div className={styles.confirm} data-tone={tone} id={panelId}>
-          <p className={styles.confirmQuestion}>{question}</p>
-          <p className={styles.confirmConsequence}>{consequence}</p>
-          <div className={styles.confirmActions}>
-            <button
-              className={styles.confirmButton}
-              data-tone={tone}
-              onClick={() => {
-                onConfirm();
-                close();
-              }}
-              ref={confirmRef}
-              type="button"
-            >
-              {confirmLabel}
-            </button>
-            <button
-              className={styles.cancelButton}
-              onClick={close}
-              ref={cancelRef}
-              type="button"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : null}
+      {presentation === "modal" && confirmation
+        ? createPortal(confirmation, document.body)
+        : confirmation}
     </li>
   );
 }
@@ -993,14 +1054,15 @@ export function MeScreen() {
           <ul className={styles.rows}>
             <ConfirmRow
               confirmLabel="Permanently delete account"
-              consequence="Your account, saved shops and Passport stamps will be permanently deleted. This cannot be undone. Catalogue contributions, uploaded media and audit history are retained without a link to your deleted profile."
-              detail="Permanently removes your account and private account data."
+              consequence="Your account, saved shops and Passport stamps will be permanently deleted. This cannot be undone. If you sign in again later, you’ll start with a new, empty account."
+              detail="Permanently deletes your account. Signing in again starts fresh."
               disabled={deleting}
               icon="alert"
               onConfirm={() => {
                 void handleDeleteAccount();
               }}
               question="Are you sure you want to delete your account?"
+              presentation="modal"
               status={deleteStatus}
               title="Delete account"
               tone="destructive"

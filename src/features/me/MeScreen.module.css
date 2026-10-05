@@ -212,6 +212,16 @@ button.row:disabled:hover {
 
 /* Confirmation panel */
 
+.modalBackdrop {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: rgb(0 0 0 / 77%);
+}
+
 .confirm {
   display: flex;
   flex-direction: column;
@@ -223,6 +233,20 @@ button.row:disabled:hover {
 
 .confirm[data-tone="destructive"] {
   border-top-color: var(--error);
+}
+
+.confirm[data-presentation="modal"] {
+  width: min(100%, 32rem);
+  max-height: calc(100dvh - (2 * var(--space-4)));
+  overflow-y: auto;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 35%);
+}
+
+.confirm[data-presentation="modal"][data-tone="destructive"] {
+  border-color: var(--error);
 }
 
 .confirmQuestion {

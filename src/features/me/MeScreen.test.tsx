@@ -536,16 +536,28 @@ describe("Me, destructive confirmations", () => {
 
     fireEvent.click(trigger);
 
-    expect(within(danger).getByText(/cannot be undone/i)).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", {
+      name: /are you sure you want to delete your account/i,
+    });
+
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(within(dialog).getByText(/cannot be undone/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/new, empty account/i)).toBeInTheDocument();
+    expect(within(dialog).queryByText(/catalogue|audit|contract/i)).not.toBeInTheDocument();
     expect(
-      within(danger).getByRole("button", { name: /permanently delete account/i }),
+      within(dialog).getByRole("button", { name: /permanently delete account/i }),
     ).not.toHaveFocus();
-    expect(within(danger).getByRole("button", { name: /^cancel$/i })).toHaveFocus();
+    expect(within(dialog).getByRole("button", { name: /^cancel$/i })).toHaveFocus();
     expect(
       within(danger).getByRole("link", { name: "hello@nibatlas.com" }),
     ).toHaveAttribute("href", expect.stringContaining("mailto:hello@nibatlas.com"));
 
-    fireEvent.click(within(danger).getByRole("button", { name: /^cancel$/i }));
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole("button", { name: /^cancel$/i }));
     expect(trigger).toHaveFocus();
   });
 });
