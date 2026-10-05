@@ -5,6 +5,7 @@ import {
   fetchAccountSession,
   requestMagicLink,
   startGoogleSignIn,
+  updateAccountDisplayName,
 } from "@/src/features/auth/auth-client";
 import { installAuthFetch } from "@/src/test/auth";
 
@@ -158,5 +159,41 @@ describe("endSession", () => {
     installAuthFetch({ signOut: { status: 502 } });
 
     await expect(endSession()).resolves.toEqual({ ok: false, code: "unavailable" });
+  });
+});
+
+
+describe("updateAccountDisplayName", () => {
+  it("patches the private profile and returns the saved value", async () => {
+    const { requests } = installAuthFetch({
+      session: { kind: "signed-in" },
+    });
+
+    await expect(updateAccountDisplayName("  Ada  Lovelace ")).resolves.toEqual({
+      ok: true,
+      displayName: "Ada Lovelace",
+    });
+    expect(requests.at(-1)).toMatchObject({
+      url: "/api/v1/account/profile",
+      method: "PATCH",
+      body: { displayName: "  Ada  Lovelace " },
+    });
+  });
+
+  it("reports validation and save failures without throwing", async () => {
+    installAuthFetch({
+      session: { kind: "signed-in" },
+      profileUpdate: { status: 422, code: "invalid_display_name" },
+    });
+    await expect(updateAccountDisplayName("x".repeat(41))).resolves.toEqual({
+      ok: false,
+      code: "invalid",
+    });
+
+    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("offline"))));
+    await expect(updateAccountDisplayName("Ada")).resolves.toEqual({
+      ok: false,
+      code: "network",
+    });
   });
 });

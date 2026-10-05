@@ -19,11 +19,20 @@ browser code. Production setup is explicitly out of scope.
 | Exchange a Google PKCE code | `GET /auth/callback` |
 | Verify a magic-link token hash | `GET /auth/confirm` |
 | Read the verified application session | `GET /api/v1/auth/session` |
+| Update the private display name | `PATCH /api/v1/account/profile` |
 | End this device's session | `POST /api/v1/auth/sign-out` |
 
 All responses are private and non-cacheable. Mutating application routes require
 a same-origin `Origin` header. Callback parameters, tokens, provider errors, and
 credentials must not be logged.
+
+The optional display name is stored only in the existing private `profiles` row.
+The update route trims and collapses whitespace, accepts clearing the value, and
+rejects names over 40 characters. It derives the owner only from verified session
+claims; RLS permits the account to update only its own row. Google profile metadata
+is not copied into this field. Deleting the auth user cascades to the profile, so
+the name follows the existing account lifecycle. Account export/deletion tools
+remain deferred and must include this profile field when they are implemented.
 
 ## Local development
 

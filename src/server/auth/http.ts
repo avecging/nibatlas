@@ -1,3 +1,5 @@
+import { validateDisplayName } from "@/src/features/account/account-session";
+
 import {
   appendAuthResult,
   clearAuthContinuation,
@@ -34,6 +36,13 @@ export interface AuthGateway {
     error: AuthFailure | null;
   }>;
   getProfile(userId: string): Promise<{
+    data: { display_name: string | null } | null;
+    error: unknown | null;
+  }>;
+  updateProfile(
+    userId: string,
+    displayName: string | null,
+  ): Promise<{
     data: { display_name: string | null } | null;
     error: unknown | null;
   }>;
@@ -348,6 +357,52 @@ export async function signOut(
   clearAuthContinuation(dependencies.cookies);
 
   return new Response(null, { status: 204, headers: NO_STORE });
+}
+
+export async function updateDisplayName(
+  request: Request,
+  dependencies: AuthRouteDependencies,
+) {
+  if (!trustedMutation(request)) {
+    return fail(403, "untrusted_origin");
+  }
+
+  const body = await readJsonObject(request);
+
+  if (!body || !hasOnly(body, ["displayName"])) {
+    return fail(400, "invalid_request");
+  }
+
+  const validated = validateDisplayName(body["displayName"]);
+
+  if (!validated.ok) {
+    return fail(422, "invalid_display_name");
+  }
+
+  const { data, error } = await dependencies.auth.getClaims();
+  const userId = data?.claims?.["sub"];
+
+  if (error) {
+    return fail(503, "session_unavailable");
+  }
+
+  if (typeof userId !== "string") {
+    return fail(401, "authentication_required");
+  }
+
+  const updated = await dependencies.auth.updateProfile(
+    userId,
+    validated.displayName,
+  );
+
+  if (updated.error || !updated.data) {
+    return fail(503, "profile_update_failed");
+  }
+
+  return json({
+    ok: true,
+    displayName: updated.data.display_name,
+  });
 }
 
 export async function readSession(

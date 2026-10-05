@@ -51,6 +51,13 @@ export type SignOutOutcome =
   | { readonly ok: true }
   | { readonly ok: false; readonly code: SignInErrorCode };
 
+export type DisplayNameUpdateOutcome =
+  | { readonly ok: true; readonly displayName: string | null }
+  | {
+      readonly ok: false;
+      readonly code: "invalid" | "unauthorized" | "unavailable" | "network";
+    };
+
 const JSON_HEADERS = { "Content-Type": "application/json" } as const;
 
 /**
@@ -212,4 +219,55 @@ export async function endSession(): Promise<SignOutOutcome> {
   } catch {
     return { ok: false, code: "network" };
   }
+}
+
+
+/** Saves the optional private profile name through the cookie-authenticated route. */
+export async function updateAccountDisplayName(
+  displayName: string,
+): Promise<DisplayNameUpdateOutcome> {
+  let response: Response;
+
+  try {
+    response = await fetch("/api/v1/account/profile", {
+      method: "PATCH",
+      headers: JSON_HEADERS,
+      credentials: "same-origin",
+      cache: "no-store",
+      body: JSON.stringify({ displayName }),
+    });
+  } catch {
+    return { ok: false, code: "network" };
+  }
+
+  let body: unknown = null;
+
+  try {
+    body = await response.json();
+  } catch {
+    body = null;
+  }
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      code:
+        response.status === 422
+          ? "invalid"
+          : response.status === 401
+            ? "unauthorized"
+            : "unavailable",
+    };
+  }
+
+  const saved =
+    typeof body === "object" && body !== null
+      ? (body as { displayName?: unknown }).displayName
+      : undefined;
+
+  if (saved !== null && typeof saved !== "string") {
+    return { ok: false, code: "unavailable" };
+  }
+
+  return { ok: true, displayName: saved };
 }

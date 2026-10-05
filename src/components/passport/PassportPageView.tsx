@@ -99,7 +99,9 @@ export function PassportPageView({
               apart and this page shows only the display name.
             */}
             <h3 className={styles.identityTitle} id={headingId} tabIndex={-1}>
-              {page.displayName ?? "Your Passport"}
+              {page.displayName
+                ? `${page.displayName}’s Passport`
+                : "Your Passport"}
             </h3>
             <p className={styles.identityLine}>Passport of impressions</p>
             <dl className={styles.identityFacts}>

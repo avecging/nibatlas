@@ -66,6 +66,16 @@ export async function createAuthRouteDependencies(): Promise<AuthRouteDependenci
 
       return { data, error };
     },
+    updateProfile: async (userId, displayName) => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .update({ display_name: displayName })
+        .eq("id", userId)
+        .select("display_name")
+        .maybeSingle();
+
+      return { data, error };
+    },
   };
 
   return {

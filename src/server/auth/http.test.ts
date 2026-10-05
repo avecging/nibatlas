@@ -12,6 +12,7 @@ import {
   signOut,
   startGoogle,
   startMagicLink,
+  updateDisplayName,
   type AuthGateway,
   type AuthRouteDependencies,
 } from "@/src/server/auth/http";
@@ -48,6 +49,7 @@ function gateway(overrides: Partial<AuthGateway> = {}): AuthGateway {
     signOut: vi.fn(async () => ({ error: null })),
     getClaims: vi.fn(async () => ({ data: null, error: null })),
     getProfile: vi.fn(async () => ({ data: null, error: null })),
+    updateProfile: vi.fn(async () => ({ data: null, error: null })),
     ...overrides,
   };
 }
@@ -283,6 +285,106 @@ describe("authentication callbacks", () => {
       "authError=invalid_callback",
     );
     expect(auth.verifyOtp).not.toHaveBeenCalled();
+  });
+});
+
+describe("display name update", () => {
+  const userId = "00000000-0000-4000-8000-000000000101";
+
+  it("normalizes and persists the authenticated account's own display name", async () => {
+    const updateProfile = vi.fn(async (_userId: string, displayName: string | null) => ({
+      data: { display_name: displayName },
+      error: null,
+    }));
+    const auth = gateway({
+      getClaims: vi.fn(async () => ({
+        data: { claims: { sub: userId } },
+        error: null,
+      })),
+      updateProfile,
+    });
+    const response = await updateDisplayName(
+      post("/api/v1/account/profile", { displayName: "  Ada\nLovelace  " }),
+      dependencies(auth),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      displayName: "Ada Lovelace",
+    });
+    expect(updateProfile).toHaveBeenCalledWith(userId, "Ada Lovelace");
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+  });
+
+  it("accepts an empty value as clearing the optional name", async () => {
+    const updateProfile = vi.fn(async () => ({
+      data: { display_name: null },
+      error: null,
+    }));
+    const response = await updateDisplayName(
+      post("/api/v1/account/profile", { displayName: "   " }),
+      dependencies(
+        gateway({
+          getClaims: vi.fn(async () => ({
+            data: { claims: { sub: userId } },
+            error: null,
+          })),
+          updateProfile,
+        }),
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(updateProfile).toHaveBeenCalledWith(userId, null);
+  });
+
+  it("rejects invalid, unauthenticated, and cross-origin writes before persistence", async () => {
+    const updateProfile = vi.fn(async () => ({
+      data: { display_name: "should not save" },
+      error: null,
+    }));
+    const signedOut = gateway({ updateProfile });
+    const tooLong = gateway({
+      getClaims: vi.fn(async () => ({
+        data: { claims: { sub: userId } },
+        error: null,
+      })),
+      updateProfile,
+    });
+
+    expect(
+      (
+        await updateDisplayName(
+          post("/api/v1/account/profile", { displayName: "x".repeat(41) }),
+          dependencies(tooLong),
+        )
+      ).status,
+    ).toBe(422);
+    expect(
+      (
+        await updateDisplayName(
+          post("/api/v1/account/profile", { displayName: "Ada" }),
+          dependencies(signedOut),
+        )
+      ).status,
+    ).toBe(401);
+    expect(
+      (
+        await updateDisplayName(
+          new Request("https://nibatlas.test/api/v1/account/profile", {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Origin: "https://attacker.example",
+            },
+            body: JSON.stringify({ displayName: "Ada" }),
+          }),
+          dependencies(tooLong),
+        )
+      ).status,
+    ).toBe(403);
+    expect(updateProfile).not.toHaveBeenCalled();
   });
 });
 
