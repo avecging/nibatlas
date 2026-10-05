@@ -15,7 +15,7 @@ afterEach(() => {
 
 /** A probe, so the provider is tested through the contract its consumers use. */
 function Probe() {
-  const { session, authResult, signOut } = useAccountSession();
+  const { session, authResult, signOut, updateDisplayName } = useAccountSession();
 
   return (
     <div>
@@ -30,6 +30,14 @@ function Probe() {
       >
         Sign out
       </button>
+      <button
+        onClick={() => {
+          void updateDisplayName("Gin");
+        }}
+        type="button"
+      >
+        Save name
+      </button>
     </div>
   );
 }
@@ -40,6 +48,27 @@ function renderProbe() {
       <Probe />
     </AccountSessionProvider>,
   );
+}
+
+class TestBroadcastChannel {
+  static readonly open = new Set<TestBroadcastChannel>();
+  onmessage: ((event: MessageEvent<unknown>) => void) | null = null;
+
+  constructor(readonly name: string) {
+    TestBroadcastChannel.open.add(this);
+  }
+
+  postMessage(data: unknown) {
+    for (const channel of TestBroadcastChannel.open) {
+      if (channel !== this && channel.name === this.name) {
+        channel.onmessage?.({ data } as MessageEvent<unknown>);
+      }
+    }
+  }
+
+  close() {
+    TestBroadcastChannel.open.delete(this);
+  }
 }
 
 describe("AccountSessionProvider", () => {
@@ -66,6 +95,27 @@ describe("AccountSessionProvider", () => {
       expect(screen.getByTestId("status")).toHaveTextContent("signed-in");
     });
     expect(screen.getByTestId("headline")).toHaveTextContent(SESSION_IDENTITY);
+  });
+
+  it("keeps the saving tab settled while notifying other tabs", async () => {
+    TestBroadcastChannel.open.clear();
+    vi.stubGlobal("BroadcastChannel", TestBroadcastChannel);
+    const { requests } = installAuthFetch({ session: { kind: "signed-in" } });
+    renderProbe();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("status")).toHaveTextContent("signed-in");
+    });
+
+    screen.getByRole("button", { name: "Save name" }).click();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("headline")).toHaveTextContent("Gin");
+    });
+    expect(screen.getByTestId("status")).toHaveTextContent("signed-in");
+    expect(
+      requests.filter((request) => request.url.includes("/api/v1/auth/session")),
+    ).toHaveLength(1);
   });
 
   it("distinguishes a build with no authentication from a failed read", async () => {
