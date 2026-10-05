@@ -30,14 +30,16 @@ async function renderMe({
   reviewer = false,
   session = { kind: "signed-out" },
   collection,
+  profileUpdate,
 }: {
   readonly reviewer?: boolean;
   /** Arranged as the answer the session route gives, not as provider state. */
   readonly session?: SessionFixture;
   readonly collection?: "seeded";
+  readonly profileUpdate?: { readonly status: number; readonly code?: string };
 } = {}) {
   seedReviewerMode(reviewer);
-  const fetched = installAuthFetch({ session });
+  const fetched = installAuthFetch({ session, profileUpdate });
 
   if (collection === "seeded") {
     window.localStorage.setItem(
@@ -559,17 +561,55 @@ describe("Me, the signed-in structure", () => {
     expect(within(account).getByText(SESSION_IDENTITY)).toBeInTheDocument();
   });
 
-  /*
-   * WP2 gives the interface a profile read and no profile write. The form this
-   * replaced had a Save button with nothing to call, so the row states the fact
-   * in the same form the rest of Me uses for something that does not exist yet.
-   */
-  it("does not offer a display-name form it cannot save", async () => {
-    await renderMe({ session: { kind: "signed-in" } });
+  it("sets, trims, persists, and later changes the display name", async () => {
+    const { requests } = await renderMe({ session: { kind: "signed-in" } });
+    const input = screen.getByLabelText(/display name/i);
 
-    expect(screen.queryByLabelText(/display name/i)).not.toBeInTheDocument();
-    expect(region(/^account$/i)).toHaveTextContent("Display name");
-    expect(region(/^account$/i)).toHaveTextContent("Not available yet");
+    fireEvent.change(input, { target: { value: "  Gin\n Atlas  " } });
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    expect(await screen.findByText("Display name saved.")).toBeInTheDocument();
+    expect(input).toHaveValue("Gin Atlas");
+    expect(within(region(/^account$/i)).getByText("Gin Atlas")).toBeInTheDocument();
+    expect(requests.at(-1)).toMatchObject({
+      url: "/api/v1/account/profile",
+      method: "PATCH",
+      body: { displayName: "  Gin\n Atlas  " },
+    });
+
+    fireEvent.change(input, { target: { value: "Gin" } });
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    await waitFor(() => expect(input).toHaveValue("Gin"));
+    expect(within(region(/^account$/i)).getByText("Gin")).toBeInTheDocument();
+  });
+
+  it("shows validation without sending an overlong name", async () => {
+    const { requests } = await renderMe({ session: { kind: "signed-in" } });
+
+    fireEvent.change(screen.getByLabelText(/display name/i), {
+      target: { value: "x".repeat(41) },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/40 characters or fewer/i);
+    expect(
+      requests.filter((request) => request.url.includes("/api/v1/account/profile")),
+    ).toHaveLength(0);
+  });
+
+  it("keeps the typed name and reports a save failure", async () => {
+    await renderMe({
+      session: { kind: "signed-in" },
+      profileUpdate: { status: 503 },
+    });
+
+    const input = screen.getByLabelText(/display name/i);
+    fireEvent.change(input, { target: { value: "Gin" } });
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/could not be saved/i);
+    expect(input).toHaveValue("Gin");
   });
 
   /*

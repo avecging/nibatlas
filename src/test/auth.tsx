@@ -38,6 +38,7 @@ export interface AuthFetchFixture {
     readonly redirectTo?: string;
   };
   readonly signOut?: { readonly status: number };
+  readonly profileUpdate?: { readonly status: number; readonly code?: string };
   readonly savedShops?: { readonly status?: number; readonly body: unknown };
   readonly pendingSave?: { readonly status?: number; readonly body?: unknown };
   readonly pendingSaves?: readonly {
@@ -70,7 +71,10 @@ function jsonResponse(status: number, body: unknown) {
   });
 }
 
-function sessionResponse(fixture: SessionFixture): Promise<Response> {
+function sessionResponse(
+  fixture: SessionFixture,
+  savedDisplayName?: string | null,
+): Promise<Response> {
   if (fixture.kind === "pending") {
     return new Promise<Response>(() => {
       // Never settles: the provider stays in its loading state.
@@ -87,7 +91,7 @@ function sessionResponse(fixture: SessionFixture): Promise<Response> {
         status: "signed-in",
         userId: SESSION_USER_ID,
         identityLabel: fixture.identityLabel ?? SESSION_IDENTITY,
-        displayName: fixture.displayName ?? null,
+        displayName: savedDisplayName ?? fixture.displayName ?? null,
       }),
     );
   }
@@ -115,6 +119,8 @@ export function installAuthFetch(fixture: AuthFetchFixture = {}) {
   let pendingSaveIndex = 0;
   let savedImportIndex = 0;
   const session = fixture.session ?? { kind: "signed-out" };
+  let savedDisplayName =
+    session.kind === "signed-in" ? (session.displayName ?? null) : null;
 
   const mock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input.toString();
@@ -127,7 +133,37 @@ export function installAuthFetch(fixture: AuthFetchFixture = {}) {
     });
 
     if (url.includes("/api/v1/auth/session")) {
-      return sessionResponse(session);
+      return sessionResponse(session, savedDisplayName);
+    }
+
+    if (url.includes("/api/v1/account/profile")) {
+      const outcome = fixture.profileUpdate ?? { status: 200 };
+
+      if (outcome.status >= 400) {
+        return jsonResponse(outcome.status, {
+          ok: false,
+          error: { code: outcome.code ?? "profile_update_failed" },
+        });
+      }
+
+      const requested = raw
+        ? (JSON.parse(raw) as { displayName?: unknown }).displayName
+        : undefined;
+
+      if (typeof requested !== "string") {
+        return jsonResponse(400, {
+          ok: false,
+          error: { code: "invalid_request" },
+        });
+      }
+
+      const normalized = requested.replace(/\s+/gu, " ").trim();
+      savedDisplayName = normalized || null;
+
+      return jsonResponse(200, {
+        ok: true,
+        displayName: savedDisplayName,
+      });
     }
 
     if (url.includes("/api/v1/auth/magic-link")) {

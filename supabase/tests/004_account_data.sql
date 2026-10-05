@@ -1,5 +1,5 @@
 begin;
-select plan(30);
+select plan(33);
 
 select has_table('public', 'profiles', 'profiles table exists');
 select has_table('public', 'saved_shops', 'saved shops table exists');
@@ -94,6 +94,31 @@ select results_eq(
   $own_profile_update$,
   $expected$ values (1) $expected$,
   'a signed-in user may update an allowed field on their profile'
+);
+select is(
+  (select display_name from public.profiles
+   where id = '10000000-0000-4000-8000-000000000001'),
+  'Ada',
+  'the chosen display name persists on the private profile'
+);
+select throws_ok($long_display_name$
+  update public.profiles
+  set display_name = repeat('x', 41)
+  where id = '10000000-0000-4000-8000-000000000001'
+$long_display_name$,
+  '23514',
+  'new row for relation "profiles" violates check constraint "profiles_display_name_valid"',
+  'a profile cannot store a display name over 40 characters'
+);
+select results_eq(
+  $clear_display_name$
+    update public.profiles
+    set display_name = null
+    where id = '10000000-0000-4000-8000-000000000001'
+    returning display_name
+  $clear_display_name$,
+  $expected$ values (null::text) $expected$,
+  'the owner may clear the optional display name'
 );
 select throws_ok($blank_display_name$
   update public.profiles
