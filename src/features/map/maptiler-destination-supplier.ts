@@ -60,7 +60,7 @@ export function createMapTilerDestinationSupplier(
       url.searchParams.set("limit", "5");
       url.searchParams.set("autocomplete", "true");
       url.searchParams.set("types", "country,region,subregion,municipality,municipal_district,locality,neighbourhood,place");
-      const response = await fetcher(url.toString(), { signal });
+      const response = await fetcher(url.toString(), signal ? { signal } : undefined);
       if (!response.ok) throw new Error("Place search unavailable");
       const payload: unknown = await response.json();
       if (!payload || typeof payload !== "object" || !("features" in payload) ||
