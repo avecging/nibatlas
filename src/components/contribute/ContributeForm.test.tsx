@@ -377,3 +377,26 @@ describe("when it works", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("beta reporting forms", () => {
+  it.each(["bug", "feedback"] as const)("validates, preserves failed text and confirms %s only on delivery", async (kind) => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(Response.json({ ok: false }, { status: 502 })).mockResolvedValueOnce(Response.json({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<ContributeForm kind={kind} signedIn="yes" fallbackHref="mailto:hello@nibatlas.com" submitLabel="Send" confirmationTitle="Received" confirmation="Thank you" anotherLabel="Another" />);
+    send(/^send$/i);
+    expect(await screen.findByRole("alert")).toHaveTextContent("2 things");
+    expect(fetchMock).not.toHaveBeenCalled();
+    type(kind === "bug" ? /issue category/i : /feedback type/i, kind === "bug" ? "bug" : "idea");
+    type(kind === "bug" ? /what happened/i : /your feedback/i, "My report");
+    type(/your email/i, "a@example.com");
+    send(/^send$/i);
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("That did not send"));
+    expect(screen.getByLabelText(kind === "bug" ? /what happened/i : /your feedback/i)).toHaveValue("My report");
+    expect(screen.getByRole("link", { name: /by email/i })).toHaveAttribute("href", "mailto:hello@nibatlas.com");
+    const body = JSON.parse(fetchMock.mock.calls[0]![1].body);
+    expect(body.kind).toBe(kind);
+    expect(body.context).toEqual(kind === "bug" ? { page_path: "/", signed_in: "yes" } : undefined);
+    send(/^send$/i);
+    expect(await screen.findByRole("status")).toHaveTextContent("Received");
+  });
+});

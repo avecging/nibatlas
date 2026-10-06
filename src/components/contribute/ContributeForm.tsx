@@ -9,6 +9,7 @@ import {
   fieldsFor,
   hasErrors,
   validateSubmission,
+  safePagePath,
   type ContributionKind,
   type FieldErrors,
 } from "@/src/features/contribute/contribute-schema";
@@ -18,9 +19,9 @@ import styles from "./ContributeForm.module.css";
 type Status = "idle" | "submitting" | "sent" | "failed" | "uncertain";
 
 /**
- * The one form both contribution flows use.
+ * The shared contribution form.
  *
- * Two flows, one behaviour: the same validation, the same failure handling, the
+ * One behaviour across contribution types: the same validation, the same failure handling, the
  * same confirmation. What differs is the field list, which comes from the
  * schema, and the context a correction carries — which the reader never types.
  *
@@ -37,8 +38,10 @@ export function ContributeForm({
   confirmationTitle,
   confirmation,
   anotherLabel,
+  signedIn,
 }: {
   readonly kind: ContributionKind;
+  readonly signedIn?: "yes" | "no" | "unknown";
   readonly shopSlug?: string;
   /** Where to send someone when the submission cannot be delivered. */
   readonly fallbackHref: string;
@@ -136,6 +139,10 @@ export function ContributeForm({
           kind,
           values,
           turnstileToken: tokenRef.current,
+          ...(kind === "bug" ? { context: {
+            page_path: safePagePath(window.location.pathname),
+            signed_in: signedIn ?? "unknown",
+          } } : {}),
           ...(shopSlug === undefined ? {} : { shopSlug }),
         }),
       });

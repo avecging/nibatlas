@@ -63,3 +63,14 @@ export function shopCorrectionHref(shopName?: string): string {
       : SHOP_CORRECTION_SUBJECT,
   });
 }
+
+export const REPORT_PROBLEM_PATH = "/report-problem";
+export const FEEDBACK_PATH = "/feedback";
+
+export function reportProblemHref(): string {
+  return mailtoHref({ to: CONTRIBUTE_EMAIL, subject: "[Bug report]" });
+}
+
+export function feedbackHref(): string {
+  return mailtoHref({ to: CONTRIBUTE_EMAIL, subject: "[Feedback]" });
+}
