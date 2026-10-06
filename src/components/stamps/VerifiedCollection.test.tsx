@@ -105,7 +105,7 @@ describe('verified collection journey',()=>{
     expect(calls[1]?.body['nonce']).not.toBe(calls[3]?.body['nonce']);
     fireEvent.click(screen.getByRole('button',{name:'Cancel'}));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(captureProductEvent).toHaveBeenCalledWith('check_in_failed','unknown');
+    expect(captureProductEvent).toHaveBeenCalledWith('check_in_failed','too_far_away');
     expect(calls.some(c=>c.action==='collect')).toBe(false);
   });
   it.each(['service_unavailable','reused_nonce'] as const)('keeps Passport recovery after an issuance request returns %s',async(code)=>{
@@ -312,6 +312,7 @@ describe('verified collection journey',()=>{
     await open();await verify();
     act(()=>{vi.spyOn(document,'visibilityState','get').mockReturnValue('hidden');document.dispatchEvent(new Event('visibilitychange'));});
     await screen.findByRole('alert');expect(screen.queryByRole('button',{name:'I am at this shop'})).not.toBeInTheDocument();
+    expect(captureProductEvent).toHaveBeenCalledWith('check_in_failed','unknown');
     expect(calls.some(c=>c.action==='collect')).toBe(false);
     expect(screen.queryByRole('link',{name:'Check Passport'})).not.toBeInTheDocument();
   });
