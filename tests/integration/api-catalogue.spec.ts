@@ -107,10 +107,9 @@ test("a failed API refresh keeps old results and Retry recovers", async ({ page 
   const map = page.getByTestId("map-canvas");
   const bounds = await map.boundingBox();
   expect(bounds).not.toBeNull();
-  await page.mouse.move(bounds!.x + bounds!.width * 0.65, bounds!.y + bounds!.height * 0.5);
-  await page.mouse.down();
-  await page.mouse.move(bounds!.x + bounds!.width * 0.35, bounds!.y + bounds!.height * 0.5, { steps: 8 });
-  await page.mouse.up();
+  await page.mouse.move(bounds!.x + bounds!.width * 0.7, bounds!.y + bounds!.height * 0.5);
+  await page.mouse.wheel(0, -240);
+  await expect(page.getByRole("button", { name: "Search this area", exact: true })).toBeVisible();
   await page.getByRole("button", { name: /^search this area$/i }).click();
 
   await expect(page.getByTestId("explore")).toHaveAttribute("data-explore-status", "error");
