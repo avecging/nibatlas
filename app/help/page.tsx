@@ -133,6 +133,11 @@ export default function HelpPage() {
         optional, and everything else helps.
       </p>
 
+      <h3 className="type-h3">Something in the app is broken, or I have an idea.</h3>
+      <p>Under <Link href="/me#me-contribute">Me → Contribute</Link>, choose
+        <strong> Report a problem</strong> or <strong>Share feedback</strong>.
+        You do not need an account, and contact details are optional.</p>
+
       <h3 className="type-h3">Is there a review or rating on here anywhere?</h3>
       <p>
         No, and there will not be. Nib Atlas has no star ratings, no review prose,

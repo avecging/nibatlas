@@ -151,10 +151,13 @@ describe("Me, signed out", () => {
     expect(screen.queryByRole("button", { name: /sign out/i })).not.toBeInTheDocument();
   });
 
-  it("offers one Contribute entry, and it works", async () => {
+  it("offers three Contribute entries in the existing subsection", async () => {
     await renderMe();
 
     const contribute = region(/contribute/i);
+    expect(within(contribute).getAllByRole("link")).toHaveLength(3);
+    expect(within(contribute).getByRole("link", { name: /report a problem/i })).toHaveAttribute("href", "/report-problem");
+    expect(within(contribute).getByRole("link", { name: /share feedback/i })).toHaveAttribute("href", "/feedback");
 
     expect(
       within(contribute).getByRole("link", { name: /suggest a pen shop/i }),

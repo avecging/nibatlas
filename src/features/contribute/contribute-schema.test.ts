@@ -230,3 +230,26 @@ describe("what is handed on", () => {
     expect(normalised["shop_name"]).toBeUndefined();
   });
 });
+
+describe("beta reporting validation", () => {
+  it.each([
+    ["bug", { category: "bug", what_happened: "Map is blank" }, "category", "what_happened"],
+    ["feedback", { feedback_type: "idea", message: "More filters" }, "feedback_type", "message"],
+  ] as const)("validates %s and keeps contact independently optional", (kind, values, category, message) => {
+    expect(validateSubmission(kind, values)).toEqual({});
+    expect(validateSubmission(kind, { ...values, contributor_email: "a@example.com" })).toEqual({});
+    expect(validateSubmission(kind, { ...values, [message]: "  " })[message]).toBeDefined();
+    expect(validateSubmission(kind, { ...values, [message]: "x".repeat(2001) })[message]).toBeDefined();
+    expect(validateSubmission(kind, { ...values, [category]: "invalid" })[category]).toBeDefined();
+    expect(validateSubmission(kind, { ...values, contributor_email: "bad" }).contributor_email).toBeDefined();
+    expect(normaliseSubmission(kind, { ...values, status: "accepted", admin_notes: "bad", token: "secret" })).toEqual(values);
+  });
+
+  it("sanitises optional feedback paths and rejects external or private paths", () => {
+    const values = { feedback_type: "general", message: "Hi" };
+    expect(normaliseSubmission("feedback", { ...values, page_path: "/passport?token=secret#private" }).page_path).toBe("/passport");
+    for (const page_path of ["https://example.com", "//example.com", "/auth/callback", "/admin/shops", "/%61uth/callback"]) {
+      expect(validateSubmission("feedback", { ...values, page_path }).page_path).toBeDefined();
+    }
+  });
+});
