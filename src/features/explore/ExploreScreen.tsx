@@ -716,6 +716,7 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
         <div className={styles.overlayTop}>
           <DestinationSearch
             geocoder={geocoder}
+            shopsOnly={catalogue.resolution.mode === "api"}
             locatingSlug={locatingSlug}
             onChooseDestination={(viewport, label) => { cancelNearMe(); moveCamera(viewport, label); }}
             onChooseShop={(shop: ShopMapSummary, viewport) => {
