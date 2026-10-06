@@ -40,6 +40,7 @@ type Option =
 
 interface DestinationSearchProps {
   readonly geocoder: DestinationGeocoder;
+  readonly shopsOnly?: boolean;
   readonly onChooseDestination: (viewport: Viewport, label: string) => void;
   readonly onChooseShop: (shop: ShopMapSummary, viewport: Viewport) => void;
   /** Chosen canonical shop whose position still has to be resolved. */
@@ -53,6 +54,7 @@ const EMPTY: SearchResults = { destinations: [], shops: [] };
 
 export function DestinationSearch({
   geocoder,
+  shopsOnly = false,
   onChooseDestination,
   onChooseShop,
   onChooseShopSlug,
@@ -228,8 +230,8 @@ export function DestinationSearch({
           aria-expanded={open && hasResults}
           aria-controls={listboxId}
           aria-autocomplete="list"
-          aria-label="Search shops or places"
-          placeholder="Search shops or places"
+          aria-label={shopsOnly ? "Search shops" : "Search shops or places"}
+          placeholder={shopsOnly ? "Search shops" : "Search shops or places"}
           value={query}
           {...(activeOption ? { "aria-activedescendant": `${listboxId}-${activeOption.id}` } : {})}
           onChange={(event) => setQuery(event.target.value)}
@@ -383,7 +385,7 @@ export function DestinationSearch({
             <p className={styles.empty}>
               {failed
                 ? "Search is unavailable right now. Try again in a moment."
-                : "No places or catalogue shops match that search."}
+                : shopsOnly ? "No catalogue shops match that search." : "No places or catalogue shops match that search."}
             </p>
           ) : null}
         </div>
