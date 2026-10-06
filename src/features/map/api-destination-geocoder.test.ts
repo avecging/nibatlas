@@ -4,7 +4,7 @@ import type { ShopReadClient } from "@/src/api/v1/shop-read-client";
 import { ShopReadAbortedError, ShopReadHttpError } from "@/src/api/v1/shop-read-errors";
 import {
   createApiGeocoder,
-  createCuratedDestinationSupplier,
+  createEmptyDestinationSupplier,
 } from "@/src/features/map/api-destination-geocoder";
 
 const HIT = {
@@ -26,25 +26,23 @@ function client(searchCanonicalShops: ShopReadClient["searchCanonicalShops"]): S
 }
 
 describe("api destination geocoder", () => {
-  it("keeps canonical shops and places in separate groups", async () => {
+  it("keeps canonical shops while API-mode place search is disabled", async () => {
     const geocoder = createApiGeocoder({
       client: client(vi.fn(async () => ({ shops: [HIT], query: "Kobe" }))),
     });
     const results = await geocoder.search("Kobe");
 
-    expect(results.shops).toHaveLength(1);
-    expect(results.destinations.length).toBeGreaterThan(0);
-    // No place is ever presented as a catalogue record, and no wire-shaped value
-    // reaches the interface: a canonical hit is the projected domain shape.
-    expect(results.shops[0]).toEqual({
-      id: HIT.id,
-      slug: HIT.slug,
-      name: HIT.name,
-      countryCode: HIT.countryCode,
-      localityName: HIT.localityName,
-      matchedAlias: HIT.matchedAlias,
-    });
-    expect(results.destinations.every((place) => !("slug" in place))).toBe(true);
+    expect(results.destinations).toEqual([]);
+    expect(results.shops).toEqual([
+      {
+        id: HIT.id,
+        slug: HIT.slug,
+        name: HIT.name,
+        countryCode: HIT.countryCode,
+        localityName: HIT.localityName,
+        matchedAlias: HIT.matchedAlias,
+      },
+    ]);
   });
 
   it("never invents a position for a canonical hit", async () => {
@@ -64,7 +62,7 @@ describe("api destination geocoder", () => {
     expect(searchCanonicalShops).not.toHaveBeenCalled();
   });
 
-  it("keeps one group when the other supplier fails", async () => {
+  it("returns no results when canonical search fails and place search is disabled", async () => {
     const geocoder = createApiGeocoder({
       client: client(
         vi.fn(async () => {
@@ -74,11 +72,10 @@ describe("api destination geocoder", () => {
     });
     const results = await geocoder.search("Kobe");
 
-    expect(results.shops).toEqual([]);
-    expect(results.destinations.length).toBeGreaterThan(0);
+    expect(results).toEqual({ destinations: [], shops: [] });
   });
 
-  it("keeps canonical shops when the place supplier fails", async () => {
+  it("keeps canonical shops when an injected place supplier fails", async () => {
     const geocoder = createApiGeocoder({
       client: client(vi.fn(async () => ({ shops: [HIT], query: "Kobe" }))),
       destinations: {
@@ -135,11 +132,8 @@ describe("api destination geocoder", () => {
   });
 });
 
-describe("curated destination supplier", () => {
-  it("projects destinations into place results with a framing viewport", async () => {
-    const places = await createCuratedDestinationSupplier().suggest("Ginza");
-
-    expect(places.length).toBeGreaterThan(0);
-    expect(places[0]?.viewport.zoom).toBeGreaterThan(0);
+describe("empty destination supplier", () => {
+  it("returns no place results", async () => {
+    await expect(createEmptyDestinationSupplier().suggest("Ginza")).resolves.toEqual([]);
   });
 });
