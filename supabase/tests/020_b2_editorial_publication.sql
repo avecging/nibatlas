@@ -28,7 +28,7 @@ select throws_ok($$select pg_temp.b2('save',jsonb_set(pg_temp.b2read()->'documen
 insert into b2_checks values('before_confirmation',pg_temp.b2read());
 select is(pg_temp.b2('confirm_position')->>'positionConfirmed','true','deliberate action confirms zero position');
 select throws_ok($$select public.admin_shop_write('confirm_position','80000000-0000-4000-8000-000000000010',
- (select v->>'revision' from b2_checks where k='before_confirmation'))$$,'40001','Revision conflict','confirmation changes revision and rejects stale replay');
+ (select v->>'revision' from b2_checks where k='before_confirmation'))$$,'PT409','Revision conflict','confirmation changes revision and rejects stale replay');
 select pg_temp.b2('save',jsonb_set(pg_temp.b2read()->'document','{shop,name}','"B2 synthetic renamed"'));
 select is(pg_temp.b2read()->>'positionConfirmed','true','ordinary rename retains confirmation');
 select is(pg_temp.b2read()->'document'->'shop'->>'slug','b2-synthetic-shop','ordinary rename retains URL');
@@ -63,8 +63,8 @@ select is((select last_verified_at from public.shops where slug='b2-synthetic-sh
 select ok(not exists(select 1 from public.admin_audit_log where (before_summary::text||after_summary::text) like '%PRIVATE B2%'),'audit has no raw private content');
 update public.shops set name='Operator revision' where slug='b2-synthetic-shop';
 set local role authenticated;
-select throws_ok($$select pg_temp.b2('publish')$$,'40001','Revision conflict','operator race requires re-review');
-select throws_ok($$select pg_temp.b2('confirm_position')$$,'40001','Revision conflict','position confirmation cannot rebase a stale copy');
+select throws_ok($$select pg_temp.b2('publish')$$,'PT409','Revision conflict','operator race requires re-review');
+select throws_ok($$select pg_temp.b2('confirm_position')$$,'PT409','Revision conflict','position confirmation cannot rebase a stale copy');
 select set_config('request.jwt.claims','{"sub":"80000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
 select throws_ok('select pg_temp.b2read()','42501','Admin access denied','ordinary signed-in user cannot read notes/draft');
 select throws_ok($$select pg_temp.b2('confirm_position')$$,'42501','Admin access denied','ordinary account cannot confirm');

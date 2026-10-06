@@ -36,7 +36,7 @@ select is(jsonb_array_length(pg_temp.op('public_list')),0,'unpublished image exc
 select throws_ok($$select pg_temp.op('public_file',pg_temp.image(10))$$,'P0002','Media not found','draft bytes are private');
 select ok(pg_temp.op('preview',pg_temp.image(10)) ? 'storageKey','authorized private preview resolves key only in service RPC');
 select throws_ok($$select pg_temp.op('publish',pg_temp.image(10),actor=>'73000000-0000-4000-8000-000000000002',revision=>repeat('a',32))$$,'42501','Admin access denied','editor cannot publish');
-select throws_ok($$select pg_temp.op('publish',pg_temp.image(10),revision=>repeat('a',32))$$,'40001','Media changed; reload','stale revision conflicts');
+select throws_ok($$select pg_temp.op('publish',pg_temp.image(10),revision=>repeat('a',32))$$,'PT409','Media changed; reload','stale revision conflicts');
 select lives_ok($$select pg_temp.publish(10)$$,'admin publishes without paperwork');
 select is(jsonb_array_length(pg_temp.op('public_list')),1,'published image is public');
 select ok((pg_temp.op('public_list')->0) - array['id','kind','width','height','altText','creditText','sortOrder','caption']='{}'::jsonb,'public list excludes key, source, rights, revision and private status');

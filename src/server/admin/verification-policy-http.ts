@@ -38,7 +38,7 @@ export async function handleVerificationPolicy(request: Request, shop: string, g
   } catch (error) {
     if (error instanceof AdminForbiddenError) return adminFailure('forbidden');
     if (error instanceof ShopOperationError) {
-      const codes: Record<string, [number, string]> = { '40001': [409, 'revision_conflict'], P0002: [404, 'shop_not_found'], '22023': [422, 'invalid_request'] };
+      const codes: Record<string, [number, string]> = { PT409: [409, 'revision_conflict'], P0002: [404, 'shop_not_found'], '22023': [422, 'invalid_request'] };
       const match = codes[error.code];
       if (match) return json({ ok: false, error: { code: match[1] } }, match[0]);
     }

@@ -110,7 +110,7 @@ export async function handleAboutAdmin(
     return reply(aboutState(value));
   } catch (e) {
     if (e instanceof AdminForbiddenError) return fail("forbidden", 403);
-    if (e instanceof ShopOperationError && e.code === "40001")
+    if (e instanceof ShopOperationError && e.code === "PT409")
       return fail("content_changed", 409);
     if (e instanceof ShopOperationError && ["22023", "22P02"].includes(e.code))
       return fail("invalid_content", 422);

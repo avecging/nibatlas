@@ -50,14 +50,14 @@ select throws_ok($$select pg_temp.review(pg_temp.payload(2)||'{"actor":"spoof"}'
 select throws_ok($$select pg_temp.review(pg_temp.payload(2,jsonb_set(pg_temp.choices(),'{photos}',jsonb_build_array((select v from fixtures where k='foreign')))))$$,'22023','Invalid review','foreign-environment photo refused');
 select throws_ok($$select pg_temp.review(pg_temp.payload(2,jsonb_set(pg_temp.choices(),'{photos}',jsonb_build_array((select v from fixtures where k='photo'),(select v from fixtures where k='photo')))))$$,'22023','Invalid review','duplicate choices refused');
 select throws_ok($$select pg_temp.review(pg_temp.payload(2,jsonb_set(pg_temp.choices(),'{logo}',(select v from fixtures where k='photo'))))$$,'22023','Invalid review','photo cannot be logo');
-select throws_ok($$select pg_temp.review(pg_temp.payload(2)||jsonb_build_object('previousId',null))$$,'40001','Review conflict','stale tab cannot replace newer review');
+select throws_ok($$select pg_temp.review(pg_temp.payload(2)||jsonb_build_object('previousId',null))$$,'PT409','Review conflict','stale tab cannot replace newer review');
 -- Saved caption, publication status and membership all change the snapshot key.
 update public.shop_images set caption='Synthetic changed caption' where id=((select v from fixtures where k='photo')#>>'{}')::uuid;
 select is(pg_temp.review()->'review'->>'current','false','caption invalidates review even with unchanged shop revision');
 select is(pg_temp.review((select v from fixtures where k='request'))->'review'->>'current','false','stale replay never revalidates old receipt');
-select throws_ok($$select pg_temp.review((select v||jsonb_build_object('id','d4200000-0000-4000-8000-000000000002','previousId',pg_temp.review()->'review'->>'id') from fixtures where k='request'))$$,'40001','Review conflict','stale snapshot cannot save a new review');
+select throws_ok($$select pg_temp.review((select v||jsonb_build_object('id','d4200000-0000-4000-8000-000000000002','previousId',pg_temp.review()->'review'->>'id') from fixtures where k='request'))$$,'PT409','Review conflict','stale snapshot cannot save a new review');
 select is(pg_temp.review(pg_temp.payload(2))->'review'->>'current','true','deliberate fresh review works');
-select throws_ok($$select pg_temp.review((select v from fixtures where k='request'))$$,'40001','Review conflict','superseded request does not overwrite');
+select throws_ok($$select pg_temp.review((select v from fixtures where k='request'))$$,'PT409','Review conflict','superseded request does not overwrite');
 update public.shop_images set sort_order=42 where id=((select v from fixtures where k='photo')#>>'{}')::uuid;
 select is(pg_temp.review()->'review'->>'current','false','gallery order invalidates review');
 select pg_temp.review(pg_temp.payload(3));
@@ -74,7 +74,7 @@ select is(pg_temp.review()->'review'->>'current','false','private saved change i
 select pg_temp.review(pg_temp.payload(6));
 update public.shops set name='Synthetic canonical edit' where id='00000000-0000-4000-8000-000000000301';
 select is(pg_temp.review()->>'conflict','true','canonical drift detected behind working copy');
-select throws_ok($$select pg_temp.review(pg_temp.payload(7))$$,'40001','Review conflict','unreconciled working copy cannot be re-reviewed');
+select throws_ok($$select pg_temp.review(pg_temp.payload(7))$$,'PT409','Review conflict','unreconciled working copy cannot be re-reviewed');
 select public.admin_shop_write('discard','00000000-0000-4000-8000-000000000301',pg_temp.review()->'record'->>'revision');
 select pg_temp.review(pg_temp.payload(7));
 -- Optional media/artwork: empty choices are valid; no confirmation is invented.

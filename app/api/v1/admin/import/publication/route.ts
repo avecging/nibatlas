@@ -10,7 +10,7 @@ async function route(request: Request) {
     return await handleImportPublication(request, { ...gateway, async call(name, args) {
       const { data, error } = await session.rpc(name, args);
       if (error?.code === '42501') throw new AdminForbiddenError();
-      if (error?.code === '40001' || error?.code === '23505') throw new ImportConflictError();
+      if (error?.code === 'PT409' || error?.code === '23505') throw new ImportConflictError();
       if (error) throw Error('Publication unavailable');
       return data;
     } });

@@ -35,7 +35,7 @@ select is(pg_temp.rel_read('b1000000-0000-4000-8000-000000000020')#>>'{document,
 select is(pg_temp.rel_read('b1000000-0000-4000-8000-000000000020')#>>'{document,shop,phone}','private-unrelated-phone','other private fields preserved');
 select is(public.shop_detail('synthetic-related-b')->>'phone',null,'other shop remains unpublished at field level');
 select is(public.shop_detail('synthetic-related-a')->'relatedShops','[]'::jsonb,'saved relationship is private');
-select throws_ok($$select public.admin_shop_write('save','b1000000-0000-4000-8000-000000000020',current_setting('test.old_b_revision'),pg_temp.rel_read('b1000000-0000-4000-8000-000000000020')->'document')$$,'40001','Revision conflict','stale counterpart editor cannot erase backlink');
+select throws_ok($$select public.admin_shop_write('save','b1000000-0000-4000-8000-000000000020',current_setting('test.old_b_revision'),pg_temp.rel_read('b1000000-0000-4000-8000-000000000020')->'document')$$,'PT409','Revision conflict','stale counterpart editor cannot erase backlink');
 select is(pg_temp.rel_publish('b1000000-0000-4000-8000-000000000010')->>'publicationStatus','published','existing publication publishes related direction');
 select is(public.shop_detail('synthetic-related-a')#>>'{relatedShops,0,kind}','branch','public card has branch tag');
 select is(public.shop_detail('synthetic-related-b')->'relatedShops','[]'::jsonb,'publishing A never makes B backlink public');
@@ -141,7 +141,7 @@ select set_config('test.clean_b_revision',pg_temp.rel_read('b1000000-0000-4000-8
 select pg_temp.rel_publish('b1000000-0000-4000-8000-000000000060');
 select is(pg_temp.rel_read('b1000000-0000-4000-8000-000000000061')->>'hasChanges','false','new-link publication removes no-op counterpart draft');
 select is(pg_temp.rel_read('b1000000-0000-4000-8000-000000000061')#>>'{document,related_shops,0,show_public}','false','pruning keeps canonical backlink hidden');
-select throws_ok($$select public.admin_shop_write('save','b1000000-0000-4000-8000-000000000061',current_setting('test.clean_b_revision'),pg_temp.rel_read('b1000000-0000-4000-8000-000000000061')->'document')$$,'40001','Revision conflict','pruning still invalidates the old draft revision');
+select throws_ok($$select public.admin_shop_write('save','b1000000-0000-4000-8000-000000000061',current_setting('test.clean_b_revision'),pg_temp.rel_read('b1000000-0000-4000-8000-000000000061')->'document')$$,'PT409','Revision conflict','pruning still invalidates the old draft revision');
 select is(public.admin_shop_write('temporarily_closed','b1000000-0000-4000-8000-000000000061',pg_temp.rel_read('b1000000-0000-4000-8000-000000000061')->>'revision')#>>'{document,shop,operational_status}','temporarily_closed','reconciled counterpart can close without manual discard');
 select pg_temp.rel_rows('b1000000-0000-4000-8000-000000000060','[]');
 select pg_temp.rel_publish('b1000000-0000-4000-8000-000000000060');

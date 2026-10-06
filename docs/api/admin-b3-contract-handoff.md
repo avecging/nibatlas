@@ -68,7 +68,7 @@ change needed, the persistence semantics and the integration acceptance cases.
   existing invariant has to be relaxed. A hard `delete` would require weakening
   `protect_shop_media_identity` and is not requested.
 - **Authorization:** admin, matching `publish`/`hide`. Revision-checked
-  (`40001` on mismatch), audited through the existing `shop_media_audit` trigger,
+  (`PT409` on mismatch), audited through the existing `shop_media_audit` trigger,
   refused on an archived shop.
 - **Persistence/publication semantics the interface will state:**
   - Removing an image whose `status` is `approved` removes it from the **live
