@@ -71,6 +71,14 @@ export default function PrivacyPage() {
         abuse indicators. They contain no raw coordinates. Short-lived verification
         proofs and rate-limit counters are deleted separately.</p>
 
+      <h2 className="type-h2">Map search</h2>
+      <p>When MapTiler place search is configured, the words you type into the map
+        search box are sent to MapTiler to suggest geographic places. This also
+        happens when you are looking for a shop by name. The query does not
+        include your account details or precise device location. MapTiler may
+        process browser and network information such as an IP address. Shop
+        catalogue results still come from Nib Atlas.</p>
+
       <h2 className="type-h2">Beta usage analytics</h2>
       <p>When configured, PostHog receives anonymous page visits, a few app actions and
         masked session replays to help us find beta usability problems. Replay hides

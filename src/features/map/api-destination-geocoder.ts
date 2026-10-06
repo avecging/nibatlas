@@ -19,8 +19,8 @@ import {
  *   sees them and projected here into `CanonicalShopHit`. No wire field reaches
  *   the interface directly.
  * - **Places** are optional map-framing results supplied behind
- *   `DestinationSupplier`. API mode currently uses an empty supplier until a
- *   real provider geocoder is wired in.
+ *   `DestinationSupplier`. API mode uses MapTiler when its map key is configured, and an empty
+ *   supplier otherwise.
  */
 export interface DestinationSupplier {
   suggest(query: string, signal?: AbortSignal): Promise<readonly DestinationResult[]>;
