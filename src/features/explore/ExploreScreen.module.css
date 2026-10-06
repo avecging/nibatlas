@@ -35,6 +35,23 @@
 
 .overlayTop > * { pointer-events: auto; }
 
+.mobileBetaBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-height: 1.25rem;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-round);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  color: var(--text-secondary);
+  font-size: 0.625rem;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
 /* Result-scope switch: the labelled control that owns global Saved mode. */
 .modeSwitch {
   display: inline-flex;
@@ -378,5 +395,12 @@
   /* Let the compact landscape disclosure sit over the sheet while it is open. */
   .searchAreaSlot:has([aria-expanded="true"]) {
     z-index: 26;
+  }
+}
+
+
+@media (min-width: 1024px) {
+  .mobileBetaBadge {
+    display: none;
   }
 }
