@@ -420,3 +420,59 @@ describe("when something is not configured", () => {
     expect(response.status).toBe(502);
   });
 });
+
+describe("bug and feedback intake", () => {
+  it("forwards only coarse, bounded bug context and declared text", async () => {
+    const fetchMock = intakeAccepts();
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await post({
+      kind: "bug",
+      values: { category: "not_working", what_happened: "  Blank map  ", signed_in: "forged", status: "done", timestamp: "forged", session: "secret" },
+      context: { page_path: "/me?token=secret#private", signed_in: "yes", device_summary: "full fingerprint", token: "secret", coordinates: "1,2" },
+    }, { "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18) Version/18 Safari/604.1 secret" });
+    expect(response.status).toBe(200);
+    expect(forwarded(fetchMock)).toEqual({ secret: SECRET, type: "bug", fields: {
+      category: "not_working", what_happened: "Blank map", page_path: "/me", signed_in: "yes", device_summary: "Safari / Mobile",
+    } });
+  });
+
+  it("uses unknown for unavailable sign-in status and drops private paths", async () => {
+    const fetchMock = intakeAccepts();
+    vi.stubGlobal("fetch", fetchMock);
+    await post({ kind: "bug", values: { category: "bug", what_happened: "Broken" }, context: { signed_in: "token", page_path: "/auth/callback?code=secret" } });
+    expect(forwarded(fetchMock).fields).toMatchObject({ signed_in: "unknown", page_path: "" });
+  });
+
+  it("routes feedback without bug context, account details or review fields", async () => {
+    const fetchMock = intakeAccepts();
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await post({ kind: "feedback", values: { feedback_type: "idea", message: "  Try this  ", page_path: "/passport?private=1", contributor_email: "a@example.com", admin_notes: "done", signed_in: "yes" }, context: { device_summary: "private" } });
+    expect(response.status).toBe(200);
+    expect(forwarded(fetchMock)).toEqual({ secret: SECRET, type: "feedback", fields: { feedback_type: "idea", message: "Try this", page_path: "/passport", contributor_email: "a@example.com" } });
+  });
+
+  it.each([
+    { kind: "bug", values: { category: "invalid", what_happened: "x" } },
+    { kind: "bug", values: { category: "bug", what_happened: 123 } },
+    { kind: "feedback", values: { feedback_type: "idea", message: " " } },
+    { kind: "feedback", values: { feedback_type: "other", message: "x".repeat(2001) } },
+    { kind: "__proto__", values: {} },
+  ])("rejects invalid new submissions without forwarding", async (body) => {
+    const fetchMock = intakeAccepts();
+    vi.stubGlobal("fetch", fetchMock);
+    expect((await post(body)).status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["bug", "feedback"])("keeps Turnstile and upstream failures for %s", async (kind) => {
+    const values = kind === "bug" ? { category: "bug", what_happened: "Broken" } : { feedback_type: "general", message: "Hello" };
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "test-secret");
+    const fetchMock = vi.fn(async () => Response.json({ success: false }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect((await post({ kind, values, turnstileToken: "bad" })).status).toBe(403);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "");
+    fetchMock.mockResolvedValue(Response.json({ ok: false, error: "unknown_type" }));
+    expect((await post({ kind, values })).status).toBe(502);
+  });
+});

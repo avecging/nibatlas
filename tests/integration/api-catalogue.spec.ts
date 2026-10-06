@@ -104,8 +104,13 @@ test("a failed API refresh keeps old results and Retry recovers", async ({ page 
     await route.continue();
   });
 
-  await page.getByRole("combobox", { name: /search shops or places/i }).fill("Ginza");
-  await page.getByRole("option").filter({ hasText: /^Ginza.*Place ·/ }).click();
+  const map = page.getByTestId("map-canvas");
+  const bounds = await map.boundingBox();
+  expect(bounds).not.toBeNull();
+  await page.mouse.move(bounds!.x + bounds!.width * 0.7, bounds!.y + bounds!.height * 0.5);
+  await page.mouse.wheel(0, -240);
+  await expect(page.getByRole("button", { name: "Search this area", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /^search this area$/i }).click();
 
   await expect(page.getByTestId("explore")).toHaveAttribute("data-explore-status", "error");
   await expect(page.getByRole("article", { name: "M3 API Demo Shop" })).toBeVisible();
@@ -117,14 +122,13 @@ test("a failed API refresh keeps old results and Retry recovers", async ({ page 
   await expect(page.getByRole("article", { name: "M3 API Demo Shop" })).toBeVisible();
 });
 
-test("canonical shops and places remain separately named result groups", async ({ page }) => {
+test("API search offers canonical shops without prototype places", async ({ page }) => {
   await openMap(page);
-  await page.getByRole("combobox", { name: /search shops or places/i }).fill("Tokyo");
+  await page.getByRole("combobox", { name: /^search shops$/i }).fill("Tokyo");
 
   const listbox = page.getByRole("listbox", { name: /search results/i });
-  await expect(listbox.getByRole("group", { name: "Places" })).toBeVisible();
   await expect(listbox.getByRole("group", { name: "Shops" })).toBeVisible();
-  await expect(listbox.getByRole("option").filter({ hasText: /Place ·/ }).first()).toBeVisible();
+  await expect(listbox.getByRole("group", { name: "Places" })).toHaveCount(0);
   await expect(
     listbox.getByRole("option").filter({ hasText: /Shop in the Nib Atlas catalogue/ }),
   ).toBeVisible();

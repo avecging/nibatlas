@@ -13,7 +13,7 @@
  * wrong column.
  */
 
-export type ContributionKind = "suggestion" | "correction";
+export type ContributionKind = "suggestion" | "correction" | "bug" | "feedback";
 
 export type FieldControl = "text" | "email" | "textarea" | "select";
 
@@ -34,12 +34,9 @@ export interface FieldDefinition {
 /**
  * The contact pair.
  *
- * Both optional, and shared by both kinds. An email with no name gives the
- * research team an address and nobody to write to, so a name is required once an
- * email is given — the only conditional rule in the schema. A name on its own
- * asks for nothing further.
- *
- * When accounts arrive these two are filled from the profile rather than typed.
+ * Contact is explicitly offered, never copied from an account. The existing
+ * shop forms require a name alongside an email; bugs and feedback accept each
+ * independently.
  */
 const CONTACT_FIELDS: readonly FieldDefinition[] = [
   {
@@ -170,8 +167,48 @@ export const CORRECTION_FIELDS: readonly FieldDefinition[] = [
   ...CONTACT_FIELDS,
 ];
 
+export const BUG_FIELDS: readonly FieldDefinition[] = [
+  { name: "category", label: "Issue category", control: "select", required: true, maxLength: 60,
+    options: [
+      { value: "bug", label: "Bug" },
+      { value: "confusing", label: "Something confusing" },
+      { value: "not_working", label: "Feature not working" },
+      { value: "other", label: "Other" },
+    ] },
+  { name: "what_happened", label: "What happened?", control: "textarea", required: true, maxLength: 2000 },
+  { name: "what_were_you_trying_to_do", label: "What were you trying to do?", control: "textarea", required: false, maxLength: 2000 },
+  ...CONTACT_FIELDS,
+];
+
+export const FEEDBACK_FIELDS: readonly FieldDefinition[] = [
+  { name: "feedback_type", label: "Feedback type", control: "select", required: true, maxLength: 60,
+    options: [
+      { value: "general", label: "General feedback" },
+      { value: "idea", label: "Idea or suggestion" },
+      { value: "confusing", label: "Something confusing" },
+      { value: "other", label: "Other" },
+    ] },
+  { name: "message", label: "Your feedback", control: "textarea", required: true, maxLength: 2000 },
+  { name: "page_path", label: "Page path", hint: "Optional, for example /passport. Leave out query strings and personal information.", control: "text", required: false, maxLength: 500 },
+  ...CONTACT_FIELDS,
+];
+
 export function fieldsFor(kind: ContributionKind): readonly FieldDefinition[] {
-  return kind === "suggestion" ? SUGGESTION_FIELDS : CORRECTION_FIELDS;
+  switch (kind) {
+    case "suggestion": return SUGGESTION_FIELDS;
+    case "correction": return CORRECTION_FIELDS;
+    case "bug": return BUG_FIELDS;
+    case "feedback": return FEEDBACK_FIELDS;
+  }
+}
+
+/** Only local pathnames; never retain queries, fragments or external URLs. */
+export function safePagePath(value: string): string {
+  const path = value.trim().split(/[?#]/, 1)[0] ?? "";
+  if (!path.startsWith("/") || path.startsWith("//") || /[\\\s%]/.test(path)) return "";
+  // Private/admin and auth routes can contain sensitive path segments.
+  if (/^\/(?:admin|auth|api)(?:\/|$)/i.test(path)) return "";
+  return path.slice(0, 500);
 }
 
 /**
@@ -236,6 +273,10 @@ export function validateSubmission(
     }
   }
 
+  if (kind === "feedback" && read("page_path") && !safePagePath(read("page_path"))) {
+    errors["page_path"] = "Use a page path such as /passport, without personal information.";
+  }
+
   const email = read("contributor_email");
 
   if (email !== "" && !EMAIL_SHAPE.test(email)) {
@@ -243,11 +284,10 @@ export function validateSubmission(
   }
 
   /*
-   * The one conditional rule. An address with no name reaches someone the
-   * research team cannot address, so the name is required exactly when an email
-   * is given — and never otherwise.
+   * Preserve the existing shop-form contact rule. New beta forms keep both
+   * contact fields independently optional.
    */
-  if (email !== "" && read("contributor_name") === "") {
+  if ((kind === "suggestion" || kind === "correction") && email !== "" && read("contributor_name") === "") {
     errors["contributor_name"] ??=
       "Please add a name, so a reply has someone to address.";
   }
@@ -276,7 +316,7 @@ export function normaliseSubmission(
     const value = (values[name] ?? "").trim();
 
     if (value !== "") {
-      normalised[name] = value;
+      normalised[name] = name === "page_path" ? safePagePath(value) : value;
     }
   }
 

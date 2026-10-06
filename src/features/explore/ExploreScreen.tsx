@@ -496,36 +496,6 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
     </div>
   );
 
-  const placePrompts = (
-    <section className={styles.prompts} aria-labelledby="place-prompts">
-      <h3 className={styles.promptsTitle} id="place-prompts">
-        Places to explore
-      </h3>
-      <p className={styles.promptsNote}>
-        {reviewer
-          ? "Jump the map to one of the catalogue’s current destination fixtures."
-          : "Choose one of the places currently in the catalogue."}
-      </p>
-      <ul className={styles.promptList}>
-        {prototypeDestinations.slice(0, 8).map((destination) => (
-          <li key={destination.id}>
-            <Link className={styles.promptChip} href={`/?destination=${destination.id}`}>
-              {destination.name}
-              {destination.localName ? (
-                <>
-                  {" · "}
-                  <span lang={destination.localNameLang} dir="auto">
-                    {destination.localName}
-                  </span>
-                </>
-              ) : null}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-
   /*
    * A reader who pans and then filters should get one commit, not two. When the
    * camera has moved far enough to be offering `Search this area`, Apply carries
@@ -696,7 +666,6 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
           noopTelemetry.record("shop_opened", { shopSlug: shop.slug, surface: "list" })
         }
       />
-      {results.length === 0 && state.status !== "loading" ? placePrompts : null}
     </>
   );
 
@@ -716,6 +685,7 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
         <div className={styles.overlayTop}>
           <DestinationSearch
             geocoder={geocoder}
+            shopsOnly={catalogue.resolution.mode === "api" && !process.env.NEXT_PUBLIC_MAPTILER_KEY?.trim()}
             locatingSlug={locatingSlug}
             onChooseDestination={(viewport, label) => { cancelNearMe(); moveCamera(viewport, label); }}
             onChooseShop={(shop: ShopMapSummary, viewport) => {
@@ -729,6 +699,7 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
             }
           />
           {modeSwitch}
+          <span className={styles.mobileBetaBadge} aria-label="Beta version">BETA</span>
           {/*
             The reviewer strip. Map is the one screen with no header at mobile
             widths, so the marker, the way out, and the basemap diagnostic sit in

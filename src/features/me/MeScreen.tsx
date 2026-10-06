@@ -17,6 +17,8 @@ import { useSignInPrompt } from "@/src/features/auth/SignInProvider";
 import { useCollection } from "@/src/features/collection/collection-store";
 import {
   HELP_PATH,
+  REPORT_PROBLEM_PATH,
+  FEEDBACK_PATH,
   SUGGEST_SHOP_PATH,
 } from "@/src/features/contribute/contribute-links";
 import { exportLocalData } from "@/src/features/me/local-data";
@@ -544,22 +546,11 @@ function PlacesVisited() {
  * built here.
  */
 
-/**
- * Contribute.
- *
- * One entry, still. **Suggest a pen shop** now opens the real form at
- * `/suggest-shop` rather than a mail client; the email route it replaced stays
- * in `contribute-links.ts` as what that form offers when it cannot deliver.
- *
- * **Report incorrect information** is still not here, and now for a stronger
- * reason than when the founder's staging review removed it. It exists, it works,
- * and it lives on the shop page — because the form carries the listing the
- * reader came from, and a global Me row has no listing to carry.
- */
+/** Contributions stay in Me; listing corrections stay on each shop page. */
 function Contribute() {
   return (
     <Section
-      description="The catalogue is small and hand-checked."
+      description="Help improve Nib Atlas."
       id="me-contribute"
       title="Contribute"
     >
@@ -570,6 +561,8 @@ function Contribute() {
           icon="pen"
           title="Suggest a pen shop"
         />
+        <Row detail="Tell us about a problem using the app." href={REPORT_PROBLEM_PATH} icon="alert" title="Report a problem" />
+        <Row detail="Share an idea or tell us what could be clearer." href={FEEDBACK_PATH} icon="mail" title="Share feedback" />
       </ul>
     </Section>
   );

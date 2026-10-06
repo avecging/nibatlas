@@ -48,6 +48,16 @@ var SHEETS = {
       "admin_notes",
     ],
   },
+  bug: {
+    name: "bugs",
+    columns: ["timestamp", "category", "what_happened", "what_were_you_trying_to_do",
+      "page_path", "device_summary", "signed_in", "contributor_name", "contributor_email", "status", "admin_notes"],
+  },
+  feedback: {
+    name: "feedback",
+    columns: ["timestamp", "feedback_type", "message", "page_path",
+      "contributor_name", "contributor_email", "status", "admin_notes"],
+  },
 };
 
 /**
@@ -70,6 +80,14 @@ var CAPS = {
   correction_type: 60,
   what_is_wrong: 2000,
   source_or_link: 500,
+  category: 60,
+  what_happened: 2000,
+  what_were_you_trying_to_do: 2000,
+  page_path: 500,
+  device_summary: 80,
+  signed_in: 7,
+  feedback_type: 60,
+  message: 2000,
   contributor_name: 120,
   contributor_email: 254,
 };
@@ -109,7 +127,8 @@ function doPost(e) {
       return json(403, { ok: false, error: "forbidden" });
     }
 
-    var config = SHEETS[body.type];
+    var config = typeof body.type === "string" && Object.prototype.hasOwnProperty.call(SHEETS, body.type)
+      ? SHEETS[body.type] : null;
 
     if (!config) {
       return json(400, { ok: false, error: "unknown_type" });

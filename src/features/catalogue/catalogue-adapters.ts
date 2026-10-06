@@ -10,6 +10,7 @@ import {
 } from "@/src/features/explore/shop-source";
 import { createHttpShopSource } from "@/src/features/explore/http-shop-source";
 import { createApiGeocoder } from "@/src/features/map/api-destination-geocoder";
+import { createMapTilerDestinationSupplier } from "@/src/features/map/maptiler-destination-supplier";
 import {
   createFixtureGeocoder,
   type DestinationGeocoder,
@@ -82,7 +83,14 @@ export function createCatalogueAdapters(
       shopSource: createHttpShopSource(
         options.fetch === undefined ? {} : { fetch: options.fetch },
       ),
-      geocoder: createApiGeocoder({ client }),
+      geocoder: createApiGeocoder({
+        client,
+        ...(process.env.NEXT_PUBLIC_MAPTILER_KEY?.trim()
+          ? { destinations: createMapTilerDestinationSupplier(
+              process.env.NEXT_PUBLIC_MAPTILER_KEY.trim(), options.fetch,
+            ) }
+          : {}),
+      }),
       locator: createHttpShopLocator(client),
       simulatedCollection: false,
       prototypeCatalogueJoin: false,

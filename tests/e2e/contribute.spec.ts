@@ -175,3 +175,26 @@ test("every contribution route is reachable without an account", async ({ page }
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   }
 });
+
+for (const kind of ["bug", "feedback"] as const) {
+  test(`${kind} from Me to a confirmed submission`, async ({ page }) => {
+    const sent: Record<string, unknown>[] = [];
+    await intake(page, async (route) => {
+      sent.push(route.request().postDataJSON());
+      await accepts(route);
+    });
+    await page.goto("/me");
+    const section = page.getByRole("region", { name: "Contribute", exact: true });
+    await expect(section.getByRole("link")).toHaveCount(3);
+    await section.getByRole("link", { name: kind === "bug" ? /report a problem/i : /share feedback/i }).click();
+    await expect(page).toHaveURL(kind === "bug" ? /\/report-problem$/ : /\/feedback$/);
+    await page.getByLabel(kind === "bug" ? /issue category/i : /feedback type/i).selectOption(kind === "bug" ? "bug" : "idea");
+    await page.getByLabel(kind === "bug" ? /what happened/i : /your feedback/i).fill("Beta test submission");
+    await page.getByRole("button", { name: kind === "bug" ? "Send report" : "Send feedback", exact: true }).click();
+    await expect(page.getByRole("status")).toContainText("Thanks for contributing!");
+    expect(sent).toHaveLength(1);
+    expect(sent[0]!.kind).toBe(kind);
+    if (kind === "bug") expect(sent[0]!.context).toMatchObject({ page_path: "/report-problem" });
+    else expect(sent[0]!.context).toBeUndefined();
+  });
+}
