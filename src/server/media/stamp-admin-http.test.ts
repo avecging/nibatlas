@@ -46,7 +46,7 @@ describe('stamp workflow authorization',()=>{
     gateway.operation=vi.fn().mockResolvedValueOnce({storageKey:'staging/media/key.png'}).mockRejectedValueOnce(new AdminForbiddenError());
     expect((await handleStampAdmin(req(),shop,id,gateway)).status).toBe(403);
   });
-  it.each([['P0002',404],['40001',409],['22023',422],['23505',409],['54000',429],['XX000',503]] as const)('redacts provider errors %s',async(code,status)=>{
+  it.each([['P0002',404],['PT409',409],['40001',503],['22023',422],['23505',409],['54000',429],['XX000',503]] as const)('redacts provider errors %s',async(code,status)=>{
     gateway.operation=async()=>{throw new MediaOperationError(code);};
     const r=await handleStampAdmin(req(),shop,null,gateway);
     expect(r.status).toBe(status);expect(await r.text()).not.toContain(code);

@@ -114,10 +114,15 @@ describe("About admin boundary", () => {
         )
       ).status,
     ).toBe(400);
-    g.call.mockRejectedValue(new ShopOperationError("40001"));
+    g.call.mockRejectedValue(new ShopOperationError("PT409"));
     expect(
       (await handleAboutAdmin(request({ action: "publish", revision: id }), g))
         .status,
     ).toBe(409);
+    g.call.mockRejectedValue(new ShopOperationError("40001"));
+    expect(
+      (await handleAboutAdmin(request({ action: "publish", revision: id }), g))
+        .status,
+    ).toBe(503);
   });
 });

@@ -30,7 +30,7 @@ set local role authenticated;
 select ok(public.admin_about_page('read') is null,'authorized initial read is empty');
 select lives_ok($$select public.admin_about_page('save',null,pg_temp.about_doc())$$,'admin saves private draft');
 select ok(public.read_published_about() is null,'draft does not become public');
-select throws_ok($$select public.admin_about_page('save',null,pg_temp.about_doc('Stale'))$$,'40001','About changed','competing first save refuses overwrite');
+select throws_ok($$select public.admin_about_page('save',null,pg_temp.about_doc('Stale'))$$,'PT409','About changed','competing first save refuses overwrite');
 select lives_ok($$select public.admin_about_page('publish',pg_temp.about_revision())$$,'admin publishes saved revision');
 select is(public.read_published_about()->>'title','Synthetic About','published copy readable');
 select is(public.read_published_about()->'support'->>'url','','hidden support destination excluded');
@@ -38,7 +38,7 @@ select is(public.read_published_about()->'support'->>'description','','hidden su
 select is(public.admin_about_page('read')->'draft'->'support'->>'description','Private preparation','admin retains hidden support');
 select lives_ok($$select public.admin_about_page('save',pg_temp.about_revision(),pg_temp.about_doc('Private edit'))$$,'new draft saved');
 select is(public.read_published_about()->>'title','Synthetic About','old published copy stays intact');
-select throws_ok($$select public.admin_about_page('publish','00000000-0000-4000-8000-000000000000')$$,'40001','About changed','stale publication refused');
+select throws_ok($$select public.admin_about_page('publish','00000000-0000-4000-8000-000000000000')$$,'PT409','About changed','stale publication refused');
 select lives_ok($$select public.admin_about_page('publish',pg_temp.about_revision())$$,'replacement publishes');
 select is(public.read_published_about()->>'title','Private edit','replacement visible');
 select lives_ok($$select public.admin_about_page('publish',pg_temp.about_revision())$$,'publish retry idempotent');

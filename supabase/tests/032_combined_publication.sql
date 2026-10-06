@@ -40,7 +40,7 @@ select public.admin_shop_write('save','00000000-0000-4000-8000-000000000301',pg_
 select pg_temp.review(pg_temp.payload(1));
 select throws_ok($$select pg_temp.publish()$$,'22023','Confirm position before review','position is never inferred');
 select public.admin_shop_write('confirm_position','00000000-0000-4000-8000-000000000301',pg_temp.review()->'record'->>'revision');
-select throws_ok($$select pg_temp.publish()$$,'40001','Review conflict','position confirmation itself requires fresh review');
+select throws_ok($$select pg_temp.publish()$$,'PT409','Review conflict','position confirmation itself requires fresh review');
 select pg_temp.review(pg_temp.payload(2));
 -- Inject a recoverable photo failure while shop and logo can commit.
 create function pg_temp.fail_photo() returns trigger language plpgsql as $$
@@ -77,9 +77,9 @@ select is(pg_temp.publish()->'publication'->>'status','partial','new photo failu
 drop trigger synthetic_photo_failure on public.shop_images;
 update public.shop_images set caption='Synthetic concurrent edit' where id=((select v from fixtures where k='photo2')#>>'{}')::uuid;
 select is(pg_temp.publish('read')->'publication'->>'canRetry','false','external caption change requires re-review');
-select throws_ok($$select pg_temp.publish('retry')$$,'40001','Review conflict','stale retry refused before writes');
+select throws_ok($$select pg_temp.publish('retry')$$,'PT409','Review conflict','stale retry refused before writes');
 select pg_temp.review(pg_temp.payload(5,jsonb_set(pg_temp.choices(),'{photos}',jsonb_build_array((select v from fixtures where k='photo2')))));
-select throws_ok($$select pg_temp.publish('retry','d4200000-0000-4000-8000-000000000004')$$,'40001','Review conflict','superseded attempt cannot retry');
+select throws_ok($$select pg_temp.publish('retry','d4200000-0000-4000-8000-000000000004')$$,'PT409','Review conflict','superseded attempt cannot retry');
 select is(pg_temp.publish()->'publication'->>'status','complete','fresh deliberate review recovers remaining selected work');
 -- Uploaded artwork and shop commit together, preserving previous approved history.
 insert into fixtures values('draft',(public.stamp_artwork_draft_operation('d4000000-0000-4000-8000-000000000001','staging',
@@ -125,8 +125,8 @@ select is((select jsonb_agg(to_jsonb(c) order by id) from public.stamp_collectio
 -- Read isolation, role revocation, direct RPC denial and immutable audit.
 select public.assign_profile_role('d4000000-0000-4000-8000-000000000002','admin');
 select is(pg_temp.publish('read',null,'d4000000-0000-4000-8000-000000000002')->'publication','null'::jsonb,'other admin cannot see owner receipts');
-select throws_ok($$select pg_temp.publish('publish','d4200000-0000-4000-8000-000000000006','d4000000-0000-4000-8000-000000000002')$$,'40001','Review conflict','other admin cannot replay owner attempt');
-select throws_ok($$select pg_temp.publish('publish','d4200000-0000-4000-8000-000000000006','d4000000-0000-4000-8000-000000000001','production')$$,'40001','Review conflict','cross-environment replay refused');
+select throws_ok($$select pg_temp.publish('publish','d4200000-0000-4000-8000-000000000006','d4000000-0000-4000-8000-000000000002')$$,'PT409','Review conflict','other admin cannot replay owner attempt');
+select throws_ok($$select pg_temp.publish('publish','d4200000-0000-4000-8000-000000000006','d4000000-0000-4000-8000-000000000001','production')$$,'PT409','Review conflict','cross-environment replay refused');
 select public.assign_profile_role('d4000000-0000-4000-8000-000000000001','editor');
 select throws_ok($$select pg_temp.publish('read')$$,'42501','Admin access denied','editor cannot read or retry admin publication');
 select ok(not has_function_privilege('authenticated','public.shop_publication_operation(uuid,text,uuid,text,uuid)','execute'),'browser cannot spoof actor/environment');

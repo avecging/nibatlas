@@ -37,7 +37,7 @@ it('rejects oversized bodies, queries, invalid IDs and unsupported methods befor
   expect((await handlePublication(req,id,g)).status).toBe(400);
  expect((await handlePublication(new Request(url),'invalid',g)).status).toBe(400);expect(g.operation).not.toHaveBeenCalled();
 });
-it.each([['40001',409],['23505',409],['22023',422],['P0002',404],['XX000',503]] as const)('redacts provider errors %s',async(code,status)=>{
+it.each([['PT409',409],['40001',503],['23505',409],['22023',422],['P0002',404],['XX000',503]] as const)('redacts provider errors %s',async(code,status)=>{
  const g=gateway();g.operation=vi.fn(async()=>{throw new MediaOperationError(code);});
  const res=await handlePublication(post(),id,g);expect(res.status).toBe(status);expect(await res.text()).not.toContain(code);
 });

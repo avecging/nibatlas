@@ -23,7 +23,7 @@ export async function handlePublication(request: Request, shop: string, gateway:
   } catch (error) {
     if (error instanceof AdminForbiddenError) return adminFailure('forbidden');
     if (error instanceof MediaOperationError) {
-      if (error.code === '40001' || error.code === '23505') return json({error:{code:'review_conflict'}},409);
+      if (error.code === 'PT409' || error.code === '23505') return json({error:{code:'review_conflict'}},409);
       if (error.code === 'P0002') return json({error:{code:'shop_not_found'}},404);
       if (['22023','23514','23503'].includes(error.code)) return json({error:{code:'invalid_publication'}},422);
     }

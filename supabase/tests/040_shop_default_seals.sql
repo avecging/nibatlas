@@ -16,7 +16,7 @@ insert into state values('payload',jsonb_build_object('shape','oval','ink','plum
 select throws_ok($$select pg_temp.op('create_generated',(select v from state where k='payload'),'e5000000-0000-4000-8000-000000000003')$$,'42501',null,'regular users cannot write seals');
 select throws_ok($$select pg_temp.op('create_generated',(select v from state where k='payload')||'{"shape":"circle"}')$$,'22023',null,'reject unsupported shape');
 select throws_ok($$select pg_temp.op('create_generated',(select v from state where k='payload')||'{"ink":"red"}')$$,'22023',null,'reject unsupported ink');
-select throws_ok($$select pg_temp.op('create_generated',(select v from state where k='payload')||'{"baseRevision":"00000000000000000000000000000000"}')$$,'40001',null,'reject stale active revision');
+select throws_ok($$select pg_temp.op('create_generated',(select v from state where k='payload')||'{"baseRevision":"00000000000000000000000000000000"}')$$,'PT409',null,'reject stale active revision');
 select throws_ok($$select pg_temp.op('create_generated',(select v from state where k='payload'),'e5000000-0000-4000-8000-000000000001','production')$$,'22023',null,'production cannot operate on demo staging target');
 select lives_ok($$select pg_temp.op('create_generated',(select v from state where k='payload'),'e5000000-0000-4000-8000-000000000002')$$,'editor may save a private generated version');
 insert into state values('draft',pg_temp.op('list')->0);
@@ -30,7 +30,7 @@ select is((select count(*)::int from public.stamp_artwork_versions where stamp_i
 select is(to_jsonb((select count(*) from public.admin_audit_log)),(select v from state where k='audit'),'replay adds no audit');
 select ok(pg_temp.review()->'availableStampIds' ? (select v->>'id' from state where k='draft'),'generated draft is available in combined review without PNG');
 select throws_ok($$select pg_temp.op('activate',jsonb_build_object('versionId',(select v->'id' from state where k='draft'),'revision',(select v->'revision' from state where k='draft')),'e5000000-0000-4000-8000-000000000002')$$,'42501',null,'editor cannot activate');
-select throws_ok($$select pg_temp.op('activate',jsonb_build_object('versionId',(select v->'id' from state where k='draft'),'revision',repeat('0',32)))$$,'40001',null,'activation requires current draft revision');
+select throws_ok($$select pg_temp.op('activate',jsonb_build_object('versionId',(select v->'id' from state where k='draft'),'revision',repeat('0',32)))$$,'PT409',null,'activation requires current draft revision');
 -- Preserve a real legacy impression before activating a new generated version.
 insert into public.stamp_collections(id,user_id,stamp_id,shop_id,stamp_design_version,shop_timezone,verification_method,verification_version,shop_name_snapshot,place_snapshot,stamp_snapshot)
 values('e5000000-0000-4000-8000-000000000010','e5000000-0000-4000-8000-000000000003','00000000-0000-4000-8000-000000000601','00000000-0000-4000-8000-000000000301',1,
@@ -50,7 +50,7 @@ select is((select current_design_version from public.stamps where id='00000000-0
 select is((select to_jsonb(a) from public.stamp_artwork_versions a where id='00000000-0000-4000-8000-000000000701'),(select v from state where k='legacy'),'legacy artwork remains byte-for-byte intact');
 select is((select to_jsonb(c) from public.stamp_collections c where id='e5000000-0000-4000-8000-000000000010'),(select v from state where k='collection'),'old impression remains byte-for-byte intact');
 select throws_ok($$update public.stamp_artwork_versions set ink='navy' where id=((select v->>'id' from state where k='draft'))::uuid$$,'55000',null,'new approved seals are immutable');
-select throws_ok($$select pg_temp.op('create_generated',(select v from state where k='payload'))$$,'40001',null,'stale session cannot save against superseded active art');
+select throws_ok($$select pg_temp.op('create_generated',(select v from state where k='payload'))$$,'PT409',null,'stale session cannot save against superseded active art');
 select is(public.shop_detail('m2-singapore-demo-fixture')->'generatedStamp'->'templateData'->>'shape','oval','public projection carries saved shape');
 select ok(not has_function_privilege('authenticated','public.stamp_artwork_draft_operation(uuid,text,uuid,text,jsonb)','EXECUTE'),'actor RPC stays service-only');
 select ok(not has_function_privilege('anon','public.stamp_artwork_draft_operation(uuid,text,uuid,text,jsonb)','EXECUTE'),'anonymous cannot call actor RPC');

@@ -52,7 +52,7 @@ describe('private check-in radius administration', () => {
     expect(g.call).not.toHaveBeenCalled();
   });
   it('contains stale writes, role revocation and provider errors', async () => {
-    for (const [error, status] of [[new ShopOperationError('40001'), 409], [new AdminForbiddenError(), 403], [Error('private SQL facts'), 503]] as const) {
+    for (const [error, status] of [[new ShopOperationError('PT409'), 409], [new ShopOperationError('40001'), 503], [new AdminForbiddenError(), 403], [Error('private SQL facts'), 503]] as const) {
       const g = gateway(); g.call.mockRejectedValue(error);
       const r = await handleVerificationPolicy(request({ revision, radiusMeters: 60, reason: 'Validated shop entrance' }), id, g);
       expect(r.status).toBe(status); expect(await r.text()).not.toContain('private SQL');

@@ -54,7 +54,7 @@ export async function handleSeals(request:Request,gateway:SealGateway,admin=fals
   return reply({ownerId:owner,rows:d.rows.map(sealWire),nextCursor:d.nextCursor==null?null:uuid(d.nextCursor)});
  } catch(e) {
   const code=e instanceof SealError?e.code:'';
-  const status=code==='42501'?403:code==='40001'||code==='23505'?409:['22023','22P02'].includes(code)?422:503;
+  const status=code==='42501'?403:code==='PT409'||code==='23505'?409:['22023','22P02'].includes(code)?422:503;
   return reply({error:status===409?'reload_changed_seal':status===422?'invalid_seal':status===403?'forbidden':'service_unavailable'},status);
  }
 }

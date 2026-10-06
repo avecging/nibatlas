@@ -200,7 +200,7 @@ export async function handleShopAdmin(
     if (error instanceof ShopOperationError) {
       if (error.fieldErrors.length) return json({ok:false,error:{code:'invalid_fields'},fieldErrors:error.fieldErrors},422);
       const codes: Record<string, [number, string]> = {
-        "40001": [409, "revision_conflict"],
+        PT409: [409, "revision_conflict"],
         "23505": [409, "duplicate_record"],
         P0002: [404, "shop_not_found"],
         "22023": [422, "invalid_data_or_transition"],

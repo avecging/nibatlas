@@ -117,10 +117,10 @@ select pg_temp.edit(3,'address_line_1','"Corrected synthetic address"');
 select pg_temp.pub(3,'review',2);
 select pg_temp.pub(3,'confirm_position',2);
 select is(pg_temp.pub(3,'publish',2)->'publication'->>'status','published','corrected incomplete row reviewed confirmed published');
-select throws_ok($$select pg_temp.pub(5,'review',2)$$,'40001','Review changed','canonical-base conflict cannot be silently rebased');
+select throws_ok($$select pg_temp.pub(5,'review',2)$$,'PT409','Review changed','canonical-base conflict cannot be silently rebased');
 select is(pg_temp.pub(4,'publish')->'publication'->>'operation_revision','2','superseded operation cannot republish');
 -- RPC ownership and current-role checks also precede successful replays.
-select throws_ok($$select public.admin_import_publication('publish','a3000000-0000-4000-8000-000000000010','a5000000-0000-4000-8000-000000000002','a6000000-0000-4000-8000-000000001001')$$,'40001','Operation conflict','cross-row operation rejected');
+select throws_ok($$select public.admin_import_publication('publish','a3000000-0000-4000-8000-000000000010','a5000000-0000-4000-8000-000000000002','a6000000-0000-4000-8000-000000001001')$$,'PT409','Operation conflict','cross-row operation rejected');
 reset role;
 insert into public.import_batches(id,owner_id) values('a3000000-0000-4000-8000-000000000011','a3000000-0000-4000-8000-000000000001');
 set local role authenticated;
