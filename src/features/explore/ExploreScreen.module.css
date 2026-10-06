@@ -29,14 +29,44 @@
   left: var(--space-3);
   right: var(--space-3);
   display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--space-2);
   pointer-events: none;
 }
 
+.overlayTop > :first-child,
+.reviewerStrip,
+.intro {
+  grid-column: 1 / -1;
+}
+
 .overlayTop > * { pointer-events: auto; }
+
+.mobileBetaBadge {
+  display: inline-flex;
+  align-items: center;
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+  align-self: center;
+  min-height: 1.25rem;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-round);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  color: var(--text-secondary);
+  font-size: 0.625rem;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
 
 /* Result-scope switch: the labelled control that owns global Saved mode. */
 .modeSwitch {
+  grid-column: 1;
+  grid-row: 2;
+  justify-self: start;
   display: inline-flex;
   align-self: start;
   border: 1px solid var(--border-default);
@@ -378,5 +408,11 @@
   /* Let the compact landscape disclosure sit over the sheet while it is open. */
   .searchAreaSlot:has([aria-expanded="true"]) {
     z-index: 26;
+  }
+}
+
+@media (min-width: 1024px) {
+  .mobileBetaBadge {
+    display: none;
   }
 }
