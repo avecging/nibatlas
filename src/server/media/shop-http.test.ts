@@ -59,7 +59,7 @@ describe('shop media authorization and delivery',()=>{
     const r=await handleShopMedia(req(),shop,id,false,gateway);
     expect(r.status).toBe(403);expect(await r.text()).not.toContain('storageKey');
   });
-  it.each([['P0002',404],['40001',409],['22023',422],['54000',429],['XX000',503]] as const)('redacts provider errors %s',async(code,status)=>{
+  it.each([['P0002',404],['PT409',409],['40001',503],['22023',422],['54000',429],['XX000',503]] as const)('redacts provider errors %s',async(code,status)=>{
     gateway.operation=async()=>{throw new MediaOperationError(code);};
     const r=await handleShopMedia(req(),shop,null,false,gateway);
     expect(r.status).toBe(status);expect(await r.text()).not.toContain(code);

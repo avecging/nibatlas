@@ -73,7 +73,7 @@ select pg_temp.visit(301,601,4,3);
 select pg_temp.login(3);
 select is((select r->'award'->'snapshot'->>'ink' from jsonb_array_elements(public.my_geographic_seals()->'rows') r where r->'award'->'snapshot'->>'scope'='country'),'teal','future collector receives new artwork');
 select pg_temp.login(1);
-select throws_ok($$select public.admin_geographic_seals_v2('unpublish',(select id from public.geographic_seals limit 1),'00000000-0000-4000-8000-000000000099')$$,'40001','Reload changed seal','stale editor conflicts');
+select throws_ok($$select public.admin_geographic_seals_v2('unpublish',(select id from public.geographic_seals limit 1),'00000000-0000-4000-8000-000000000099')$$,'PT409','Reload changed seal','stale editor conflicts');
 select throws_ok($$update public.geographic_seal_awards set version=1$$,'42501','Audit history is append-only','awards immutable');
 select throws_ok($$update public.geographic_seal_versions set snapshot='{}'$$,'42501','Audit history is append-only','versions immutable');
 select ok(exists(select 1 from public.admin_audit_log where entity_type='geographic_seal_versions' and entity_id is not null),'versions audited');

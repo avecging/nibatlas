@@ -47,7 +47,7 @@ select throws_ok($$select pg_temp.op('75000000-0000-4000-8000-000000000002','act
  '42501','Admin access denied','editor cannot activate');
 select throws_ok($$select pg_temp.op('75000000-0000-4000-8000-000000000001','activate',
  jsonb_build_object('versionId',(select id from v2),'revision',repeat('a',32)))$$,
- '40001','Stamp artwork changed; reload','stale activation revision conflicts');
+ 'PT409','Stamp artwork changed; reload','stale activation revision conflicts');
 
 -- A production operation must not activate an artwork receipt from staging.
 update public.shops set source_quality='community_unverified' where id='00000000-0000-4000-8000-000000000301';

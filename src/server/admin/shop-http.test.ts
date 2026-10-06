@@ -169,7 +169,8 @@ describe("shop admin boundary", () => {
   });
   it("reports conflicts and validation errors without provider facts", async () => {
     for (const [code, status] of [
-      ["40001", 409],
+      ["PT409", 409],
+      ["40001", 503],
       ["23505", 409],
       ["23503", 422],
       ["22023", 422],

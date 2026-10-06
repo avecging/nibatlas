@@ -46,11 +46,11 @@ select ok((saved->'document'->g) @> (d->g),'published/editor roundtrip retains r
 -- The next row_id revision may update only the exact original target, with a fresh review.
 update field_audit set d=jsonb_set(saved->'document','{shop,latitude}','-34');
 update field_audit set payload=pg_temp.payload(d,saved->>'revision','e1230000-0000-4000-8000-000000000030');
-select throws_ok($$select pg_temp.run('review','e1230000-0000-4000-8000-000000000031',jsonb_set(payload,'{row,cells,shop_id}','"e1230000-0000-4000-8000-000000000099"')) from field_audit$$,'40001','Operation conflict','correction cannot retarget original completed row');
+select throws_ok($$select pg_temp.run('review','e1230000-0000-4000-8000-000000000031',jsonb_set(payload,'{row,cells,shop_id}','"e1230000-0000-4000-8000-000000000099"')) from field_audit$$,'PT409','Operation conflict','correction cannot retarget original completed row');
 select is(pg_temp.run('review','e1230000-0000-4000-8000-000000000031',payload)->>'status','ready','same target correction receives new reviewed operation') from field_audit;
 select throws_ok($$select pg_temp.run('review','e1230000-0000-4000-8000-000000000032',
  jsonb_set(jsonb_set(payload,'{previousOperation}','"e1230000-0000-4000-8000-000000000031"'),'{targetId}','"e1230000-0000-4000-8000-000000000099"')) from field_audit$$,
- '40001','Operation conflict','pending correction cannot retarget a completed ancestor');
+ 'PT409','Operation conflict','pending correction cannot retarget a completed ancestor');
 select is(pg_temp.run('execute','e1230000-0000-4000-8000-000000000031',jsonb_build_object('document',d,'reviewKey',payload->>'reviewKey'))->>'status','imported','same-row correction succeeds') from field_audit;
 select is(public.admin_import_operation_read('e1230000-0000-4000-8000-000000000020','e1230000-0000-4000-8000-000000000030')->>'status','imported','previous completed operation is not rewritten');
 select is(pg_temp.run('execute','e1230000-0000-4000-8000-000000000030','{}')->>'status','imported','old completed replay is harmless');

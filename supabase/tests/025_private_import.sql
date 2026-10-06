@@ -39,7 +39,7 @@ select is(pg_temp.ledger(i,'review',payload)->>'status','ready','review row '||i
 select is(jsonb_array_length(public.admin_import_batches('93000000-0000-4000-8000-000000000010')->'operations'),200,'200 durable operations reopen');
 -- Replay review is idempotent; altered content cannot reuse the operation ID.
 select is(pg_temp.ledger(1,'review',(select payload from import_work where i=1))->>'status','ready','repeated review returns existing identity');
-select throws_ok($$select pg_temp.ledger(1,'review',jsonb_set((select payload from import_work where i=1),'{row,cells,name}','"changed"'))$$,'40001','Operation conflict','changed row requires new operation');
+select throws_ok($$select pg_temp.ledger(1,'review',jsonb_set((select payload from import_work where i=1),'{row,cells,name}','"changed"'))$$,'PT409','Operation conflict','changed row requires new operation');
 -- A lost response is simulated by executing and discarding its result, then replaying.
 update import_work set result=pg_temp.ledger(i,'execute',jsonb_build_object('document',payload->'document','reviewKey',payload->>'reviewKey')) where i<=100;
 select is(count(*)::integer,100,'first half imported') from import_work where result->>'status'='imported';
@@ -83,7 +83,7 @@ select is(public.admin_import_operation('execute','93000000-0000-4000-8000-00000
  'reviewKey',public.admin_import_operation_read('93000000-0000-4000-8000-000000000010','96000000-0000-4000-8000-000000000101')->>'review_key'))->>'status','imported','reviewed explicit clear succeeds');
 select is(public.admin_shop_read((select id from import_work where i=101))->'document'->'shop'->'internal_notes','null'::jsonb,'explicit clear saved');
 select throws_ok($$select public.admin_import_operation('review','93000000-0000-4000-8000-000000000010','96000000-0000-4000-8000-000000000001',
- (select payload||jsonb_build_object('previousOperation',op) from import_work where i=1))$$,'40001','Operation conflict','cannot repeat successful row as a new operation revision');
+ (select payload||jsonb_build_object('previousOperation',op) from import_work where i=1))$$,'PT409','Operation conflict','cannot repeat successful row as a new operation revision');
 -- A published target receives a private working copy only.
 reset role;
 insert into import_before values('published-id',to_jsonb((select id from public.shops where publication_status='published' limit 1)));

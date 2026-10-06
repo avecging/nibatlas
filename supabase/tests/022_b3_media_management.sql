@@ -33,13 +33,13 @@ select is(pg_temp.op('list')->0->>'id',pg_temp.id(4)::text,'complete explicit or
 select is(pg_temp.op('public_list')->0->>'caption','墨水 <script>literal</script>','public caption is plain text, not invented credit');
 select is(jsonb_array_length(pg_temp.op('public_list')),1,'arrange never publishes private photos/logo');
 select is((select caption from public.shop_images where id=pg_temp.id(3)),null,'other environment unchanged');
-select throws_ok($$select pg_temp.arrange((select payload from checked))$$,'40001','Media changed; reload','stale gallery revision conflicts');
+select throws_ok($$select pg_temp.arrange((select payload from checked))$$,'PT409','Media changed; reload','stale gallery revision conflicts');
 select throws_ok($$select pg_temp.arrange(jsonb_set(pg_temp.arrangement(),'{order}',jsonb_build_array(pg_temp.id(1))))$$,'22023','Invalid media target','partial order refused');
 select throws_ok($$select pg_temp.arrange(jsonb_set(pg_temp.arrangement(),'{order}',jsonb_build_array(pg_temp.id(1),pg_temp.id(2),pg_temp.id(3))))$$,'22023','Invalid media target','foreign environment refused');
 select throws_ok($$select pg_temp.arrange(pg_temp.arrangement()||jsonb_build_object('captions',jsonb_build_object(pg_temp.id(1)::text,repeat('x',301))))$$,'22023','Invalid media target','caption bounded in SQL');
 select throws_ok($$select pg_temp.arrange(pg_temp.arrangement(),'82000000-0000-4000-8000-000000000002')$$,'42501','Admin access denied','editor cannot arrange');
 select throws_ok($$select pg_temp.op('remove',pg_temp.id(1),pg_temp.rev(1),'82000000-0000-4000-8000-000000000002')$$,'42501','Admin access denied','editor cannot remove');
-select throws_ok($$select pg_temp.op('remove',pg_temp.id(1),repeat('0',32))$$,'40001','Media changed; reload','stale removal cannot mutate');
+select throws_ok($$select pg_temp.op('remove',pg_temp.id(1),repeat('0',32))$$,'PT409','Media changed; reload','stale removal cannot mutate');
 select pg_temp.op('remove',pg_temp.id(2),pg_temp.rev(2));
 select is(jsonb_array_length(pg_temp.op('public_list')),1,'private removal preserves live gallery');
 select pg_temp.op('remove',pg_temp.id(1),pg_temp.rev(1));
