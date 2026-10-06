@@ -1,5 +1,6 @@
 import {
   hasErrors,
+  safePagePath,
   normaliseSubmission,
   validateSubmission,
   type ContributionKind,
@@ -158,7 +159,7 @@ export async function POST(request: Request) {
 
   const body = parsed as Record<string, unknown>;
 
-  if (body["kind"] !== "suggestion" && body["kind"] !== "correction") {
+  if (body["kind"] !== "suggestion" && body["kind"] !== "correction" && body["kind"] !== "bug" && body["kind"] !== "feedback") {
     return fail(400, "unknown_kind");
   }
 
@@ -190,6 +191,14 @@ export async function POST(request: Request) {
 
     context["shop_slug"] = result.shop.slug;
     context["shop_name"] = result.shop.name;
+  }
+
+  if (kind === "bug") {
+    const supplied = stringValues(body["context"]);
+    context["page_path"] = safePagePath(supplied["page_path"] ?? "");
+    context["device_summary"] = coarseDeviceSummary(request.headers.get("user-agent") ?? "");
+    // Diagnostic only, as reported by the UI; never an authorization signal.
+    context["signed_in"] = supplied["signed_in"] === "yes" ? "yes" : supplied["signed_in"] === "no" ? "no" : "unknown";
   }
 
   const submitted = stringValues(body["values"]);
@@ -324,4 +333,15 @@ async function forward(
   }
 
   return true;
+}
+
+/** Categorise locally; the raw header, versions and device model never leave here. */
+function coarseDeviceSummary(userAgent: string): string {
+  const browser = /Edg(?:e|A|iOS)?\//.test(userAgent) ? "Edge"
+    : /(?:Firefox|FxiOS)\//.test(userAgent) ? "Firefox"
+    : /(?:Chrome|CriOS)\//.test(userAgent) ? "Chrome"
+    : /Safari\//.test(userAgent) ? "Safari" : "Other browser";
+  const device = /iPad|Tablet/i.test(userAgent) ? "Tablet"
+    : /Mobi|iPhone|Android/i.test(userAgent) ? "Mobile" : "Desktop or other";
+  return `${browser} / ${device}`;
 }

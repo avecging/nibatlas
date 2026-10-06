@@ -121,25 +121,31 @@ export default function PrivacyPage() {
       <h2 className="type-h2">When you send us something</h2>
       <p>
         Alongside account, save and collection requests, you may choose to send:{" "}
-        <Link href="/suggest-shop">suggesting a pen shop</Link>, and reporting
-        something wrong with a listing from that shop&rsquo;s own page.
+        <Link href="/suggest-shop">a pen shop suggestion</Link>, a listing correction
+        from that shop&rsquo;s own page, a <Link href="/report-problem">problem report</Link>,
+        or <Link href="/feedback">feedback</Link>. Shop suggestions, problem reports and
+        feedback are under Me → Contribute; listing corrections stay on shop pages.
       </p>
       <p>
-        <strong>What is sent is what you typed</strong> — the shop, and what you
-        know about it. A correction also carries which listing it is about,
-        because you opened it from that listing.
+        We receive what you type. A correction also identifies the listing it is about.
+        Problem reports include the reporting form’s page path, submission time,
+        a coarse browser/device summary and whether the app shows you as signed in
+        (or unknown if it cannot tell). They do not include your account identity,
+        precise location, authentication tokens, session data or browser logs.
+        Feedback can include an optional page path. Page paths omit query strings and fragments.
       </p>
       <p>
         <strong>Your name and email address are optional.</strong> Give an email
-        only if you are happy to be asked a follow-up question; we ask for a name
-        alongside it so a reply has someone to address. Leave both blank and the
+        only if you are happy to be asked a follow-up question. Shop suggestions and
+        listing corrections ask for a name alongside an email so a reply has someone
+        to address; problem reports and feedback allow either independently. Leave both blank and the
         submission is anonymous — it is not treated differently.
       </p>
       <p>
         Submissions are received in a Google spreadsheet the people who maintain
-        the catalogue read, which means Google processes them on our behalf. They
+        Nib Atlas read, which means Google processes them on our behalf. They
         are kept while there is still something to do about them and while they
-        are useful as a record of where a listing came from; contact details are
+        are useful as a record of catalogue research or app improvements; contact details are
         cleared once we no longer need them. They are never published, never
         shown on a shop page, and never used to send you anything you did not ask
         for.
