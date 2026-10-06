@@ -714,6 +714,7 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
     >
       <div className={styles.mapPane}>
         <div className={styles.overlayTop}>
+          <span className={styles.mobileBetaBadge} aria-label="Beta version">BETA</span>
           <DestinationSearch
             geocoder={geocoder}
             locatingSlug={locatingSlug}
