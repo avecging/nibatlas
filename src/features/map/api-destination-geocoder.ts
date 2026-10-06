@@ -8,10 +8,7 @@ import {
   type DestinationResult,
   type SearchResults,
 } from "@/src/features/map/destination-geocoder";
-import {
-  prototypeDestinations,
-  type PrototypeDestination,
-} from "@/src/fixtures/prototype-destinations";
+
 
 /**
  * API-mode search.
