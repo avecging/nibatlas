@@ -29,14 +29,14 @@ export function projectMapTilerPlace(feature: MapTilerFeature): DestinationResul
     bbox.every((number) => typeof number === "number" && Number.isFinite(number)) &&
     bbox[0] >= -180 && bbox[2] <= 180 && bbox[1] >= -90 && bbox[3] <= 90 &&
     bbox[0] < bbox[2] && bbox[1] < bbox[3];
-  const center = feature.center;
-  if (!validBounds && !isCoordinatePair(center)) return null;
+  const center = isCoordinatePair(feature.center) ? feature.center : null;
+  if (!validBounds && !center) return null;
 
   const bounds = validBounds
     ? { west: bbox[0] as number, south: bbox[1] as number,
         east: bbox[2] as number, north: bbox[3] as number }
-    : { west: center[0] - 0.02, south: center[1] - 0.02,
-        east: center[0] + 0.02, north: center[1] + 0.02 };
+    : { west: Math.max(-180, center![0] - 0.02), south: Math.max(-90, center![1] - 0.02),
+        east: Math.min(180, center![0] + 0.02), north: Math.min(90, center![1] + 0.02) };
   const context = typeof feature.place_name === "string" && feature.place_name.trim()
     ? feature.place_name
     : feature.text;
