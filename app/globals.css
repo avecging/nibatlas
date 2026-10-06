@@ -73,6 +73,15 @@
   --action-collect-hover: var(--plum-800);
   --state-visited: var(--vermilion-700);
   --state-visited-surface: var(--vermilion-100);
+  /*
+   * Beta marker: a deliberately quiet echo of the stamp palette. The label
+   * carries the meaning; colour only separates it from the Paper/Teal/Navy
+   * chrome used throughout the app.
+   */
+  --state-beta: var(--vermilion-700);
+  --state-beta-text: var(--state-visited-hover);
+  --state-beta-surface: color-mix(in srgb, var(--vermilion-100) 81%, var(--bg-surface));
+  --state-beta-border: color-mix(in srgb, var(--vermilion-700) 45%, transparent);
   --state-saved: var(--teal-700);
   --state-saved-surface: var(--teal-100);
   --state-unvisited: var(--atlas-900);

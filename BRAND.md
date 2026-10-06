@@ -185,6 +185,7 @@ from the Vermilion collected result.
 | `action-collect` | `plum-700` | Stamp-collection action before collection. White text: 8.35:1 |
 | `action-collect-hover` | `plum-800` | Collection hover/pressed. White text: 10.69:1 |
 | `state-visited` | `vermilion-700` | Collected stamp and visited status |
+| `state-beta` | `vermilion-700` | Beta label accent only; pair with the explicit BETA text and the softened beta surface/border so it reads as release context, not visited state |
 | `state-saved` | `teal-700` | Saved status |
 | `state-unvisited` | `atlas-900` | Unvisited marker outline/text |
 | `focus-ring` | `#2477B3` | Keyboard focus; 2 px plus offset |
