@@ -687,7 +687,11 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
             geocoder={geocoder}
             shopsOnly={catalogue.resolution.mode === "api" && !process.env.NEXT_PUBLIC_MAPTILER_KEY?.trim()}
             locatingSlug={locatingSlug}
-            onChooseDestination={(viewport, label) => { cancelNearMe(); moveCamera(viewport, label); }}
+            onChooseDestination={(viewport, label) => {
+              cancelNearMe();
+              dispatch({ type: "setSheetState", sheetState: "peek" });
+              moveCamera(viewport, label);
+            }}
             onChooseShop={(shop: ShopMapSummary, viewport) => {
               cancelNearMe();
               moveCamera(viewport, shop.name);
@@ -773,7 +777,24 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
             onStateChange={(sheetState: SheetState) =>
               dispatch({ type: "setSheetState", sheetState })
             }
-            summary={summary}
+            summary={
+              <>
+                {summary}
+                {mode === "area" && state.sheetState === "full" ? (
+                  <button
+                    type="button"
+                    className={styles.fullSheetNearMe}
+                    aria-label="Near me"
+                    onClick={() => {
+                      dispatch({ type: "setSheetState", sheetState: "peek" });
+                      nearMe.explain();
+                    }}
+                  >
+                    <Icon name="locate" size={22} />
+                  </button>
+                ) : null}
+              </>
+            }
           >
             {/*
               Peek shows the count and the top of the first or selected card
