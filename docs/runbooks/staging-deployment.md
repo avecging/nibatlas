@@ -59,6 +59,26 @@ lint, type checking, and unit/component tests, builds through OpenNext, and
 deploys with Wrangler. The workflow obtains the resulting `workers.dev` URL
 from Wrangler's output rather than hard-coding the Cloudflare account subdomain.
 
+### Worker CPU guardrail
+
+`wrangler.jsonc` sets `limits.cpu_ms = 1000` at the top level. Staging therefore
+enforces a 1,000 ms CPU ceiling per Worker invocation; the production environment
+would inherit the same ceiling if/when it is deployed unless it explicitly
+overrides that setting. This limit requires Workers Paid and is intentionally
+well above normal Nib Atlas SSR/API work while remaining far below Cloudflare's
+paid default.
+
+Treat a new 1102 as a real resource failure, not as evidence that the old Free
+plan 10 ms budget returned. First correlate the failing route with Worker
+telemetry and check CPU duration versus this 1,000 ms ceiling; also inspect memory
+and exception evidence because 1102 is not CPU-specific. Do not raise the limit
+just to silence a failing route.
+
+If the ceiling itself blocks a legitimate request, change or remove it through a
+reviewed PR, redeploy staging, and repeat the bounded route-level checks before
+acceptance. Rolling back this guardrail is a configuration change only; it does
+not require a database migration.
+
 After deployment, a Playwright staging check verifies:
 
 - the same-origin MapLibre worker and shared module are served;
