@@ -3,7 +3,7 @@
 do $$
 declare
   targets oid[] := array[
-    'public.admin_shop_write(text,uuid,text,jsonb)'::regprocedure,
+    'public.admin_shop_write_before_related(text,uuid,text,jsonb)'::regprocedure,
     'public.shop_media_operation(uuid,text,uuid,text,uuid,text)'::regprocedure,
     'public.stamp_artwork_draft_operation(uuid,text,uuid,text,jsonb)'::regprocedure,
     'public.shop_media_arrange(uuid,text,uuid,jsonb)'::regprocedure,
