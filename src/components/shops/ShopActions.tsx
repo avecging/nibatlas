@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { useDialogFocus } from "@/src/components/hooks/useDialogFocus";
 import { directionsHref } from "@/src/components/shops/directions";
@@ -15,6 +15,7 @@ import { MarkerStateBadge } from "@/src/components/ui/StatusBadge";
 import { countrySlug, type StampCollection } from "@/src/domain/passport";
 import type { ShopDetail } from "@/src/domain/shop-detail";
 import { markerStateFor } from "@/src/domain/user-state";
+import { captureProductEvent } from "@/src/features/analytics/posthog";
 import { useCatalogue } from "@/src/features/catalogue/CatalogueProvider";
 import { useCollection } from "@/src/features/collection/collection-store";
 import { noopTelemetry } from "@/src/features/map/telemetry";
@@ -43,6 +44,7 @@ export function ShopStatusBadges({ shop }: { readonly shop: ShopDetail }) {
  */
 
 export function ShopActions({ shop }: { readonly shop: ShopDetail }) {
+  useEffect(() => { captureProductEvent("shop_opened"); }, []);
   const catalogue = useCatalogue();
   const collection = useCollection();
   const reviewer = useReviewerMode();

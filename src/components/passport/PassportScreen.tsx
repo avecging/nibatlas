@@ -24,7 +24,7 @@ import { useAccountSession } from "@/src/features/account/AccountSessionProvider
 import { useSignInPrompt } from "@/src/features/auth/SignInProvider";
 import { GeographicSealProgress } from './GeographicSealProgress';
 import { useCollection } from "@/src/features/collection/collection-store";
-import { noopTelemetry } from "@/src/features/map/telemetry";
+import { captureProductEvent } from "@/src/features/analytics/posthog";
 import {
   buildPassportPages,
   OPENING_PAGE_INDEX,
@@ -205,7 +205,7 @@ export function PassportScreen({ target }: { readonly target: PassportTarget }) 
   );
 
   useEffect(() => {
-    noopTelemetry.record("passport_opened", { surface: target.kind });
+    captureProductEvent("passport_opened");
   }, [target.kind]);
 
   const countryView =
