@@ -125,7 +125,7 @@ test("a failed API refresh keeps old results and Retry recovers", async ({ page 
 
 test("API search offers canonical shops without prototype places", async ({ page }) => {
   await openMap(page);
-  await page.getByRole("combobox", { name: /search shops or places/i }).fill("Tokyo");
+  await page.getByRole("combobox", { name: /^search shops$/i }).fill("Tokyo");
 
   const listbox = page.getByRole("listbox", { name: /search results/i });
   await expect(listbox.getByRole("group", { name: "Shops" })).toBeVisible();
