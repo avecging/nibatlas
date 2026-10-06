@@ -44,10 +44,13 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
       <header
         className={`${styles.header} ${variant === "map" ? styles.headerMapVariant : ""}`}
       >
-        <Link className={styles.brand} href="/">
-          <NibAtlasMark size={28} title="Nib Atlas" />
-          <span className={styles.brandName}>Nib Atlas</span>
-        </Link>
+        <div className={styles.brandLockup}>
+          <Link className={styles.brand} href="/">
+            <NibAtlasMark size={28} title="Nib Atlas" />
+            <span className={styles.brandName}>Nib Atlas</span>
+          </Link>
+          <span className={styles.betaBadge} aria-label="Beta version">BETA</span>
+        </div>
         <PrimaryNav
           variant="inline"
           className={styles.desktopNav}
