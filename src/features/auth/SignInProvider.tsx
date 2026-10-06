@@ -21,6 +21,7 @@ import {
 import { readPendingFlow } from "@/src/features/auth/pending-flow";
 import { currentReturnTo, type PendingAuthIntent } from "@/src/features/auth/return-to";
 import { withExploreContext } from "@/src/features/explore/explore-context";
+import { captureProductEvent } from "@/src/features/analytics/posthog";
 import { SignInPanel } from "@/src/features/auth/SignInPanel";
 
 import styles from "./SignInProvider.module.css";
@@ -69,6 +70,7 @@ export function SignInProvider({ children }: { readonly children: ReactNode }) {
 
   const dismissSignIn = useCallback(() => setRequest(null), []);
   const requestSignIn = useCallback((next: SignInRequest = {}) => {
+    captureProductEvent("login_started");
     setRequest({
       returnTo: withExploreContext(next.returnTo ?? currentReturnTo()),
       intent: next.intent ?? null,

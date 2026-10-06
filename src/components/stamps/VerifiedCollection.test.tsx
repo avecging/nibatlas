@@ -10,6 +10,8 @@ import type { AccountSession } from '@/src/features/account/account-session';
 import type { StampFailureCode } from '@/src/api/v1/stamp-verification';
 
 const account=vi.hoisted(()=>({session:{status:'signed-in',userId:'10000000-0000-4000-8000-000000000051',displayName:null,identityLabel:'fixture@example.test'} as AccountSession,refresh:vi.fn()}));
+const captureProductEvent=vi.hoisted(()=>vi.fn());
+vi.mock('@/src/features/analytics/posthog',()=>({captureProductEvent}));
 const requestSignIn=vi.hoisted(()=>vi.fn());
 vi.mock('@/src/features/account/AccountSessionProvider',()=>({useAccountSession:()=>account}));
 vi.mock('@/src/features/auth/SignInProvider',()=>({useSignInPrompt:()=>({requestSignIn})}));
@@ -29,7 +31,7 @@ beforeEach(()=>{
   window.localStorage.clear();window.history.replaceState({},'','/shops/m3-api-demo-shop');
   rows=[];sealRows=[];sealFailure=false;calls=[];nonceCount=0;verifyFailure=null;nonceFailure=null;collectFailure=null;readFailure=false;
   account.session={status:'signed-in',userId:STAMP_OWNER,identityLabel:'fixture@example.test',displayName:null};
-  requestSignIn.mockClear();
+  requestSignIn.mockClear();captureProductEvent.mockClear();
   vi.spyOn(document,'visibilityState','get').mockReturnValue('visible');
   Object.defineProperty(navigator,'geolocation',{configurable:true,value:{getCurrentPosition:vi.fn((success:PositionCallback)=>success({coords:{latitude:1,longitude:2,accuracy:100}} as GeolocationPosition))}});
   vi.stubGlobal('fetch',vi.fn(async(input:string,init?:RequestInit)=>{
@@ -103,6 +105,7 @@ describe('verified collection journey',()=>{
     expect(calls[1]?.body['nonce']).not.toBe(calls[3]?.body['nonce']);
     fireEvent.click(screen.getByRole('button',{name:'Cancel'}));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(captureProductEvent).toHaveBeenCalledWith('check_in_failed','too_far_away');
     expect(calls.some(c=>c.action==='collect')).toBe(false);
   });
   it.each(['service_unavailable','reused_nonce'] as const)('keeps Passport recovery after an issuance request returns %s',async(code)=>{
@@ -269,6 +272,8 @@ describe('verified collection journey',()=>{
       rows=[ISSUED_STAMP];
       responses[0]!(Response.json({ok:true,status:'success',collection:ISSUED_STAMP}));
     });
+    expect(captureProductEvent).toHaveBeenCalledWith('check_in_succeeded');
+    expect(captureProductEvent.mock.calls.filter(call=>call[0]==='check_in_succeeded')).toHaveLength(1);
     await waitFor(()=>expect(screen.getByTestId('count')).toHaveTextContent(interruption === 'sign-out' ? '0':'1'));
     expect(screen.queryByTestId('stamp-ceremony')).not.toBeInTheDocument();
   });
@@ -307,6 +312,7 @@ describe('verified collection journey',()=>{
     await open();await verify();
     act(()=>{vi.spyOn(document,'visibilityState','get').mockReturnValue('hidden');document.dispatchEvent(new Event('visibilitychange'));});
     await screen.findByRole('alert');expect(screen.queryByRole('button',{name:'I am at this shop'})).not.toBeInTheDocument();
+    expect(captureProductEvent).toHaveBeenCalledWith('check_in_failed','unknown');
     expect(calls.some(c=>c.action==='collect')).toBe(false);
     expect(screen.queryByRole('link',{name:'Check Passport'})).not.toBeInTheDocument();
   });

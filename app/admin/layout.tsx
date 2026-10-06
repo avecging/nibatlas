@@ -5,7 +5,8 @@ export const metadata: Metadata = {
   title: "Shop administration",
   robots: { index: false, follow: false },
 };
-// This shell contains no catalogue data. All reads use fresh authorized APIs.
+// Block all admin DOM from session replay, including client-side transitions
+// before the analytics navigation effect can stop recording.
 export default function AdminLayout({ children }: { children: ReactNode }) {
-  return children;
+  return <div data-ph-no-capture="">{children}</div>;
 }

@@ -1,6 +1,8 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { useEffect } from 'react';
+import { initAnalytics, trackPage, captureProductEvent } from '@/src/features/analytics/posthog';
 import type { ReactNode } from 'react';
 import { AppShell } from './AppShell';
 import { AccountSessionProvider } from '@/src/features/account/AccountSessionProvider';
@@ -13,6 +15,11 @@ import styles from './AppShell.module.css';
 
 export function ApplicationFrame({children}: {children:ReactNode}) {
   const path = usePathname() ?? '/';
+  useEffect(() => {
+    initAnalytics();
+    trackPage(path);
+    if (path === '/' || path === '/map') captureProductEvent('map_opened');
+  }, [path]);
   if (/^\/admin\/shops\/[^/]+\/preview$/.test(path)) {
     // A review must not import device-local saves, resume account actions, or
     // load collections just because it mounts in a second browser document.
