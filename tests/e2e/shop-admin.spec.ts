@@ -1631,7 +1631,7 @@ test('related shops use normal save and render compact cards in the correct colu
   await section.getByLabel('Find an existing shop').fill('Synthetic');
   await section.getByRole('button',{name:'Search shops'}).click();
   await section.getByRole('checkbox',{name:/Synthetic North/}).check();
-   await section.getByRole('button',{name:'Add selected (1)'}).click();
+  await section.getByRole('button',{name:'Add selected (1)'}).click();
   await section.getByLabel('Relationship label').selectOption('branch');
   await section.getByRole('checkbox').check();
   expect((await new AxeBuilder({page}).include('[data-field-path="related_shops"]').analyze()).violations).toEqual([]);
@@ -1642,6 +1642,7 @@ test('related shops use normal save and render compact cards in the correct colu
   const frame=publicPreview(page);
   const card=frame.getByRole('region',{name:'Related shops',exact:true});
   await expect(card).toBeVisible();
+  await card.getByText('Other branches (1)').click();
   await expect(card.getByRole('link',{name:/Synthetic North/})).toContainText('Kobe · Japan');
   await expect(card.getByText('Branch',{exact:true})).toBeVisible();
   // Preview switch deliberately exercises both responsive render locations.
