@@ -233,7 +233,7 @@ export function MapFilters({
                   data-unapplied={hasUnapplied}
                   onClick={onApply}
                 >
-                  {appliesCamera ? "Apply and search this area" : "Apply filters"}
+                  {appliesCamera ? "Apply to this area" : "Apply filters"}
                 </button>
               </div>
             </div>

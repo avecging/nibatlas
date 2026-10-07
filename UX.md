@@ -80,13 +80,11 @@ Cancelling, choosing another destination or moving the map abandons a pending fi
 
 1. User pans and zooms freely worldwide.
 2. Existing results do not continuously refetch while the map moves.
-3. After meaningful movement settles, **Search this area** appears.
-4. User commits the new viewport.
-5. Map and result list update together.
+3. After movement settles, the visible bounds refresh after a short debounce.
+4. Map and result list update together.
 
-Small deliberate zoom changes (0.1 zoom level) also offer **Search this area**;
-a full zoom step is not required. Browser-chrome resizes during a gesture must
-not mark the new view as already searched. Gestures still make no data requests.
+Panning and zooming make no data requests during movement. Browser-chrome resizes
+during a gesture must not mark the new view as already searched.
 
 ### Search destination or shop
 
@@ -197,14 +195,13 @@ Maintain two bounds:
 - `cameraBounds`: what the user currently sees.
 - `committedBounds`: bounds used for the displayed result query.
 
-Show **Search this area** when movement exceeds the defined pixel/distance/zoom threshold. Do not query every frame or every `moveend` event.
+Refresh the settled visible bounds after roughly 400 ms. Do not query every frame;
+cancel superseded requests and keep recent exact viewport results briefly.
 
-### Search this area
+### Automatic area search
 
-- Visible only after meaningful movement.
-- Fixed above the bottom sheet or list edge.
-- Commits current bounds and active filters.
-- Shows loading without blanking the old result set.
+- Settled pan/zoom commits visible bounds and active filters after a short debounce.
+- Shows quiet loading without blanking the old result set.
 - On failure, retains old results and offers Retry.
 
 ### Clusters
@@ -292,9 +289,8 @@ for the current draft whenever it can be counted exactly from the results alread
 loaded, and says nothing rather than guessing when it cannot — a draft that
 widens the committed shop types, or a truncated result set.
 
-**Search this area** stays for camera movement alone. If the camera has moved,
-applying filters may commit those bounds and the filters together, and the
-button says so.
+If the camera has moved, applying filters commits those bounds and filters
+together, cancelling the pending automatic refresh.
 
 Clearing every applied filter, the segment included, is one action from outside
 the drawer.
@@ -412,7 +408,7 @@ The same hierarchy holds in both modes.
 
 The implementation is not coherent until users can complete these without coaching:
 
-1. Singapore user pans to Tokyo, searches that area, and finds a specialist shop.
+1. Singapore user pans to Tokyo and finds a specialist shop after the map settles.
 2. User selects a marker and sees the same shop highlighted in the sheet/list.
 3. Anonymous user saves a shop through auth without losing context.
 4. User with poor GPS understands why collection failed and how to retry.

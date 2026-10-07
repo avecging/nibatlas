@@ -72,7 +72,7 @@ configuration. Do not silently change product invariants or expand the task.
 
 ## Product boundaries
 
-Preserve anonymous map-first discovery, explicit **Search this area**, and
+Preserve anonymous map-first discovery with debounced settled-viewport refresh, and
 **Map / Passport / Me** navigation; Saved is a global Map-owned mode. Visited
 outranks Saved only for marker presentation; filters read the independent sets.
 Do not add marketplace, social, merchant, itinerary or other deferred scope.
