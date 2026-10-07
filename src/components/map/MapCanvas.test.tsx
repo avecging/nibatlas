@@ -55,18 +55,20 @@ describe('map initialization recovery', () => {
       getBounds: () => ({ getWest: () => 103, getEast: () => 104, getSouth: () => 1, getNorth: () => 2 }),
       getZoom: () => 10.2,
     });
-    const settled = vi.fn(); const start = vi.fn();
+    const settled = vi.fn(); const start = vi.fn(); const cameraStart = vi.fn();
     const props = { shops: [], selectedShopId: null,
       initialViewport: { bounds: { west: 103, east: 104, south: 1, north: 2 }, zoom: 10 },
-      styleProvider: createMapStyleProvider(), onSelectShop: vi.fn(), onCameraSettled: settled, onUserMoveStart: start };
+      styleProvider: createMapStyleProvider(), onSelectShop: vi.fn(), onCameraSettled: settled, onUserMoveStart: start, onCameraMoveStart: cameraStart };
     const view = render(<MapCanvas {...props}
       cameraTarget={null} />);
     const emit = (name: string, event = {}) => act(() => {
       for (const handler of handlers.get(name) ?? []) handler(event);
     });
     fireEvent.wheel(screen.getByTestId('map-canvas'));
+    expect(cameraStart).not.toHaveBeenCalled(); // Input alone did not move the camera.
     emit('movestart'); // Renderer dropped originalEvent.
     expect(start).toHaveBeenCalledOnce();
+    expect(cameraStart).toHaveBeenCalledOnce();
     emit('resize');
     expect(settled).not.toHaveBeenCalled();
     moving.current = false;

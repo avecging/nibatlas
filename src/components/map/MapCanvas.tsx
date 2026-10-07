@@ -155,6 +155,7 @@ export function MapCanvas({
    * mistaken for an application move.
    */
   const cameraIntent = useRef<CameraMoveSource>("programmatic");
+  const inputPending = useRef(false);
   const stoppingSupersededMove = useRef(false);
   const hasRequestedCameraMove = useRef(false);
 
@@ -242,16 +243,20 @@ export function MapCanvas({
         event.target.setPointerCapture(event.pointerId);
       }
       cameraIntent.current = "user";
+      inputPending.current = true;
       onUserMoveStartRef.current?.();
     };
     const inputEvents = ["pointerdown", "touchstart", "wheel", "keydown"] as const;
+    const releaseEvents = ["pointerup", "touchend", "keyup"] as const;
+    const releaseInput = () => { inputPending.current = false; };
     for (const event of inputEvents) container.addEventListener(event, takeUserControl, { capture: true, passive: true });
+    for (const event of releaseEvents) container.addEventListener(event, releaseInput, { capture: true, passive: true });
 
     // A gesture that interrupts an application move outranks it.
     map.on("movestart", (event) => {
-      if ((event as { originalEvent?: unknown }).originalEvent) {
+      if ((event as { originalEvent?: unknown }).originalEvent || inputPending.current) {
         cameraIntent.current = "user";
-        onUserMoveStartRef.current?.();
+        if (!inputPending.current) onUserMoveStartRef.current?.();
         onCameraMoveStartRef.current?.();
       }
     });
@@ -259,6 +264,7 @@ export function MapCanvas({
     map.on("moveend", () => {
       if (stoppingSupersededMove.current) return;
       const source = cameraIntent.current;
+      inputPending.current = false;
       cameraIntent.current = "user";
 
       onCameraSettledRef.current(readViewport(readyMap), source);
@@ -298,6 +304,7 @@ export function MapCanvas({
       }
       markers.clear();
       for (const event of inputEvents) container.removeEventListener(event, takeUserControl, true);
+      for (const event of releaseEvents) container.removeEventListener(event, releaseInput, true);
       readyMap.remove();
       mapRef.current = null;
     };
