@@ -73,8 +73,7 @@ describe("useViewportResults", () => {
 
   it("delivers more than the old 20-result sample and reuses a recent area", async () => {
     const dispatch = vi.fn();
-    const shops = Array.from({ length: 35 }, (_, index) => ({ id: String(index) }))
-      as unknown as ViewportShopResponse["shops"];
+    const shops = Array.from({ length: 35 }, (_, index) => ({ id: String(index) })) as unknown as ViewportShopResponse["shops"];
     const fetchViewport = vi.fn<ShopSource["fetchViewport"]>(
       async (request) => ({ ...EMPTY_RESPONSE, shops, committedBounds: request.bounds }),
     );
