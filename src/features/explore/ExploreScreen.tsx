@@ -759,7 +759,8 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
           cameraTarget={cameraTarget}
           onSelectShop={handleSelect}
           onCameraSettled={onCameraSettled}
-          onUserMoveStart={() => { cancelNearMe(); cancelAutoSearch(); pendingCommit.current = null; }}
+          onUserMoveStart={() => { cancelNearMe(); pendingCommit.current = null; }}
+          onCameraMoveStart={cancelAutoSearch}
         />
 
         <div className={styles.searchAreaSlot}>

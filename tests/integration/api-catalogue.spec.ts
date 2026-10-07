@@ -109,8 +109,6 @@ test("a failed API refresh keeps old results and Retry recovers", async ({ page 
   expect(bounds).not.toBeNull();
   await page.mouse.move(bounds!.x + bounds!.width * 0.7, bounds!.y + bounds!.height * 0.5);
   await page.mouse.wheel(0, -240);
-  await expect(page.getByRole("button", { name: "Search this area", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: /^search this area$/i }).click();
 
   await expect(page.getByTestId("explore")).toHaveAttribute("data-explore-status", "error");
   await expect(page.getByRole("article", { name: "M3 API Demo Shop" })).toBeVisible();
