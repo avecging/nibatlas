@@ -12,12 +12,8 @@ import type { ShopType } from "@/src/domain/shops";
  * shops are in reach, and a straight-line distance **only** where both points
  * were placed from a sourced street address.
  *
- * A shop mapped to its locality centroid gets no number at all — a distance
- * measured from a city centroid would read as precision the record does not
- * have. It still appears, because "also in Kobe" is genuinely useful when
- * planning a day.
- *
- * Nothing here is an itinerary: no ordering, no route, no schedule.
+ * Locality centroids cannot establish walking proximity and are omitted.
+ * No walking-time estimate is inferred from straight-line distance.
  */
 export interface NearbyShop {
   readonly shop: {
@@ -33,10 +29,25 @@ export interface NearbyShop {
   readonly sameLocality: boolean;
 }
 
-/** Different-locality shops are only offered when they are genuinely close. */
-export const NEARBY_RADIUS_METERS = 5_000;
+/** Nearby on a shop page uses a short radius, with a sparse-area fallback. */
+export const NEARBY_RADIUS_METERS = 800;
+export const NEARBY_FALLBACK_RADIUS_METERS = 1_700;
+export const NEARBY_LIMIT = 5;
+export const NEARBY_MIN_COUNT = 3;
 
-export const NEARBY_LIMIT = 4;
+/** Select from one bounded fetch; never present a distant or imprecise point as walkable. */
+export function selectNearbyShops(
+  candidates: readonly NearbyShop[],
+  relatedIds: ReadonlySet<string> = new Set(),
+  limit = NEARBY_LIMIT,
+): readonly NearbyShop[] {
+  const eligible = candidates
+    .filter(item => item.distanceMeters !== null && item.distanceMeters <= NEARBY_FALLBACK_RADIUS_METERS
+      && !relatedIds.has(item.shop.id))
+    .sort((a, b) => (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0) || a.shop.id.localeCompare(b.shop.id));
+  const close = eligible.filter(item => (item.distanceMeters ?? Infinity) <= NEARBY_RADIUS_METERS);
+  return (close.length >= NEARBY_MIN_COUNT ? close : eligible).slice(0, limit);
+}
 
 /**
  * Rounded to the precision the coordinates deserve.
@@ -66,45 +77,13 @@ export function nearbyPenShops(
   catalogue: readonly ShopDetail[],
   limit: number = NEARBY_LIMIT,
 ): readonly NearbyShop[] {
+  if (shop.positionPrecision !== "street") return [];
   const candidates: NearbyShop[] = [];
-
   for (const other of catalogue) {
-    if (other.id === shop.id || other.operationalStatus === "permanently_closed") {
-      continue;
-    }
-
-    const sameLocality = other.localityName === shop.localityName;
-    const metres = measurable(shop, other)
-      ? distanceMeters(shop.position, other.position)
-      : null;
-
-    // Same locality is always trip-relevant. A different locality qualifies only
-    // on a measured distance inside the radius — never on an unmeasurable pair,
-    // which would be a guess dressed as a recommendation.
-    if (!sameLocality && (metres === null || metres > NEARBY_RADIUS_METERS)) {
-      continue;
-    }
-
-    candidates.push({ shop: other, distanceMeters: metres, sameLocality });
+    if (other.id === shop.id || other.operationalStatus === "permanently_closed" || !measurable(shop, other)) continue;
+    const metres = distanceMeters(shop.position, other.position);
+    if (metres > NEARBY_FALLBACK_RADIUS_METERS) continue;
+    candidates.push({ shop: other, distanceMeters: metres, sameLocality: other.localityName === shop.localityName });
   }
-
-  return candidates
-    .sort((a, b) => {
-      // Measured pairs first, nearest first; then same-locality pairs we cannot
-      // measure, alphabetically so the order is stable.
-      if (a.distanceMeters !== null && b.distanceMeters !== null) {
-        return a.distanceMeters - b.distanceMeters;
-      }
-
-      if (a.distanceMeters !== null) {
-        return -1;
-      }
-
-      if (b.distanceMeters !== null) {
-        return 1;
-      }
-
-      return a.shop.name.localeCompare(b.shop.name);
-    })
-    .slice(0, limit);
+  return selectNearbyShops(candidates, new Set(shop.relatedShops?.map(item => item.id)), limit);
 }

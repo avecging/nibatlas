@@ -187,8 +187,9 @@ export function ShopDetailView({
    * that depends on the two never diverging is a silent empty heading waiting
    * for the day they do.
    */
-  const related = (shop.relatedShops ?? []).filter(r => r.id !== shop.id && !nearby.some(n=>n.shop.id===r.id));
-  const hasGettingThere = facts.gettingThere.length > 0 || nearby.length > 0 || related.length > 0;
+  const related = (shop.relatedShops ?? []).filter(r => r.id !== shop.id);
+  const nearbyUnlinked = nearby.filter(n => !related.some(r => r.id === n.shop.id));
+  const hasGettingThere = facts.gettingThere.length > 0 || nearbyUnlinked.length > 0 || related.length > 0;
 
   /*
    * Whether the page is worth splitting in two.
@@ -319,7 +320,7 @@ export function ShopDetailView({
                     its own at the foot of the page: which other shops are within
                     reach is part of how you plan getting to this one.
                   */}
-                  <ShopNearby nearby={nearby} localityName={shop.localityName} />
+                  <ShopNearby nearby={nearbyUnlinked} localityName={shop.localityName} />
                   <div className={styles.relatedMobile}><ShopRelated shops={related} headingId="related-shops-mobile"/></div>
                 </div>
               ) : null}

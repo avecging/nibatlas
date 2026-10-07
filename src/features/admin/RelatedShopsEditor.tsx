@@ -17,7 +17,9 @@ export function RelatedShopsEditor({id,name,rows,context,errors,change}: {
 }) {
   const uid=useId(), controller=useRef<AbortController|null>(null);
   const [query,setQuery]=useState(''), [results,setResults]=useState<ShopSummary[]>([]);
-  const [selected,setSelected]=useState<ShopSummary[]>([]),[status,setStatus]=useState(''),[busy,setBusy]=useState(false);
+  const [selected,setSelected]=useState<ShopSummary[]>([]), [pending,setPending]=useState<ShopSummary[]>([]);
+  const [addKind,setAddKind]=useState<'branch'|'related'>('branch');
+  const [status,setStatus]=useState(''),[busy,setBusy]=useState(false);
   const [cursor,setCursor]=useState<string|null>(null);
   useEffect(()=>()=>controller.current?.abort(),[]);
   async function search(after?:string) {
@@ -37,7 +39,7 @@ export function RelatedShopsEditor({id,name,rows,context,errors,change}: {
   const update=(shopId:string,patch:Row)=>change(rows.map(r=>r.shop_id===shopId?{...r,...patch}:r));
   return <section className={styles.panel} aria-labelledby={`${uid}-title`} data-field-path="related_shops">
     <h3 id={`${uid}-title`}>Related shops</h3>
-    <p>Connect branches or sister shops. Save keeps the changes private; publish using the usual flow. The other shop gets a private backlink.</p>
+    <p>Connect branches or sister shops. Select several search results, then add them together. Save keeps changes private; publish using the usual flow. The other shop gets a private backlink. Public links appear here instead of Nearby.</p>
     <div className={styles.search}>
       <label htmlFor={`${uid}-search`}>Find an existing shop</label>
       <input id={`${uid}-search`} value={query} maxLength={120} onChange={e=>{controller.current?.abort();setBusy(false);setQuery(e.target.value);setResults([]);setCursor(null);setStatus('');}}
@@ -46,13 +48,23 @@ export function RelatedShopsEditor({id,name,rows,context,errors,change}: {
     </div>
     <p role="status">{busy?'Searching…':status}</p>
     {!!results.length && <ul className={styles.results}>{results.filter(s=>s.id!==id && s.publicationStatus!=='archived' && !rows.some(r=>r.shop_id===s.id)).map(s=><li key={s.id}>
-      <span>{s.name} <small>/{s.slug} · {s.publicationStatus}</small></span>
-      <button type="button" disabled={rows.length>=100} onClick={()=>{setSelected(old=>[...old,s]);change([...rows,{shop_id:s.id,kind:'related',show_public:false}]);}}>Add {s.name}</button>
+      <label><input type="checkbox" checked={pending.some(item=>item.id===s.id)} disabled={rows.length+pending.length>=100 && !pending.some(item=>item.id===s.id)}
+        onChange={e=>setPending(old=>e.target.checked?[...old,s]:old.filter(item=>item.id!==s.id))}/>
+        <span>{s.name} <small>/{s.slug} · {s.publicationStatus}</small></span></label>
     </li>)}</ul>}
+    {!!pending.length && <div className={styles.addSelected}>
+      <label>Relationship for selected shops <select value={addKind} onChange={e=>setAddKind(e.target.value as 'branch'|'related')}>
+        <option value="branch">Branch</option><option value="related">Related shop</option>
+      </select></label>
+      <button type="button" onClick={()=>{
+        const additions=pending.filter(s=>s.id!==id && !rows.some(r=>r.shop_id===s.id)).slice(0,100-rows.length);
+        change([...rows,...additions.map(s=>({shop_id:s.id,kind:addKind,show_public:false}))]);
+        setSelected(old=>[...old,...additions]);setPending([]);
+      }}>Add selected ({pending.length})</button>
+    </div>}
     {cursor && <button type="button" disabled={busy} onClick={()=>void search(cursor)}>More results</button>}
     {rows.map((row,index)=>{
       const target=String(row.shop_id),shop=context?.shops.find(s=>s.id===target) ?? selected.find(s=>s.id===target);
-      const nearby=context?.nearbyIds.includes(target) ?? false;
       return <div key={target} className={styles.row} data-field-path={`related_shops.${index}`}>
         <strong>{shop?.name ?? 'Related shop'}{!shop && <small> · {target}</small>}</strong>
         <label>Relationship label
@@ -63,10 +75,9 @@ export function RelatedShopsEditor({id,name,rows,context,errors,change}: {
         <small>This label is shared by both shops.</small>
         {row.kind==='branch' && shop && branchNameAdvisory(name,shop.name) && <p className={styles.note}>The names look different. Check that these are branches of the same business; you can keep this label if correct.</p>}
         <div className={styles.visibility}>
-          <label><input type="checkbox" checked={!nearby && row.show_public===true} disabled={nearby || !context} onChange={e=>update(target,{show_public:e.target.checked})}/> Show on this shop’s public page</label>
-          {nearby && <details className={styles.info}><summary aria-label={`Why public display is unavailable for ${shop?.name ?? 'this shop'}`}>ⓘ</summary><p>This shop already appears in Nearby shops, so it won’t be shown twice. If it leaves Nearby, public display stays off until you enable it again.</p></details>}
+          <label><input type="checkbox" checked={row.show_public===true} disabled={!context} onChange={e=>update(target,{show_public:e.target.checked})}/> Show on this shop’s public page</label>
         </div>
-        {!context && <p>Reload the saved shop to check Nearby before enabling public display.</p>}
+        {!context && <p>Reload the saved shop before enabling public display.</p>}
         {shop?.publicationStatus!=='published' && <small>Only published shops appear to visitors.</small>}
         <div><button type="button" onClick={()=>change(rows.filter(r=>r.shop_id!==target))}>Remove</button><small> Removes the link from both shops when saved, and from public pages when published. To hide only this side, turn public display off.</small></div>
       </div>;
