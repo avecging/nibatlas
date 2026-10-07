@@ -552,18 +552,19 @@ removal choices and canonical conflicts remain protected; a fully reconciled
 shop does not require a manual discard before closure or archival.
 
 Private `relatedContext` on shop reads supplies selected shop identities and the
-actual Nearby IDs. The durable D4 review binds this context as well as the saved
+legacy Nearby IDs. The durable D4 review binds this context as well as the saved
 document. `shop_relationships` has forced RLS and no direct client grants;
 private helpers are not exposed. Changes retain attributed fingerprint-only audit.
 
-Nearby membership matches the deployed adapter: call `nearby_shops` with its
-5 km/5-result inputs, remove self/closed entries, retain four. It is result
-membership, not a second radius test. Catalogue writes clear overlapping public
-flags and saved selections, with fresh revisions; they never re-enable flags when
-a shop leaves Nearby. Shop/type SQL maintenance also runs this suppression. The
-public detail projection additionally excludes Nearby duplicates and unpublished
-targets before returning JSON. Hidden/internal relationships never enter public
-HTML or JSON. The UI explanation supports hover, focus and tap.
+An explicitly published Branch/Related shop link takes precedence over the
+shop-page Nearby suggestion list. Public links are never disabled or cleared by
+nearby membership or later catalogue movement. The shop detail projection includes
+published targets chosen for public display; the page omits those targets from
+Nearby. Hidden or unpublished relationships never enter public HTML or JSON.
+The admin search supports selecting several existing shops before adding them with
+a common initial label; each relationship can then be edited independently.
+Branches render in a collapsed card with a count; other related shops remain
+visible.
 
 Migration `20260930155607_related_shops.sql` creates an empty relationship table,
 adds guarded helpers and extends the existing writer/read/review functions. It
