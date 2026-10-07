@@ -24,10 +24,10 @@ import {
   createExploreState,
   exploreReducer,
   hasUnappliedFilters,
-  shouldOfferSearchArea,
   type SheetState,
 } from "@/src/features/explore/explore-state";
 import { useViewportResults } from "@/src/features/explore/use-viewport-results";
+import { useAutoViewportSearch } from "@/src/features/explore/use-auto-viewport-search";
 import { useCatalogue } from "@/src/features/catalogue/CatalogueProvider";
 import { catalogueModeDiagnostic } from "@/src/features/catalogue/catalogue-mode";
 import { prototypeDestinations } from "@/src/fixtures/prototype-destinations";
@@ -126,6 +126,11 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
   }, [moveCamera]);
   const nearMe = useNearMe(onLocated);
   const cancelNearMe = nearMe.cancel;
+  const {
+    schedule: scheduleAutoSearch,
+    cancel: cancelAutoSearch,
+    rescheduleIfPending,
+  } = useAutoViewportSearch(dispatch);
 
   const onCameraSettled = useCallback((viewport: Viewport, source: CameraMoveSource) => {
     if (source === "user") {
@@ -135,19 +140,21 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
       // than applied to wherever they end up.
       pendingCommit.current = null;
 
-      // Gestures never refetch; they only make `Search this area` available.
       dispatch({ type: "cameraMoved", camera: viewport });
+      if (mode === "area") scheduleAutoSearch(viewport);
       return;
     }
 
     if (source === "resize") {
-      dispatch({ type: "reframeCamera", camera: viewport });
+      const refreshPending = mode === "area" && rescheduleIfPending(viewport);
+      dispatch({ type: refreshPending ? "cameraMoved" : "reframeCamera", camera: viewport });
       return;
     }
 
     const pending = pendingCommit.current;
 
     if (pending) {
+      cancelAutoSearch();
       pendingCommit.current = null;
       dispatch({
         type: "commitSearch",
@@ -157,8 +164,12 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
       return;
     }
 
+    if (mode === "area" && rescheduleIfPending(viewport)) {
+      dispatch({ type: "cameraMoved", camera: viewport });
+      return;
+    }
     dispatch({ type: "adoptCamera", camera: viewport });
-  }, [cancelNearMe]);
+  }, [cancelNearMe, cancelAutoSearch, mode, rescheduleIfPending, scheduleAutoSearch]);
 
   useEffect(() => {
     // Hydrating a dismissal flag from session storage is an external-system read
@@ -436,13 +447,11 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
   const offerMode =
     mode === "saved" || state.status === "unavailable"
       ? "hidden"
-      : shouldOfferSearchArea(state)
-        ? "offer"
-        : state.status === "loading"
-          ? "loading"
-          : state.status === "error"
-            ? "error"
-            : "hidden";
+      : state.status === "loading"
+        ? "loading"
+        : state.status === "error"
+          ? "error"
+          : "hidden";
 
   /*
    * Where Milestone 1 put a "Prototype sample" badge beside every result count,
@@ -470,7 +479,7 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
               ? "The catalogue could not be reached"
               : state.lastCommittedLabel
                 ? `Searched: ${state.lastCommittedLabel}`
-                : "Move the map, then search this area"}
+                : "Move the map to explore shops"}
       </span>
     </span>
   );
@@ -497,12 +506,10 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
   );
 
   /*
-   * A reader who pans and then filters should get one commit, not two. When the
-   * camera has moved far enough to be offering `Search this area`, Apply carries
-   * those bounds with the filters and settles the offer in the same action — and
-   * the button says so rather than doing it silently.
+   * Applying filters while an automatic refresh is pending carries the latest
+   * camera bounds in that same query, avoiding a redundant second request.
    */
-  const appliesCamera = mode === "area" && shouldOfferSearchArea(state);
+  const appliesCamera = mode === "area" && state.camera !== state.committed;
 
   const filterBar = (
     <MapFilters
@@ -520,10 +527,14 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
       }
       onToggleDraftType={(shopType) => dispatch({ type: "toggleDraftShopType", shopType })}
       onClearDraft={() => dispatch({ type: "clearDraftFilters" })}
-      onApply={() =>
-        dispatch(appliesCamera ? { type: "applyFilters", viewport: state.camera } : { type: "applyFilters" })
-      }
-      onClear={() => dispatch({ type: "clearFilters" })}
+      onApply={() => {
+        cancelAutoSearch();
+        dispatch(appliesCamera ? { type: "applyFilters", viewport: state.camera } : { type: "applyFilters" });
+      }}
+      onClear={() => {
+        cancelAutoSearch();
+        dispatch(appliesCamera ? { type: "clearFilters", viewport: state.camera } : { type: "clearFilters" });
+      }}
     />
   );
 
@@ -721,8 +732,8 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
             <div className={styles.intro}>
               <span className={styles.introText}>
                 <strong>Find fountain pen shops. Visit them. Collect stamps.</strong>
-                Explore the map without an account. Results refresh only when you
-                choose <em>Search this area</em>.
+                Explore the map without an account. Shops refresh automatically
+                when you move the map.
               </span>
               <button
                 type="button"
@@ -749,6 +760,7 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
           onSelectShop={handleSelect}
           onCameraSettled={onCameraSettled}
           onUserMoveStart={() => { cancelNearMe(); pendingCommit.current = null; }}
+          onCameraMoveStart={cancelAutoSearch}
         />
 
         <div className={styles.searchAreaSlot}>
@@ -756,11 +768,7 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
             <SearchThisArea
               mode={offerMode}
               onSearch={() =>
-                dispatch(
-                  // Retry re-runs the query the visible results are under. Only an
-                  // offer commits the camera the reader has moved to.
-                  offerMode === "error" ? { type: "retryQuery" } : { type: "commitSearch" },
-                )
+                dispatch({ type: "retryQuery" })
               }
             />
           </div>

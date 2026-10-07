@@ -15,19 +15,29 @@ function Harness({nearby=false}:{nearby?:boolean}) {
 it('searches, adds, changes the shared label and per-side display, removes without a modal',async()=>{
  const fetch=vi.fn(async()=>new Response(JSON.stringify({entries:[shop],nextCursor:null})));vi.stubGlobal('fetch',fetch);
  render(<Harness/>);fireEvent.change(screen.getByLabelText('Find an existing shop'),{target:{value:'Synthetic'}});
- fireEvent.click(screen.getByRole('button',{name:'Search shops'}));fireEvent.click(await screen.findByRole('button',{name:'Add Synthetic North'}));
- expect(screen.getByRole('combobox')).toHaveValue('related');
- fireEvent.change(screen.getByRole('combobox'),{target:{value:'branch'}});
- fireEvent.click(screen.getByRole('checkbox'));expect(screen.getByRole('checkbox')).toBeChecked();
+ fireEvent.click(screen.getByRole('button',{name:'Search shops'}));fireEvent.click(await screen.findByRole('checkbox',{name:/Synthetic North/}));
+ fireEvent.click(screen.getByRole('button',{name:'Add selected (1)'}));
+ expect(screen.getByRole('combobox')).toHaveValue('branch');
+ fireEvent.change(screen.getByRole('combobox'),{target:{value:'related'}});
+ fireEvent.click(screen.getByRole('checkbox',{name:'Show on this shop’s public page'}));expect(screen.getByRole('checkbox',{name:'Show on this shop’s public page'})).toBeChecked();
  expect(screen.queryByText(/names look different/)).not.toBeInTheDocument();
- fireEvent.click(screen.getByRole('button',{name:'Remove'}));expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+ fireEvent.click(screen.getByRole('button',{name:'Remove'}));expect(screen.queryByRole('checkbox',{name:'Show on this shop’s public page'})).not.toBeInTheDocument();
  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();expect(fetch).toHaveBeenCalledTimes(1);
  expect(fetch.mock.calls[0]).toBeDefined();
 });
-it('disables Nearby duplicates and offers a keyboard/tap disclosure',()=>{
- render(<Harness nearby/>);expect(screen.getByRole('checkbox')).toBeDisabled();expect(screen.getByRole('checkbox')).not.toBeChecked();
- expect(screen.getByText(/public display stays off/)).toBeInTheDocument();
- expect(screen.getByLabelText('Why public display is unavailable for Synthetic North').tagName).toBe('SUMMARY');
+it('lets an editor show a linked shop even when it is nearby',()=>{
+ render(<Harness nearby/>);
+ const checkbox=screen.getByRole('checkbox',{name:'Show on this shop’s public page'});
+ expect(checkbox).toBeEnabled();fireEvent.click(checkbox);expect(checkbox).toBeChecked();
+});
+it('adds multiple selected shops in one action',async()=>{
+ const second={...shop,id:'b1000000-0000-4000-8000-000000000030',name:'Synthetic West',slug:'synthetic-west'};
+ vi.stubGlobal('fetch',vi.fn(async()=>new Response(JSON.stringify({entries:[shop,second],nextCursor:null}))));
+ render(<Harness/>);fireEvent.click(screen.getByRole('button',{name:'Search shops'}));
+ fireEvent.click(await screen.findByRole('checkbox',{name:/Synthetic North/}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/Synthetic West/}));
+ fireEvent.click(screen.getByRole('button',{name:'Add selected (2)'}));
+ expect(screen.getAllByRole('checkbox',{name:'Show on this shop’s public page'})).toHaveLength(2);
 });
 it('ignores location suffixes while advising on unrelated business names',()=>{
  expect(branchNameAdvisory('LAMY 313 Somerset','LAMY Jewel')).toBe(false);

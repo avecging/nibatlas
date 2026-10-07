@@ -41,11 +41,9 @@ export default function HelpPage() {
       <h2 className="type-h2">Finding shops</h2>
       <p>
         <strong>Map</strong> opens on the map. Search for a city or a place to
-        move to it, then pan and zoom as you like — moving the map never reloads
-        the results underneath you. When you have moved far enough that the
-        results no longer match what you are looking at,{" "}
-        <strong>Search this area</strong> appears; tapping it fetches shops for
-        where you are now.
+        move to it, then pan and zoom as you like. Shops refresh automatically
+        shortly after the map settles. In a crowded area, zoom in to reveal
+        more shops.
       </p>
       <p>
         Results sit in a sheet below the map on a phone, which you can drag up to

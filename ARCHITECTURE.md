@@ -360,7 +360,7 @@ A dedicated always-on paid staging Supabase project may add roughly $10/month. P
 
 Cost controls:
 
-- explicit **Search this area** rather than gesture-triggered requests;
+- 400 ms settled-gesture debounce, aborted stale reads and a small recent-viewport cache;
 - geocoder debounce/cache;
 - bounded marker payloads;
 - fixed image variants;

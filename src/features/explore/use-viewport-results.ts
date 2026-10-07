@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, type Dispatch } from "react";
+import { useEffect, useRef, type Dispatch } from "react";
 
 import type { CommittedQuery, ExploreAction } from "@/src/features/explore/explore-state";
 import {
   AbortedError,
-  PROTOTYPE_RESULT_CAP,
   type ShopSource,
 } from "@/src/features/explore/shop-source";
 import { noopTelemetry } from "@/src/features/map/telemetry";
+import type { ViewportShopResponse } from "@/src/domain/shops";
+
+const CACHE_MS = 30_000;
+const CACHE_SIZE = 8;
 
 /**
  * The one place the map reads catalogue data.
@@ -17,11 +20,8 @@ import { noopTelemetry } from "@/src/features/map/telemetry";
  * lets fixture and API modes run the same interaction model. Four behaviours
  * live here, and each one is a stated Milestone 3 requirement:
  *
- * - **No request storm.** The committed query is the only dependency. Panning,
- *   zooming, adopting the renderer's own camera, and any filter the loaded set
- *   can answer never change it, so a continuous drag issues no requests at all.
- *   The guard is structural rather than a debounce, so there is no window in
- *   which a fast gesture can still slip a request through.
+ * - **No request storm.** Only committed queries run here. The screen debounces
+ *   settled camera moves and never commits a continuous drag.
  * - **Cancellation.** A commit landing while an earlier one is in flight aborts
  *   it through the effect's own cleanup, and cancellation is classified as
  *   control flow: no error is raised for a request nobody is waiting for.
@@ -37,11 +37,27 @@ export function useViewportResults(
   query: CommittedQuery,
   dispatch: Dispatch<ExploreAction>,
 ): void {
+  const cache = useRef(new Map<string, { response: ViewportShopResponse; expires: number }>());
+  const cachedSource = useRef(shopSource);
+
   useEffect(() => {
+    if (cachedSource.current !== shopSource) {
+      cache.current.clear();
+      cachedSource.current = shopSource;
+    }
     if (shopSource === null) {
       dispatch({ type: "catalogueUnavailable" });
       return;
     }
+
+    const key = JSON.stringify([query.bounds, query.zoom, query.shopTypes]);
+    const cached = cache.current.get(key);
+    if (cached && cached.expires > Date.now()) {
+      dispatch({ type: "resultsLoaded", requestId: query.requestId,
+        shops: cached.response.shops, truncated: cached.response.truncated });
+      return;
+    }
+    cache.current.delete(key);
 
     const controller = new AbortController();
 
@@ -51,10 +67,9 @@ export function useViewportResults(
           bounds: query.bounds,
           zoom: query.zoom,
           shopTypes: query.shopTypes,
-          // The client's page size in either mode. It is well inside the read
-          // API's own `1..500`, so a dense viewport comes back truncated and
-          // says so rather than arriving as a payload nobody can read.
-          limit: PROTOTYPE_RESULT_CAP,
+          // Use the public endpoint cap. A dense area reports truncation rather
+          // than quietly showing only the first 20 shops.
+          limit: 500,
         },
         controller.signal,
       )
@@ -63,6 +78,8 @@ export function useViewportResults(
           return;
         }
 
+        cache.current.set(key, { response, expires: Date.now() + CACHE_MS });
+        if (cache.current.size > CACHE_SIZE) cache.current.delete(cache.current.keys().next().value!);
         dispatch({
           type: "resultsLoaded",
           requestId: query.requestId,

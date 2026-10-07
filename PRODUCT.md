@@ -50,7 +50,7 @@ The loop must remain useful before merchant partnerships exist. Standard Atlas S
 ## Product principles
 
 1. **Map before feed.** Geography is the primary discovery model.
-2. **User-controlled exploration.** The map never fights the user; moved viewports refresh only through explicit **Search this area**.
+2. **User-controlled exploration.** The map never fights the user; shops refresh after the user finishes moving the map.
 3. **Anonymous discovery.** Browsing never requires an account. Authentication is required only for persistent personal actions.
 4. **Physical world first.** The product should help people leave the app and visit places.
 5. **Meaning over gamification.** Stamps are travel memories, not loot, points, or financial assets.
@@ -65,7 +65,7 @@ The loop must remain useful before merchant partnerships exist. Standard Atlas S
 - Responsive world map with unrestricted pan and zoom.
 - Destination and shop-name search.
 - **Near Me** after an explicit location request.
-- Viewport-based shop results with explicit **Search this area**.
+- Viewport-based shop results refreshed after settled pan or zoom.
 - Marker clustering in dense areas.
 - Status filters: All, Unvisited, Visited, Saved.
 - Shop-type filters: Fountain Pen Specialist, Stationery Store, Vintage / Used, Nib / Repair Services.
@@ -198,7 +198,7 @@ Changes require an explicit product decision if they alter any of these:
 - Nib Atlas remains separate from the fountain pen database/marketplace product.
 - Map-first, mobile-first discovery remains central.
 - Users can explore anywhere without account or location permission.
-- Map movement is user-controlled and uses **Search this area**.
+- Map movement is user-controlled; settled viewports refresh automatically.
 - Physical visits—not passive app engagement—create the collection.
 - Atlas Stamps remain meaningful, private-by-default memories.
 - Approved commissioned artwork remains intact and attributable to its

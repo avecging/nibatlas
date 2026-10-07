@@ -173,6 +173,13 @@ describe("ShopList", () => {
     expect(screen.getByText(/showing the first/i)).toBeInTheDocument();
   });
 
+  it("does not claim there are no matches when a capped result filters to empty", () => {
+    renderList({ shops: [], truncated: true });
+
+    expect(screen.getByText(/more shops than can be shown/i)).toBeInTheDocument();
+    expect(screen.queryByText(/no shops match/i)).not.toBeInTheDocument();
+  });
+
   it("explains an empty result set", () => {
     renderList({ shops: [] });
 

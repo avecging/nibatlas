@@ -68,7 +68,31 @@ describe("useViewportResults", () => {
     }
 
     expect(fetchViewport).toHaveBeenCalledTimes(1);
-    expect(fetchViewport.mock.calls[0]?.[0]).toMatchObject({ bounds, zoom: 11 });
+    expect(fetchViewport.mock.calls[0]?.[0]).toMatchObject({ bounds, zoom: 11, limit: 500 });
+  });
+
+  it("delivers more than the old 20-result sample and reuses a recent area", async () => {
+    const dispatch = vi.fn();
+    const shops = Array.from({ length: 35 }, (_, index) => ({ id: String(index) })) as unknown as ViewportShopResponse["shops"];
+    const fetchViewport = vi.fn<ShopSource["fetchViewport"]>(
+      async (request) => ({ ...EMPTY_RESPONSE, shops, committedBounds: request.bounds }),
+    );
+    const source: ShopSource = { fetchViewport };
+    const { rerender } = renderHook(
+      (props: { query: CommittedQuery }) =>
+        useViewportResults(source, props.query, dispatch),
+      { initialProps: { query: queryAt(1) } },
+    );
+    await act(async () => {});
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "resultsLoaded", requestId: 1, shops, truncated: false,
+    });
+
+    await act(async () => rerender({ query: queryAt(2) }));
+    expect(fetchViewport).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "resultsLoaded", requestId: 2, shops, truncated: false,
+    });
   });
 
   it("cancels the request in flight when a newer query is committed", async () => {

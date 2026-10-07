@@ -27,7 +27,10 @@ before requesting this endpoint. Views spanning at least 360 degrees use
 `west=-180, east=180` so a whole-world search cannot collapse or omit meridians.
 The camera itself is unchanged. Fractional renderer zoom is rounded and bounded
 to the API's `0..24` buckets, including negative zoom at the widest world view.
-This remains one explicit viewport request with the existing result cap.
+The map requests settled visible bounds after a short debounce, using the
+existing 500-record cap. Cancelled and superseded requests cannot replace newer
+results. A truncated response is displayed explicitly; zooming into a dense area
+reveals more shops. Nearby search remains separate.
 
 Optional:
 
@@ -88,6 +91,12 @@ silently into one of the four real provenance kinds. It may retain `confirms`
 for reviewer validation or derive equivalent checks from the same source/claim
 projection, but it may not treat one source as supporting claims absent from that
 source's token list.
+
+Shop detail's Nearby suggestions use street-precision pairs only, normally
+within 800 m. If fewer than three eligible suggestions remain after removing
+public Branch/Related links, it may fill to five from within 1.7 km. With no
+eligible shop the section is absent. This shop-page rule does not change the
+separate map Near Me action or the nearby API's general radius contract.
 
 ## `POST /api/v1/shops/nearby`
 

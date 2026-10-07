@@ -106,20 +106,18 @@ test("Near me asks once, searches the approximate area, then leaves panning in c
   const stored = await page.evaluate(() => sessionStorage.getItem("nib-atlas.explore-viewport.v1"));
   expect(stored).not.toMatch(/1\.2934567|103\.856789/);
   await panMap(page, -0.55, -0.2);
-  await expect(page.getByRole("button", { name: "Search this area", exact: true })).toBeVisible();
+  await expectSettled(page);
   expect(await page.evaluate(() => (window as unknown as { locationRequests: number }).locationRequests)).toBe(1);
 });
 
-test("a small zoom offers Search this area without searching automatically", async ({ page }) => {
+test("a small zoom automatically searches the settled visible area", async ({ page }) => {
   await openMap(page);
   await expectSettled(page);
   const before = await page.evaluate(() => sessionStorage.getItem("nib-atlas.explore-viewport.v1"));
   const box = await page.getByTestId("map-canvas").boundingBox();
   await page.mouse.move(box!.x + box!.width * 0.7, box!.y + box!.height * 0.5);
   await page.mouse.wheel(0, -240);
-  await expect(page.getByRole("button", { name: "Search this area", exact: true })).toBeVisible();
-  expect(await page.evaluate(() => sessionStorage.getItem("nib-atlas.explore-viewport.v1"))).toBe(before);
-  await page.getByRole("button", { name: "Search this area", exact: true }).click();
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem("nib-atlas.explore-viewport.v1"))).not.toBe(before);
   await expectSettled(page);
 });
 
@@ -241,19 +239,17 @@ test("clusters and individual markers stay at their projected positions across z
   await expectProjectedPositions();
 });
 
-test("panning offers Search this area instead of refetching", async ({ page }) => {
+test("panning automatically refreshes the visible area", async ({ page }) => {
   await openMap(page);
   await searchDestination(page, "Ginza", /^Ginza/);
 
-  await expect(page.getByRole("button", { name: /search this area/i })).toHaveCount(0);
-
+  const before = await page.evaluate(() => sessionStorage.getItem("nib-atlas.explore-viewport.v1"));
   await panMap(page, -0.55, -0.35);
-
-  await expect(page.getByRole("button", { name: /search this area/i })).toBeVisible();
-  // Movement alone must not requery: the previous results are still listed.
-  await expect(
-    page.getByRole("link", { name: "Ginza Itoya Main Store", exact: true }),
-  ).toBeVisible();
+  // A tap without another camera move must not cancel the queued refresh.
+  const box = await page.getByTestId("map-canvas").boundingBox();
+  await page.mouse.click(box!.x + box!.width * 0.7, box!.y + box!.height * 0.5);
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem("nib-atlas.explore-viewport.v1"))).not.toBe(before);
+  await expectSettled(page);
 });
 
 test("selecting a marker never looks like the user moved the map", async ({ page }) => {
@@ -461,7 +457,7 @@ test("a map card keeps operational status separate from the reader's own state",
   await expect(card.getByText("Open", { exact: true })).toBeVisible();
 });
 
-test("resizing the window neither invents nor erases Search this area", async ({ page }) => {
+test("resizing during a pending refresh keeps the latest visible area", async ({ page }) => {
   await openMap(page);
   await searchDestination(page, "Tokyo", /^Tokyo/);
 
@@ -474,13 +470,11 @@ test("resizing the window neither invents nor erases Search this area", async ({
   await expect(explore).toHaveAttribute("data-search-offer", "hidden");
   await expect(explore).toHaveAttribute("data-committed-label", /Tokyo/);
 
-  // Moved but not committed: a resize must not swallow the prompt.
+  const before = await page.evaluate(() => sessionStorage.getItem("nib-atlas.explore-viewport.v1"));
   await panMap(page, -0.5, -0.3);
-  await expect(explore).toHaveAttribute("data-search-offer", "offer");
-
   await page.setViewportSize({ width: viewport!.width, height: viewport!.height });
-  await expect(explore).toHaveAttribute("data-search-offer", "offer");
-  await expect(explore).toHaveAttribute("data-committed-label", /Tokyo/);
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem("nib-atlas.explore-viewport.v1"))).not.toBe(before);
+  await expectSettled(page);
 });
 
 test("a gesture during a destination fly leaves the user in control", async ({ page }) => {
@@ -489,17 +483,12 @@ test("a gesture during a destination fly leaves the user in control", async ({ p
   await page.getByRole("combobox", { name: /search shops or places/i }).fill("Kobe");
   await page.getByRole("option", { name: /^Kobe/ }).first().click();
 
-  // Interrupt the fly. Whether or not it had already landed, the user must end
-  // up somewhere they can search, never with a queued commit applied to a
-  // viewport they did not choose.
+  // Interrupt the fly. The settled user viewport must win over the queued destination.
   await panMap(page, -0.5, -0.35);
 
   const explore = page.getByTestId("explore");
-  await expect(explore).toHaveAttribute("data-search-offer", "offer");
   await expect(explore).toHaveAttribute("data-explore-status", "idle");
-
-  await page.getByRole("button", { name: /search this area/i }).click();
-  await expect(explore).toHaveAttribute("data-search-offer", "hidden");
+  await expectSettled(page);
 });
 
 /*
@@ -676,15 +665,13 @@ test("applying after a pan commits the camera and the filters together", async (
   const explore = page.getByTestId("explore");
 
   await panMap(page, -0.45, -0.3);
-  await expect(explore).toHaveAttribute("data-search-offer", "offer");
-
   // Raise the sheet only after the map gesture: at Half it covers the drag's
   // starting point on a phone and can receive the gesture itself.
   await raiseSheet(page);
   await page.getByRole("button", { name: /^filters/i }).click();
 
   const drawer = page.getByRole("dialog", { name: "Filters" });
-  const apply = drawer.getByRole("button", { name: "Apply and search this area" });
+  const apply = drawer.getByRole("button", { name: /Apply (to this area|filters)/ });
 
   await expect(apply).toBeVisible();
   await drawer.getByRole("button", { name: "Recorded as open", exact: true }).click();

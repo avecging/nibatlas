@@ -5,13 +5,11 @@ import { Icon } from "@/src/components/ui/Icon";
 import styles from "./SearchThisArea.module.css";
 
 interface SearchThisAreaProps {
-  readonly mode: "offer" | "loading" | "error" | "hidden";
+  readonly mode: "loading" | "error" | "hidden";
   readonly onSearch: () => void;
 }
 
-/**
- * The only way a moved viewport becomes a query. Pan and zoom never refetch.
- */
+/** A quiet progress pill and retry for automatic viewport searches. */
 export function SearchThisArea({ mode, onSearch }: SearchThisAreaProps) {
   if (mode === "hidden") {
     return null;
@@ -35,10 +33,5 @@ export function SearchThisArea({ mode, onSearch }: SearchThisAreaProps) {
     );
   }
 
-  return (
-    <button type="button" className={styles.pill} onClick={onSearch}>
-      <Icon name="search" size={18} />
-      Search this area
-    </button>
-  );
+  return null;
 }

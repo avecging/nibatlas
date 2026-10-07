@@ -162,7 +162,7 @@ describe("MapFilters", () => {
     renderFilters({ open: true, appliesCamera: true });
 
     expect(
-      screen.getByRole("button", { name: "Apply and search this area" }),
+      screen.getByRole("button", { name: "Apply to this area" }),
     ).toBeInTheDocument();
   });
 

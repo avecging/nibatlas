@@ -69,17 +69,17 @@ select throws_ok($$select pg_temp.rel_rows('b1000000-0000-4000-8000-000000000010
 select throws_ok($$select pg_temp.rel_rows('b1000000-0000-4000-8000-000000000010','[{"shop_id":"b1000000-0000-4000-8000-000000000020","kind":"chain","show_public":true}]')$$,'22023','Invalid related shops','no invented relationship type');
 select throws_ok($$select pg_temp.rel_rows('b1000000-0000-4000-8000-000000000010','[{"shop_id":"b1000000-0000-4000-8000-000000000099","kind":"branch","show_public":true}]')$$,'22023','Invalid related shops','unknown target rejected');
 select throws_ok($$select pg_temp.rel_rows('b1000000-0000-4000-8000-000000000010','[{"shop_id":"b1000000-0000-4000-8000-000000000020","kind":"branch","show_public":true},{"shop_id":"b1000000-0000-4000-8000-000000000020","kind":"branch","show_public":false}]')$$,'22023','Invalid related shops','duplicate target rejected');
--- Direct catalogue maintenance also clears visibility, permanently until enabled.
+-- Explicit public links survive a catalogue move into and out of Nearby.
 reset role;
 update public.shops set location=extensions.st_setsrid(extensions.st_makepoint(103.0001,1.3),4326) where id='b1000000-0000-4000-8000-000000000020';
 set constraints all immediate;
 set constraints all deferred;
 select is(public.shop_nearby_ids('b1000000-0000-4000-8000-000000000010'),array['b1000000-0000-4000-8000-000000000020'::uuid],'Nearby uses actual result membership');
-select ok(not exists(select 1 from public.shop_relationships where shop_id in('b1000000-0000-4000-8000-000000000010','b1000000-0000-4000-8000-000000000020') and show_public),'both Nearby duplicates suppressed in storage');
+select ok(exists(select 1 from public.shop_relationships where shop_id='b1000000-0000-4000-8000-000000000010' and related_shop_id='b1000000-0000-4000-8000-000000000020' and show_public),'public link wins over nearby membership');
 update public.shops set location=extensions.st_setsrid(extensions.st_makepoint(104,1.3),4326) where id='b1000000-0000-4000-8000-000000000020';
-select is(public.shop_detail('synthetic-related-a')->'relatedShops','[]'::jsonb,'moving out of Nearby does not restore visibility');
+select is(public.shop_detail('synthetic-related-a')#>>'{relatedShops,0,id}','b1000000-0000-4000-8000-000000000020','moving out of Nearby preserves visibility');
 set local role authenticated;
-select is(pg_temp.rel_read('b1000000-0000-4000-8000-000000000010')#>>'{document,related_shops,0,show_public}','false','saved selection stays off too');
+select is(pg_temp.rel_read('b1000000-0000-4000-8000-000000000010')#>>'{document,related_shops,0,show_public}','true','saved selection stays on too');
 select pg_temp.rel_rows('b1000000-0000-4000-8000-000000000010','[]');
 select is(pg_temp.rel_read('b1000000-0000-4000-8000-000000000020')#>'{document,related_shops}','[]'::jsonb,'remove clears reciprocal private row');
 select is(pg_temp.rel_publish('b1000000-0000-4000-8000-000000000010')->>'publicationStatus','published','remove publishes through ordinary writer');
@@ -91,7 +91,7 @@ select pg_temp.rel_rows('b1000000-0000-4000-8000-000000000010','[{"shop_id":"b10
 select pg_temp.rel_publish('b1000000-0000-4000-8000-000000000010');
 select is(public.shop_detail('synthetic-related-a')->'relatedShops','[]'::jsonb,'unpublished target name never enters public JSON');
 select is(pg_temp.rel_read('b1000000-0000-4000-8000-000000000030')->>'publicationStatus','draft','backlink never publishes target');
--- A transient missing type during replacement must not suppress the fifth shop.
+-- Replacing a type does not suppress a deliberately published linked shop.
 select pg_temp.rel_fixture('b1000000-0000-4000-8000-000000000040','synthetic-nearby-origin',106.0);
 select pg_temp.rel_fixture('b1000000-0000-4000-8000-000000000041','synthetic-nearby-1',106.001);
 select pg_temp.rel_fixture('b1000000-0000-4000-8000-000000000042','synthetic-nearby-2',106.002);
@@ -104,9 +104,9 @@ reset role;
 select public.apply_shop_document('b1000000-0000-4000-8000-000000000041',jsonb_set(public.shop_edit_document('b1000000-0000-4000-8000-000000000041'),'{types}',jsonb_build_array(jsonb_build_object('shop_type_id',(select id from public.shop_types where code='stationery_store'),'is_primary',true))));
 set constraints all immediate;
 set constraints all deferred;
-select is(public.shop_detail('synthetic-nearby-origin')#>>'{relatedShops,0,id}','b1000000-0000-4000-8000-000000000045','type replacement evaluates final Nearby state only');
+select is(public.shop_detail('synthetic-nearby-origin')#>>'{relatedShops,0,id}','b1000000-0000-4000-8000-000000000045','type replacement preserves public relationship');
 set local role authenticated;
--- Retained removal choices must also obey sticky Nearby suppression.
+-- Retained removal choices keep their deliberate public visibility.
 select pg_temp.rel_rows('b1000000-0000-4000-8000-000000000045','[{"shop_id":"b1000000-0000-4000-8000-000000000040","kind":"related","show_public":true}]');
 select pg_temp.rel_publish('b1000000-0000-4000-8000-000000000045');
 select pg_temp.rel_rows('b1000000-0000-4000-8000-000000000040','[]');
@@ -119,7 +119,7 @@ set constraints all immediate;
 set constraints all deferred;
 set local role authenticated;
 select public.admin_shop_write('discard','b1000000-0000-4000-8000-000000000040',pg_temp.rel_read('b1000000-0000-4000-8000-000000000040')->>'revision');
-select is(pg_temp.rel_read('b1000000-0000-4000-8000-000000000045')#>>'{document,related_shops,0,show_public}','false','discard cannot restore a removed choice suppressed by Nearby');
+select is(pg_temp.rel_read('b1000000-0000-4000-8000-000000000045')#>>'{document,related_shops,0,show_public}','true','discard preserves deliberate counterpart visibility');
 -- Finalize private-only removals on publish and on discard of a new pair.
 select pg_temp.rel_fixture('b1000000-0000-4000-8000-000000000050','synthetic-private-pair-a',107.0);
 select pg_temp.rel_fixture('b1000000-0000-4000-8000-000000000051','synthetic-private-pair-b',108.0);

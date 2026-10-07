@@ -89,7 +89,7 @@ describe("api shop detail source", () => {
     });
   });
 
-  it("withholds distance for an imprecise candidate and excludes closed/self results", async () => {
+  it("omits imprecise, closed and self results", async () => {
     const source = createApiShopDetailSource({
       demoRecords: false,
       rpc: async () => detailPayload(),
@@ -138,12 +138,7 @@ describe("api shop detail source", () => {
 
     const result = await source.fetchDetail("contract-shop");
 
-    expect(result.status === "found" && result.nearby).toEqual([
-      expect.objectContaining({
-        shop: expect.objectContaining({ slug: "centroid-shop" }),
-        distanceMeters: null,
-      }),
-    ]);
+    expect(result.status === "found" && result.nearby).toEqual([]);
   });
 
   it("keeps detail usable when the secondary nearby read fails", async () => {

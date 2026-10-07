@@ -394,15 +394,12 @@ describe("nearby pen shops", () => {
     expect(screen.queryByText(/approximate map points/i)).not.toBeInTheDocument();
   });
 
-  it("says where an unmeasurable neighbour is instead of guessing a number", () => {
+  it("omits an imprecise neighbour rather than implying a short walk", () => {
     const nagasawa = findPrototypeShop("nagasawa-stationery-center-main-store")!;
 
     renderShop(nagasawa, nearbyPenShops(nagasawa, prototypeShopDetails));
 
-    const list = screen.getByRole("list", { name: "Nearby pen shops" });
-
-    expect(within(list).getByText(/Also in Kobe/)).toBeInTheDocument();
-    expect(within(list).queryByText(/away/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Nearby pen shops" })).not.toBeInTheDocument();
   });
 
   it("renders no subsection at all when there is no neighbour in reach", () => {

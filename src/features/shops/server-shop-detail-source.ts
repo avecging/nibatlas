@@ -8,7 +8,8 @@ import {
 } from "@/src/api/v1/shop-read";
 import {
   NEARBY_LIMIT,
-  NEARBY_RADIUS_METERS,
+  NEARBY_FALLBACK_RADIUS_METERS,
+  selectNearbyShops,
   type NearbyShop,
 } from "@/src/domain/nearby-shops";
 import type { ShopDetail } from "@/src/domain/shop-detail";
@@ -59,9 +60,9 @@ const defaultNearbyRpc: ShopNearbyRpc = (shop, signal) =>
   callShopReadRpc("nearby_shops", {
     p_latitude: shop.position.latitude,
     p_longitude: shop.position.longitude,
-    p_radius_m: NEARBY_RADIUS_METERS,
-    // The current shop is normally the first result and is removed below.
-    p_limit: NEARBY_LIMIT + 1,
+    p_radius_m: NEARBY_FALLBACK_RADIUS_METERS,
+    // Fetch the sparse-area ceiling once; remove self, imprecise points and linked shops below.
+    p_limit: 100,
   }, signal);
 
 function projectNearbyCandidate(
@@ -98,13 +99,14 @@ async function nearbyFor(
   rpc: ShopNearbyRpc,
   signal?: AbortSignal,
 ): Promise<readonly NearbyShop[]> {
+  if (shop.positionPrecision !== "street") return [];
   try {
     const response = decodeNearbyShopsV1(await rpc(shop, signal));
 
-    return response.shops
+    return selectNearbyShops(response.shops
       .map((candidate) => projectNearbyCandidate(shop, candidate))
-      .filter((candidate): candidate is NearbyShop => candidate !== null)
-      .slice(0, NEARBY_LIMIT);
+      .filter((candidate): candidate is NearbyShop => candidate !== null),
+      new Set(shop.relatedShops?.map(item => item.id)), NEARBY_LIMIT);
   } catch {
     // Nearby is secondary trip context. Its outage must not take down a valid
     // shop detail page; omission is the honest degraded state.
