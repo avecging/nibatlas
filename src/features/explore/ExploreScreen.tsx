@@ -126,7 +126,11 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
   }, [moveCamera]);
   const nearMe = useNearMe(onLocated);
   const cancelNearMe = nearMe.cancel;
-  const { schedule: scheduleAutoSearch, cancel: cancelAutoSearch } = useAutoViewportSearch(dispatch);
+  const {
+    schedule: scheduleAutoSearch,
+    cancel: cancelAutoSearch,
+    rescheduleIfPending,
+  } = useAutoViewportSearch(dispatch);
 
   const onCameraSettled = useCallback((viewport: Viewport, source: CameraMoveSource) => {
     if (source === "user") {
@@ -141,15 +145,16 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
       return;
     }
 
-    cancelAutoSearch();
     if (source === "resize") {
-      dispatch({ type: "reframeCamera", camera: viewport });
+      const refreshPending = mode === "area" && rescheduleIfPending(viewport);
+      dispatch({ type: refreshPending ? "cameraMoved" : "reframeCamera", camera: viewport });
       return;
     }
 
     const pending = pendingCommit.current;
 
     if (pending) {
+      cancelAutoSearch();
       pendingCommit.current = null;
       dispatch({
         type: "commitSearch",
@@ -159,8 +164,12 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
       return;
     }
 
+    if (mode === "area" && rescheduleIfPending(viewport)) {
+      dispatch({ type: "cameraMoved", camera: viewport });
+      return;
+    }
     dispatch({ type: "adoptCamera", camera: viewport });
-  }, [cancelNearMe, cancelAutoSearch, mode, scheduleAutoSearch]);
+  }, [cancelNearMe, cancelAutoSearch, mode, rescheduleIfPending, scheduleAutoSearch]);
 
   useEffect(() => {
     // Hydrating a dismissal flag from session storage is an external-system read

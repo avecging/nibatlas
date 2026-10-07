@@ -33,6 +33,22 @@ describe("automatic viewport refresh", () => {
     expect(dispatch).toHaveBeenCalledWith({ type: "commitSearch", viewport: kyoto });
   });
 
+  it("reframes a pending refresh after a resize or marker-reveal pan", () => {
+    vi.useFakeTimers();
+    const dispatch = vi.fn();
+    const { result } = renderHook(() => useAutoViewportSearch(dispatch));
+    act(() => {
+      result.current.schedule(tokyo);
+      vi.advanceTimersByTime(200);
+      expect(result.current.rescheduleIfPending(kyoto)).toBe(true);
+      vi.advanceTimersByTime(399);
+    });
+    expect(dispatch).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(1));
+    expect(dispatch).toHaveBeenCalledWith({ type: "commitSearch", viewport: kyoto });
+    expect(result.current.rescheduleIfPending(tokyo)).toBe(false);
+  });
+
   it("cancels a pending refresh when another gesture begins or the map unmounts", () => {
     vi.useFakeTimers();
     const dispatch = vi.fn();

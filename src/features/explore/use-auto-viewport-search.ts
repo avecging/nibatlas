@@ -24,7 +24,13 @@ export function useAutoViewportSearch(dispatch: Dispatch<ExploreAction>) {
     }, SETTLE_DELAY_MS);
   }, [cancel, dispatch]);
 
+  const rescheduleIfPending = useCallback((viewport: Viewport): boolean => {
+    if (timer.current === null) return false;
+    schedule(viewport);
+    return true;
+  }, [schedule]);
+
   useEffect(() => cancel, [cancel]);
 
-  return { schedule, cancel };
+  return { schedule, cancel, rescheduleIfPending };
 }

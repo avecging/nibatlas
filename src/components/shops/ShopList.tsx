@@ -62,7 +62,9 @@ export function ShopList({
   if (shops.length === 0) {
     return (
       <div className={styles.empty}>
-        <p>{emptyMessage}</p>
+        <p>{truncated
+          ? "This area has more shops than can be shown. Zoom in to see all matches for these filters."
+          : emptyMessage}</p>
       </div>
     );
   }
