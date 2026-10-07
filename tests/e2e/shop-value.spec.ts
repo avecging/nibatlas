@@ -231,13 +231,9 @@ test("nearby pen shops are trip context, and are honest about distance", async (
   await nearby.getByRole("link", { name: /Fook Hing Trading Co\./ }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Fook Hing Trading Co." })).toBeVisible();
 
-  // Two Kobe shops, both placed from the locality only: no number is claimed.
+  // Locality centroids cannot establish a short walk, so no Nearby section.
   await page.goto("/shops/nagasawa-stationery-center-main-store");
-
-  const kobe = page.getByRole("list", { name: "Nearby pen shops" });
-
-  await expect(kobe.getByText("Also in Kobe")).toBeVisible();
-  await expect(kobe.getByText(/away/)).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Nearby pen shops" })).toHaveCount(0);
 
   // A shop with no catalogue neighbour in reach gets no section at all.
   await page.goto("/shops/skb-kaohsiung");
