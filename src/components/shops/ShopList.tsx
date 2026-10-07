@@ -37,7 +37,7 @@ export function ShopList({
   onHighlight,
   onToggleSaved,
   onOpenDetail,
-  emptyMessage = "No shops match this area and these filters. Move the map or clear a filter, then search again.",
+  emptyMessage = "No shops match this area and these filters. Move the map or clear a filter.",
   listLabel = "Shops in the searched area",
   detailFrom = "map",
 }: ShopListProps) {
@@ -62,7 +62,9 @@ export function ShopList({
   if (shops.length === 0) {
     return (
       <div className={styles.empty}>
-        <p>{emptyMessage}</p>
+        <p>{truncated
+          ? "This area has more shops than can be shown. Zoom in to see all matches for these filters."
+          : emptyMessage}</p>
       </div>
     );
   }
@@ -73,8 +75,8 @@ export function ShopList({
         <p className={styles.notice}>
           <Icon name="alert" size={18} />
           <span>
-            Showing the first {shops.length} shops in this area. Zoom in and search
-            again to see the rest.
+            Showing the first {shops.length} shops in this area. Zoom in to
+            see more.
           </span>
         </p>
       ) : null}

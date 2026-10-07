@@ -45,6 +45,8 @@ interface MapCanvasProps {
   readonly cameraTarget: CameraTarget | null;
   readonly onSelectShop: (shopId: string | null) => void;
   readonly onUserMoveStart?: () => void;
+  /** Fired for a real camera gesture, not a tap that leaves the camera still. */
+  readonly onCameraMoveStart?: () => void;
   /**
    * `user` means a gesture moved the camera and a new search may be offered.
    * `programmatic` means the application or the renderer moved it, so the new
@@ -125,6 +127,7 @@ export function MapCanvas({
   onSelectShop,
   onCameraSettled,
   onUserMoveStart,
+  onCameraMoveStart,
 }: MapCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -142,6 +145,7 @@ export function MapCanvas({
   const onSelectRef = useRef(onSelectShop);
   const onCameraSettledRef = useRef(onCameraSettled);
   const onUserMoveStartRef = useRef(onUserMoveStart);
+  const onCameraMoveStartRef = useRef(onCameraMoveStart);
   const syncRef = useRef<() => void>(() => {});
   const applyHighlightRef = useRef<() => void>(() => {});
   /**
@@ -151,6 +155,7 @@ export function MapCanvas({
    * mistaken for an application move.
    */
   const cameraIntent = useRef<CameraMoveSource>("programmatic");
+  const inputPending = useRef(false);
   const stoppingSupersededMove = useRef(false);
   const hasRequestedCameraMove = useRef(false);
 
@@ -169,6 +174,7 @@ export function MapCanvas({
     onSelectRef.current = onSelectShop;
     onCameraSettledRef.current = onCameraSettled;
     onUserMoveStartRef.current = onUserMoveStart;
+    onCameraMoveStartRef.current = onCameraMoveStart;
   });
 
   useEffect(() => {
@@ -237,22 +243,28 @@ export function MapCanvas({
         event.target.setPointerCapture(event.pointerId);
       }
       cameraIntent.current = "user";
+      inputPending.current = true;
       onUserMoveStartRef.current?.();
     };
     const inputEvents = ["pointerdown", "touchstart", "wheel", "keydown"] as const;
+    const releaseEvents = ["pointerup", "touchend", "keyup"] as const;
+    const releaseInput = () => { inputPending.current = false; };
     for (const event of inputEvents) container.addEventListener(event, takeUserControl, { capture: true, passive: true });
+    for (const event of releaseEvents) container.addEventListener(event, releaseInput, { capture: true, passive: true });
 
     // A gesture that interrupts an application move outranks it.
     map.on("movestart", (event) => {
-      if ((event as { originalEvent?: unknown }).originalEvent) {
+      if ((event as { originalEvent?: unknown }).originalEvent || inputPending.current) {
         cameraIntent.current = "user";
-        onUserMoveStartRef.current?.();
+        if (!inputPending.current) onUserMoveStartRef.current?.();
+        onCameraMoveStartRef.current?.();
       }
     });
 
     map.on("moveend", () => {
       if (stoppingSupersededMove.current) return;
       const source = cameraIntent.current;
+      inputPending.current = false;
       cameraIntent.current = "user";
 
       onCameraSettledRef.current(readViewport(readyMap), source);
@@ -292,6 +304,7 @@ export function MapCanvas({
       }
       markers.clear();
       for (const event of inputEvents) container.removeEventListener(event, takeUserControl, true);
+      for (const event of releaseEvents) container.removeEventListener(event, releaseInput, true);
       readyMap.remove();
       mapRef.current = null;
     };
@@ -330,6 +343,7 @@ export function MapCanvas({
           // viewport may offer a fresh search.
           cameraIntent.current = "user";
           onUserMoveStartRef.current?.();
+          onCameraMoveStartRef.current?.();
           const bounds = clusterBounds(cluster);
           instance.fitBounds(
             [

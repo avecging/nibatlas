@@ -104,7 +104,7 @@ export type ExploreAction =
   | { readonly type: "toggleDraftShopType"; readonly shopType: ShopType }
   | { readonly type: "clearDraftFilters" }
   | { readonly type: "applyFilters"; readonly viewport?: Viewport }
-  | { readonly type: "clearFilters" }
+  | { readonly type: "clearFilters"; readonly viewport?: Viewport }
   | { readonly type: "setSheetState"; readonly sheetState: SheetState };
 
 export interface CreateExploreStateOptions {
@@ -352,7 +352,7 @@ export function exploreReducer(
     }
 
     case "clearFilters": {
-      return commitFilters(state, EMPTY_FILTERS);
+      return commitFilters(state, EMPTY_FILTERS, action.viewport);
     }
 
     case "setSheetState": {

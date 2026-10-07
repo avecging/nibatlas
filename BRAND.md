@@ -483,7 +483,7 @@ Avoid excessive rounded “SaaS card” styling. Passport stamp frames may use s
 - Map occupies the working canvas.
 - Search uses a white/Paper surface with Atlas Navy text.
 - Filters use compact chips; active filters use Atlas Navy or Teal depending on meaning.
-- **Search this area** is a high-contrast Atlas Navy pill, visually detached from map controls.
+- Area search uses a quiet loading pill and a clear retry button on failure.
 - Bottom sheet is a clean white surface with a subtle warm border; texture is not applied behind dense lists.
 
 ### Shop card

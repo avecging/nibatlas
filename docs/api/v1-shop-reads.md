@@ -27,7 +27,10 @@ before requesting this endpoint. Views spanning at least 360 degrees use
 `west=-180, east=180` so a whole-world search cannot collapse or omit meridians.
 The camera itself is unchanged. Fractional renderer zoom is rounded and bounded
 to the API's `0..24` buckets, including negative zoom at the widest world view.
-This remains one explicit viewport request with the existing result cap.
+The map requests settled visible bounds after a short debounce, using the
+existing 500-record cap. Cancelled and superseded requests cannot replace newer
+results. A truncated response is displayed explicitly; zooming into a dense area
+reveals more shops. Nearby search remains separate.
 
 Optional:
 
