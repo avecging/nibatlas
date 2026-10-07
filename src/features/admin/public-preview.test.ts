@@ -70,3 +70,12 @@ it('projects new unlabeled copy-only contacts through the real decoder/public ad
   expect(preview?.links).toEqual([{type:'wechat',accountValue:'synthetic-wechat',label:'synthetic-wechat',isOfficial:true},
     {type:'whatsapp',accountValue:'+6581234567',label:'+6581234567',isOfficial:true}]);
 });
+
+it('previews public linked shops even when legacy Nearby context includes them',()=>{
+  const record=fixture(), target='61000000-0000-4000-8000-000000000003';
+  record.document.related_shops=[{shop_id:target,kind:'branch',show_public:true}];
+  record.relatedContext={nearbyIds:[target],shops:[{id:target,name:'Synthetic branch',slug:'synthetic-branch',localityName:'Singapore',countryCode:'SG',publicationStatus:'published'}]};
+  expect(projectSavedShopPreview(record,options)?.relatedShops).toEqual([
+    {id:target,name:'Synthetic branch',slug:'synthetic-branch',localityName:'Singapore',countryCode:'SG',kind:'branch'},
+  ]);
+});
