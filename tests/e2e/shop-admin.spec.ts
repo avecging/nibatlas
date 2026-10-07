@@ -1630,7 +1630,8 @@ test('related shops use normal save and render compact cards in the correct colu
   const section=page.getByRole('region',{name:'Related shops',exact:true});
   await section.getByLabel('Find an existing shop').fill('Synthetic');
   await section.getByRole('button',{name:'Search shops'}).click();
-  await section.getByRole('button',{name:'Add Synthetic North'}).click();
+  await section.getByRole('checkbox',{name:/Synthetic North/}).check();
+   await section.getByRole('button',{name:'Add selected (1)'}).click();
   await section.getByLabel('Relationship label').selectOption('branch');
   await section.getByRole('checkbox').check();
   expect((await new AxeBuilder({page}).include('[data-field-path="related_shops"]').analyze()).violations).toEqual([]);
