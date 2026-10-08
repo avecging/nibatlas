@@ -42,6 +42,34 @@
 
 .overlayTop > * { pointer-events: auto; }
 
+.topControls {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.guideTrigger {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 50%;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  color: var(--atlas-900);
+  font: 700 1.125rem var(--font-serif);
+  cursor: pointer;
+}
+
+.guideTrigger:hover { background: var(--bg-surface-warm); }
+.guideTrigger:focus-visible { outline: 2px solid var(--atlas-900); outline-offset: 2px; }
+
 .mobileBetaBadge {
   display: inline-flex;
   align-items: center;
@@ -64,9 +92,6 @@
 
 /* Result-scope switch: the labelled control that owns global Saved mode. */
 .modeSwitch {
-  grid-column: 1;
-  grid-row: 2;
-  justify-self: start;
   display: inline-flex;
   align-self: start;
   border: 1px solid var(--border-default);
@@ -369,5 +394,37 @@
 @media (min-width: 1024px) {
   .mobileBetaBadge {
     display: none;
+  }
+}
+
+@media (max-width: 410px) {
+  .overlayTop { grid-template-columns: minmax(0, 1fr) auto; }
+  .modeButton { padding: 0 var(--space-2); gap: var(--space-1); }
+  .topControls { gap: 12px; }
+  .mobileBetaBadge { grid-row: 3; }
+}
+
+@media (max-width: 340px) {
+  .areaLabel { display: none; }
+}
+
+@media (min-width: 1024px) {
+  .topControls { grid-column: 1 / -1; }
+  .guideTrigger { position: fixed; top: calc(var(--tap-target) + var(--space-5)); right: calc(35% + var(--space-3) + 3.25rem); z-index: 23; }
+}
+
+
+/* Keep help in the exposed strip when the mobile results sheet is full. */
+@media (max-width: 1023px) {
+  .layout[data-sheet-state="full"] .overlayTop { z-index: 26; }
+  .layout[data-sheet-state="full"] .overlayTop > :first-child,
+  .layout[data-sheet-state="full"] .modeSwitch,
+  .layout[data-sheet-state="full"] .mobileBetaBadge,
+  .layout[data-sheet-state="full"] .reviewerStrip,
+  .layout[data-sheet-state="full"] .intro { display: none; }
+  .layout[data-sheet-state="full"] .topControls {
+    position: absolute;
+    top: 0;
+    right: 0;
   }
 }
