@@ -32,7 +32,9 @@ describe("HowItWorksGuide", () => {
     expect([...container.querySelectorAll("[data-guide-seal-order]")].map((seal) => (seal as HTMLElement).style.getPropertyValue("--press-delay"))).toEqual(["0ms", "578ms", "1156ms", "1734ms", "2312ms"]);
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(screen.getByRole("heading", { name: "Your passport" })).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /Nib Atlas Passport cover beside an open Singapore page/ })).toHaveAttribute("src", "/images/guide-passport.jpeg");
+    expect(container.querySelector("[data-passport-cover]")).toHaveTextContent("Nib Atlas");
+    expect(container.querySelector("[data-passport-cover]")).toHaveTextContent("Passport");
+    expect(container.querySelector("[data-passport-cover]")).toHaveTextContent("Volume I");
     fireEvent.click(screen.getByRole("button", { name: "Done" }));
     expect(onClose).toHaveBeenCalledOnce();
   });

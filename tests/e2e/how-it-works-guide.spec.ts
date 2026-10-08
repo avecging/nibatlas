@@ -4,7 +4,17 @@ test("guide stays reachable above a full results sheet and keeps map state", asy
   await page.setViewportSize({ width: 320, height: 568 });
   await page.goto("/");
   const dismiss = page.getByRole("button", { name: "Dismiss introduction" });
-  if (await dismiss.isVisible()) await dismiss.click();
+  await expect(dismiss).toBeVisible();
+  const helpControl = page.getByRole("button", { name: "How Nib Atlas works" });
+  const beta = page.getByLabel("Beta version");
+  const [helpBox, betaBox, introBox] = await Promise.all([
+    helpControl.boundingBox(), beta.boundingBox(), dismiss.locator("..").boundingBox(),
+  ]);
+  expect(helpBox && betaBox && introBox).toBeTruthy();
+  expect(Math.abs(helpBox!.y + helpBox!.height / 2 - betaBox!.y - betaBox!.height / 2)).toBeLessThan(12);
+  expect(helpBox!.x + helpBox!.width + 8).toBeLessThanOrEqual(betaBox!.x);
+  expect(introBox!.height).toBeLessThan(110);
+  await dismiss.click();
   const explore = page.getByTestId("explore");
   const help = page.getByRole("button", { name: "How Nib Atlas works" });
   await expect(help).toBeVisible();

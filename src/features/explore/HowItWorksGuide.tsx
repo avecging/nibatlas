@@ -1,9 +1,9 @@
 "use client";
 
 import { useRef, useState, type CSSProperties } from "react";
-import Image from "next/image";
 
 import { NibAtlasMark } from "@/src/components/brand/NibAtlasMark";
+import { PassportCoverFace } from "@/src/components/passport/PassportCoverFace";
 import { useDialogFocus } from "@/src/components/hooks/useDialogFocus";
 import { useMediaQuery } from "@/src/components/hooks/useMediaQuery";
 import { ImpressionPlate } from "@/src/components/stamps/ImpressionPlate";
@@ -74,7 +74,7 @@ export function HowItWorksGuide({ onClose }: { readonly onClose: () => void }) {
           const dx = touch.clientX - start.x, dy = touch.clientY - start.y;
           if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.5) go(index + (dx < 0 ? 1 : -1));
         }}>
-        <div className={index === 4 ? `${styles.art} ${styles.passportArt}` : styles.art} aria-hidden={index === 4 ? undefined : true}>
+        <div className={index === 4 ? `${styles.art} ${styles.passportArt}` : styles.art} aria-hidden="true">
           {index === 0 ? <NibAtlasMark size={112} title="Nib Atlas" /> : null}
           {index === 1 ? <div className={styles.discovery}><Icon name="map" size={76} /><span>Find your next shop</span></div> : null}
           {index === 2 ? (
@@ -103,9 +103,7 @@ export function HowItWorksGuide({ onClose }: { readonly onClose: () => void }) {
               ))}
             </div>
           ) : null}
-          {index === 4 ? <Image className={styles.passportImage} src="/images/guide-passport.jpeg"
-            width={1536} height={1415} unoptimized
-            alt="Nib Atlas Passport cover beside an open Singapore page with locality and shop stamps" /> : null}
+          {index === 4 ? <div className={styles.passportCover}><PassportCoverFace /></div> : null}
         </div>
         <h2 id="how-it-works-title" className={styles.title}>{slide.title}</h2>
         <p className={styles.copy}>{slide.copy}</p>
