@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type CSSProperties } from "react";
+import Image from "next/image";
 
 import { NibAtlasMark } from "@/src/components/brand/NibAtlasMark";
 import { useDialogFocus } from "@/src/components/hooks/useDialogFocus";
@@ -102,7 +103,8 @@ export function HowItWorksGuide({ onClose }: { readonly onClose: () => void }) {
               ))}
             </div>
           ) : null}
-          {index === 4 ? <img className={styles.passportImage} src="/images/guide-passport.jpeg"
+          {index === 4 ? <Image className={styles.passportImage} src="/images/guide-passport.jpeg"
+            width={1536} height={1415} unoptimized
             alt="Nib Atlas Passport cover beside an open Singapore page with locality and shop stamps" /> : null}
         </div>
         <h2 id="how-it-works-title" className={styles.title}>{slide.title}</h2>

@@ -6,12 +6,14 @@
 .discovery { display: grid; place-items: center; gap: var(--space-3); color: var(--atlas-900); font-family: var(--font-serif); font-weight: 600; }
 .art [data-phase] { width: min(14rem, 60%); margin: 0; }
 .seals { position: relative; width: min(100%, 22rem); height: 100%; }
+.seals [data-phase="pressing"] { animation: guideReveal 1ms linear both; animation-delay: var(--press-delay, 0ms); }
+@keyframes guideReveal { from { opacity: 0; } to { opacity: 1; } }
 .art .seals > [data-phase] { position: absolute; margin: 0; }
 .seals .shopOne, .seals .shopTwo, .seals .shopThree { width: 35%; z-index: 1; }
 .seals .shopOne { top: 8%; left: 0; transform: rotate(-7deg); }
 .seals .shopTwo { top: 3%; left: 33%; transform: rotate(5deg); }
 .seals .shopThree { top: 9%; right: 0; transform: rotate(-4deg); }
-.seals .locality { width: 43%; top: 34%; right: 2%; z-index: 2; transform: rotate(5deg); }
+.seals .locality { width: 43%; top: 25%; right: 1%; z-index: 2; transform: rotate(5deg); }
 .seals .country { width: 76%; bottom: 3%; left: 4%; z-index: 3; transform: rotate(-3deg); }
 .passportArt { background: #101010; }
 .passportImage { display: block; width: 100%; height: 100%; object-fit: contain; }
