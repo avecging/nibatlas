@@ -25,4 +25,4 @@
 .actions button { min-width: 5rem; min-height: var(--tap-target); padding: 0 var(--space-3); border: 1px solid var(--border-default); border-radius: var(--radius-round); background: var(--bg-surface); color: var(--atlas-900); font-weight: 600; cursor: pointer; }
 .actions button:disabled { opacity: .45; cursor: default; }
 .actions .next { border-color: var(--action-primary); background: var(--action-primary); color: var(--text-on-dark); }
-@media (prefers-reduced-motion: reduce) { .art [data-phase="pressing"] [data-impression], .art [data-phase="pressing"] > span { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .seals [data-phase="pressing"], .art [data-phase="pressing"] [data-impression], .art [data-phase="pressing"] > span { animation: none; } }
