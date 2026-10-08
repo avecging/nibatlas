@@ -47,7 +47,7 @@ export function HowItWorksGuide({ onClose }: { readonly onClose: () => void }) {
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const go = (next: number) => setIndex(Math.max(0, Math.min(slides.length - 1, next)));
-  const slide = slides[index];
+  const slide = slides[index] ?? slides[0];
 
   return (
     <ImpressionSheet tier="How Nib Atlas works" closeLabel="Close guide"

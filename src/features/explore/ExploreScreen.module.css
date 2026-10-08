@@ -412,3 +412,19 @@
   .topControls { grid-column: 1 / -1; }
   .guideTrigger { position: fixed; top: calc(var(--tap-target) + var(--space-5)); right: calc(35% + var(--space-3)); z-index: 23; }
 }
+
+
+/* Keep help in the exposed strip when the mobile results sheet is full. */
+@media (max-width: 1023px) {
+  .layout[data-sheet-state="full"] .overlayTop { z-index: 26; }
+  .layout[data-sheet-state="full"] .overlayTop > :first-child,
+  .layout[data-sheet-state="full"] .modeSwitch,
+  .layout[data-sheet-state="full"] .mobileBetaBadge,
+  .layout[data-sheet-state="full"] .reviewerStrip,
+  .layout[data-sheet-state="full"] .intro { display: none; }
+  .layout[data-sheet-state="full"] .topControls {
+    position: absolute;
+    top: 0;
+    right: 0;
+  }
+}

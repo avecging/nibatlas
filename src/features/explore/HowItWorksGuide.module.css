@@ -1,10 +1,10 @@
 .body { min-width: 0; text-align: center; touch-action: pan-y; }
-.art { display: grid; place-items: center; height: clamp(10rem, 32dvh, 17rem); overflow: hidden; border-radius: var(--radius-md); background: var(--bg-surface); }
+.art { display: grid; place-items: center; height: clamp(12rem, 32dvh, 17rem); overflow: hidden; border-radius: var(--radius-md); background: var(--bg-surface); }
 .title { margin-top: var(--space-3); color: var(--atlas-900); font: 600 var(--type-h2-size)/var(--type-h2-line) var(--font-serif); }
 .copy { margin-top: var(--space-2); color: var(--text-secondary); font-size: var(--type-body-sm-size); line-height: var(--type-body-sm-line); }
 .specimen { margin-top: var(--space-2); color: var(--text-secondary); font-size: var(--type-caption-size); }
 .discovery { display: grid; place-items: center; gap: var(--space-3); color: var(--atlas-900); font-family: var(--font-serif); font-weight: 600; }
-.art [data-phase] { max-width: 18rem; margin: 0; }
+.art [data-phase] { width: min(14rem, 60%); margin: 0; }
 .seals { position: relative; width: min(100%, 22rem); height: 100%; }
 .seals > div { position: absolute; width: 58%; filter: drop-shadow(0 2px 2px var(--impression-grain)); }
 .locality { top: 6%; right: 0; transform: rotate(9deg); }
