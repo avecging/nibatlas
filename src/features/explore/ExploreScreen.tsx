@@ -15,6 +15,7 @@ import { SearchThisArea } from "@/src/components/map/SearchThisArea";
 import { ShopList } from "@/src/components/shops/ShopList";
 import { useMediaQuery } from "@/src/components/hooks/useMediaQuery";
 import { Icon } from "@/src/components/ui/Icon";
+import { HowItWorksGuide } from "@/src/features/explore/HowItWorksGuide";
 import { countryLabel, type CountryCode, type Viewport } from "@/src/domain/geo";
 import type { ShopMapSummary } from "@/src/domain/shops";
 import { applyUserShopState, filterResults } from "@/src/domain/user-state";
@@ -89,6 +90,7 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
   );
   const [cameraTarget, setCameraTarget] = useState<CameraTarget | null>(null);
   const [introDismissed, setIntroDismissed] = useState(true);
+  const [guideOpen, setGuideOpen] = useState(false);
   /**
    * Transient list-to-map synchronisation. It is not selection: it never
    * survives the pointer leaving, never moves the camera, and never changes what
@@ -492,7 +494,7 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
         aria-current={mode === "area" ? "true" : undefined}
       >
         <Icon name="map" size={16} />
-        This area
+        <span className={styles.areaLabel}>This area</span>
       </Link>
       <Link
         className={styles.modeButton}
@@ -709,7 +711,12 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
               noopTelemetry.record("destination_searched", { queryLength })
             }
           />
-          {modeSwitch}
+          <div className={styles.topControls}>
+            {modeSwitch}
+            <button type="button" className={styles.guideTrigger}
+              aria-label="How Nib Atlas works" aria-haspopup="dialog"
+              onClick={() => setGuideOpen(true)}>?</button>
+          </div>
           <span className={styles.mobileBetaBadge} aria-label="Beta version">BETA</span>
           {/*
             The reviewer strip. Map is the one screen with no header at mobile
@@ -795,6 +802,8 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
           </ResultsSheet>
         )}
       </div>
+
+      {guideOpen ? <HowItWorksGuide onClose={() => setGuideOpen(false)} /> : null}
 
       {isDesktop ? (
         <aside className={styles.desktopPanel} aria-label="Results list">
