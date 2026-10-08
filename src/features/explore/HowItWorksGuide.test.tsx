@@ -28,8 +28,11 @@ describe("HowItWorksGuide", () => {
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(container.querySelectorAll("[data-shop-seal-shape]")).toHaveLength(3);
     expect(container.querySelectorAll('[data-seal-template="cartouche-v2"]')).toHaveLength(2);
+    expect([...container.querySelectorAll("[data-guide-seal-order]")].map((seal) => seal.getAttribute("data-guide-seal-order"))).toEqual(["1", "2", "3", "4", "5"]);
+    expect([...container.querySelectorAll("[data-guide-seal-order]")].map((seal) => (seal as HTMLElement).style.getPropertyValue("--press-delay"))).toEqual(["0ms", "578ms", "1156ms", "1734ms", "2312ms"]);
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(screen.getByRole("heading", { name: "Your passport" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /Nib Atlas Passport cover beside an open Singapore page/ })).toHaveAttribute("src", "/images/guide-passport.jpeg");
     fireEvent.click(screen.getByRole("button", { name: "Done" }));
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -47,6 +50,8 @@ describe("HowItWorksGuide", () => {
     fireEvent.click(screen.getByRole("button", { name: /go to slide 3/i }));
     expect(container.querySelector("[data-phase]")).toHaveAttribute("data-reduced", "true");
     expect(container.querySelector("[data-phase]")).toHaveAttribute("data-phase", "settled");
+    fireEvent.click(screen.getByRole("button", { name: /go to slide 4/i }));
+    expect(container.querySelectorAll('[data-guide-seal-order][data-reduced="true"]')).toHaveLength(5);
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).toHaveBeenCalledOnce();
   });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 
 import { NibAtlasMark } from "@/src/components/brand/NibAtlasMark";
 import { useDialogFocus } from "@/src/components/hooks/useDialogFocus";
@@ -41,6 +41,15 @@ const shopShields = [
   specimen("shop", "vermilion", "rectangle"),
 ] as const;
 
+const SEAL_PRESS_MS = Math.round(780 / 1.35);
+const sealSequence = [
+  { stamp: shopShields[0], title: "Sample shop", className: styles.shopOne },
+  { stamp: shopShields[1], title: "Sample shop", className: styles.shopTwo },
+  { stamp: shopShields[2], title: "Sample shop", className: styles.shopThree },
+  { stamp: locality, title: "Singapore", className: styles.locality },
+  { stamp: country, title: "Singapore", className: styles.country },
+] as const;
+
 export function HowItWorksGuide({ onClose }: { readonly onClose: () => void }) {
   const [index, setIndex] = useState(0);
   const dialogRef = useDialogFocus<HTMLDivElement>(true, onClose);
@@ -64,7 +73,7 @@ export function HowItWorksGuide({ onClose }: { readonly onClose: () => void }) {
           const dx = touch.clientX - start.x, dy = touch.clientY - start.y;
           if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.5) go(index + (dx < 0 ? 1 : -1));
         }}>
-        <div className={styles.art} aria-hidden="true">
+        <div className={index === 4 ? `${styles.art} ${styles.passportArt}` : styles.art} aria-hidden={index === 4 ? undefined : true}>
           {index === 0 ? <NibAtlasMark size={112} title="Nib Atlas" /> : null}
           {index === 1 ? <div className={styles.discovery}><Icon name="map" size={76} /><span>Find your next shop</span></div> : null}
           {index === 2 ? (
@@ -78,18 +87,27 @@ export function HowItWorksGuide({ onClose }: { readonly onClose: () => void }) {
           ) : null}
           {index === 3 ? (
             <div className={styles.seals}>
-              <div className={styles.locality}><StampArt stamp={locality} title="Singapore" /></div>
-              <div className={styles.shopOne}><StampArt stamp={shopShields[0]} title="Sample shop" /></div>
-              <div className={styles.shopTwo}><StampArt stamp={shopShields[1]} title="Sample shop" /></div>
-              <div className={styles.shopThree}><StampArt stamp={shopShields[2]} title="Sample shop" /></div>
-              <div className={styles.country}><StampArt stamp={country} title="Singapore" /></div>
+              {sealSequence.map(({ stamp, title, className }, order) => (
+                <div key={stamp.id} className={`${ceremonyStyles.press} ${className}`}
+                  data-phase={reducedMotion ? "settled" : "pressing"}
+                  data-reduced={reducedMotion ? "true" : "false"}
+                  data-guide-seal-order={order + 1}
+                  style={{ "--press-duration": `${SEAL_PRESS_MS}ms`, "--press-delay": `${order * SEAL_PRESS_MS}ms` } as CSSProperties}>
+                  <span className={ceremonyStyles.contactShadow} />
+                  <ImpressionPlate className={ceremonyStyles.plate} size="page">
+                    <StampArt stamp={stamp} title={title} />
+                  </ImpressionPlate>
+                  <span className={ceremonyStyles.pressFlash} />
+                </div>
+              ))}
             </div>
           ) : null}
-          {index === 4 ? <div className={styles.passport}><span>My Passport</span><StampArt stamp={country} title="Singapore" /><StampArt stamp={shopShields[1]} title="Sample shop" /></div> : null}
+          {index === 4 ? <img className={styles.passportImage} src="/images/guide-passport.jpeg"
+            alt="Nib Atlas Passport cover beside an open Singapore page with locality and shop stamps" /> : null}
         </div>
         <h2 id="how-it-works-title" className={styles.title}>{slide.title}</h2>
         <p className={styles.copy}>{slide.copy}</p>
-        {index >= 2 ? <p className={styles.specimen}>Illustrative stamp examples · No visit recorded</p> : null}
+        {(index === 2 || index === 3) ? <p className={styles.specimen}>Illustrative stamp examples · No visit recorded</p> : null}
       </div>
       <div className={styles.footer}>
         <div className={styles.progress} aria-label={"Slide " + (index + 1) + " of " + slides.length}>
