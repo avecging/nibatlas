@@ -490,6 +490,7 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
     <div className={styles.modeSwitch} role="group" aria-label="Result scope">
       <Link
         className={styles.modeButton}
+        aria-label="This area"
         href="/"
         aria-current={mode === "area" ? "true" : undefined}
       >
@@ -738,9 +739,8 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
           {introDismissed ? null : (
             <div className={styles.intro}>
               <span className={styles.introText}>
-                <strong>Find fountain pen shops. Visit them. Collect stamps.</strong>
-                Explore the map without an account. Shops refresh automatically
-                when you move the map.
+                <strong>Find pen shops. Collect stamps.</strong>
+                Explore the map. Shops refresh as you move.
               </span>
               <button
                 type="button"

@@ -15,8 +15,8 @@
 .seals .shopThree { top: 9%; right: 0; transform: rotate(-4deg); }
 .seals .locality { width: 43%; top: 25%; right: 1%; z-index: 2; transform: rotate(5deg); }
 .seals .country { width: 76%; bottom: 3%; left: 4%; z-index: 3; transform: rotate(-3deg); }
-.passportArt { background: #101010; }
-.passportImage { display: block; width: 100%; height: 100%; object-fit: contain; }
+.passportArt { background: var(--passport-desk); }
+.passportCover { position: relative; width: min(9.5rem, 50%); aspect-ratio: 340 / 476; transform: rotate(-7deg); }
 .footer { display: grid; gap: var(--space-3); margin-top: var(--space-3); }
 .progress { display: flex; justify-content: center; gap: var(--space-2); }
 .dot { width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: radial-gradient(circle, var(--border-strong) 0 4px, transparent 5px); cursor: pointer; }

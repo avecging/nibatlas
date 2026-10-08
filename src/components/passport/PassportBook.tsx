@@ -10,7 +10,7 @@ import {
   useState,
 } from "react";
 
-import { NibAtlasMark } from "@/src/components/brand/NibAtlasMark";
+import { PassportCoverFace } from "@/src/components/passport/PassportCoverFace";
 import { useMediaQuery } from "@/src/components/hooks/useMediaQuery";
 import { PassportPageView } from "@/src/components/passport/PassportPageView";
 import { Icon } from "@/src/components/ui/Icon";
@@ -723,15 +723,7 @@ export function PassportBook({
             serif the rest of the Passport uses.
           */}
           <div className={styles.cover} aria-hidden="true">
-            <div className={styles.coverFace} data-face="front">
-              <span className={styles.coverStock} />
-              <span className={styles.coverIssuer}>Nib Atlas</span>
-              <span className={styles.coverInner}>
-                <NibAtlasMark size={92} tone="single" className={styles.coverMark} />
-                <span className={styles.coverTitle}>Passport</span>
-              </span>
-              <span className={styles.coverFoot}>Volume I</span>
-            </div>
+            <PassportCoverFace />
             <div className={styles.coverFace} data-face="inside" />
             <span className={styles.coverEdge} aria-hidden="true" />
           </div>
