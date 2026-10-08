@@ -495,7 +495,7 @@ export function ExploreScreen({ mode = "area" }: { readonly mode?: ExploreMode }
         aria-current={mode === "area" ? "true" : undefined}
       >
         <Icon name="map" size={16} />
-        <span className={styles.areaLabel}>This area</span>
+        <span className={styles.areaLabel}>This area</span><span className={styles.areaShortLabel}>Area</span>
       </Link>
       <Link
         className={styles.modeButton}

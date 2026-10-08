@@ -114,6 +114,8 @@
   white-space: nowrap;
 }
 
+.areaShortLabel { display: none; }
+
 .modeButton + .modeButton {
   border-left: 1px solid var(--border-default);
 }
@@ -409,6 +411,7 @@
 
 @media (max-width: 380px) {
   .areaLabel { display: none; }
+  .areaShortLabel { display: inline; }
 }
 
 @media (min-width: 1024px) {

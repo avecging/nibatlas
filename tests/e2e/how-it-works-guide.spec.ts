@@ -14,6 +14,8 @@ test("guide stays reachable above a full results sheet and keeps map state", asy
   expect(Math.abs(helpBox!.y + helpBox!.height / 2 - betaBox!.y - betaBox!.height / 2)).toBeLessThan(12);
   expect(helpBox!.x + helpBox!.width + 8).toBeLessThanOrEqual(betaBox!.x);
   expect(introBox!.height).toBeLessThan(110);
+  const areaBox = await page.getByRole("link", { name: "This area" }).boundingBox();
+  expect(areaBox!.width).toBeGreaterThanOrEqual(44);
   await dismiss.click();
   const explore = page.getByTestId("explore");
   const help = page.getByRole("button", { name: "How Nib Atlas works" });
