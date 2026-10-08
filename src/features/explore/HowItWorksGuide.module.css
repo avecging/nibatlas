@@ -19,8 +19,8 @@
 .passportCover { position: relative; width: 146px; height: 205px; transform: rotate(-7deg); }
 .passportCover > div { width: 340px; height: 476px; transform: scale(.43); transform-origin: top left; }
 @media (max-height: 700px) {
-  .passportCover { width: 129px; height: 181px; }
-  .passportCover > div { transform: scale(.38); }
+  .passportCover { width: 126px; height: 176px; }
+  .passportCover > div { transform: scale(.37); }
 }
 .footer { display: grid; gap: var(--space-3); margin-top: var(--space-3); }
 .progress { display: flex; justify-content: center; gap: var(--space-2); }
