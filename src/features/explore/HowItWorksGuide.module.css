@@ -6,14 +6,17 @@
 .discovery { display: grid; place-items: center; gap: var(--space-3); color: var(--atlas-900); font-family: var(--font-serif); font-weight: 600; }
 .art [data-phase] { width: min(14rem, 60%); margin: 0; }
 .seals { position: relative; width: min(100%, 22rem); height: 100%; }
-.seals > div { position: absolute; width: 58%; filter: drop-shadow(0 2px 2px var(--impression-grain)); }
-.locality { top: 6%; right: 0; transform: rotate(9deg); }
-.shopOne { bottom: 4%; left: 1%; transform: rotate(-11deg); }
-.shopTwo { bottom: 12%; right: 0; transform: rotate(12deg); }
-.shopThree { top: 5%; left: 0; transform: rotate(-6deg); }
-.seals > .country { z-index: 2; width: 76%; top: 29%; left: 12%; transform: rotate(-3deg); }
-.passport { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: var(--space-2); width: min(80%, 16rem); min-height: 85%; padding: var(--space-4); border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--bg-surface-warm); box-shadow: var(--shadow-card); transform: rotate(-3deg); }
-.passport > span { grid-column: 1 / -1; color: var(--atlas-900); font: 600 1.25rem var(--font-serif); }
+.seals [data-phase="pressing"] { animation: guideReveal 1ms linear both; animation-delay: var(--press-delay, 0ms); }
+@keyframes guideReveal { from { opacity: 0; } to { opacity: 1; } }
+.art .seals > [data-phase] { position: absolute; margin: 0; }
+.seals .shopOne, .seals .shopTwo, .seals .shopThree { width: 35%; z-index: 1; }
+.seals .shopOne { top: 8%; left: 0; transform: rotate(-7deg); }
+.seals .shopTwo { top: 3%; left: 33%; transform: rotate(5deg); }
+.seals .shopThree { top: 9%; right: 0; transform: rotate(-4deg); }
+.seals .locality { width: 43%; top: 25%; right: 1%; z-index: 2; transform: rotate(5deg); }
+.seals .country { width: 76%; bottom: 3%; left: 4%; z-index: 3; transform: rotate(-3deg); }
+.passportArt { background: #101010; }
+.passportImage { display: block; width: 100%; height: 100%; object-fit: contain; }
 .footer { display: grid; gap: var(--space-3); margin-top: var(--space-3); }
 .progress { display: flex; justify-content: center; gap: var(--space-2); }
 .dot { width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: radial-gradient(circle, var(--border-strong) 0 4px, transparent 5px); cursor: pointer; }
@@ -22,4 +25,4 @@
 .actions button { min-width: 5rem; min-height: var(--tap-target); padding: 0 var(--space-3); border: 1px solid var(--border-default); border-radius: var(--radius-round); background: var(--bg-surface); color: var(--atlas-900); font-weight: 600; cursor: pointer; }
 .actions button:disabled { opacity: .45; cursor: default; }
 .actions .next { border-color: var(--action-primary); background: var(--action-primary); color: var(--text-on-dark); }
-@media (prefers-reduced-motion: reduce) { .art [data-phase="pressing"] [data-impression], .art [data-phase="pressing"] > span { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .seals [data-phase="pressing"], .art [data-phase="pressing"] [data-impression], .art [data-phase="pressing"] > span { animation: none; } }
