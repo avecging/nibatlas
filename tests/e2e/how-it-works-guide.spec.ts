@@ -29,6 +29,13 @@ test("guide stays reachable above a full results sheet and keeps map state", asy
   await expect(page.getByRole("dialog", { name: "Welcome to Nib Atlas" })).toBeVisible();
   await page.getByRole("button", { name: "Next" }).click();
   await expect(page.getByRole("heading", { name: "Discover shops" })).toBeVisible();
+  await page.getByRole("button", { name: "Go to slide 5: Your passport" }).click();
+  const cover = page.locator("[data-passport-cover]");
+  const coverTitle = cover.getByText("Passport", { exact: true });
+  const [coverBox, titleBox] = await Promise.all([cover.boundingBox(), coverTitle.boundingBox()]);
+  expect(coverBox && titleBox).toBeTruthy();
+  expect(titleBox!.x).toBeGreaterThanOrEqual(coverBox!.x);
+  expect(titleBox!.x + titleBox!.width).toBeLessThanOrEqual(coverBox!.x + coverBox!.width);
   await page.getByRole("button", { name: "Close guide" }).click();
   await expect(page.getByTestId("results-sheet")).toHaveAttribute("data-state", "full");
   expect(await explore.getAttribute("data-committed-label")).toBe(before);

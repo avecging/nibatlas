@@ -16,7 +16,12 @@
 .seals .locality { width: 43%; top: 25%; right: 1%; z-index: 2; transform: rotate(5deg); }
 .seals .country { width: 76%; bottom: 3%; left: 4%; z-index: 3; transform: rotate(-3deg); }
 .passportArt { background: var(--passport-desk); }
-.passportCover { position: relative; width: min(9.5rem, 50%); aspect-ratio: 340 / 476; transform: rotate(-7deg); }
+.passportCover { position: relative; width: 146px; height: 205px; transform: rotate(-7deg); }
+.passportCover > div { width: 340px; height: 476px; transform: scale(.43); transform-origin: top left; }
+@media (max-height: 700px) {
+  .passportCover { width: 129px; height: 181px; }
+  .passportCover > div { transform: scale(.38); }
+}
 .footer { display: grid; gap: var(--space-3); margin-top: var(--space-3); }
 .progress { display: flex; justify-content: center; gap: var(--space-2); }
 .dot { width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: radial-gradient(circle, var(--border-strong) 0 4px, transparent 5px); cursor: pointer; }
