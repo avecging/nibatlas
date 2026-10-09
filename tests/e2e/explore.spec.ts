@@ -82,7 +82,7 @@ test("first visit explains the product and never asks for an account", async ({ 
   await page.goto("/");
 
   await expect(
-    page.getByText("Find fountain pen shops. Visit them. Collect stamps."),
+    page.getByText("Find pen shops. Collect stamps."),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: /sign in|log in/i })).toHaveCount(0);
 });

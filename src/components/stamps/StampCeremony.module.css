@@ -62,15 +62,18 @@
 
 /* 0-45% descend and darken · 45% contact · 45-62% hold · 62-100% ink settles */
 .press[data-phase="pressing"] .plate [data-impression] {
-  animation: stampPress var(--motion-ceremony) linear both;
+  animation: stampPress var(--press-duration, var(--motion-ceremony)) linear both;
+  animation-delay: var(--press-delay, 0ms);
 }
 
 .press[data-phase="pressing"] .contactShadow {
-  animation: stampContact var(--motion-ceremony) linear both;
+  animation: stampContact var(--press-duration, var(--motion-ceremony)) linear both;
+  animation-delay: var(--press-delay, 0ms);
 }
 
 .press[data-phase="pressing"] .pressFlash {
-  animation: stampFlash var(--motion-ceremony) linear both;
+  animation: stampFlash var(--press-duration, var(--motion-ceremony)) linear both;
+  animation-delay: var(--press-delay, 0ms);
 }
 
 /*

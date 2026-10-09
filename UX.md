@@ -59,6 +59,8 @@ This three-destination structure deliberately keeps Map central and Passport dir
 
 Acceptance intent: a first-time user can reach a credible shop page without creating an account or granting location access.
 
+The map also has a permanent **?** control beside Saved on mobile and at the upper-right on desktop. It opens a dismissible five-slide guide covering discovery, physical check-in, shop/locality/country seals and Passport. It opens only on request, preserves the map and filters beneath it, and uses illustrative impressions without issuing any collection. The brief introductory card remains independently dismissible.
+
 ### Near Me
 
 1. User activates **Near Me**.
