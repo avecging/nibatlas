@@ -6,7 +6,7 @@ test("guide stays reachable above a full results sheet and keeps map state", asy
   const dismiss = page.getByRole("button", { name: "Dismiss introduction" });
   await expect(dismiss).toBeVisible();
   const helpControl = page.getByRole("button", { name: "How Nib Atlas works" });
-  const beta = page.getByLabel("Beta version");
+  const beta = page.getByTestId("explore").getByLabel("Beta version");
   const [helpBox, betaBox, introBox] = await Promise.all([
     helpControl.boundingBox(), beta.boundingBox(), dismiss.locator("..").boundingBox(),
   ]);
