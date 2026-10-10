@@ -1,0 +1,112 @@
+.page {
+  width: 100%;
+  min-height: min(810px, calc(100dvh - 9rem));
+  display: grid;
+  place-items: center;
+  padding: clamp(1rem, 3vw, 2.5rem);
+  color: var(--text-primary);
+}
+.sheet {
+  position: relative;
+  isolation: isolate;
+  width: min(100%, 900px);
+  overflow: hidden;
+  padding: clamp(1.25rem, 4vw, 2.8rem);
+  border: 1px solid var(--border-default);
+  background: var(--passport-page);
+  box-shadow: 0 15px 50px rgba(16,45,70,.08), 0 2px 8px rgba(16,45,70,.05);
+}
+.sheet::before {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border: 1px solid var(--impression-edge);
+  pointer-events: none;
+}
+.cornerTop, .cornerNumber {
+  position: relative;
+  z-index: 1;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .16em;
+  color: var(--text-secondary);
+}
+.cornerNumber { position: absolute; top: clamp(1.25rem, 4vw, 2.8rem); right: clamp(1.25rem, 4vw, 2.8rem); }
+.art { position: relative; width: min(100%, 610px); margin: .8rem auto 0; }
+.map { display: block; width: 100%; height: auto; color: var(--atlas-900); }
+.stamp {
+  position: absolute;
+  left: 53%;
+  top: 48%;
+  width: clamp(145px, 34%, 208px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border: 7px double var(--ink-plum);
+  border-radius: 50%;
+  color: var(--ink-plum);
+  background: color-mix(in srgb, var(--passport-page) 14%, transparent);
+  opacity: .88;
+  transform: translate(-50%, -50%) rotate(-15deg);
+  animation: impression var(--motion-ceremony) var(--ease-entrance) both;
+}
+.stampInner {
+  width: 91%;
+  height: 91%;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: .4rem;
+  text-align: center;
+  line-height: 1;
+}
+.stampArc,.stampFooter { font-size: clamp(.48rem, 1.3vw, .66rem); letter-spacing: .09em; font-weight: 800; }
+.stamp strong { font-family: var(--font-serif); font-size: clamp(3.3rem, 8.5vw, 5rem); font-weight: 750; letter-spacing: -.07em; }
+.stamp[data-kind="denied"] strong { font-family: var(--font-sans); font-size: clamp(.86rem, 2.1vw, 1.25rem); letter-spacing: .045em; line-height: 1.15; max-width: 90%; }
+.content { max-width: 540px; margin: -.3rem auto 0; text-align: center; position: relative; z-index: 1; }
+.eyebrow { color: var(--action-secondary-text); font-size: .69rem; font-weight: 750; letter-spacing: .22em; }
+.content h1 { margin-top: .6rem; font-family: var(--font-serif); font-size: clamp(2.55rem, 7vw, 4.15rem); font-weight: 600; line-height: 1.1; color: var(--atlas-900); }
+.description { max-width: 415px; margin: 1rem auto 1.5rem; font-size: .97rem; line-height: 1.7; color: var(--text-secondary); }
+.back {
+  min-height: var(--tap-target);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .8rem;
+  padding: .65rem 1.5rem;
+  border: 1px solid var(--atlas-900);
+  border-radius: var(--radius-sm);
+  background: var(--atlas-900);
+  color: var(--text-on-dark);
+  cursor: pointer;
+  font-weight: 600;
+  transition: background var(--motion-micro), transform var(--motion-micro);
+}
+.back:hover { background: var(--atlas-800); transform: translateY(-1px); }
+.footnote { position: relative; margin-top: 2.5rem; text-align: center; font-family: var(--font-serif); font-size: .78rem; font-style: italic; color: var(--text-muted); }
+@keyframes impression {
+  0% { opacity: 0; transform: translate(-50%, -70%) rotate(-21deg) scale(1.35); filter: blur(3px); }
+  58% { opacity: .94; transform: translate(-50%, -50%) rotate(-15deg) scale(.92); filter: blur(0); }
+  74% { transform: translate(-50%, -50%) rotate(-15deg) scale(1.035); }
+  100% { opacity: .88; transform: translate(-50%, -50%) rotate(-15deg) scale(1); }
+}
+@media (max-width: 600px) {
+  .page { padding: .5rem; min-height: calc(100dvh - 8rem); }
+  .sheet { padding: 1.15rem; }
+  .sheet::before { inset: 7px; }
+  .cornerTop,.cornerNumber { font-size: .53rem; }
+  .cornerNumber { top: 1.15rem; right: 1.15rem; }
+  .art { margin: 1.2rem auto 0; }
+  .stamp { border-width: 5px; }
+  .stampInner { gap: .25rem; }
+  .content { margin-top: .4rem; }
+  .description { margin: .8rem auto 1.2rem; font-size: .9rem; }
+  .footnote { margin-top: 1.7rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stamp { animation: none; }
+  .back { transition: none; }
+}
