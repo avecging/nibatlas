@@ -2,7 +2,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { createClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/src/server/supabase/server-client";
 import { readSupabasePublicConfig } from "@/src/server/supabase/config";
-import { authorizeAdmin } from "@/src/server/admin/http";
+import { AdminForbiddenError, authorizeAdmin } from "@/src/server/admin/http";
 import { createAdminGateway } from "@/src/server/admin/route-context";
 import type { MediaBucket } from "@/src/server/media/r2";
 import type { PhotoImages } from "@/src/server/media/jpeg";
@@ -81,11 +81,12 @@ export async function aboutImageRoute(
       },
       privateRead,
     );
-  } catch {
+  } catch (error) {
+    const denied = error instanceof AdminForbiddenError;
     return Response.json(
-      { error: { code: "service_unavailable" } },
+      { error: { code: denied ? "forbidden" : "service_unavailable" } },
       {
-        status: 503,
+        status: denied ? 403 : 503,
         headers: {
           "Cache-Control": "private, no-store",
           "X-Robots-Tag": "noindex",
