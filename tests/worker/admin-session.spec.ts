@@ -163,7 +163,11 @@ test("ordinary and signed-out sessions cannot use direct admin reads or mutation
     try {
       if (role) await login(context, role);
       const denied = role ? 403 : 401;
-      for (const path of ["/admin", "/admin/shops", "/admin/about", "/admin/seals", "/admin/shops/import"]) {
+      for (const path of [
+        "/admin", "/admin/shops", `/admin/shops/${id}`, `/admin/shops/${id}/preview`,
+        "/admin/about", "/admin/seals", "/admin/seals/new", `/admin/seals/${id}`,
+        "/admin/shops/import",
+      ]) {
         const route = await context.request.get(path, { maxRedirects: 0 });
         expect(route.status(), `${role ?? "anonymous"} ${path}`).toBe(307);
         expect(new URL(route.headers().location!, origin).href).toBe(`${origin}/me`);
