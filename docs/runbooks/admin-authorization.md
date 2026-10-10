@@ -175,6 +175,11 @@ role revocation, and direct authenticated RPC creation. SQL tests now force
 constraints while still authenticated. No service-role application client or
 mocked browser routes are involved.
 
+The separate browser UI smoke suite stubs session and admin API responses. Its
+isolated fixture build omits the page middleware so those frontend journeys can
+run without Supabase. Treat the Worker job, not that UI fixture, as evidence for
+page and API authorization.
+
 ## Founder acceptance update — 14 September 2026
 
 The draft-create fix is founder-confirmed. The current acceptance record and
