@@ -61,7 +61,7 @@ for (const role of ["admin", "editor"] as const) {
       for (const path of ["/admin/about", "/admin/shops/import"]) {
         const denied = await context.request.get(path, { maxRedirects: 0 });
         expect(denied.status()).toBe(307);
-        expect(denied.headers().location).toBe(`${origin}/me`);
+        expect(new URL(denied.headers().location!, origin).href).toBe(`${origin}/me`);
       }
     } else {
       expect((await context.request.get("/admin/about")).status()).toBe(200);
@@ -166,7 +166,7 @@ test("ordinary and signed-out sessions cannot use direct admin reads or mutation
       for (const path of ["/admin", "/admin/shops", "/admin/about", "/admin/seals", "/admin/shops/import"]) {
         const route = await context.request.get(path, { maxRedirects: 0 });
         expect(route.status(), `${role ?? "anonymous"} ${path}`).toBe(307);
-        expect(route.headers().location).toBe(`${origin}/me`);
+        expect(new URL(route.headers().location!, origin).href).toBe(`${origin}/me`);
       }
       for (const path of reads) {
         const response = await context.request.get(path);
