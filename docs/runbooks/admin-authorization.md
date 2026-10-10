@@ -23,6 +23,10 @@ private user data boundaries, or functions that have not been built yet.
 
 - Verified cookie-session claims establish identity, never authorization from
   user-editable metadata, email strings, request headers or a cached JWT role.
+- The `/admin` request middleware checks the live role before rendering any admin
+  page. It carries refreshed Supabase cookies into the page request and browser;
+  signed-out and ordinary accounts go to `/me`. Editors retain catalogue/seal
+  pages; About and bulk import pages require `admin`.
 - Every admin request invokes `admin_access()` with the ordinary user client.
   It reads the current database role. No service-role key is used here.
 - Shop identity verification, role resolution and catalogue RPCs share that

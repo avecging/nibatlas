@@ -57,6 +57,16 @@ for (const role of ["admin", "editor"] as const) {
     const { actor, client } = await login(context, role);
     await page.goto("/admin/shops");
     await expect(page.getByRole("button", { name: "Search", exact: true })).toBeEnabled();
+    if (role === "editor") {
+      for (const path of ["/admin/about", "/admin/shops/import"]) {
+        const denied = await context.request.get(path, { maxRedirects: 0 });
+        expect(denied.status()).toBe(307);
+        expect(denied.headers().location).toBe(`${origin}/me`);
+      }
+    } else {
+      expect((await context.request.get("/admin/about")).status()).toBe(200);
+      expect((await context.request.get("/admin/shops/import")).status()).toBe(200);
+    }
     await page.getByLabel(/^Shop name(?: \*)?$/).fill("Explicit Worker test draft");
     await page.getByLabel("URL name · optional", { exact: true }).fill(`worker-test-${randomUUID()}`);
     const previousRefreshToken = await expireCookie(context);
@@ -95,6 +105,17 @@ for (const role of ["admin", "editor"] as const) {
     expect(rpc.error?.code).toBe("42501");
   });
 }
+
+test("admin: expired cookie before page load is refreshed and remains usable", async ({ page, context }) => {
+  await login(context, "admin");
+  const previousToken = await expireCookie(context);
+  await page.goto("/admin/shops");
+  await expect(page.getByRole("button", { name: "Search", exact: true })).toBeEnabled();
+  const refreshed = (await browserSession(context)).session;
+  expect(refreshed.expires_at > Date.now() / 1000).toBe(true);
+  expect(refreshed.refresh_token !== previousToken).toBe(true);
+  expect((await context.request.get("/api/v1/admin/access")).status()).toBe(200);
+});
 for (const role of [null, "user"] as const) {
   test(`${role ?? "anonymous"}: denied at the compiled route`, async ({ context }) => {
     if (role) await login(context, role);
@@ -103,6 +124,62 @@ for (const role of [null, "user"] as const) {
     expect(response.status()).toBe(role ? 403 : 401);
   });
 }
+
+test("ordinary and signed-out sessions cannot use direct admin reads or mutations", async ({ browser }) => {
+  const id = randomUUID();
+  const reads = [
+    "/api/v1/admin/access", "/api/v1/admin/audit", "/api/v1/admin/shops",
+    "/api/v1/admin/shops/options", `/api/v1/admin/shops/${id}`,
+    `/api/v1/admin/shops/${id}/review`, `/api/v1/admin/shops/${id}/publication`,
+    `/api/v1/admin/shops/${id}/media`, `/api/v1/admin/shops/${id}/stamp`,
+    `/api/v1/admin/shops/${id}/verification-policy`, "/api/v1/admin/about",
+    `/api/v1/admin/about/images/${id}`, "/api/v1/admin/seals",
+    `/api/v1/admin/media/uploads/${id}`,
+  ];
+  const writes = [
+    ["/api/v1/admin/shops", { action: "create", id, document: { name: "Denied" } }],
+    [`/api/v1/admin/shops/${id}`, { action: "save", revision: id, document: {} }],
+    [`/api/v1/admin/shops/${id}/review`, { action: "save" }],
+    [`/api/v1/admin/shops/${id}/publication`, { action: "publish" }],
+    [`/api/v1/admin/shops/${id}/media`, { action: "publish", id, revision: "a".repeat(32) }],
+    [`/api/v1/admin/shops/${id}/stamp`, { action: "activate", versionId: id, revision: "a".repeat(32) }],
+    [`/api/v1/admin/shops/${id}/verification-policy`, { radiusMeters: 100 }],
+    ["/api/v1/admin/media/uploads", { shopId: id, purpose: "shop_photo" }],
+    ["/api/v1/admin/about", { action: "publish", revision: null }],
+    ["/api/v1/admin/seals", { action: "publish", id, revision: id }],
+    ["/api/v1/admin/import", { version: "invalid", rows: [] }],
+    ["/api/v1/admin/import/batches", { action: "save", id }],
+    ["/api/v1/admin/import/publication", { action: "publish", id }],
+  ] as const;
+  for (const role of [null, "user"] as const) {
+    const context = await browser.newContext({ baseURL: origin, ignoreHTTPSErrors: true });
+    try {
+      if (role) await login(context, role);
+      const denied = role ? 403 : 401;
+      for (const path of ["/admin", "/admin/shops", "/admin/about", "/admin/seals", "/admin/shops/import"]) {
+        const route = await context.request.get(path, { maxRedirects: 0 });
+        expect(route.status(), `${role ?? "anonymous"} ${path}`).toBe(307);
+        expect(route.headers().location).toBe(`${origin}/me`);
+      }
+      for (const path of reads) {
+        const response = await context.request.get(path);
+        expect(response.status(), `${role ?? "anonymous"} GET ${path}`).toBe(denied);
+      }
+      for (const [path, data] of writes) {
+        const response = await context.request.post(path, { headers: { Origin: origin }, data });
+        expect(response.status(), `${role ?? "anonymous"} POST ${path}`).toBe(denied);
+      }
+      const upload = await context.request.put(`/api/v1/admin/media/uploads/${id}`, {
+        headers: { Origin: origin, "Content-Type": "image/png" }, data: Buffer.from("denied"),
+      });
+      expect(upload.status()).toBe(denied);
+      const artwork = await context.request.post(`/api/v1/admin/seals/${id}/artwork`, {
+        headers: { Origin: origin, "Content-Type": "image/png" }, data: Buffer.from("denied"),
+      });
+      expect(artwork.status()).toBe(denied);
+    } finally { await context.close(); }
+  }
+});
 
 test("admin: direct authenticated PostgREST create keeps the actor", async ({ context }) => {
   const { actor, client } = await login(context, "admin");
