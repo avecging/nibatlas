@@ -1,7 +1,7 @@
 import type { CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { authorizeAdmin } from "@/src/server/admin/http";
+import { AdminForbiddenError, authorizeAdmin } from "@/src/server/admin/http";
 import { createAdminGateway } from "@/src/server/admin/route-context";
 import { createSupabaseClientForCookies } from "@/src/server/supabase/server-client";
 
@@ -34,7 +34,10 @@ export async function middleware(request: NextRequest) {
       ? NextResponse.redirect(new URL("/me", request.url))
       : NextResponse.next({ request });
     return finish(response);
-  } catch {
+  } catch (error) {
+    if (error instanceof AdminForbiddenError) {
+      return finish(NextResponse.redirect(new URL("/me", request.url)));
+    }
     return finish(NextResponse.json({ error: "service_unavailable" }, { status: 503 }));
   }
 }

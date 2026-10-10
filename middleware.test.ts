@@ -19,7 +19,12 @@ beforeEach(() => {
     } },
     rpc: async (name: string) => {
       expect(name).toBe("admin_access");
-      return { data: { role: await mocks.role() }, error: null };
+      const role = await mocks.role();
+      return role === "user"
+        ? { data: null, error: { code: "42501", message: "Admin access denied" } }
+        : role === "grant_failure"
+          ? { data: null, error: { code: "42501", message: "permission denied for function admin_access" } }
+        : { data: { role }, error: null };
     },
   }));
 });
@@ -70,5 +75,13 @@ describe("admin page request gate", () => {
     expect(response.status).toBe(503);
     expect(response.cookies.get("session")?.value).toBe("refreshed");
     expect(await response.text()).not.toContain("provider unavailable");
+  });
+
+  it("reports a broken role lookup grant as unavailable", async () => {
+    mocks.identity.mockResolvedValue(userId);
+    mocks.role.mockResolvedValue("grant_failure");
+    const response = await middleware(request("/admin/shops"));
+    expect(response.status).toBe(503);
+    expect(response.cookies.get("session")?.value).toBe("refreshed");
   });
 });
