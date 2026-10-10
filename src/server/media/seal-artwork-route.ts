@@ -1,6 +1,8 @@
 import {getCloudflareContext} from '@opennextjs/cloudflare';
 import {createClient} from '@supabase/supabase-js';
 import {createSupabaseServerClient} from '@/src/server/supabase/server-client';
+import {AdminForbiddenError,authorizeAdmin} from '@/src/server/admin/http';
+import {createAdminGateway} from '@/src/server/admin/route-context';
 import {readSupabasePublicConfig} from '@/src/server/supabase/config';
 import {object,uuid} from '@/src/domain/geographic-seals';
 import {InvalidMedia,MAX_MEDIA_BYTES,readBounded} from './png';
@@ -49,6 +51,8 @@ export async function sealArtworkRoute(request:Request,id:string,upload=false){
  try{
   const session=await createSupabaseServerClient();const {data,error}=await session.auth.getClaims();const actor=!error&&typeof data?.claims.sub==='string'?data.claims.sub:null;
   if(!actor)return Response.json({error:'authentication_required'},{status:401,headers:HEADERS});
+  const access=await authorizeAdmin(await createAdminGateway(session),'editor');
+  if(access instanceof Response)return access;
   const config=readSupabasePublicConfig(),secret=process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();const {env}=await getCloudflareContext({async:true});const binding=env as unknown as {MEDIA_BUCKET?:MediaBucket;MEDIA_ENV?:string};
   if(!config||!secret||!binding.MEDIA_BUCKET||!binding.MEDIA_ENV)throw Error('Media unavailable');
   const db=createClient(config.url,secret,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
@@ -56,5 +60,5 @@ export async function sealArtworkRoute(request:Request,id:string,upload=false){
    async authorizeUpload(){const {data,error}=await session.rpc('admin_access');if(error||!['editor','admin'].includes(String(data?.role)))throw new SealFileError('42501');},
    async operation(action,assetId,seal,payload={}){const {data,error}=await db.rpc('geographic_seal_file',{p_actor:actor,p_environment:binding.MEDIA_ENV,p_action:action,p_id:assetId,p_seal:seal,p_payload:payload});if(error)throw new SealFileError(error.code);return data;},
   });
- }catch{return Response.json({error:'service_unavailable'},{status:503,headers:HEADERS});}
+ }catch(error){return Response.json({error:error instanceof AdminForbiddenError?'forbidden':'service_unavailable'},{status:error instanceof AdminForbiddenError?403:503,headers:HEADERS});}
 }
