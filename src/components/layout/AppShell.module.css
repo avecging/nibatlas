@@ -30,6 +30,17 @@
   background: var(--bg-canvas);
 }
 
+/* Error pages retain the shared site navigation around their illustrated canvas. */
+.shell:has([data-atlas-error-page]) { min-height: 100dvh; }
+.shell:has([data-atlas-error-page]) > .main {
+  display: block;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+}
+
 /*
  * A locked frame.
  *

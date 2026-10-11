@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { AdminAccessFrame } from "@/src/components/errors/AdminAccessFrame";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Shop administration",
@@ -8,5 +9,5 @@ export const metadata: Metadata = {
 // Block all admin DOM from session replay, including client-side transitions
 // before the analytics navigation effect can stop recording.
 export default function AdminLayout({ children }: { children: ReactNode }) {
-  return <div data-ph-no-capture="">{children}</div>;
+  return <div data-ph-no-capture=""><AdminAccessFrame>{children}</AdminAccessFrame></div>;
 }
