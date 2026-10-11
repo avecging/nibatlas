@@ -31,12 +31,12 @@ export async function middleware(request: NextRequest) {
       path === "/admin/shops/import" || path.startsWith("/admin/shops/import/");
     const access = await authorizeAdmin(await createAdminGateway(client), adminOnly ? "admin" : "editor");
     const response = access instanceof Response
-      ? NextResponse.redirect(new URL("/me", request.url))
+      ? NextResponse.redirect(new URL("/access-denied", request.url))
       : NextResponse.next({ request });
     return finish(response);
   } catch (error) {
     if (error instanceof AdminForbiddenError) {
-      return finish(NextResponse.redirect(new URL("/me", request.url)));
+      return finish(NextResponse.redirect(new URL("/access-denied", request.url)));
     }
     return finish(NextResponse.json({ error: "service_unavailable" }, { status: 503 }));
   }
