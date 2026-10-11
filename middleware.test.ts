@@ -35,7 +35,7 @@ describe("admin page request gate", () => {
     mocks.identity.mockResolvedValue(null);
     const response = await middleware(request("/admin/shops"));
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("https://nibatlas.test/me");
+    expect(response.headers.get("location")).toBe("https://nibatlas.test/access-denied");
     expect(mocks.role).not.toHaveBeenCalled();
   });
 
@@ -44,7 +44,7 @@ describe("admin page request gate", () => {
     mocks.role.mockResolvedValue("user");
     const response = await middleware(request("/admin/shops"));
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("https://nibatlas.test/me");
+    expect(response.headers.get("location")).toBe("https://nibatlas.test/access-denied");
     expect(response.cookies.get("session")?.value).toBe("refreshed");
   });
 
