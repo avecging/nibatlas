@@ -91,6 +91,9 @@ project, not blindly overwritten. Never restore this archive over the live ref.
    exporting from any ref except `main`; the branch-only job runs synthetic tests
    without credentials. `BACKUP_ENABLED` is absent/false by default. A main push
    does not trigger this workflow or deploy the app.
+   The Ubuntu 24.04 runner's built-in Python 3.12 is checked explicitly, and
+   dependencies are installed in a temporary virtual environment. No additional
+   action needs to be added to the repository's existing action allowlist.
 7. Manually run **Encrypted Drive backup** from `main`. It must validate sources,
    complete all exports, encrypt, upload into an exclusively private folder,
    download the ciphertext and match its SHA256 before marking it complete.
