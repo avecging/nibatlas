@@ -124,7 +124,11 @@ needed. Three days is the intended interval, not a guaranteed maximum data loss.
 Only ciphertext is uploaded. No private export is published as a CI artifact.
 Subprocess/provider errors suppress raw messages and response bodies.
 Provider failures identify a fixed operation label and HTTP status where present;
-command failures identify only a known tool name. URLs, query strings, SQL,
+command failures identify a known tool name and, when recognized, a fixed
+category such as `TLS_CERTIFICATE`, `AUTHENTICATION`, `DATABASE_PERMISSION`,
+`CONNECTION_OPTION`, `TOOL_VERSION`, `OUTPUT_FILE`, `CONTAINER_RUNTIME` or
+`CONNECTION`. These are diagnostic hints, not substitutes for provider checks.
+URLs, query strings, SQL,
 command arguments, stderr and provider response bodies stay out of the error.
 Temporary plaintext exists only in private ephemeral runner scratch and is removed after
 success/failure; do not add debug tracing or artifact upload steps.

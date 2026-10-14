@@ -81,6 +81,22 @@ def request(url, *, token=None, data=None, method="GET", headers=None, raw=False
         raise BackupError(f"{operation} failed: {host} (network or invalid response)") from None
 
 
+def command_error_category(stderr):
+    """Reduce private stderr to a fixed category; never return captured text."""
+    message = stderr.decode("utf-8", errors="replace").lower()
+    categories = (
+        ("OUTPUT_FILE", ("could not open output file", "could not write output file", "could not create file")),
+        ("CONTAINER_RUNTIME", ("docker daemon", "error response from daemon")),
+        ("TLS_CERTIFICATE", ("certificate verify failed", "certificate verification failed", "root certificate file")),
+        ("AUTHENTICATION", ("password authentication failed", "no password supplied")),
+        ("CONNECTION_OPTION", ("unsupported startup parameter", "unrecognized configuration parameter")),
+        ("TOOL_VERSION", ("server version mismatch",)),
+        ("DATABASE_PERMISSION", ("permission denied", "must be owner of")),
+        ("CONNECTION", ("could not connect", "connection refused", "timeout expired", "could not translate host name", "server closed the connection")),
+    )
+    return next((name for name, patterns in categories if any(p in message for p in patterns)), None)
+
+
 def checked(command, *, env=None, output=None, timeout=1800):
     # Report only a known tool name, never command arguments, SQL or stderr.
     tool_name = next((name for name in ("pg_dump", "pg_dumpall", "pg_restore", "age", "git")
@@ -91,7 +107,9 @@ def checked(command, *, env=None, output=None, timeout=1800):
     except (OSError, subprocess.TimeoutExpired):
         raise BackupError(f"{tool_name} could not complete") from None
     if result.returncode:
-        raise BackupError(f"{tool_name} failed; sensitive command details withheld")
+        category = command_error_category(result.stderr)
+        suffix = f" ({category})" if category else ""
+        raise BackupError(f"{tool_name} failed{suffix}; sensitive command details withheld")
     # Warnings can signal incomplete exports. Keep them private and fail closed.
     if result.stderr and command[-1:] != ["--version"]:
         raise BackupError(f"{tool_name} reported warnings; review privately before retrying")

@@ -106,6 +106,26 @@ class BackupTests(unittest.TestCase):
                 b.checked(['docker', 'run', 'pg_dump', '--file', 'secret-path'])
         self.assertEqual(str(result.exception), 'pg_dump failed; sensitive command details withheld')
 
+    def test_database_command_failure_categories_never_expose_private_details(self):
+        failures = {
+            'OUTPUT_FILE': 'could not open output file secret-path: permission denied',
+            'CONTAINER_RUNTIME': 'permission denied connecting to Docker daemon secret-path',
+            'TLS_CERTIFICATE': 'SSL error: certificate verify failed for secret-host',
+            'AUTHENTICATION': 'password authentication failed for user secret-user',
+            'CONNECTION_OPTION': 'unsupported startup parameter secret-option',
+            'TOOL_VERSION': 'server version mismatch secret-version',
+            'DATABASE_PERMISSION': 'permission denied for table secret-table',
+            'CONNECTION': 'could not translate host name secret-host',
+        }
+        for category, stderr in failures.items():
+            with self.subTest(category=category):
+                response = b.subprocess.CompletedProcess([], 1, b'secret-output', stderr.encode())
+                with patch.object(b.subprocess, 'run', return_value=response):
+                    with self.assertRaises(b.BackupError) as result:
+                        b.checked(['docker', 'run', 'pg_dump', '--file', 'secret-path'])
+                self.assertEqual(str(result.exception), f'pg_dump failed ({category}); sensitive command details withheld')
+                self.assertNotIn('secret-', str(result.exception))
+
     def test_authenticated_requests_cannot_redirect(self):
         self.assertIsNone(b.NoRedirect().redirect_request(None, None, 302, '', {}, 'https://attacker.test'))
         with self.assertRaises(b.BackupError):
