@@ -2,6 +2,10 @@ name: Encrypted Drive backup
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/backup-drive.yml
+      - scripts/backup/**
   # Lightweight hourly receipt check; exports only when 72 hours have elapsed.
   # Unlike */3 in day-of-month, this works across month/year boundaries.
   schedule:
@@ -81,4 +85,13 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
-      - run: python3 -m unittest discover -s scripts/backup -p 'test_*.py'
+      - name: Check runner runtime and backup safeguards without credentials
+        run: |
+          /usr/bin/python3 -c 'import sys; assert sys.version_info[:2] == (3, 12), "Backup requires Python 3.12"'
+          /usr/bin/python3 -m unittest discover -s scripts/backup -p 'test_*.py'
+      - name: Verify isolated dependency installation without credentials
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y python3-venv
+          /usr/bin/python3 -m venv "$RUNNER_TEMP/nibatlas-backup-venv"
+          "$RUNNER_TEMP/nibatlas-backup-venv/bin/python" -m pip install --disable-pip-version-check --only-binary=:all: --require-hashes -r scripts/backup/requirements.txt
