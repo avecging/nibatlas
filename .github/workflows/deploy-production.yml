@@ -1,0 +1,84 @@
+name: Release production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type RELEASE to approve this production release
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main' && inputs.confirmation == 'RELEASE' && vars.PRODUCTION_RELEASE_ENABLED == 'true'
+    environment: production
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      PRODUCTION_RELEASE_ENABLED: ${{ vars.PRODUCTION_RELEASE_ENABLED }}
+      RELEASE_CONFIRMATION: ${{ inputs.confirmation }}
+      NEXT_PUBLIC_CATALOGUE_MODE: api
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PRODUCTION_NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.PRODUCTION_NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      NEXT_PUBLIC_MAPTILER_KEY: ${{ secrets.PRODUCTION_NEXT_PUBLIC_MAPTILER_KEY }}
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.PRODUCTION_NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+      NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: ${{ secrets.PRODUCTION_NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN }}
+      NEXT_PUBLIC_POSTHOG_HOST: ${{ vars.PRODUCTION_NEXT_PUBLIC_POSTHOG_HOST }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.PRODUCTION_CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.PRODUCTION_CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24
+      - name: Require successful CI on current main
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/deploy/production-ci.mjs
+      - name: Verify fixed live database and legacy media paths
+        run: node scripts/deploy/check-target.mjs production
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: 11.19.0
+          run_install: false
+      - name: Validate production build and deployment configuration
+        run: |
+          test -n "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+          test -n "$NEXT_PUBLIC_MAPTILER_KEY"
+          test -n "$NEXT_PUBLIC_TURNSTILE_SITE_KEY"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$CLOUDFLARE_API_TOKEN"
+      - run: pnpm install --frozen-lockfile
+      - name: Build production without changing the running app
+        run: pnpm exec opennextjs-cloudflare build --env production
+      - name: Verify the Turnstile site key reached the client bundle
+        run: grep -rqF "$NEXT_PUBLIC_TURNSTILE_SITE_KEY" .open-next/assets/_next/static
+      - uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1
+        with:
+          version: 2.117.0
+      - name: Require matching migration history without production database writes
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.PRODUCTION_SUPABASE_DB_PASSWORD }}
+        run: node scripts/deploy/database.mjs production
+      - name: Recheck reviewed commit immediately before release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/deploy/production-ci.mjs
+      # Initial domain cutover is a separate, explicitly approved dashboard action.
+      # Wrangler declares no app.nibatlas.com route in this preparation PR.
+      - name: Deploy the approved production Worker
+        run: |
+          node scripts/deploy/check-target.mjs production
+          pnpm exec opennextjs-cloudflare deploy --env production

@@ -1,0 +1,68 @@
+/*
+ * The body of the enlarged impression, or the enlarged seal.
+ *
+ * The sheet itself — scrim, surface, header, dismissal, spacing rhythm — belongs
+ * to `ImpressionSheet`, and the paper belongs to `ImpressionPlate`. What is left
+ * here is the part that must differ between the two kinds: what each one
+ * records, and what it licenses.
+ */
+.plate {
+  width: 100%;
+  margin-bottom: var(--space-3);
+}
+
+.name {
+  font-family: var(--font-serif);
+  font-size: var(--type-h2-size);
+  line-height: var(--type-h2-line);
+  font-weight: 600;
+  color: var(--text-primary);
+  /* Long English, Japanese and Traditional Chinese names wrap rather than
+     truncate: the name is the one thing on the sheet that must stay whole. */
+  overflow-wrap: anywhere;
+}
+
+.localName {
+  color: var(--text-secondary);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+  overflow-wrap: anywhere;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: var(--space-3);
+  width: 100%;
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-default);
+}
+
+.facts dt {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.facts dd {
+  margin-top: 2px;
+  color: var(--text-primary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The action, in the same place on every sheet that has one.
+ *
+ * A seal has none and simply ends on its facts — which is why the spacing lives
+ * on the action rather than on the facts above it.
+ */
+.actions {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}

@@ -1,0 +1,56 @@
+begin;
+select no_plan();
+insert into auth.users(id) values('a1800000-0000-4000-8000-000000000001'),('a1800000-0000-4000-8000-000000000002');
+select public.assign_profile_role('a1800000-0000-4000-8000-000000000001','admin');
+select public.assign_profile_role('a1800000-0000-4000-8000-000000000002','editor');
+create temporary table about_test_asset (a jsonb);
+grant all on about_test_asset to service_role,authenticated;
+select ok(not has_function_privilege('authenticated','public.about_image_operation(uuid,text,text,uuid,jsonb)','EXECUTE'),'browser cannot attest image bytes');
+select ok(not has_table_privilege('service_role','public.about_images','UPDATE'),'no direct service table bypass');
+set local role service_role;
+select throws_ok($$select public.about_image_operation('a1800000-0000-4000-8000-000000000002','staging','reserve',null,'{"sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","byteSize":100,"width":2,"height":2}')$$,'42501','Admin access denied','editor cannot upload');
+insert into about_test_asset select public.about_image_operation('a1800000-0000-4000-8000-000000000001','staging','reserve',null,'{"sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","byteSize":100,"width":2,"height":2}');
+reset role;
+select set_config('request.jwt.claims','{"sub":"a1800000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+set local role authenticated;
+select ok(public.read_about_image((select (a->>'id')::uuid from about_test_asset),true) is null,'unfinished image cannot be previewed');
+reset role;
+set local role service_role;
+select lives_ok($$select public.about_image_operation('a1800000-0000-4000-8000-000000000001','staging','finalize',(select (a->>'id')::uuid from about_test_asset))$$,'trusted server finalizes');
+reset role;
+select is((select count(*)::integer from public.admin_audit_log where entity_type='about_images'),2,'reserve and finalize audited');
+create function pg_temp.image_doc(with_image boolean default true) returns jsonb language sql as $$select jsonb_build_object(
+ 'title','Test About','introduction','','teamHeading','Our team','thanksHeading','With thanks',
+ 'people',jsonb_build_array(jsonb_build_object('id','11111111-1111-1111-1111-111111111111','group','team','name','Test','description','Synthetic contributor','url','https://example.com','linkedin','https://www.linkedin.com/in/test','instagram','https://instagram.com/test')),
+ 'support','{"enabled":false,"heading":"","description":"","buttonLabel":"","url":""}'::jsonb,
+ 'body',jsonb_build_object('type','doc','content',case when with_image then jsonb_build_array(jsonb_build_object('type','aboutImage','attrs',jsonb_build_object('imageId',(select a->>'id' from about_test_asset),'alt','Test image','caption','Synthetic caption','width',2,'height',2))) else '[{"type":"paragraph","content":[]}]'::jsonb end))$$;
+create function pg_temp.revision() returns uuid language sql as $$select (public.admin_about_page('read')->>'revision')::uuid$$;
+set local role authenticated;
+select ok(public.read_about_image((select (a->>'id')::uuid from about_test_asset),true) is not null,'admin can preview ready upload');
+select lives_ok($$select public.admin_about_page('save',null,pg_temp.image_doc())$$,'image and social links save');
+select ok(public.read_about_image((select (a->>'id')::uuid from about_test_asset)) is null,'saved draft image stays private');
+select throws_ok($$select public.admin_about_page('save',pg_temp.revision(),jsonb_set(pg_temp.image_doc(),'{body,content,0,attrs,width}','3'))$$,'22023','Upload About image first','dimensions must match upload');
+select throws_ok($$select public.admin_about_page('save',pg_temp.revision(),jsonb_set(pg_temp.image_doc(),'{body,content,0,attrs,alt}','" "'))$$,'22023','Invalid About image','image requires alt text');
+select throws_ok($$select public.admin_about_page('save',pg_temp.revision(),jsonb_set(pg_temp.image_doc(),'{people,0,linkedin}','"https://linkedin.com.evil.test/x"'))$$,'22023','Invalid About social link','social icon cannot misrepresent destination');
+select lives_ok($$select public.admin_about_page('publish',pg_temp.revision())$$,'publish image');
+select lives_ok($$select public.admin_about_page('save',pg_temp.revision(),pg_temp.image_doc(false))$$,'removal can be drafted');
+reset role;
+select set_config('request.jwt.claims','{"role":"anon"}',true);
+set local role anon;
+select ok(public.read_about_image((select (a->>'id')::uuid from public.read_published_about() p, lateral (select jsonb_build_object('id',p->'body'->'content'->0->'attrs'->>'imageId')) z(a))) is not null,'anonymous published image remains while removal drafted');
+select throws_ok($$select public.read_about_image('00000000-0000-4000-8000-000000000000',true)$$,'42501','Admin access denied','anonymous private selector refused');
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"a1800000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+select lives_ok($$select public.admin_about_page('publish',pg_temp.revision())$$,'publish removal');
+select ok(public.read_about_image((select (a->>'id')::uuid from about_test_asset)) is null,'removed image no longer public');
+reset role;
+select public.assign_profile_role('a1800000-0000-4000-8000-000000000001','user');
+set local role authenticated;
+select throws_ok($$select public.read_about_image((select (a->>'id')::uuid from about_test_asset),true)$$,'42501','Admin access denied','role revocation blocks image previews');
+reset role;
+set local role service_role;
+select throws_ok($$select public.about_image_operation('a1800000-0000-4000-8000-000000000001','staging','finalize',(select (a->>'id')::uuid from about_test_asset))$$,'42501','Admin access denied','revocation also blocks finalization');
+reset role;
+select * from finish();
+rollback;

@@ -1,0 +1,114 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--tap-target);
+  min-width: var(--tap-target);
+  padding: 0 var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color var(--motion-micro) var(--ease-entrance),
+    border-color var(--motion-micro) var(--ease-entrance),
+    color var(--motion-micro) var(--ease-entrance);
+}
+
+.button[disabled],
+.button[aria-disabled="true"] {
+  cursor: not-allowed;
+  border-color: var(--disabled);
+  background: var(--bg-surface);
+  color: var(--disabled);
+}
+
+.primary {
+  background: var(--action-primary);
+  color: var(--text-on-dark);
+}
+
+.primary:hover:not([disabled]) {
+  background: var(--action-primary-hover);
+}
+
+.secondary {
+  border-color: var(--action-secondary);
+  background: var(--bg-surface);
+  color: var(--action-secondary);
+}
+
+.secondary:hover:not([disabled]) {
+  background: var(--state-saved-surface);
+}
+
+.quiet {
+  border-color: var(--border-default);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.quiet:hover:not([disabled]) {
+  background: var(--bg-surface-warm);
+}
+
+/*
+ * The stamp-collection action, before anything has been collected.
+ *
+ * Solid Plum, from the `--action-collect` semantic token. It is deliberately not
+ * Vermilion: Vermilion is the outcome — the impression, the collected line, the
+ * visited state — so using it here made an invitation look like a warning. White
+ * on `--action-collect` measures 8.35:1.
+ */
+.stamp {
+  border-color: var(--action-collect);
+  background: var(--action-collect);
+  color: var(--white);
+}
+
+/* Reversed text and the pale collected surface cannot cross-fade: their
+ * intermediate colours lose AA contrast while collection state hydrates.
+ * Change the ink/surface together; retain the quiet border transition. */
+.stamp,
+.collected {
+  transition-property: border-color;
+}
+
+.stamp:hover:not([disabled]) {
+  border-color: var(--action-collect-hover);
+  background: var(--action-collect-hover);
+}
+
+/*
+ * The same action once the impression exists.
+ *
+ * Now it opens something the reader already has, so it steps back into the
+ * restrained Vermilion visited treatment the collected line and the marker
+ * already use. Primary ink on the pale visited surface, not reversed text.
+ */
+.collected {
+  border-color: var(--state-visited);
+  background: var(--state-visited-surface);
+  color: var(--text-primary);
+}
+
+.collected:hover:not([disabled]) {
+  border-color: var(--state-visited-hover);
+  background: var(--vermilion-100);
+}
+
+.collected svg {
+  color: var(--state-visited);
+}
+
+.full {
+  width: 100%;
+}
+
+.compact {
+  min-height: 2.25rem;
+  padding: 0 var(--space-3);
+}

@@ -1,0 +1,6 @@
+.panel { margin: 0.5rem 1rem; flex: 0 0 auto; font-size: .875rem; }
+.panel summary { cursor: pointer; padding: .4rem 0; }
+.content { max-height: 35vh; overflow: auto; padding: .5rem 1rem; border: 1px solid var(--color-border, #d6ccba); border-radius: 8px; }
+.content section + section { border-top: 1px solid #d6ccba; margin-top: .75rem; padding-top: .75rem; }
+.content h2,.content h3 { font-size: 1rem; }
+.content button { padding: .4rem .7rem; border: 1px solid currentColor; border-radius: 5px; }

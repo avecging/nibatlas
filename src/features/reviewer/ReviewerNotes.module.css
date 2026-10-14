@@ -1,0 +1,28 @@
+/*
+ * Reviewer prose.
+ *
+ * Visually separated from product copy so a reviewer reading the same page can
+ * tell instantly which paragraphs are the product and which are the notes about
+ * it. Nothing here renders in normal mode.
+ */
+.note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-warm);
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+.noteTitle {
+  font-size: var(--type-label-size);
+  line-height: var(--type-label-line);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}

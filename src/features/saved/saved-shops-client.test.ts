@@ -1,0 +1,166 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import {
+  completePendingSave,
+  fetchSavedShops,
+  importLocalSavedShops,
+  setSavedShop,
+} from "@/src/features/saved/saved-shops-client";
+
+const SHOP = {
+  id: "00000000-0000-4000-8000-000000000301",
+  slug: "m2-singapore-demo-fixture",
+  name: "M2 Singapore Demo Fixture",
+  countryCode: "SG",
+  localityName: "Singapore",
+  position: { latitude: 1.29027, longitude: 103.851959 },
+  primaryType: "fountain_pen_specialist",
+  specialtyLine: null,
+  operationalStatus: "unknown",
+  markerState: "saved",
+  sourceQuality: "demo",
+  fixtureNotice: "Demo data",
+  savedAt: "2026-09-04T16:30:00+00:00",
+} as const;
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe("saved-shop browser client", () => {
+  it("reads and decodes the private saved list without caching it", async () => {
+    const request = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({ savedShopIds: [SHOP.id], shops: [SHOP] }),
+    );
+
+    await expect(fetchSavedShops()).resolves.toEqual({
+      ok: true,
+      value: { savedShopIds: [SHOP.id], shops: [SHOP] },
+    });
+    expect(request).toHaveBeenCalledWith("/api/v1/saved-shops", {
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+  });
+
+  it("rejects a successful response whose identifiers and shops do not align", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({ savedShopIds: [SHOP.id], shops: [] }),
+    );
+
+    await expect(fetchSavedShops()).resolves.toEqual({
+      ok: false,
+      reason: "invalid-response",
+    });
+  });
+
+  it("classifies a missing session without exposing server copy", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json(
+        { ok: false, error: { code: "authentication_required" } },
+        { status: 401 },
+      ),
+    );
+
+    await expect(fetchSavedShops()).resolves.toEqual({
+      ok: false,
+      reason: "authentication-required",
+    });
+  });
+
+  it("uses idempotent PUT and reconciles the returned saved shop", async () => {
+    const request = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({ ok: true, shopId: SHOP.id, saved: true, shop: SHOP }),
+    );
+
+    await expect(setSavedShop(SHOP.id, true)).resolves.toEqual({
+      ok: true,
+      value: { ok: true, shopId: SHOP.id, saved: true, shop: SHOP },
+    });
+    expect(request).toHaveBeenCalledWith(
+      `/api/v1/saved-shops/${SHOP.id}`,
+      {
+        credentials: "same-origin",
+        cache: "no-store",
+        method: "PUT",
+      },
+    );
+  });
+
+  it("completes a server-held Save through a no-store POST", async () => {
+    const request = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({ ok: true, shopId: SHOP.id, saved: true, shop: SHOP }),
+    );
+
+    await expect(completePendingSave()).resolves.toEqual({
+      ok: true,
+      value: { ok: true, shopId: SHOP.id, saved: true, shop: SHOP },
+    });
+    expect(request).toHaveBeenCalledWith("/api/v1/saved-shops/pending", {
+      credentials: "same-origin",
+      cache: "no-store",
+      method: "POST",
+    });
+  });
+
+  it("treats an empty pending continuation as a successful no-op", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(null, { status: 204 }),
+    );
+
+    await expect(completePendingSave()).resolves.toEqual({
+      ok: true,
+      value: null,
+    });
+  });
+
+  it("posts local candidates and accepts a complete partial import result", async () => {
+    const candidates = [
+      { localId: "prototype-shop", slug: "m2-singapore-demo-fixture" },
+      { localId: "old-record" },
+    ];
+    const response = {
+      ok: true,
+      reconciled: [{ localId: "prototype-shop", shop: SHOP }],
+      skipped: [{ localId: "old-record", reason: "invalid-id" }],
+      failed: [],
+    };
+    const request = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json(response),
+    );
+
+    await expect(importLocalSavedShops(candidates)).resolves.toEqual({
+      ok: true,
+      value: response,
+    });
+    expect(request).toHaveBeenCalledWith("/api/v1/saved-shops/import", {
+      credentials: "same-origin",
+      cache: "no-store",
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ candidates }),
+    });
+  });
+
+  it("rejects an import response that omits a requested local record", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({ ok: true, reconciled: [], skipped: [], failed: [] }),
+    );
+
+    await expect(importLocalSavedShops([{ localId: "keep-for-retry" }])).resolves.toEqual({
+      ok: false,
+      reason: "invalid-response",
+    });
+  });
+
+  it("uses idempotent DELETE and rejects a contradictory response", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({ ok: true, shopId: SHOP.id, saved: true, shop: SHOP }),
+    );
+
+    await expect(setSavedShop(SHOP.id, false)).resolves.toEqual({
+      ok: false,
+      reason: "invalid-response",
+    });
+  });
+});

@@ -1,0 +1,30 @@
+import { useState } from 'react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { expect, it } from 'vitest';
+import { ShopChannelsEditor } from './ShopChannelsEditor';
+import type { Row } from './shop-contract';
+function Harness(){const [links,setLinks]=useState<Row[]>([]);return <ShopChannelsEditor links={links} change={setLinks} errors={[]}/>;}
+it('adds selected platforms, cancels without mutation, prevents duplicates, edits and removes',()=>{
+  render(<Harness/>);
+  fireEvent.click(screen.getByRole('button',{name:'Add Social Media'}));
+  fireEvent.click(screen.getByRole('checkbox',{name:'Instagram'}));
+  fireEvent.click(screen.getByRole('button',{name:'Cancel'}));
+  expect(screen.queryByRole('textbox',{name:'Instagram'})).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{name:'Add Social Media'}));
+  fireEvent.click(screen.getByRole('checkbox',{name:'Instagram'}));
+  fireEvent.click(screen.getByRole('checkbox',{name:'TikTok'}));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button',{name:'Add'}));
+  fireEvent.change(screen.getByRole('textbox',{name:'Instagram'}),{target:{value:'@syntheticshop'}});
+  expect(screen.getByRole('textbox',{name:'Instagram'})).toHaveValue('@syntheticshop');
+  fireEvent.click(screen.getByRole('button',{name:'Add Social Media'}));
+  expect(screen.getByRole('checkbox',{name:'Instagram · added'})).toBeDisabled();
+  fireEvent.keyDown(document,{key:'Escape'});
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{name:'Remove TikTok'}));
+  expect(screen.queryByRole('textbox',{name:'TikTok'})).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{name:'Add Contact'}));
+  expect(screen.getAllByRole('checkbox')).toHaveLength(6);
+  fireEvent.click(screen.getByRole('checkbox',{name:'WeChat'}));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button',{name:'Add'}));
+  expect(screen.getByRole('textbox',{name:'WeChat'})).toBeInTheDocument();
+});

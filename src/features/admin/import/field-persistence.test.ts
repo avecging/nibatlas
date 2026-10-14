@@ -1,0 +1,28 @@
+import { expect, it } from 'vitest';
+import { PLATFORMS, normalizeChannel } from '@/src/domain/shop-channels';
+import { FIELDS, SCALARS, VERSION } from './contract';
+import { parseFile, defaultColumns, safeCsvCell } from './parse';
+import { mapRows, projectRows } from './mapping';
+import { prepareRow } from './prepare';
+import { decodeShop, type Options } from '../shop-contract';
+const id = '77000000-0000-4000-8000-000000000001';
+const options: Options = { localities: [{ id, label: 'Singapore', countryCode: 'SG' }], types: [{ id, label: 'Stationery' }], brands: [{ id, label: 'Synthetic Brand' }], specialties: [{ id, label: 'Synthetic specialty' }], services: [] };
+const overrides: Record<string, string> = { name: 'Synthetic field audit', slug: 'synthetic-field-audit', timezone: 'Asia/Singapore', latitude: '-33.25', longitude: '0', position_precision: 'street', operational_status: 'unknown', appointment_required: 'false', website_url: 'https://example.test', reference_links: 'https://example.test/reference', postal_code: '00123' };
+const cells: Record<string, string> = { row_id: 'audit', shop_id: '', ...Object.fromEntries(SCALARS.map(f => [f.key, overrides[f.key] ?? `Synthetic ${f.key}`])), country: 'SG', locality: id, shop_type: id, brands: id, specialties: id, local_name: '試験店', local_name_language: 'ja-JP', clear_fields: '', ...Object.fromEntries(PLATFORMS.map(p => [p, p === 'xiaohongshu' ? 'https://xhslink.com/a/token' : p === 'whatsapp' ? '+6581234567' : 'syntheticshop'])) };
+it.each(['csv', 'json'] as const)('audits EVERY supported %s field through preparation and normal editor decoding', format => {
+  expect(Object.keys(cells).sort()).toEqual([...FIELDS].sort());
+  const upload = parseFile(format === 'csv' ? [FIELDS.map(safeCsvCell).join(','), FIELDS.map(f => safeCsvCell(cells[f])).join(',')].join('\n').replace('"\'-33.25"', '"-33.25"').replace('"\'+6581234567"', '"+6581234567"') : JSON.stringify({ version: VERSION, rows: [cells] }), format);
+  const mapped = mapRows(projectRows(upload.rows, defaultColumns(upload.columns)), options, {})[0]!;
+  const prepared = prepareRow(mapped, { rowId: 'audit', record: null, candidates: [], truncated: false, conflict: false }, options, id);
+  expect(prepared.preview.issues).toEqual([]);
+  const editor = decodeShop({ id, revision: id, publicationStatus: 'draft', hasChanges: true, publicationErrors: [], positionConfirmed: false, document: prepared.document });
+  for (const field of SCALARS) expect(editor.document.shop[field.key], field.key).toBe(field.kind === 'number' ? Number(cells[field.key]) : field.kind === 'boolean' ? cells[field.key] === 'true' : cells[field.key]);
+  expect(editor.document.shop).toMatchObject({ country_code: 'SG', locality_id: id, latitude: -33.25, longitude: 0 });
+  expect(editor.positionConfirmed).toBe(false);
+  expect(editor.document.aliases[0]).toMatchObject({ alias: cells.local_name, language_tag: cells.local_name_language, alias_type: 'local_name' });
+  for (const platform of PLATFORMS) expect(editor.document.links.find(l => l.link_type === platform)).toMatchObject(normalizeChannel(platform, cells[platform]!));
+  expect(editor.document.types).toEqual([{ shop_type_id: id, is_primary: true, source_id: null, note: null, last_verified_at: null }]);
+  expect(editor.document.brands[0]?.brand_id).toBe(id); expect(editor.document.specialties[0]?.specialty_id).toBe(id);
+  const reopened = prepareRow({ rowId: 'audit', line: 2, cells: { shop_id: id, internal_notes: 'Changed note' }, issues: [], fileDuplicates: [] }, { rowId: 'audit', record: editor, candidates: [], truncated: false, conflict: false }, options, id);
+  expect(reopened.document).toEqual({ ...editor.document, shop: { ...editor.document.shop, internal_notes: 'Changed note' } });
+});

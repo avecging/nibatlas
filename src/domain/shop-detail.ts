@@ -1,0 +1,349 @@
+import type { ExperienceIcon } from '@/src/domain/experience-icons';
+import type { ShopMapSummary, ShopType } from "@/src/domain/shops";
+import type { StampInk } from "@/src/domain/stamp-palette";
+
+/**
+ * Additive frontend projection for the shop detail surface.
+ *
+ * `ShopMapSummary` stays the shared marker/card contract owned with Codex.
+ * `ShopDetail` extends it without altering it so that Milestone 3 can supply the
+ * same shape from `GET /api/v1/shops/[slug]`.
+ *
+ * Almost every field is optional on purpose. The Milestone 1 catalogue holds a
+ * small subset of real shops, and a field that no source supports is left out
+ * rather than filled with something plausible. The detail view renders whatever
+ * is present and says nothing at all about what is absent.
+ */
+export type OpeningHoursDay =
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday"
+  | "sunday";
+
+export type OpeningHoursEntry = {
+  readonly day: OpeningHoursDay;
+  readonly opens?: string;
+  readonly closes?: string;
+  readonly closed?: boolean;
+  readonly note?: string;
+};
+export type OpeningHoursException = Omit<OpeningHoursEntry, 'day'> & { readonly date: string };
+
+export interface ShopLink {
+  readonly type?: string;
+  readonly accountValue?: string;
+  readonly label: string;
+  readonly url?: string;
+  readonly isOfficial: boolean;
+}
+
+/**
+ * Where a record's facts came from.
+ *
+ * Every prototype shop carries at least one. `confirms` names the fields the
+ * source actually supports, so a reviewer can tell a shop whose address came
+ * from its own website from one whose locality came from a community list.
+ */
+export const SHOP_SOURCE_KINDS = [
+  "official",
+  "brand_dealer_list",
+  "community_list",
+  "founder_visit",
+  "demo_fixture",
+] as const;
+
+export type ShopSourceKind = (typeof SHOP_SOURCE_KINDS)[number];
+
+export interface ShopSourceRef {
+  /** Stable source UUID. Display labels are mutable and never used as identity. */
+  readonly id: string;
+  readonly label: string;
+  readonly url?: string;
+  /** ISO date the source was read, so freshness is never implied. */
+  readonly retrievedOn: string;
+  readonly kind: ShopSourceKind;
+  readonly confirms: readonly string[];
+}
+
+/**
+ * How precise the mapped coordinate is.
+ *
+ * No coordinate in the Milestone 1 catalogue is surveyed. `street` means the
+ * point was placed from a sourced street address, `locality` means only the
+ * locality is known. Both are shown as approximate in the interface; the
+ * distinction exists so Milestone 7 knows what still needs field verification.
+ */
+export type PositionPrecision = "street" | "locality";
+
+/**
+ * How a service is reached.
+ *
+ * `docs/milestone-1-5-product-refinement.md` root cause D: a repair bench and a
+ * shelf of boxed pens are the same row in a general directory, and the thing
+ * that separates them is whether you can walk in, have to book, or have to post
+ * the pen. The mode is therefore part of the claim rather than prose around it.
+ */
+export type ServiceAccessMode = "walk_in" | "booking" | "send_in" | "enquire";
+
+export const SERVICE_ACCESS_MODE_LABELS: Record<ServiceAccessMode, string> = {
+  walk_in: "Walk-in",
+  booking: "Booking",
+  send_in: "Send-in",
+  enquire: "Ask in store",
+};
+
+/**
+ * A claim that names the source backing it.
+ *
+ * `confirmedBy` holds the stable `id` of one of the record's own
+ * {@link ShopSourceRef} entries — the evidence registry that already exists —
+ * so a pen-specific claim cannot be written without pointing at the source it
+ * came from.
+ *
+ * Naming the source is necessary but not sufficient. `shopEvidenceIssues` in
+ * `src/domain/shop-evidence.ts` also requires the named source's own `confirms`
+ * list to cover *this* claim: a service may not lean on a source that confirms
+ * only a shop's local-script name, and one confirmed field of an access or
+ * practical block never validates another. See that module for the rule and the
+ * evidence tokens it compares.
+ *
+ * This is the mechanism accepted decision 4 asks for: Claude Code may define the
+ * optional schema, and must never invent services, experiences, exclusives, or
+ * practical details.
+ */
+export interface SourcedClaim {
+  /** Stable `ShopSourceRef.id` of the source that confirms this claim. */
+  readonly confirmedBy?: string;
+  /** Catalogue review, not independent verification of this claim. */
+  readonly reviewedEditorially?: true;
+}
+
+/**
+ * One practical fact, with the source that confirms *it*.
+ *
+ * Access and practical facts are sourced per field rather than per block. A
+ * block-level reference would let one source that publishes a station implicitly
+ * vouch for a payment method and a spoken language it says nothing about, which
+ * is exactly the hole the first WP4 attempt left open — a check alone would have
+ * caught it, but the type now makes it unsayable.
+ */
+export interface SourcedText extends SourcedClaim {
+  readonly value: string;
+}
+
+export interface SourcedList extends SourcedClaim {
+  readonly values: readonly string[];
+}
+
+export interface SourcedFlag extends SourcedClaim {
+  readonly value: boolean;
+}
+
+/** Something a visitor can have done to a pen, with how it is reached. */
+export interface ShopService extends SourcedClaim {
+  readonly label: string;
+  readonly accessMode?: ServiceAccessMode;
+  /** As the source states it: `~30 min`, `3–5 days`. Never estimated here. */
+  readonly duration?: string;
+  readonly note?: string;
+}
+
+/** Something a visitor can do in the shop: a test bench, an ink wall, a clinic. */
+export interface ShopExperience extends SourcedClaim {
+  readonly label: string;
+  readonly detail?: string;
+  readonly bookingRequired?: boolean;
+}
+
+/** The reason a pen traveller detours: shop-only inks, house editions. */
+export interface ShopExclusive extends SourcedClaim {
+  readonly label: string;
+  readonly detail?: string;
+}
+
+/**
+ * Getting in.
+ *
+ * The two practical facts a general listing never carries: which station you
+ * walk from, and the building or floor note that decides whether you find the
+ * door at all. Each carries its own source.
+ */
+export interface ShopAccessNote {
+  readonly nearestStation?: SourcedText;
+  /** Walking guidance exactly as the source words it. Never computed. */
+  readonly walkFromStation?: SourcedText;
+  readonly floorNote?: SourcedText;
+  readonly accessibilityNote?: SourcedText;
+}
+
+/** Practical facts that decide whether a visit works: payment, language, booking. */
+export interface ShopPracticalInfo {
+  readonly paymentMethods?: SourcedList;
+  readonly languages?: SourcedList;
+  readonly appointmentRequired?: SourcedFlag;
+}
+
+export interface EditorialReview { readonly kind: 'editorial'; readonly reviewedAt: string }
+export interface EditorialContent {
+  readonly feature_headline?: string;
+  readonly field_note_heading?: string;
+  readonly field_note_body?: string;
+  readonly local_address?: string;
+  readonly unit_floor?: string;
+  readonly nearest_station?: string;
+  readonly station_exit?: string;
+  readonly walking_guidance?: string;
+  readonly entrance_notes?: string;
+  readonly editions_text?: string;
+  readonly payment_methods?: string;
+  readonly languages?: string;
+  readonly holiday_note?: string;
+  readonly accessibility_notes?: string;
+  readonly appointment_required?: boolean;
+  readonly experiences?: readonly { readonly id: string; readonly category: string; readonly title: string; readonly description?: string; readonly icon?: ExperienceIcon }[];
+}
+export interface RelatedShop {
+  readonly id: string;
+  readonly slug: string;
+  readonly name: string;
+  readonly countryCode: import('./geo').CountryCode;
+  readonly localityName: string;
+  readonly kind: 'branch' | 'related';
+}
+export interface ShopDetail extends ShopMapSummary {
+  readonly relatedShops?: readonly RelatedShop[];
+  readonly review?: EditorialReview;
+  readonly editorial?: EditorialContent;
+  readonly phone?: string;
+  readonly postalCode?: string;
+  /** One or two sourced sentences on why the shop may be worth a visit. */
+  readonly shortDescription?: string;
+  readonly addressLines?: readonly string[];
+  readonly neighbourhood?: string;
+  readonly timezone: string;
+  readonly shopTypes: readonly ShopType[];
+  readonly shopTypeLabels?: Readonly<Record<string,string>>;
+  readonly specialties?: readonly string[];
+  /**
+   * What you can do there.
+   *
+   * WP4 replaces the plain `readonly string[]` this field carried in Milestone 1.
+   * A bare label cannot say whether a nib grind is a walk-in or a three-day
+   * send-in, which is the distinction the whole section exists to make. Nothing
+   * populated the string form, so nothing was migrated.
+   */
+  readonly services?: readonly ShopService[];
+  readonly experiences?: readonly ShopExperience[];
+  readonly exclusives?: readonly ShopExclusive[];
+  readonly access?: ShopAccessNote;
+  readonly practical?: ShopPracticalInfo;
+  readonly brands?: readonly string[];
+  readonly openingHours?: readonly OpeningHoursEntry[];
+  readonly openingHoursExceptions?: readonly OpeningHoursException[];
+  readonly openingHoursNote?: string;
+  readonly links?: readonly ShopLink[];
+  readonly positionPrecision: PositionPrecision;
+  readonly sources: readonly ShopSourceRef[];
+  readonly stamp: ShopStampDesign;
+}
+
+/**
+ * A stamp's generated design.
+ *
+ * `tier` changes the frame anatomy only. Ink is chosen from the shared global
+ * palette by `inkForStampKey` and carries no country, locality, tier, or rarity
+ * meaning; `paletteVersion` pins the palette so the impression regenerates
+ * identically later.
+ */
+export type StampTier = "shop" | "locality" | "country";
+
+export interface ShopStampDesign {
+  readonly generatedShopSeal?: import('./shop-seal').ShopSealShape;
+  readonly sealArtwork?: {readonly id:string;readonly treatment?:'ink-v1';readonly creatorName?:string;readonly creatorUrl?:string};
+  readonly generatedSealTemplate?: import('./seal-template').SealTemplate;
+  /** Preserved approved export metadata. Asset delivery is owned by M6. */
+  readonly commissioned?: {
+    readonly illustratorCredit: string;
+    readonly illustratorCreditUrl?: string;
+    readonly cleanSvgKey: string;
+    readonly cleanSvgSha256: string;
+    readonly outlinedSvgKey: string;
+    readonly outlinedSvgSha256: string;
+    readonly transparentPngKey: string;
+    readonly transparentPngSha256: string;
+  };
+  /** Issue #73 neutral admin/founder upload; never mislabeled as commissioned. */
+  readonly uploaded?: {
+    readonly origin: "founder_created" | "ai_assisted" | "commissioned";
+    readonly creatorName?: string;
+    readonly creatorUrl?: string;
+    readonly transparentPngSha256: string;
+  };
+  readonly id: string;
+  readonly tier: StampTier;
+  readonly motif: StampMotif;
+  readonly ink: StampInk;
+  readonly localityLabel: string;
+  readonly countryLabel: string;
+  readonly designVersion: number;
+  readonly paletteVersion: number;
+}
+
+/**
+ * Motifs are drawn from stationery culture and generic street architecture, not
+ * from national symbols. `BRAND.md` forbids applying one country's iconography
+ * to another, so nothing here is country-specific: the catalogue picks a motif
+ * per shop from what the shop itself is.
+ */
+export type StampMotif =
+  | "storefront"
+  | "shophouse"
+  | "ink-bottle"
+  | "nib"
+  | "arcade"
+  | "harbour"
+  | "counter"
+  | "workbench";
+
+export const SHOP_TYPE_LABELS: Record<ShopType, string> = {
+  test_venue: "Staging test venue",
+  fountain_pen_specialist: "Fountain Pen Specialist",
+  stationery_store: "Stationery Store",
+  bookshop: "Bookshop",
+  art_supply_store: "Art Supply Store",
+  brand_boutique: "Brand Boutique",
+  luxury_shop: "Luxury Shop",
+  maker_workshop: "Maker / Workshop",
+  department_store: "Department Store",
+  distributor: "Distributor",
+  vintage_used: "Vintage / Used",
+  nib_repair_services: "Nib / Repair Services",
+};
+
+export const OPERATIONAL_STATUS_LABELS = {
+  open: "Open",
+  temporarily_closed: "Temporarily closed",
+  permanently_closed: "Permanently closed",
+  unknown: "Status not confirmed",
+} as const;
+
+export const SOURCE_KIND_LABELS: Record<ShopSourceRef["kind"], string> = {
+  official: "Shop's own website",
+  brand_dealer_list: "Brand dealer listing",
+  community_list: "Community shop list",
+  founder_visit: "Founder visit note",
+  demo_fixture: "Demo fixture",
+};
+
+export const POSITION_PRECISION_LABELS: Record<PositionPrecision, string> = {
+  street: "Approximate, placed from a sourced street address",
+  locality: "Approximate, locality only",
+};
+
+/** Custom vocabulary labels are supplied by the published catalogue, never UUID-derived. */
+export function shopTypeLabel(type: ShopType, label?: string): string {
+  return label ?? SHOP_TYPE_LABELS[type] ?? 'Shop';
+}

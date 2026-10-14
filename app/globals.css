@@ -1,0 +1,485 @@
+@import "tailwindcss";
+
+/*
+ * Nib Atlas design tokens.
+ * Values come from BRAND.md. Do not scatter literal hex values in components;
+ * always reference a semantic token from this file.
+ */
+:root {
+  color-scheme: light;
+
+  /* Core palette */
+  --paper-50: #fbf8f1;
+  --paper-100: #f3ede1;
+  --paper-200: #e5dac7;
+  --atlas-900: #102d46;
+  --atlas-800: #183b57;
+  --sumi-950: #1c211f;
+  --sumi-700: #4d5551;
+  --sumi-500: #737b76;
+  --teal-700: #287a78;
+  /*
+   * A darker step of the same teal, for text-sized links.
+   *
+   * `--teal-700` clears AA at body size on white (4.86:1) but not at the 14 px
+   * caption and body-small sizes the shop page's inline links use on the warm
+   * paper surfaces — WP4's contribution invitation measured 4.34:1 on
+   * `--bg-surface-warm`. This step passes AA at small text on every paper
+   * surface in the palette while staying recognisably the same accent.
+   */
+  --teal-800: #1f6462;
+  --teal-100: #dcebe7;
+  --vermilion-700: #c54b32;
+  --vermilion-100: #f3ded4;
+  --indigo-700: #365e88;
+  --brass-600: #98723d;
+  /*
+   * Plum, declared once in the core palette because two separate registries
+   * consume it: the stamp-ink palette below, and the collection action. Neither
+   * reads the other — see `--action-collect`.
+   */
+  --plum-700: #6b3f63;
+  /* Darkened Plum step for the collection action's hover and pressed states. */
+  --plum-800: #56324f;
+  --white: #ffffff;
+
+  /* Semantic surfaces and text */
+  --bg-canvas: var(--paper-50);
+  --bg-surface: var(--white);
+  --bg-surface-warm: var(--paper-100);
+  --border-default: var(--paper-200);
+  --border-strong: rgba(16, 45, 70, 0.22);
+  --text-primary: var(--sumi-950);
+  --text-secondary: var(--sumi-700);
+  --text-muted: var(--sumi-500);
+  --text-on-dark: var(--paper-50);
+
+  /* Semantic actions and states */
+  --action-primary: var(--atlas-900);
+  --action-primary-hover: var(--atlas-800);
+  --action-secondary: var(--teal-700);
+  /* Text-sized links, where the lighter accent does not clear AA. */
+  --action-secondary-text: var(--teal-800);
+  /*
+   * The stamp-collection action.
+   *
+   * Plum, not Vermilion. Vermilion is the *outcome* — the impression, the
+   * collected line, visited status — and using it before collection made the
+   * action read as a warning and collapsed action and outcome into one colour.
+   * Plum is reserved for collection actions and says nothing about country,
+   * rarity, tier, or the ink the shop's own stamp is printed in.
+   */
+  --action-collect: var(--plum-700);
+  --action-collect-hover: var(--plum-800);
+  --state-visited: var(--vermilion-700);
+  --state-visited-surface: var(--vermilion-100);
+  /*
+   * Beta marker: a deliberately quiet echo of the stamp palette. The label
+   * carries the meaning; colour only separates it from the Paper/Teal/Navy
+   * chrome used throughout the app.
+   */
+  --state-beta: var(--vermilion-700);
+  --state-beta-text: var(--state-visited-hover);
+  --state-beta-surface: color-mix(in srgb, var(--vermilion-100) 81%, var(--bg-surface));
+  --state-beta-border: color-mix(in srgb, var(--vermilion-700) 45%, transparent);
+  --state-saved: var(--teal-700);
+  --state-saved-surface: var(--teal-100);
+  --state-unvisited: var(--atlas-900);
+  --focus-ring: #2477b3;
+  --success: #2f7653;
+  /* Pale ground for a confirmed-open badge. Primary ink on it: 13.9:1. */
+  --success-surface: #e3f0e6;
+  --warning: #9a651d;
+  /* Filled amber ground: a confirmed closure, the loudest status. */
+  --warning-surface: #f7ebd7;
+  /*
+   * A lighter amber outline for a status nobody has confirmed either way.
+   * Restrained on purpose — an unverified shop is not the same claim as a closed
+   * one, and the founder's second staging review found the filled badge saying
+   * it was.
+   */
+  --warning-soft: #cfa96f;
+  --error: #b33a32;
+  --disabled: #a9aea9;
+
+  /*
+   * Derived from the approved palette rather than new brand colours.
+   * `--state-visited-hover` is Vermilion 700 darkened for a hover step, in the
+   * same way `action-primary-hover` steps Atlas Navy. The scrim, nav shadow, and
+   * stamp highlight are alpha derivations of Atlas Navy and White. These five
+   * interaction tokens are approved in BRAND.md; no component defines its own colour.
+   */
+  --state-visited-hover: #b0422c;
+  --overlay-scrim: rgba(16, 45, 70, 0.42);
+  --shadow-nav: 0 -2px 10px rgba(16, 45, 70, 0.06);
+  --stamp-pressure-highlight: rgba(255, 255, 255, 0.42);
+  --stamp-pressure-fade: rgba(255, 255, 255, 0);
+
+  /*
+   * Brand mark. The primary lockup puts the nib half in Atlas Navy and the
+   * atlas half in the teal exploratory accent; one-colour contexts collapse
+   * both onto `currentColor` instead.
+   */
+  --brand-mark-nib: var(--atlas-900);
+  --brand-mark-atlas: var(--teal-700);
+
+  /*
+   * Passport cover foil. `BRAND.md` reserves Brass for rare ceremonial accents
+   * and the Passport cover is that one place. Two steps are needed because foil
+   * reads as foil only when a brighter edge sits against a dimmer body; both are
+   * derived from Brass 600 and are used nowhere else.
+   */
+  --foil-bright: #c8a063;
+  --foil-dim: var(--brass-600);
+
+  /*
+   * Passport paper and board. Derived from the Paper ramp: the page stock sits
+   * one step warmer than `paper-50`, the board is Atlas Navy shaded for a
+   * cover, and the two edge tones build the visible page block.
+   */
+  --passport-desk: #efe8da;
+  --passport-page: #fcf8ef;
+  --passport-board: #143552;
+  --passport-board-deep: #0a1e31;
+  --passport-edge: #e4dcc9;
+  --passport-edge-deep: #d8ceb7;
+
+  /*
+   * Impression material.
+   *
+   * One physical vocabulary for every Atlas Stamp and every derived seal,
+   * wherever it appears: a List row, a book page, an enlarged overlay, the
+   * collection ceremony, or a styleguide specimen. WP5's brief was that these
+   * had drifted into parallel approximations of the same idea — one surface
+   * put the impression on a bordered paper ground, another on whatever happened
+   * to be behind it — so the stock, the edge, the depth and the press angle are
+   * declared once here and consumed by the shared plate.
+   *
+   * `--impression-tilt` is the single restrained irregularity BRAND.md asks
+   * for at the plate level; the ink's own imperfect edge and pressure mottle
+   * are drawn inside the impression itself.
+   */
+  --impression-paper: var(--passport-page);
+  --impression-paper-shade: #f4ecdc;
+  --impression-edge: rgba(16, 45, 70, 0.13);
+  --impression-contact: rgba(16, 45, 70, 0.16);
+  --impression-tilt: -2.4deg;
+  --impression-grain: rgba(16, 45, 70, 0.028);
+
+  /*
+   * Modal depth. Shared by every dialog that floats over the product — the
+   * enlarged impression, the enlarged seal, the collection ceremony and the
+   * collection preflight — so they read as the same kind of surface.
+   */
+  --shadow-overlay: 0 24px 60px rgba(16, 45, 70, 0.32);
+
+  /*
+   * The eight shared global stamp inks. This mirrors `STAMP_INK_HEX` in
+   * `src/domain/stamp-palette.ts`. A standard stamp uses exactly one of them,
+   * and no ink belongs to a country, locality, tier, rarity, or achievement.
+   */
+  --ink-vermilion: #c54b32;
+  --ink-navy: #102d46;
+  --ink-teal: #287a78;
+  --ink-indigo: #365e88;
+  --ink-plum: var(--plum-700);
+  --ink-moss: #4f653f;
+  --ink-ochre: #846024;
+  --ink-brick: #8a4338;
+
+  /* Typography */
+  --font-serif: var(--font-source-serif), "Noto Serif JP", "Noto Serif TC", Georgia, serif;
+  --font-sans: var(--font-inter), "Noto Sans JP", "Noto Sans TC", system-ui, sans-serif;
+
+  --type-display-size: 2rem;
+  --type-display-line: 2.25rem;
+  --type-h1-size: 1.75rem;
+  --type-h1-line: 2.125rem;
+  --type-h2-size: 1.5rem;
+  --type-h2-line: 1.875rem;
+  --type-h3-size: 1.25rem;
+  --type-h3-line: 1.625rem;
+  --type-body-lg-size: 1.125rem;
+  --type-body-lg-line: 1.75rem;
+  --type-body-size: 1rem;
+  --type-body-line: 1.5rem;
+  --type-body-sm-size: 0.875rem;
+  --type-body-sm-line: 1.25rem;
+  --type-label-size: 0.8125rem;
+  --type-label-line: 1rem;
+  --type-caption-size: 0.75rem;
+  --type-caption-line: 1rem;
+
+  /* Spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* Radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 1rem;
+  --radius-stamp: 0.3125rem;
+  --radius-round: 999px;
+
+  /* Elevation */
+  --shadow-card: 0 4px 16px rgba(16, 45, 70, 0.1);
+  --shadow-sheet: 0 -8px 28px rgba(16, 45, 70, 0.16);
+  --shadow-popover: 0 8px 24px rgba(16, 45, 70, 0.14);
+
+  /* Motion */
+  --motion-micro: 150ms;
+  --motion-panel: 260ms;
+  /* Stamp ceremony: 600-900 ms total, per BRAND.md. */
+  --motion-ceremony: 780ms;
+  /* Passport cover open: 650-850 ms, per docs/passport-interaction-spec.md. */
+  --motion-cover-open: 760ms;
+  /* Programmatic page turn: 480-700 ms. */
+  --motion-page-turn: 560ms;
+  /* Drag settle, capped near 450 ms. */
+  --motion-page-settle: 420ms;
+  /* The one duration reduced motion is allowed: a cross-fade under 150 ms. */
+  --motion-reduced-fade: 140ms;
+  --ease-entrance: cubic-bezier(0.16, 0.84, 0.44, 1);
+  --ease-exit: cubic-bezier(0.5, 0, 0.75, 0);
+  --ease-paper: cubic-bezier(0.3, 0.02, 0.2, 1);
+
+  /* Layout */
+  --nav-height: 3.75rem;
+  --content-max: 80rem;
+  --tap-target: 2.75rem;
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --type-display-size: 2.5rem;
+    --type-display-line: 2.75rem;
+    --type-h1-size: 2rem;
+    --type-h1-line: 2.375rem;
+  }
+}
+
+@theme inline {
+  --color-background: var(--bg-canvas);
+  --color-foreground: var(--text-primary);
+  --color-surface: var(--bg-surface);
+  --color-atlas: var(--atlas-900);
+  --color-teal: var(--teal-700);
+  --color-vermilion: var(--vermilion-700);
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100dvh;
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+figure,
+ul,
+ol {
+  margin: 0;
+}
+
+ul,
+ol {
+  padding: 0;
+  list-style: none;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Shared typographic helpers ------------------------------------------- */
+
+.type-display {
+  font-family: var(--font-serif);
+  font-size: var(--type-display-size);
+  line-height: var(--type-display-line);
+  font-weight: 600;
+}
+
+.type-h1 {
+  font-family: var(--font-serif);
+  font-size: var(--type-h1-size);
+  line-height: var(--type-h1-line);
+  font-weight: 600;
+}
+
+.type-h2 {
+  font-family: var(--font-serif);
+  font-size: var(--type-h2-size);
+  line-height: var(--type-h2-line);
+  font-weight: 600;
+}
+
+.type-h3 {
+  font-size: var(--type-h3-size);
+  line-height: var(--type-h3-line);
+  font-weight: 650;
+}
+
+.type-body-lg {
+  font-size: var(--type-body-lg-size);
+  line-height: var(--type-body-lg-line);
+}
+
+.type-body-sm {
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+.type-label {
+  font-size: var(--type-label-size);
+  line-height: var(--type-label-line);
+  font-weight: 600;
+}
+
+.type-caption {
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: 500;
+}
+
+.type-overline {
+  font-size: var(--type-label-size);
+  line-height: var(--type-label-line);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Plain prose pages (Privacy, About) ------------------------------------ */
+
+.prose-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 40rem;
+  margin: 0 auto;
+  color: var(--text-secondary);
+}
+
+.prose-page h1,
+.prose-page h2,
+.prose-page h3 {
+  color: var(--text-primary);
+}
+
+.prose-page h2 {
+  margin-top: var(--space-4);
+}
+
+/*
+ * A question in a list of questions. It sits closer to the answer under it than
+ * to the answer above it, so the pair reads as one block rather than as a run of
+ * evenly spaced lines.
+ */
+.prose-page h3 {
+  margin-top: var(--space-3);
+  margin-bottom: calc(var(--space-2) * -1);
+}
+
+.prose-page strong {
+  color: var(--text-primary);
+}
+
+/*
+ * The global reset strips list markers because almost every list in the product
+ * is a set of cards or rows. A prose page is the exception: a bulleted list here
+ * is reading matter, so the markers come back.
+ */
+.prose-page ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-left: var(--space-5);
+  list-style: disc;
+}
+
+.prose-page a {
+  color: var(--action-secondary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 100;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-target);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--action-primary);
+  color: var(--text-on-dark);
+  transform: translateY(-200%);
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

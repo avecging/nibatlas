@@ -1,0 +1,142 @@
+/*
+ * The paper an impression is pressed onto.
+ *
+ * Everything about the material is declared here and nowhere else: the stock,
+ * the hairline edge, the tooth, the pressed depth and the press angle. A surface
+ * that shows an impression chooses a size; it does not get to choose a paper.
+ */
+.plate {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  padding: var(--plate-pad, 0);
+  border: 1px solid var(--impression-edge);
+  border-radius: var(--radius-stamp);
+  background: linear-gradient(
+    168deg,
+    var(--impression-paper) 0%,
+    var(--impression-paper-shade) 100%
+  );
+  /* The sheet lies on the surface below it rather than floating over it. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 1px 2px var(--impression-grain);
+}
+
+/*
+ * Paper tooth.
+ *
+ * Two half-pixel directional fibres and one soft corner lift. Restrained by
+ * instruction: `BRAND.md` rules out the faux-paper scrapbook direction, and
+ * texture must never sit behind small text — nothing but the impression itself
+ * is ever drawn on this ground. The fibres are sub-pixel and widely spaced on
+ * purpose: full-pixel rules on a 3-pixel repeat land on device-pixel boundaries
+ * at 2x and read as graph paper rather than as stock.
+ */
+.plate::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      var(--impression-grain) 0 0.5px,
+      transparent 0.5px 5px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      var(--impression-grain) 0 0.5px,
+      transparent 0.5px 6px
+    ),
+    radial-gradient(120% 100% at 18% 6%, rgba(255, 255, 255, 0.55), transparent 62%);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.impression {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  transform: rotate(var(--plate-tilt, 0deg));
+}
+
+.impression > * {
+  max-width: 100%;
+}
+
+/* Sizes ------------------------------------------------------------------ */
+
+/*
+ * A List row's impression, and a locality seal beside a heading.
+ *
+ * Pressed square. `--impression-tilt` is the system's one restrained
+ * irregularity, and at this size it costs legibility without reading as
+ * anything — "small impressions must remain legible" is the constraint that
+ * wins here.
+ */
+.plate[data-plate-size="thumb"] {
+  --plate-pad: 0.25rem;
+}
+
+/* A country seal at the head of its section: the same sheet, more of it. */
+.plate[data-plate-size="card"] {
+  --plate-pad: 0.3rem;
+}
+
+/*
+ * An impression on a book page.
+ *
+ * The leaf *is* the paper here — a passport stamp is pressed onto the page, not
+ * onto a card laid on it — so the plate contributes no stock of its own, and the
+ * page's own slot supplies the hand-stamped angle. Same primitive, same rules,
+ * one honest exception.
+ */
+.plate[data-plate-size="page"] {
+  --plate-pad: 0;
+  border-color: transparent;
+  background: none;
+  box-shadow: none;
+}
+
+.plate[data-plate-size="page"]::before {
+  display: none;
+}
+
+/*
+ * The enlarged plate.
+ *
+ * A sheet with room around the impression, so it reads as something pressed onto
+ * paper rather than as artwork cropped to its own edges. This is the size the
+ * Passport's enlarged impression and the shop page's collection ceremony both
+ * use, which is what makes them the same object.
+ */
+.plate[data-plate-size="detail"] {
+  --plate-pad: var(--space-4);
+  --plate-tilt: var(--impression-tilt);
+  aspect-ratio: 3 / 2;
+}
+
+.plate[data-plate-size="detail"] .impression {
+  width: 86%;
+}
+
+/*
+ * Uncollected.
+ *
+ * The same sheet with nothing pressed into it yet: the artwork is there to be
+ * read, at a lighter ink weight, and the sheet loses its pressed depth. The
+ * styleguide's motif specimens are the only place this appears — nothing in the
+ * Passport shows an impression a reader has not collected, and nothing here is a
+ * locked reward.
+ */
+.plate[data-plate-state="uncollected"] {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.plate[data-plate-state="uncollected"] .impression {
+  opacity: 0.66;
+}

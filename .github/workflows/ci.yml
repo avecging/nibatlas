@@ -1,0 +1,189 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  CI: "true"
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 11.19.0
+          run_install: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - name: Backup safeguards
+        run: |
+          python3 -m unittest discover -s scripts/backup -p 'test_*.py'
+          node scripts/backup/test-recovery-key.mjs
+          node --test scripts/deploy/test-targets.mjs
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  e2e-smoke:
+    name: E2E smoke
+    runs-on: ubuntu-latest
+    # Playwright's system dependency install can be slow when Ubuntu mirrors are
+    # degraded; leave enough time for the tests themselves to run afterward.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 11.19.0
+          run_install: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - name: Shop administration browser evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: shop-admin-browser-evidence
+          path: |
+            test-results/**/admin-*.png
+            test-results/**/map-webgl-fallback.png
+          retention-days: 14
+
+  api-integration:
+    name: API-mode integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 11.19.0
+          run_install: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e:api
+      - name: Collection integration evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: api-integration-evidence
+          path: test-results
+          retention-days: 14
+
+  cloudflare-build:
+    name: Cloudflare build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 11.19.0
+          run_install: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:cloudflare
+
+  db-test:
+    name: Database reset
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1 # v1
+        with:
+          # Keep database CI reproducible and avoid the rate-limited
+          # unauthenticated "latest release" lookup.
+          version: 2.117.0
+      - run: supabase start -x realtime,imgproxy,edge-runtime,logflare,vector,supavisor
+      - name: Upgrade existing approved artwork without rewriting history
+        run: bash scripts/test-media-upgrade.sh
+      - name: Preserve existing private drafts through editorial migration
+        run: bash scripts/test-editorial-upgrade.sh
+      - run: supabase db reset
+      - name: Repeat deterministic demo seed
+        run: docker exec -i supabase_db_nibatlas psql -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/seed.sql
+      - name: Reject unguarded phone fixture and stage its test include
+        run: |
+          if docker exec -i supabase_db_nibatlas psql -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/fixtures/staging-phone-location.sql; then
+            echo "Phone fixture accepted without staging opt-in" >&2
+            exit 1
+          fi
+          # pg_prove mounts only the tests directory; .inc is not a test file.
+          mkdir -p supabase/tests/fixtures
+          cp supabase/fixtures/staging-phone-location.sql supabase/tests/fixtures/staging-phone-location.inc
+      - run: supabase test db
+      - name: Reject retired hosted catalogue reset
+        run: python3 scripts/test-staging-catalogue-reset.py
+      - name: Concurrent stamp issuance
+        run: python3 scripts/verification/concurrency.py
+      - name: Media upload concurrency and role revocation
+        run: python3 scripts/verification/media-concurrency.py
+      - name: Read performance (50k synthetic shops)
+        run: |
+          project_id="$(awk -F'"' '/^project_id = / { print $2; exit }' supabase/config.toml)"
+          docker exec -i "supabase_db_${project_id}" psql -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/performance/viewport_50k.sql
+      - if: always()
+        run: supabase stop --no-backup
+
+  worker-auth:
+    name: Worker authentication
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: 11.19.0
+          run_install: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24
+      - uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1
+        with:
+          version: 2.117.0
+      - run: supabase start -x realtime,imgproxy,edge-runtime,logflare,vector,supavisor
+      - run: supabase db reset
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/prepare-worker-auth-test.mjs
+      - run: pnpm build:cloudflare
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec playwright test --config playwright.worker.config.ts
+      - if: always()
+        run: supabase stop --no-backup

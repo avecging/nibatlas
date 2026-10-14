@@ -1,0 +1,528 @@
+/*
+ * The shop page: one reading column on a phone, story and practical detail side
+ * by side at desktop width.
+ *
+ * The founder's staging review of WP4 withdrew a two-column grid because a
+ * sparse record became a handful of small boxes with an implied empty cell. The
+ * September shop UI direction asks for two columns again, so the rail is
+ * conditional rather than structural: `.body[data-columns="one"]` keeps the
+ * measured single column for a record that has nothing to put beside the story,
+ * and no cell is ever reserved for content that does not exist.
+ *
+ * Nothing here reserves space: no placeholder cards, no fixed minimum heights,
+ * no filler. What is absent simply is not rendered.
+ */
+.page {
+  display: grid;
+  gap: var(--space-5);
+  width: 100%;
+  max-width: 46rem;
+  margin-inline: auto;
+}
+
+@media (min-width: 1024px) {
+  /* Only the two-column page widens; a single column stays a reading measure. */
+  .page[data-columns="two"] {
+    max-width: 68rem;
+  }
+
+  .page {
+    gap: var(--space-6);
+  }
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap-target);
+  color: var(--text-secondary);
+  font-size: var(--type-label-size);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.title {
+  font-family: var(--font-serif);
+  font-size: var(--type-h1-size);
+  line-height: var(--type-h1-line);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.localTitle {
+  color: var(--text-secondary);
+  font-size: var(--type-body-lg-size);
+  line-height: var(--type-body-lg-line);
+  overflow-wrap: anywhere;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.lede {
+  font-size: var(--type-body-lg-size);
+  line-height: var(--type-body-lg-line);
+  color: var(--text-secondary);
+  max-width: 42rem;
+}
+
+.section {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.sectionTitle {
+  font-family: var(--font-serif);
+  font-size: var(--type-h2-size);
+  line-height: var(--type-h2-line);
+  font-weight: 600;
+}
+
+.tagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-round);
+  background: var(--bg-surface-warm);
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+}
+
+.factList {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.fact {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr;
+  gap: var(--space-3);
+  align-items: start;
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+/* Icon-less supporting copy inside a section. */
+.plain {
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+.factLabel {
+  display: block;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.hours {
+  display: grid;
+  gap: 2px;
+}
+
+.hourRow {
+  display: grid;
+  grid-template-columns: 6.5rem 1fr;
+  gap: var(--space-2);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+  color: var(--text-secondary);
+}
+
+/*
+ * The shop's identity: mark, name, place, type, and the Save bookmark.
+ *
+ * A flex line rather than fixed columns. The logo takes the width its own
+ * proportions need and disappears entirely when a shop has not published one —
+ * a grid track would have reserved an empty square for it — while the name keeps
+ * `minmax(0, 1fr)` behaviour through `min-width: 0`, so a long or local-script
+ * name wraps inside its own column instead of pushing the bookmark around.
+ */
+.identity {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.identityPlace {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.identityRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.identityText {
+  flex: 1 1 12rem;
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.identityTypes {
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+/* The bookmark keeps its own 44 px target at the end of the line, whatever the
+   name does above or beside it. */
+.identityBookmark {
+  flex: none;
+  margin-left: auto;
+}
+
+.intro {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.actionsRow {
+  display: grid;
+  gap: var(--space-3);
+}
+
+/*
+ * One photography caption, once, in a fixture build with no media route to ask.
+ * No repeated empty gallery slots and no photo count: a count would be a claim
+ * about images that do not exist.
+ */
+.photosPending {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.body {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.mainColumn,
+.sideColumn {
+  display: grid;
+  gap: var(--space-5);
+  align-content: start;
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .body[data-columns="two"] {
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-6);
+  }
+}
+
+/* An editorial label above a heading, not a heading itself. */
+.eyebrow {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.fieldNoteHeading {
+  font-family: var(--font-serif);
+  font-size: var(--type-h2-size);
+  line-height: var(--type-h2-line);
+  font-weight: 600;
+}
+
+/* Published editorial keeps the paragraph breaks the founder typed, and a very
+   long unbroken string still wraps rather than widening the column. */
+.editorialBody {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+}
+
+.experienceGrid {
+  display: grid;
+  gap: var(--space-4);
+}
+
+@media (min-width: 640px) {
+  .experienceGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.experienceCard {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.experienceCategory {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.experienceTitle {
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+  font-weight: 700;
+}
+
+/*
+ * A subsection inside a section: the two halves of *Plan your visit*, and the
+ * two labelled groups inside *What you can do there*.
+ *
+ * The heading and its content are one block, so a subsection that has nothing to
+ * say is not rendered at all rather than leaving a heading over empty space.
+ */
+.subsection {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.subsection + .subsection {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-default);
+}
+
+.subheading {
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+  font-weight: 700;
+}
+
+.valueList {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.valueRow {
+  display: grid;
+  gap: 2px;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--border-default);
+}
+
+.valueLabel {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.valueMeta {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.valueNote {
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+/* The material gap: warm, quiet, and never the loudest thing on the page. */
+.gap {
+  background: var(--bg-surface-warm);
+}
+
+/* Nested inside *Getting there*, so it is labelled rather than titled. */
+.nearby {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.nearbyHeading {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.nearbyList {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.nearbyRow {
+  display: grid;
+  gap: 2px;
+  min-height: var(--tap-target);
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-warm);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.nearbyName {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.nearbyMeta {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+/*
+ * The correction route, sitting with the provenance line rather than competing
+ * with the shop's own information.
+ */
+.correction {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.inlineLink {
+  color: var(--action-secondary-text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/*
+ * The one provenance line a normal tester sees.
+ *
+ * Subordinate by design: caption size, muted, no card, no heading. It sits at
+ * the foot of the page as a fact about the record rather than as a section
+ * competing with the shop's own information.
+ */
+.provenanceLine {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-default);
+  /*
+   * Secondary, not muted. `--text-muted` clears AA at body size but not at
+   * caption size on the Paper canvas (4.1:1), and this line is caption size
+   * everywhere it appears.
+   */
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.provenance {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-warm);
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+.sourceList {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.sourceRow {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+}
+
+.sourceKind {
+  /* `--text-muted` fails AA at 12 px on white; the secondary step passes. */
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sourceLabel {
+  color: var(--text-primary);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.sourceLabel a {
+  /* Body-small text on the warm provenance surface, so the darker step. */
+  color: var(--action-secondary-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.sourceMeta {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.provenanceFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-default);
+}
+
+.linkRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--action-secondary);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.relatedDesktop { display:none; }
+.relatedMobile { margin-top:var(--space-4); }
+.relatedList { list-style:none; padding:0; display:grid; gap:var(--space-2); }
+.relatedList .tag { justify-self:start; }
+@media (min-width:1024px) {
+  .relatedDesktop { display:block; }
+  .relatedMobile { display:none; }
+}
+
+.branchDisclosure { border:1px solid var(--border-default); border-radius:var(--radius-md); padding:var(--space-2) var(--space-3); }
+.branchDisclosure summary { cursor:pointer; min-height:44px; display:flex; align-items:center; font-weight:600; }
+.branchDisclosure .relatedList { margin-top:var(--space-2); }

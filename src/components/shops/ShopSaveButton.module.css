@@ -1,0 +1,41 @@
+/*
+ * A 44 × 44 target, which is the minimum `UX.md` sets and what the
+ * accessibility suite asserts. The glyph is 22 px inside it; the rest is the
+ * hit area, not padding that can be squeezed out by a flex parent.
+ */
+.save {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap-target);
+  height: var(--tap-target);
+  min-width: var(--tap-target);
+  min-height: var(--tap-target);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--action-primary);
+  cursor: pointer;
+  transition: background-color var(--motion-micro) var(--ease-entrance),
+    border-color var(--motion-micro) var(--ease-entrance),
+    color var(--motion-micro) var(--ease-entrance);
+}
+
+.save:hover {
+  background: var(--bg-surface-warm);
+}
+
+/*
+ * Saved: the Teal saved-state treatment already used by the marker, the card and
+ * the status badge. The filled glyph is the non-colour cue.
+ */
+.save[aria-pressed="true"] {
+  border-color: var(--state-saved);
+  background: var(--state-saved-surface);
+  color: var(--state-saved);
+}
+
+.save[aria-pressed="true"]:hover {
+  border-color: var(--action-secondary-text);
+}

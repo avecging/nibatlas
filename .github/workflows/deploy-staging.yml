@@ -1,0 +1,137 @@
+name: Deploy staging
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - staging
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  verify-and-deploy:
+    name: Verify and deploy staging
+    runs-on: ubuntu-latest
+    if: vars.ISOLATED_STAGING_ENABLED == 'true' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
+    environment: staging-isolated
+    timeout-minutes: 30
+    env:
+      CI: "true"
+      CF_ACCESS_CLIENT_ID: ${{ secrets.STAGING_CF_ACCESS_CLIENT_ID }}
+      CF_ACCESS_CLIENT_SECRET: ${{ secrets.STAGING_CF_ACCESS_CLIENT_SECRET }}
+      NEXT_PUBLIC_CATALOGUE_MODE: api-demo
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.STAGING_CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.STAGING_CLOUDFLARE_API_TOKEN }}
+      NEXT_PUBLIC_MAPTILER_KEY: ${{ secrets.STAGING_NEXT_PUBLIC_MAPTILER_KEY }}
+      NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: ${{ secrets.STAGING_NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN }}
+      NEXT_PUBLIC_POSTHOG_HOST: ${{ vars.STAGING_NEXT_PUBLIC_POSTHOG_HOST }}
+      # Browser-safe, but baked into the bundle at build time rather than read
+      # from a Worker secret at runtime — so it has to be present *here*, not
+      # only in `wrangler secret put`. Stored alongside the MapTiler key for
+      # consistency; neither is confidential, and both must exist to build a
+      # working staging Worker.
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.STAGING_NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 11.19.0
+          run_install: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - name: Validate isolated target before any database or deployment operation
+        run: node scripts/deploy/check-target.mjs staging
+      - name: Validate staging secrets
+        shell: bash
+        env:
+          NEXT_PUBLIC_CATALOGUE_MODE: api-demo
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
+        run: |
+          test -n "$CF_ACCESS_CLIENT_ID"
+          test -n "$CF_ACCESS_CLIENT_SECRET"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$NEXT_PUBLIC_MAPTILER_KEY"
+          test "$NEXT_PUBLIC_CATALOGUE_MODE" = "api-demo"
+          test -n "$NEXT_PUBLIC_SUPABASE_URL"
+          test -n "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+          test -n "$SUPABASE_ACCESS_TOKEN"
+          test -n "$SUPABASE_DB_PASSWORD"
+          # A build without this ships two forms that can only fail: no widget
+          # renders, and the route refuses every submission because a production
+          # build never accepts an unverified one.
+          test -n "$NEXT_PUBLIC_TURNSTILE_SITE_KEY"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - name: Build isolated staging without deploying
+        run: pnpm exec opennextjs-cloudflare build --env staging
+      - name: Verify the Turnstile site key reached the client bundle
+        run: grep -rqF "$NEXT_PUBLIC_TURNSTILE_SITE_KEY" .open-next/assets/_next/static
+      - uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1 # v1
+        with:
+          # Pin the CLI so deploys do not depend on GitHub's rate-limited
+          # unauthenticated "latest release" lookup.
+          version: 2.117.0
+      - name: Apply migrations to staging Supabase
+        shell: bash
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
+        run: node scripts/deploy/database.mjs staging
+      - name: Deploy Cloudflare staging Worker
+        shell: bash
+        env:
+          NEXT_PUBLIC_CATALOGUE_MODE: api-demo
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          set -o pipefail
+          node scripts/deploy/check-target.mjs staging
+          pnpm exec opennextjs-cloudflare deploy --env staging 2>&1 | tee "$RUNNER_TEMP/deploy-staging.log"
+          staging_url="$(grep -Eo 'https://[^[:space:]]+\.workers\.dev' "$RUNNER_TEMP/deploy-staging.log" | tail -1)"
+          test -n "$staging_url"
+          echo "STAGING_URL=$staging_url" >> "$GITHUB_ENV"
+          {
+            echo "### Nib Atlas staging"
+            echo
+            echo "Deployed commit: \`${GITHUB_SHA}\`"
+            echo
+            echo "Staging URL: ${staging_url}"
+          } >> "$GITHUB_STEP_SUMMARY"
+      # Staging is founder-managed catalogue data. Demo seed and phone fixtures
+      # are explicit test setup, never a side effect of routine deployment.
+
+      # ubuntu-latest already provides Chromium's system libraries. Installing
+      # optional font packages here makes the live smoke gate depend on a slow
+      # Ubuntu mirror even though typography is covered by the full E2E job.
+      - run: pnpm exec playwright install chromium
+      - name: Verify MapTiler geography and static MapLibre worker
+        run: pnpm exec playwright test --project=staging-maptiler
+      - name: Verify current catalogue or empty state through the public API
+        run: pnpm exec playwright test --project=staging-catalogue
+      - name: Upload staging evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: staging-smoke-evidence
+          path: |
+            test-results/**/maptiler-geography.png
+            test-results/**/catalogue-api-demo.png
+          if-no-files-found: warn
+          retention-days: 1

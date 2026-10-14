@@ -1,0 +1,190 @@
+/*
+ * Contribution form.
+ *
+ * Quiet field-journal treatment: paper ground, one column, generous vertical
+ * rhythm, and no card chrome around individual fields. The page this sits on is
+ * deliberately undistracted, so the form carries no decoration of its own.
+ */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  margin-top: var(--space-8);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.label {
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/*
+ * No margin. In a label the marker should sit against the word it belongs to —
+ * `Shop name*` — and in the legend the space is written into the sentence, so a
+ * margin here would double it in one place and be wrong in the other.
+ */
+.required {
+  color: var(--error);
+}
+
+/*
+ * The legend that says what the asterisk means, once, above the fields.
+ *
+ * Secondary rather than muted: `--text-muted` measures 4.3:1 against the page
+ * ground at this size, under the 4.5:1 small-text minimum.
+ */
+.legend {
+  margin: 0;
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+  color: var(--text-secondary);
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  color: var(--text-secondary);
+}
+
+.input,
+.textarea,
+.select {
+  width: 100%;
+  min-height: var(--tap-target);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+}
+
+.textarea {
+  resize: vertical;
+}
+
+.input:focus-visible,
+.textarea:focus-visible,
+.select:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.input:disabled,
+.textarea:disabled,
+.select:disabled {
+  background: var(--bg-surface-warm);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+/* The invalid state is carried by the border and the message, never by colour
+   alone: the error text says what is wrong in words. */
+.field[data-invalid="true"] .input,
+.field[data-invalid="true"] .textarea,
+.field[data-invalid="true"] .select {
+  border-color: var(--error);
+}
+
+.error {
+  margin: 0;
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: 600;
+  color: var(--error);
+}
+
+.summary {
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--error);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.summary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.summary p {
+  margin: 0 0 var(--space-2);
+}
+
+.summary p:last-child {
+  margin-bottom: 0;
+}
+
+.summaryTitle {
+  font-weight: 600;
+}
+
+.summaryList {
+  margin: 0;
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.summaryList a {
+  color: var(--action-secondary-text);
+}
+
+.challenge {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.actions {
+  display: flex;
+  margin-top: var(--space-2);
+}
+
+.actions > * {
+  min-width: 12rem;
+}
+
+.confirmation {
+  margin-top: var(--space-8);
+  padding: var(--space-6);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface-warm);
+}
+
+.confirmation:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.confirmation p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.confirmationTitle {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-source-serif), Georgia, serif;
+  font-size: var(--type-h2-size);
+  line-height: var(--type-h2-line);
+  color: var(--text-primary);
+}
+
+@media (min-width: 48rem) {
+  .form {
+    max-width: 34rem;
+  }
+}

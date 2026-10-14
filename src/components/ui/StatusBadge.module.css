@@ -1,0 +1,123 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  min-height: 1.5rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-round);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/*
+ * Status is carried by the border and the icon; the label uses primary ink so
+ * it clears AA on the tinted surface at caption size.
+ */
+.visited {
+  border-color: var(--state-visited);
+  background: var(--state-visited-surface);
+  color: var(--text-primary);
+}
+
+.visited svg {
+  color: var(--state-visited);
+}
+
+.saved {
+  border-color: var(--state-saved);
+  background: var(--state-saved-surface);
+  color: var(--text-primary);
+}
+
+.saved svg {
+  color: var(--state-saved);
+}
+
+.unvisited {
+  border-color: var(--border-default);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+}
+
+.neutral {
+  border-color: var(--border-default);
+  background: var(--bg-surface-warm);
+  color: var(--text-secondary);
+}
+
+/*
+ * Confirmed open.
+ *
+ * The success green, not the Teal saved token: saving is something the reader
+ * did, and a shop being open is something the world is doing. The label is
+ * primary ink on the pale ground (13.9:1) and the check icon carries the state
+ * without colour doing the work alone.
+ */
+.success {
+  border-color: var(--success);
+  background: var(--success-surface);
+  color: var(--text-primary);
+}
+
+.success svg {
+  color: var(--success);
+}
+
+/*
+ * A confirmed closure: the loudest status on the page.
+ *
+ * Filled amber, primary ink (13.8:1), alert icon. Turning up to a shop that has
+ * closed is the failure the page exists to prevent, so this outranks both the
+ * open badge and the unconfirmed one.
+ */
+.warning {
+  border-color: var(--warning);
+  background: var(--warning-surface);
+  color: var(--text-primary);
+}
+
+.warning svg {
+  color: var(--warning);
+}
+
+/*
+ * Unconfirmed, and deliberately quieter than a closure.
+ *
+ * Nobody has verified this either way, which is worth saying and not worth
+ * shouting. A soft amber outline on the surrounding surface, secondary ink
+ * (7.2:1 on Paper, 7.7:1 on white) and the same alert icon at full strength, so
+ * the state is still carried by shape and label rather than by a tint.
+ */
+.caution {
+  border-color: var(--warning-soft);
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.caution svg {
+  color: var(--warning);
+}
+
+/*
+ * The prototype notice is the one badge that can hold a sentence rather than a
+ * short status word, so it is the one that wraps. `white-space: nowrap` above
+ * is right for a status pill and wrong for a notice: an un-wrappable sentence
+ * gave the styleguide a 598 px minimum width, which pushed a 360 px layout out
+ * to 614 px and made a mobile browser zoom the whole page out.
+ */
+.prototype {
+  white-space: normal;
+  /* A pill radius on a wrapped sentence reads as a mistake; a card radius does
+     not. */
+  border-radius: var(--radius-md);
+  padding: var(--space-1) var(--space-2);
+  border-color: var(--border-strong);
+  background: var(--bg-surface-warm);
+  color: var(--text-secondary);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}

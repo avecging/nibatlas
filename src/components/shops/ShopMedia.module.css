@@ -1,0 +1,370 @@
+/*
+ * Shop media: the business's logo, the contained photo gallery, and the viewer.
+ *
+ * One stylesheet, because the three are one decision — a logo is identity and a
+ * photograph is a picture of the place, and issue #82's stack came from drawing
+ * them the same way. Nothing here crops: every image is `contain` on the page's
+ * own warm surface, so an image's proportions survive the layout.
+ */
+
+/* ---------------------------------------------------------------- the logo */
+
+.logoSlot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.logoImage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* The complete source image: no stretch, no mask, no crop, no recolouring. */
+  object-fit: contain;
+  object-position: left center;
+}
+
+/* Square and near-square marks sit beside the title at both widths. */
+.logoSlot[data-shape="square"] {
+  width: 3rem;
+  height: 3rem;
+}
+
+/*
+ * A wide mark takes the row above the title on a phone.
+ *
+ * Kept beside a long or local-script name it leaves the title a column too
+ * narrow to read, so the slot is the full row and the mark is bounded inside
+ * it. The slot carries no `max-width`: a flex item's base size is clamped by
+ * its own maximum, so a capped slot would measure 160 px and share the line
+ * again at anything above the narrowest phone.
+ */
+.logoSlot[data-shape="wide"] {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 3rem;
+}
+
+.logoSlot[data-shape="wide"] .logoImage {
+  max-width: 10rem;
+}
+
+@media (min-width: 768px) {
+  .logoSlot[data-shape="square"] {
+    width: 4.5rem;
+    height: 4.5rem;
+  }
+
+  .logoSlot[data-shape="wide"] {
+    flex: 0 0 auto;
+    width: 10rem;
+    height: 4.5rem;
+  }
+}
+
+/* ------------------------------------------------------------- the gallery */
+
+.gallery {
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* Loading, empty and failed are three different answers, and only one of them
+   is silence: an empty gallery renders nothing at all. */
+.galleryStatus {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+.retry {
+  min-height: var(--tap-target);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--action-secondary-text);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/*
+ * A bounded composition rather than a column of full-width pictures.
+ *
+ * Phone: one dominant cover with a position counter, then up to two previews.
+ * Desktop: the cover beside two stacked previews, at a fixed height, so the
+ * gallery occupies the same space whether a shop has three photographs or fifty.
+ */
+.grid {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: 13rem;
+}
+
+.grid[data-count="2"],
+.grid[data-count="3"] {
+  grid-template-rows: 13rem 6.5rem;
+}
+
+.coverCell {
+  grid-column: 1 / -1;
+}
+
+.grid[data-count="2"] .previewCell {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 768px) {
+  .grid,
+  .grid[data-count="2"],
+  .grid[data-count="3"] {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    height: 21rem;
+  }
+
+  .coverCell {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+
+  .grid[data-count="1"] .coverCell {
+    grid-column: 1 / -1;
+  }
+
+  .previewCell {
+    grid-column: 2;
+  }
+
+  .grid[data-count="2"] .previewCell {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+}
+
+.tile {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-warm);
+  cursor: pointer;
+}
+
+.tileImage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.tileBroken {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  height: 100%;
+  padding: var(--space-3);
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+/*
+ * The position counter, on the phone cover.
+ *
+ * Solid rather than translucent: the control has to stay legible over a pale
+ * paper photograph and a dark shopfront alike.
+ */
+.counter {
+  position: absolute;
+  left: var(--space-3);
+  bottom: var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  min-height: 1.75rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-round);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: 600;
+}
+
+@media (min-width: 768px) {
+  .counter {
+    display: none;
+  }
+}
+
+.viewAll {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap-target);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-round);
+  background: var(--bg-surface);
+  color: var(--action-secondary-text);
+  font-size: var(--type-body-sm-size);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.coverCaption {
+  display: grid;
+  gap: 2px;
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.coverCredit {
+  color: var(--text-secondary);
+}
+
+/* -------------------------------------------------------------- the viewer */
+
+.viewerBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: var(--space-4);
+  /*
+   * Deeper than the shared `--overlay-scrim`, which is tuned for a small paper
+   * dialog. A photograph is read against this, so the page behind it has to
+   * recede completely rather than compete for attention with the image.
+   */
+  background: rgba(16, 45, 70, 0.92);
+  animation: viewer-in 120ms ease-out;
+}
+
+@keyframes viewer-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/*
+ * A definite height, so the stage row can be `minmax(0, 1fr)` and the image can
+ * be told to fit inside it. Stretched by the backdrop rather than sized by its
+ * own content: an image cannot be asked to fit a box that its own size defines.
+ */
+.viewer {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  gap: var(--space-3);
+  width: min(100%, 64rem);
+  min-height: 0;
+}
+
+.viewerBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.viewerPosition {
+  color: var(--text-on-dark);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+  font-weight: 600;
+}
+
+.viewerStage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+/* The whole photograph, fitted — never a crop chosen by the window's shape. */
+.viewerImage {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+}
+
+/*
+ * The two neighbours: fetched so the next press is immediate, never shown, and
+ * out of the accessibility tree. Not `display: none`, which some browsers treat
+ * as permission to skip the fetch entirely.
+ */
+.viewerPreload {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.viewerBroken {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-on-dark);
+  font-size: var(--type-body-sm-size);
+}
+
+.viewerCaption {
+  display: grid;
+  gap: 2px;
+  color: var(--text-on-dark);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+.viewerCredit {
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.viewerNavigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Solid, so previous/next/close stay readable over any photograph. */
+.viewerControl {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap-target);
+  min-height: var(--tap-target);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-round);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.viewerControl[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: default;
+}
