@@ -32,6 +32,10 @@ jobs:
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
+      - name: Backup safeguards
+        run: |
+          python3 -m unittest discover -s scripts/backup -p 'test_*.py'
+          node scripts/backup/test-recovery-key.mjs
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
