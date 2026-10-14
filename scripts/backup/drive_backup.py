@@ -56,7 +56,8 @@ def json_bytes(value):
     return json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2).encode()
 
 
-def request(url, *, token=None, data=None, method="GET", headers=None, raw=False):
+def request(url, *, token=None, data=None, method="GET", headers=None, raw=False,
+            operation="provider API request"):
     host = urllib.parse.urlsplit(url).hostname
     if host not in {"api.supabase.com", "api.cloudflare.com", "oauth2.googleapis.com", "www.googleapis.com"}:
         raise BackupError("Refused unexpected provider host")
@@ -74,21 +75,26 @@ def request(url, *, token=None, data=None, method="GET", headers=None, raw=False
             return response
         with response:
             return json.load(response)
+    except urllib.error.HTTPError as error:
+        raise BackupError(f"{operation} failed: {host} (HTTP {error.code})") from None
     except (urllib.error.URLError, ValueError, OSError):
-        raise BackupError(f"Provider request failed: {host}") from None
+        raise BackupError(f"{operation} failed: {host} (network or invalid response)") from None
 
 
 def checked(command, *, env=None, output=None, timeout=1800):
+    # Report only a known tool name, never command arguments, SQL or stderr.
+    tool_name = next((name for name in ("pg_dump", "pg_dumpall", "pg_restore", "age", "git")
+                      if name in command), "backup tool")
     try:
         result = subprocess.run(command, env=env, stdout=output or subprocess.PIPE,
                                 stderr=subprocess.PIPE, timeout=timeout, check=False)
     except (OSError, subprocess.TimeoutExpired):
-        raise BackupError("Backup command could not complete") from None
+        raise BackupError(f"{tool_name} could not complete") from None
     if result.returncode:
-        raise BackupError("Backup command failed; provider details withheld")
+        raise BackupError(f"{tool_name} failed; sensitive command details withheld")
     # Warnings can signal incomplete exports. Keep them private and fail closed.
     if result.stderr and command[-1:] != ["--version"]:
-        raise BackupError("Backup command reported warnings; review privately before retrying")
+        raise BackupError(f"{tool_name} reported warnings; review privately before retrying")
     return result.stdout
 
 
@@ -229,12 +235,14 @@ class Drive:
 
 def source_config(root):
     token = required("SUPABASE_ACCESS_TOKEN")
-    project = request(f"https://api.supabase.com/v1/projects/{PROJECT}", token=token)
+    project = request(f"https://api.supabase.com/v1/projects/{PROJECT}", token=token,
+                      operation="Read Supabase project identity")
     if project.get("id", project.get("ref")) != PROJECT or project.get("name") != "nibatlas-staging":
         raise BackupError("Supabase source identity did not match the fixed live project")
     if required("NEXT_PUBLIC_SUPABASE_URL").rstrip("/") != f"https://{PROJECT}.supabase.co":
         raise BackupError("Supabase deployment URL did not match the fixed source")
-    pools = request(f"https://api.supabase.com/v1/projects/{PROJECT}/config/database/pooler", token=token)
+    pools = request(f"https://api.supabase.com/v1/projects/{PROJECT}/config/database/pooler", token=token,
+                    operation="Read Supabase pooler configuration")
     pool = next((x for x in pools if x.get("database_type") == "PRIMARY"), None)
     connection = pool and (pool.get("connection_string") or pool.get("connectionString"))
     if not connection or "[YOUR-PASSWORD]" not in connection:
@@ -247,12 +255,13 @@ def source_config(root):
     # The management API may return the transaction URL (6543). Supabase's
     # shared pooler uses the same verified host/user for session mode on 5432.
     # PGPORT below always selects session mode; never dump through 6543.
-    auth = request(f"https://api.supabase.com/v1/projects/{PROJECT}/config/auth", token=token)
+    auth = request(f"https://api.supabase.com/v1/projects/{PROJECT}/config/auth", token=token,
+                   operation="Read Supabase Auth configuration")
     account = required("CLOUDFLARE_ACCOUNT_ID")
     if not re.fullmatch(r"[a-f0-9]{32}", account):
         raise BackupError("Invalid Cloudflare account identifier")
     worker = request(f"https://api.cloudflare.com/client/v4/accounts/{account}/workers/scripts/{WORKER}/settings",
-                     token=required("CLOUDFLARE_API_TOKEN"))
+                     token=required("CLOUDFLARE_API_TOKEN"), operation="Read Cloudflare Worker configuration")
     if not worker.get("success"):
         raise BackupError("Could not read live Worker configuration")
     binding = next((x for x in worker["result"].get("bindings", []) if x.get("name") == "MEDIA_BUCKET"), {})

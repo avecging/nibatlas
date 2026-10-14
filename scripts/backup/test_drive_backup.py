@@ -88,6 +88,24 @@ class BackupTests(unittest.TestCase):
                 b.request('https://api.supabase.com/v1/projects/test')
             self.assertNotIn('secret-password', str(result.exception))
 
+    def test_http_error_reports_status_and_operation_without_credentials_or_body(self):
+        error = b.urllib.error.HTTPError('https://api.supabase.com/private?token=secret-query',
+                                         403, 'secret-message', {}, io.BytesIO(b'secret-body'))
+        with patch.object(b.urllib.request, 'build_opener') as opener:
+            opener.return_value.open.side_effect = error
+            with self.assertRaises(b.BackupError) as result:
+                b.request('https://api.supabase.com/v1/projects/test/config/auth',
+                          token='secret-token', operation='Read Supabase Auth configuration')
+        self.assertEqual(str(result.exception), 'Read Supabase Auth configuration failed: api.supabase.com (HTTP 403)')
+        self.assertNotIn('secret-', str(result.exception))
+
+    def test_command_failure_reports_only_known_tool_not_args_or_stderr(self):
+        response = b.subprocess.CompletedProcess([], 1, b'secret-output', b'secret-password')
+        with patch.object(b.subprocess, 'run', return_value=response):
+            with self.assertRaises(b.BackupError) as result:
+                b.checked(['docker', 'run', 'pg_dump', '--file', 'secret-path'])
+        self.assertEqual(str(result.exception), 'pg_dump failed; sensitive command details withheld')
+
     def test_authenticated_requests_cannot_redirect(self):
         self.assertIsNone(b.NoRedirect().redirect_request(None, None, 302, '', {}, 'https://attacker.test'))
         with self.assertRaises(b.BackupError):
