@@ -19,7 +19,7 @@ preserved, as are main's backup safeguards. No app deployment follows a main pus
 | Target | Live production, preserved | New isolated staging |
 | --- | --- | --- |
 | Supabase | Existing fixed project reference | New project, reference initially unregistered |
-| Supabase display name | Keep `nibatlas-staging` until a reviewed rename updates identity checks | `nibatlas-staging-isolated` |
+| Supabase display name | Keep `nibatlas-staging` until a reviewed rename updates identity checks | `nibatlas-og-staging` |
 | Worker | Existing `nibatlas-staging` remains live; proposed `nibatlas-production` is not released | `nibatlas-staging-isolated` |
 | R2 | Existing `nibatlas-staging-images` | `nibatlas-staging-isolated-images` |
 | GitHub environment | Existing `staging` retains live/backup credentials during preparation; proposed `production` is unconfigured | `staging-isolated` |
@@ -49,7 +49,7 @@ deployment; never force-reset a branch or re-run an old deployment.
 ## Operator setup, in order
 
 1. In the existing **Nib Atlas** Free organization, create
-   `nibatlas-staging-isolated` in Singapore. Confirm the console shows $0 and no
+   `nibatlas-og-staging` in Singapore. Confirm the console shows $0 and no
    upgrade. Save its unique database password in the password manager. Share only
    its public project reference with the implementer.
 2. Register that reference in `scripts/deploy/targets.json` through a reviewed

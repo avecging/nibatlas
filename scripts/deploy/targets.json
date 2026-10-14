@@ -10,7 +10,7 @@
   },
   "staging": {
     "projectRef": null,
-    "projectName": "nibatlas-staging-isolated",
+    "projectName": "nibatlas-og-staging",
     "worker": "nibatlas-staging-isolated",
     "bucket": "nibatlas-staging-isolated-images",
     "mediaEnvironment": "staging",
