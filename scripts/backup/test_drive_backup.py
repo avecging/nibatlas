@@ -93,6 +93,27 @@ class BackupTests(unittest.TestCase):
         with self.assertRaises(b.BackupError):
             b.request('https://attacker.test', token='fake')
 
+    def test_provider_transaction_url_selects_the_verified_session_endpoint(self):
+        for port in (5432, 6543):
+            with self.subTest(port=port):
+                env, responses = source_fixture(port=port)
+                with tempfile.TemporaryDirectory() as folder, patch.dict(b.os.environ, env, clear=True), patch.object(b, 'request', side_effect=responses):
+                    result = b.source_config(Path(folder))
+                self.assertEqual(result['PGPORT'], '5432')
+                self.assertEqual(result['PGHOST'], 'aws-0-ap-southeast-1.pooler.supabase.com')
+                self.assertEqual(result['PGUSER'], 'postgres.' + b.PROJECT)
+                self.assertEqual(result['PGSSLMODE'], 'verify-full')
+                self.assertIn('default_transaction_read_only=on', result['PGOPTIONS'])
+
+    def test_pooler_host_identity_and_allowed_ports_remain_enforced(self):
+        for host, port in [('attacker.test', 6543), ('aws-0-ap-southeast-1.pooler.supabase.com', 9999)]:
+            with self.subTest(host=host, port=port):
+                env, responses = source_fixture(host=host, port=port)
+                with tempfile.TemporaryDirectory() as folder, patch.dict(b.os.environ, env, clear=True), patch.object(b, 'request', side_effect=responses) as call:
+                    with self.assertRaises(b.BackupError):
+                        b.source_config(Path(folder))
+                self.assertEqual(call.call_count, 2)
+
     def test_deleted_object_referenced_by_dump_blocks_completion(self):
         key = 'staging/media/test/v1/image.png'
         sql = ('COPY public.media_uploads (id, storage_key, status) FROM stdin;\n'
@@ -111,6 +132,18 @@ class BackupTests(unittest.TestCase):
                'COPY public.geographic_seal_assets (id, environment, sha256, ready, content_type) FROM stdin;\n'
                'seal-id\tstaging\tdef\tt\timage/svg+xml\n\\.\n')
         self.assertEqual(b.snapshot_media_keys(sql), {'staging/about/about-id/abc.png', 'staging/seals/seal-id/def.svg'})
+
+
+def source_fixture(host='aws-0-ap-southeast-1.pooler.supabase.com', port=6543):
+    env = {'SUPABASE_ACCESS_TOKEN': 'synthetic-token',
+           'NEXT_PUBLIC_SUPABASE_URL': f'https://{b.PROJECT}.supabase.co',
+           'SUPABASE_DB_PASSWORD': 'synthetic-password',
+           'CLOUDFLARE_ACCOUNT_ID': 'a' * 32, 'CLOUDFLARE_API_TOKEN': 'synthetic-token'}
+    responses = [{'id': b.PROJECT, 'name': 'nibatlas-staging'},
+                 [{'database_type': 'PRIMARY', 'connection_string':
+                   f'postgresql://postgres.{b.PROJECT}:[YOUR-PASSWORD]@{host}:{port}/postgres'}],
+                 {}, {'success': True, 'result': {'bindings': [{'name': 'MEDIA_BUCKET', 'bucket_name': b.BUCKET}]}}]
+    return env, responses
 
 
 class FakeResponse(io.BytesIO):
