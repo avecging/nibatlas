@@ -23,6 +23,13 @@ private user data boundaries, or functions that have not been built yet.
 
 - Verified cookie-session claims establish identity, never authorization from
   user-editable metadata, email strings, request headers or a cached JWT role.
+- The `/admin` request middleware checks the live role before rendering any admin
+  page. It carries refreshed Supabase cookies into the page request and browser;
+  signed-out and ordinary accounts go to the illustrated `/access-denied` page. Editors retain catalogue/seal
+  pages; About and bulk import pages require `admin`. The denial page offers the
+  existing Map / Passport / Me navigation and a teal Go back action to the last
+  successful public page in the current tab, with the map as fallback. Direct
+  admin API calls still return their existing 401/403 JSON responses.
 - Every admin request invokes `admin_access()` with the ordinary user client.
   It reads the current database role. No service-role key is used here.
 - Shop identity verification, role resolution and catalogue RPCs share that
@@ -170,6 +177,11 @@ account-attributed audit event. It also covers editor, ordinary/anonymous users,
 role revocation, and direct authenticated RPC creation. SQL tests now force
 constraints while still authenticated. No service-role application client or
 mocked browser routes are involved.
+
+The separate browser UI smoke suite stubs session and admin API responses. Its
+isolated fixture build omits the page middleware so those frontend journeys can
+run without Supabase. Treat the Worker job, not that UI fixture, as evidence for
+page and API authorization.
 
 ## Founder acceptance update — 14 September 2026
 

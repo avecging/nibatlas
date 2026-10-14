@@ -1,3 +1,4 @@
+-- LOCAL CI ONLY: legacy hosted staging is now live production.
 -- Read-only data recovery export; excludes auth credentials and ephemeral nonces.
 -- Media bytes remain in R2; this snapshot includes their manifests/references.
 -- Project labels below are descriptive, not database identity verification.
@@ -33,7 +34,7 @@ with backup as (select jsonb_build_object(
   'stamp_private.shop_verification_policy',(select coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),'[]'::jsonb) from stamp_private.shop_verification_policy r)
 ) as tables)
 select jsonb_build_object(
- 'project','nibatlas-staging','project_ref','xgyzsdrugtwqlpnkutfw',
+ 'project','nibatlas-local-ci','project_ref','local-ci-only',
  'exported_at',clock_timestamp(),'tables',tables,
  'fingerprints',(select jsonb_object_agg(key,md5(value::text)) from jsonb_each(tables))
 ) as recovery_backup from backup;

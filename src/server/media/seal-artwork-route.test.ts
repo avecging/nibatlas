@@ -2,7 +2,13 @@
 import {it,expect,vi} from 'vitest';
 vi.mock('@opennextjs/cloudflare',()=>({getCloudflareContext:vi.fn()}));
 vi.mock('@/src/server/supabase/server-client',()=>({createSupabaseServerClient:vi.fn()}));
-import {handleSealArtwork,SealFileError,type SealFileGateway} from './seal-artwork-route';
+vi.mock('@/src/server/supabase/config',()=>({readSupabasePublicConfig:vi.fn()}));
+vi.mock('@supabase/supabase-js',()=>({createClient:vi.fn()}));
+import {getCloudflareContext} from '@opennextjs/cloudflare';
+import {createClient} from '@supabase/supabase-js';
+import {createSupabaseServerClient} from '@/src/server/supabase/server-client';
+import {readSupabasePublicConfig} from '@/src/server/supabase/config';
+import {handleSealArtwork,sealArtworkRoute,SealFileError,type SealFileGateway} from './seal-artwork-route';
 import {validateSealSvg} from './seal-artwork';
 const id='e1000000-0000-4000-8000-000000000002';
 const bytes=new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400"><path d="M0 0L10 10"/></svg>');
@@ -15,6 +21,19 @@ it('denies an ordinary account before reading bytes',async()=>{const g=gateway()
 it('validates, stores and reads back exact original bytes before finalizing',async()=>{const g=gateway();const r=await handleSealArtwork(request(),id,true,g);expect(r.status).toBe(201);expect(await r.json()).toEqual({id});expect(g.operation).toHaveBeenLastCalledWith('finalize',id,null);expect(g.bucket.put).toHaveBeenCalledWith(asset.key,bytes,expect.anything());});
 it('does not finalize corrupted object storage',async()=>{const g=gateway();g.bucket.get=async()=>null;expect((await handleSealArtwork(request(),id,true,g)).status).toBe(503);expect(g.operation).toHaveBeenCalledTimes(1);});
 it('rechecks read authorization after storage and sandboxes SVG delivery',async()=>{const g=gateway();const r=await handleSealArtwork(request('GET'),id,false,g);expect(r.status).toBe(200);expect(g.operation).toHaveBeenCalledTimes(2);expect(r.headers.get('Content-Security-Policy')).toContain('sandbox');expect(r.headers.get('Content-Type')).toBe('image/svg+xml');});
+it('keeps published or awarded artwork readable for an ordinary account',async()=>{
+ vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY','test-only');
+ const session={auth:{getClaims:vi.fn(async()=>({data:{claims:{sub:id}},error:null}))},rpc:vi.fn()};
+ vi.mocked(createSupabaseServerClient).mockResolvedValue(session as never);
+ vi.mocked(readSupabasePublicConfig).mockReturnValue({url:'https://example.test',publishableKey:'public'} as never);
+ vi.mocked(getCloudflareContext).mockResolvedValue({env:{MEDIA_BUCKET:gateway().bucket,MEDIA_ENV:'staging'}} as never);
+ vi.mocked(createClient).mockReturnValue({rpc:vi.fn(async()=>({data:asset,error:null}))} as never);
+ try{
+  const response=await sealArtworkRoute(request('GET'),id,false);
+  expect(response.status).toBe(200);
+  expect(session.rpc).not.toHaveBeenCalled();
+ }finally{vi.unstubAllEnvs();}
+});
 it('denies private art after role revocation during a read',async()=>{const g=gateway();let n=0;g.operation=async()=>{if(n++)throw new SealFileError('P0002');return asset;};expect((await handleSealArtwork(request('GET'),id,false,g)).status).toBe(404);});
 
 it('identifies JPEG bytes mislabeled as PNG before registering or storing artwork',async()=>{

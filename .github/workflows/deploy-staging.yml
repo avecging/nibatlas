@@ -17,21 +17,27 @@ jobs:
   verify-and-deploy:
     name: Verify and deploy staging
     runs-on: ubuntu-latest
-    environment: staging
+    if: vars.ISOLATED_STAGING_ENABLED == 'true' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
+    environment: staging-isolated
     timeout-minutes: 30
     env:
       CI: "true"
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      NEXT_PUBLIC_MAPTILER_KEY: ${{ secrets.NEXT_PUBLIC_MAPTILER_KEY }}
-      NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: ${{ secrets.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN }}
-      NEXT_PUBLIC_POSTHOG_HOST: ${{ vars.NEXT_PUBLIC_POSTHOG_HOST }}
+      CF_ACCESS_CLIENT_ID: ${{ secrets.STAGING_CF_ACCESS_CLIENT_ID }}
+      CF_ACCESS_CLIENT_SECRET: ${{ secrets.STAGING_CF_ACCESS_CLIENT_SECRET }}
+      NEXT_PUBLIC_CATALOGUE_MODE: api-demo
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.STAGING_CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.STAGING_CLOUDFLARE_API_TOKEN }}
+      NEXT_PUBLIC_MAPTILER_KEY: ${{ secrets.STAGING_NEXT_PUBLIC_MAPTILER_KEY }}
+      NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: ${{ secrets.STAGING_NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN }}
+      NEXT_PUBLIC_POSTHOG_HOST: ${{ vars.STAGING_NEXT_PUBLIC_POSTHOG_HOST }}
       # Browser-safe, but baked into the bundle at build time rather than read
       # from a Worker secret at runtime — so it has to be present *here*, not
       # only in `wrangler secret put`. Stored alongside the MapTiler key for
       # consistency; neither is confidential, and both must exist to build a
       # working staging Worker.
-      NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.STAGING_NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -43,15 +49,19 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
+      - name: Validate isolated target before any database or deployment operation
+        run: node scripts/deploy/check-target.mjs staging
       - name: Validate staging secrets
         shell: bash
         env:
           NEXT_PUBLIC_CATALOGUE_MODE: api-demo
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
         run: |
+          test -n "$CF_ACCESS_CLIENT_ID"
+          test -n "$CF_ACCESS_CLIENT_SECRET"
           test -n "$CLOUDFLARE_ACCOUNT_ID"
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$NEXT_PUBLIC_MAPTILER_KEY"
@@ -64,6 +74,14 @@ jobs:
           # renders, and the route refuses every submission because a production
           # build never accepts an unverified one.
           test -n "$NEXT_PUBLIC_TURNSTILE_SITE_KEY"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - name: Build isolated staging without deploying
+        run: pnpm exec opennextjs-cloudflare build --env staging
+      - name: Verify the Turnstile site key reached the client bundle
+        run: grep -rqF "$NEXT_PUBLIC_TURNSTILE_SITE_KEY" .open-next/assets/_next/static
       - uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1 # v1
         with:
           # Pin the CLI so deploys do not depend on GitHub's rate-limited
@@ -72,59 +90,20 @@ jobs:
       - name: Apply migrations to staging Supabase
         shell: bash
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        run: |
-          set -euo pipefail
-          project_ref="${NEXT_PUBLIC_SUPABASE_URL#https://}"
-          project_ref="${project_ref%%.*}"
-          test -n "$project_ref"
-
-          # Refuse to modify any project except the named staging project. Query
-          # the selected project directly: a least-privilege project-scoped PAT
-          # can read this endpoint but cannot enumerate every account project.
-          curl --fail --silent --show-error \
-            "https://api.supabase.com/v1/projects/${project_ref}" \
-            --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
-            | jq -e --arg ref "$project_ref" \
-                '(.ref == $ref or .id == $ref) and .name == "nibatlas-staging"' \
-            >/dev/null
-
-          pooler_url="$(
-            curl --fail --silent --show-error \
-              "https://api.supabase.com/v1/projects/${project_ref}/config/database/pooler" \
-              --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
-              | jq -er \
-                  '[.[] | select(.database_type == "PRIMARY")][0] | (.connection_string // .connectionString)'
-          )"
-          case "$pooler_url" in
-            *'[YOUR-PASSWORD]'*) ;;
-            *) echo "Supabase did not return the expected staging pooler URL" >&2; exit 1 ;;
-          esac
-
-          encoded_password="$(
-            jq -nr --arg password "$SUPABASE_DB_PASSWORD" '$password | @uri'
-          )"
-          db_url="${pooler_url/\[YOUR-PASSWORD\]/$encoded_password}"
-          echo "::add-mask::$db_url"
-
-          supabase db push --db-url "$db_url" --dry-run
-          supabase db push --db-url "$db_url"
-          unset db_url encoded_password pooler_url
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
-      - run: pnpm typecheck
-      - run: pnpm test
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
+        run: node scripts/deploy/database.mjs staging
       - name: Deploy Cloudflare staging Worker
         shell: bash
         env:
           NEXT_PUBLIC_CATALOGUE_MODE: api-demo
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
         run: |
           set -o pipefail
-          pnpm deploy:staging 2>&1 | tee "$RUNNER_TEMP/deploy-staging.log"
+          node scripts/deploy/check-target.mjs staging
+          pnpm exec opennextjs-cloudflare deploy --env staging 2>&1 | tee "$RUNNER_TEMP/deploy-staging.log"
           staging_url="$(grep -Eo 'https://[^[:space:]]+\.workers\.dev' "$RUNNER_TEMP/deploy-staging.log" | tail -1)"
           test -n "$staging_url"
           echo "STAGING_URL=$staging_url" >> "$GITHUB_ENV"
@@ -135,17 +114,6 @@ jobs:
             echo
             echo "Staging URL: ${staging_url}"
           } >> "$GITHUB_STEP_SUMMARY"
-      # A `NEXT_PUBLIC_` value is inlined into the client bundle by matching the
-      # literal `process.env.NEXT_PUBLIC_X` member expression. Write it any other
-      # way — a bracket index, a destructure, a variable — and it compiles,
-      # deploys, and is `undefined` in the browser. Nothing fails loudly: the
-      # Turnstile widget simply never renders and every submission is refused.
-      # Asserting the value reached the bundle is the only check that catches it.
-      - name: Verify the Turnstile site key reached the client bundle
-        shell: bash
-        run: |
-          grep -rqF "$NEXT_PUBLIC_TURNSTILE_SITE_KEY" .open-next/assets/_next/static             || { echo "Site key absent from the built bundle — check it is read as process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY"; exit 1; }
-
       # Staging is founder-managed catalogue data. Demo seed and phone fixtures
       # are explicit test setup, never a side effect of routine deployment.
 

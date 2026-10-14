@@ -1,0 +1,19 @@
+{
+  "production": {
+    "projectRef": "xgyzsdrugtwqlpnkutfw",
+    "projectName": "nibatlas-staging",
+    "worker": "nibatlas-production",
+    "bucket": "nibatlas-staging-images",
+    "mediaEnvironment": "staging",
+    "catalogueMode": "api",
+    "releaseReady": false
+  },
+  "staging": {
+    "projectRef": null,
+    "projectName": "nibatlas-staging-isolated",
+    "worker": "nibatlas-staging-isolated",
+    "bucket": "nibatlas-staging-isolated-images",
+    "mediaEnvironment": "staging",
+    "catalogueMode": "api-demo"
+  }
+}

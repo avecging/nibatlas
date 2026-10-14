@@ -36,6 +36,7 @@ jobs:
         run: |
           python3 -m unittest discover -s scripts/backup -p 'test_*.py'
           node scripts/backup/test-recovery-key.mjs
+          node --test scripts/deploy/test-targets.mjs
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
@@ -146,7 +147,7 @@ jobs:
           mkdir -p supabase/tests/fixtures
           cp supabase/fixtures/staging-phone-location.sql supabase/tests/fixtures/staging-phone-location.inc
       - run: supabase test db
-      - name: Verify disposable catalogue reset and rollback
+      - name: Reject retired hosted catalogue reset
         run: python3 scripts/test-staging-catalogue-reset.py
       - name: Concurrent stamp issuance
         run: python3 scripts/verification/concurrency.py
