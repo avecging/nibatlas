@@ -26,9 +26,9 @@ export async function authorizeStagingPage(page: Page, origin: string, headers: 
 }
 
 export const test = base.extend({
-  page: async ({page}, usePage) => {
+  page: async ({page}, providePage) => {
     const headers = accessHeaders();
     if (Object.keys(headers).length) await authorizeStagingPage(page, new URL(process.env.STAGING_URL!).origin, headers);
-    await usePage(page);
+    await providePage(page);
   },
 });
