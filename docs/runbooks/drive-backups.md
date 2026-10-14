@@ -82,8 +82,12 @@ project, not blindly overwritten. Never restore this archive over the live ref.
    access. If the deploy token cannot read Auth config, add a separately scoped
    `BACKUP_SUPABASE_ACCESS_TOKEN`; it takes precedence without changing deployment
    credentials. The existing Cloudflare deploy token must be able to read Worker
-   settings. All Postgres commands set read-only transactions and TLS with
-   `verify-full`, authenticating the server hostname against the system CA store.
+   settings.
+   The management API's verified shared-pooler host/user may be returned with
+   transaction port 6543; the exporter always uses session port 5432 on that same
+   host, as documented by Supabase. No host is guessed from the region.
+   All Postgres commands set read-only transactions and TLS with `verify-full`,
+   authenticating the server hostname against the system CA store.
    If the pooler requires the project's downloadable public CA, save its PEM text
    as Actions variable `BACKUP_POSTGRES_CA_CERT`. Do not weaken certificate checks
    to make a failed connection succeed. Never enter a private key in this field.

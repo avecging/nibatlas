@@ -244,8 +244,9 @@ def source_config(root):
             or not parsed.hostname or not parsed.hostname.endswith(".pooler.supabase.com")
             or parsed.port not in {5432, 6543}):
         raise BackupError("Pooler connection identity did not match")
-    if parsed.port != 5432:
-        raise BackupError("Backup requires session pooler port 5432, not transaction pooling")
+    # The management API may return the transaction URL (6543). Supabase's
+    # shared pooler uses the same verified host/user for session mode on 5432.
+    # PGPORT below always selects session mode; never dump through 6543.
     auth = request(f"https://api.supabase.com/v1/projects/{PROJECT}/config/auth", token=token)
     account = required("CLOUDFLARE_ACCOUNT_ID")
     if not re.fullmatch(r"[a-f0-9]{32}", account):
