@@ -41,5 +41,7 @@ it('keeps supported PNGs byte-for-byte and refuses to flatten animation',()=>{
     chunk('tRNS',Buffer.from([0,0,0,0,0,0])),
     chunk('IDAT',deflateSync(Buffer.alloc(14))),chunk('IEND',Buffer.alloc(0)),
   ]);
-  expect(()=>preparePngUpload(transparentRgb)).toThrow('transparency format');
+  expect(()=>preparePngUpload(transparentRgb)).toThrow('image metadata format');
+  for (const type of ['sBIT','mDCV','cLLI'])
+    expect(()=>preparePngUpload(png(2,2,{chunks:[chunk(type,Buffer.alloc(type==='sBIT'?4:type==='mDCV'?24:8))]}))).toThrow('image metadata format');
 });
