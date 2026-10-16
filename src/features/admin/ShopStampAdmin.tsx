@@ -11,6 +11,7 @@ import { decodeAdminStamps, stampAdminPath, STAMP_INKS, type AdminStampVersion }
 import { UploadField } from './UploadField';
 import { usePrivateUpload } from './use-private-upload';
 import { imageContentType } from './image-content-type';
+import { preparePngUpload } from '@/src/domain/png-upload';
 import styles from './ShopStampAdmin.module.css';
 
 const messages:Record<string,string>={
@@ -162,7 +163,8 @@ function ArtworkPicker({shopId,version,disabled,run,attached}:{shopId:string;ver
       if(file.size<1||file.size>5*1024*1024)throw new Failure('invalid_upload');
       const bytes=await file.arrayBuffer();
       if(imageContentType(new Uint8Array(bytes))!=='image/png')throw new Failure('invalid_upload');
-      return {bytes,contentType:'image/png'}; // Original artwork bytes, never normalized.
+      try { return {bytes:Uint8Array.from(preparePngUpload(new Uint8Array(bytes))).buffer,contentType:'image/png'}; }
+      catch { throw new Failure('invalid_upload'); }
     },
     attach:async(uploadId,signal)=>{
       const value=await call(stampAdminPath(shopId),signal,post({action:'attach',versionId:version.id,uploadId}));

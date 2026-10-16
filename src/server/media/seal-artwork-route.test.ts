@@ -4,6 +4,10 @@ vi.mock('@opennextjs/cloudflare',()=>({getCloudflareContext:vi.fn()}));
 vi.mock('@/src/server/supabase/server-client',()=>({createSupabaseServerClient:vi.fn()}));
 import {handleSealArtwork,SealFileError,type SealFileGateway} from './seal-artwork-route';
 import {validateSealSvg} from './seal-artwork';
+import {preparePngUpload} from '@/src/domain/png-upload';
+import {chunk,png} from './png.fixture';
+import {validatePng} from './png';
+import {deflateSync} from 'node:zlib';
 const id='e1000000-0000-4000-8000-000000000002';
 const bytes=new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400"><path d="M0 0L10 10"/></svg>');
 const hash=validateSealSvg(bytes).sha256;
@@ -22,6 +26,22 @@ it('identifies JPEG bytes mislabeled as PNG before registering or storing artwor
  const r=await handleSealArtwork(new Request('https://nibatlas.test/artwork',{method:'POST',headers:{Origin:'https://nibatlas.test','Content-Type':'image/png'},body:new Uint8Array([0xff,0xd8,0xff,0xe0,0,16,0x4a,0x46,0x49,0x46])}),id,true,g);
  expect(r.status).toBe(422);expect(await r.json()).toEqual({error:'jpeg_artwork_not_supported'});
  expect(g.operation).not.toHaveBeenCalled();expect(g.bucket.put).not.toHaveBeenCalled();
+});
+it('stores a privacy-clean PNG from an ordinary export and binds the asset to stored bytes',async()=>{
+ const profile=Buffer.alloc(128);profile.writeUInt32BE(128);profile.write('acsp',36);
+ const colour=chunk('iCCP',Buffer.concat([Buffer.from('Display P3\0\0'),deflateSync(profile)]));
+ const input=png(1200,800,{chunks:[colour,chunk('cICP',Buffer.from([12,13,0,1])),chunk('eXIf',Buffer.from('private location'))]}),
+  clean=preparePngUpload(input),meta=validatePng(clean,false);
+ const a={...asset,sha256:meta.sha256,byteSize:clean.length,contentType:'image/png',key:`staging/seals/${id}/${meta.sha256}.png`};
+ const g=gateway();g.operation=vi.fn(async()=>a);
+ g.bucket.put=vi.fn(async()=>({}));
+ g.bucket.get=async()=>({size:clean.length,httpMetadata:{contentType:'image/png'},body:new Blob([Uint8Array.from(clean)]).stream()});
+ const r=await handleSealArtwork(new Request('https://nibatlas.test/artwork',{method:'POST',headers:{Origin:'https://nibatlas.test','Content-Type':'image/png'},body:input}),id,true,g);
+ expect(r.status).toBe(201);
+ expect(g.operation).toHaveBeenCalledWith('reserve',null,id,{sha256:meta.sha256,byteSize:clean.length,contentType:'image/png'});
+ expect(g.bucket.put).toHaveBeenCalledWith(a.key,clean,expect.anything());
+ expect(Buffer.from(clean).includes(colour)).toBe(true);
+ expect(Buffer.from(clean).includes(Buffer.from('private location'))).toBe(false);
 });
 it('renders the requested SVG ink after authorization while leaving the source intact',async()=>{
  const g=gateway();const r=await handleSealArtwork(new Request('https://nibatlas.test/artwork?ink=plum'),id,false,g);
