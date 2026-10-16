@@ -14,7 +14,16 @@ describe('strict PNG intake',()=>{
     expect(bytes.equals(before)).toBe(true);
   });
   it('accepts the transparent artwork canvas unchanged',()=>expect(validatePng(png(1200,800),true)).toMatchObject({width:1200,height:800}));
-  it.each(['eXIf','tEXt','iTXt','zTXt','acTL','fcTL','fdAT','iCCP','tIME','vpAg','cHRM','PLTE'])('rejects unsupported/metadata chunk %s',type=>expect(()=>validatePng(png(2,2,{metadata:type}),false)).toThrow());
+  it.each(['eXIf','tEXt','iTXt','zTXt','acTL','fcTL','fdAT','tIME','vpAg','PLTE'])('rejects unsupported/metadata chunk %s',type=>expect(()=>validatePng(png(2,2,{metadata:type}),false)).toThrow());
+  it('accepts bounded colour profiles and rejects malformed or excessive ICC data',()=>{
+    const profile=Buffer.alloc(128);profile.writeUInt32BE(128);profile.write('acsp',36);
+    const payload=Buffer.concat([Buffer.from('Display P3\0\0'),deflateSync(profile)]);
+    expect(validatePng(png(2,2,{chunks:[chunk('iCCP',payload),chunk('cICP',Buffer.from([12,13,0,1]))]}),false).width).toBe(2);
+    for(const bad of [Buffer.from('private data'),Buffer.concat([Buffer.from('Profile\0\0'),deflateSync(Buffer.alloc(1024*1024+1))]),
+      Buffer.concat([Buffer.from('Profile\0\0'),deflateSync(Buffer.alloc(128))])])
+      expect(()=>validatePng(png(2,2,{chunks:[chunk('iCCP',bad)]}),false)).toThrow();
+    expect(()=>validatePng(png(2,2,{chunks:[chunk('cICP',Buffer.alloc(3))]}),false)).toThrow();
+  });
   it('accepts the reported 420x595 export structure without changing any bytes',()=>{
     // Reproduction of the reported structure, not the founder\'s private file.
     const bytes=png(420,595,{chunks:displayMetadata()}), before=Buffer.from(bytes);

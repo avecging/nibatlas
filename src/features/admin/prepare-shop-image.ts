@@ -1,4 +1,5 @@
 import { imageContentType } from './image-content-type';
+import { preparePngUpload } from '@/src/domain/png-upload';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_AXIS = 8192;
@@ -19,7 +20,11 @@ export async function prepareShopImage(file: File, logo: boolean) {
   const bytes = await file.arrayBuffer();
   const contentType = imageContentType(new Uint8Array(bytes));
   if (!contentType) throw new Error('This file is not a PNG or JPEG image. Choose another file.');
-  if (!logo || contentType === 'image/jpeg') return { bytes, contentType };
+  if (contentType === 'image/jpeg') return { bytes, contentType };
+  if (!logo) {
+    try { return { bytes: Uint8Array.from(preparePngUpload(new Uint8Array(bytes))).buffer, contentType }; }
+    catch { throw new Error('This PNG could not be read. Choose another image.'); }
+  }
 
   // Bound the original PNG before asking the browser to allocate decoded pixels.
   const view = new DataView(bytes);
