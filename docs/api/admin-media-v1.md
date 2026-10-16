@@ -47,16 +47,19 @@ shops cannot receive/finalize new uploads.
 
 The supported first-slice PNG subset is 8-bit RGB or RGBA, non-interlaced,
 1–2048 px on each axis, at most 5 MiB. IHDR, consecutive nonempty IDAT and IEND
-are required, with at most 1024 chunks total. Three optional display chunks are
+are required, with at most 1024 chunks total. Bounded optional colour/display chunks are
 accepted once each, after IHDR and before the first IDAT, in any relative order:
 
 | Chunk | Required payload |
 | --- | --- |
-| `sRGB` | Exactly 1 byte: rendering intent 0–3 |
+| `sRGB` | Exactly 1 byte: rendering intent 0–3; cannot coexist with `iCCP` |
 | `gAMA` | Exactly 4 bytes: gamma × 100000, integer 1–2147483647; must be 45455 when `sRGB` is also present |
 | `pHYs` | Exactly 9 bytes: two integer pixel densities 0–2147483647 and unit 0 (unspecified) or 1 (metre) |
+| `iCCP` | One zlib-compressed ICC profile, at most 128 KiB compressed and 1 MiB decoded, with a valid header |
+| `cICP` | Exactly 4 bytes of colour information |
+| `cHRM` | Exactly 32 bytes of bounded chromaticity values |
 
-These fixed numeric fields describe colour and pixel density, not location,
+The fixed numeric fields describe colour and pixel density, not location,
 timestamps, authorship or arbitrary text. Density never overrides IHDR dimensions
 or drives allocations. Rules follow the [PNG specification](https://www.w3.org/TR/png-3/)
 sections 5.6, 7.1, 11.3.2.2, 11.3.2.5 and 11.3.4.3; the nonzero gamma requirement
@@ -64,17 +67,21 @@ rejects a meaningless declaration rather than silently repairing it.
 
 Validate signature, chunk ordering/bounds, every CRC, deflate completion and
 bounded decompression, exact scanline length, all five PNG filter modes, actual
-size and SHA-256 over the entire original PNG file, including display chunks. Reject
-trailing bytes and every other chunk, including EXIF (`eXIf`), text (`tEXt`,
-`zTXt`, `iTXt`), embedded ICC profiles (`iCCP`), timestamps (`tIME`), unknown
-ancillary chunks, palette PNG and animation (`acTL`, `fcTL`, `fdAT`). Sensitive or
-unsupported metadata is rejected **before R2 persistence**, not stripped after
-storing GPS. Fixed display declarations are not a general metadata allowlist or
-a guarantee against sensitive content encoded in pixels. Artwork requires RGBA,
-1200 × 800 and transparent pixels. The server does not rewrite PNG upload bytes. The shop-logo picker normalizes PNGs before creating an upload manifest, as described below; stamp artwork never uses that picker.
+size and SHA-256 over the prepared PNG file, including display chunks. Reject
+trailing bytes, unknown critical chunks, palette PNG and animation (`acTL`,
+`fcTL`, `fdAT`). The normal picker removes ancillary export metadata, including
+EXIF (`eXIf`), text (`tEXt`, `zTXt`, `iTXt`), timestamps (`tIME`) and unknown
+ancillary chunks before computing the upload identity. Colour declarations and
+bounded ICC profiles are retained to preserve wide-gamut appearance. It keeps the
+compressed image data and decoded pixels intact. The
+server validates the prepared file independently; direct callers must send a
+prepared PNG. EXIF, text, timestamps and unknown ancillary chunks do not reach
+R2. Retained colour profiles can contain profile names or other ICC tag data;
+compare the saved preview with the source before activation.
+Fixed display declarations are not a guarantee against sensitive content encoded
+in pixels. Artwork requires RGBA, 1200 × 800 and transparent pixels.
 
-This intentionally narrow subset can reject otherwise valid illustrator PNGs.
-Ask for a suitable export, never silently modify approved artwork. Transport validation is not evidence of external illustrator approval. Under #73,
+Transport validation is not evidence of external illustrator approval. Under #73,
 MVP activation deliberately does not require maker-mark confirmation, source/SVG
 bundles, rights evidence or external sign-off; those commissioning requirements
 are deferred to #71. WebP/AVIF, SVG and editable sources are not accepted by this

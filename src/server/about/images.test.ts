@@ -72,13 +72,18 @@ describe("About private image transport", () => {
     expect(g.operation).toHaveBeenNthCalledWith(2, "finalize", id);
     expect(r.headers.get("cache-control")).toContain("no-store");
   });
-  it("rejects metadata-bearing and malformed content without reserving", async () => {
+  it("removes export metadata before reserving and storing, but rejects malformed content", async () => {
     const g = setup();
     expect(
       (await handleAboutImage(upload(png(2, 2, { metadata: "eXIf" })), null, g))
         .status,
-    ).toBe(422);
-    expect(g.operation).not.toHaveBeenCalled();
+    ).toBe(201);
+    expect(g.operation).toHaveBeenCalledWith('reserve',null,{sha256:meta.sha256,byteSize:bytes.length,width:2,height:2});
+    expect(g.bucket.put).toHaveBeenCalledOnce();
+    expect(Array.from((g.bucket.put as ReturnType<typeof vi.fn>).mock.calls[0]![1] as Uint8Array)).toEqual(Array.from(bytes));
+    const invalid=setup();
+    expect((await handleAboutImage(upload(new Uint8Array([1,2,3])),null,invalid)).status).toBe(422);
+    expect(invalid.operation).not.toHaveBeenCalled();
   });
   it("does not finalize when storage fails", async () => {
     const g = setup();
