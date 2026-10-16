@@ -17,6 +17,10 @@ export function preparePngUpload(input: Uint8Array): Uint8Array {
     // APNG is deliberately unsupported; dropping animation control chunks would
     // silently turn the export into a different piece of artwork.
     if (type === 'acTL' || type === 'fcTL' || type === 'fdAT') throw Error('Animated PNG is unsupported');
+    // These chunks can change transparency, sample precision or HDR tone
+    // mapping. Reject unsupported forms rather than alter visible artwork.
+    if (type === 'tRNS' || type === 'sBIT' || type === 'mDCV' || type === 'cLLI')
+      throw Error('PNG image metadata format is unsupported');
     if (type === 'IEND') {
       if (end !== input.length) throw Error('Invalid PNG');
       ended = true;

@@ -69,7 +69,9 @@ Validate signature, chunk ordering/bounds, every CRC, deflate completion and
 bounded decompression, exact scanline length, all five PNG filter modes, actual
 size and SHA-256 over the prepared PNG file, including display chunks. Reject
 trailing bytes, unknown critical chunks, palette PNG and animation (`acTL`,
-`fcTL`, `fdAT`). The normal picker removes ancillary export metadata, including
+`fcTL`, `fdAT`). Transparency keys (`tRNS`), significant bits (`sBIT`) and HDR
+tone-mapping metadata (`mDCV`, `cLLI`) are rejected to avoid changing the image's
+appearance. The normal picker removes ancillary export metadata, including
 EXIF (`eXIf`), text (`tEXt`, `zTXt`, `iTXt`), timestamps (`tIME`) and unknown
 ancillary chunks before computing the upload identity. Colour declarations and
 bounded ICC profiles are retained to preserve wide-gamut appearance. It keeps the
