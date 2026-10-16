@@ -17,6 +17,9 @@ export function preparePngUpload(input: Uint8Array): Uint8Array {
     // APNG is deliberately unsupported; dropping animation control chunks would
     // silently turn the export into a different piece of artwork.
     if (type === 'acTL' || type === 'fcTL' || type === 'fdAT') throw Error('Animated PNG is unsupported');
+    // RGB PNGs can encode transparency outside IDAT. Reject the unsupported
+    // form so metadata cleanup cannot turn transparent pixels opaque.
+    if (type === 'tRNS') throw Error('PNG transparency format is unsupported');
     if (type === 'IEND') {
       if (end !== input.length) throw Error('Invalid PNG');
       ended = true;

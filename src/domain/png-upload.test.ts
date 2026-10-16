@@ -34,4 +34,12 @@ it('keeps supported PNGs byte-for-byte and refuses to flatten animation',()=>{
   const plain=png();
   expect(preparePngUpload(plain)).toBe(plain);
   expect(()=>preparePngUpload(png(2,2,{metadata:'acTL'}))).toThrow('Animated PNG');
+  const rgbHeader=Buffer.alloc(13);
+  rgbHeader.writeUInt32BE(2);rgbHeader.writeUInt32BE(2,4);rgbHeader[8]=8;rgbHeader[9]=2;
+  const transparentRgb=Buffer.concat([
+    Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',rgbHeader),
+    chunk('tRNS',Buffer.from([0,0,0,0,0,0])),
+    chunk('IDAT',deflateSync(Buffer.alloc(14))),chunk('IEND',Buffer.alloc(0)),
+  ]);
+  expect(()=>preparePngUpload(transparentRgb)).toThrow('transparency format');
 });
