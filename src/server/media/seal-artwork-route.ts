@@ -9,6 +9,7 @@ import {InvalidMedia,MAX_MEDIA_BYTES,readBounded} from './png';
 import {renderSealSvg,SealArtworkFormatMismatch,validateSealArtwork} from './seal-artwork';
 import {STAMP_INKS,type StampInk} from '@/src/domain/stamp-palette';
 import type {MediaBucket} from './r2';
+import {preparePngUpload} from '@/src/domain/png-upload';
 const HEADERS={'Cache-Control':'private, no-store',Pragma:'no-cache',Vary:'Cookie','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; style-src 'none'; sandbox",'X-Robots-Tag':'noindex'};
 export class SealFileError extends Error{constructor(readonly code:string){super('Artwork operation failed');}}
 export interface SealFileGateway{identity():Promise<string|null>;authorizeUpload():Promise<void>;operation(action:string,id:string|null,seal:string|null,payload?:Record<string,unknown>):Promise<unknown>;bucket:MediaBucket;environment:string;}
@@ -26,7 +27,12 @@ export async function handleSealArtwork(request:Request,id:string,upload:boolean
    // Authorize before reading/decompressing untrusted bytes or allocating object storage.
    await gateway.authorizeUpload();
    const type=request.headers.get('content-type')??'';
-   const bytes=await readBounded(request.body,type==='image/svg+xml'?512*1024:MAX_MEDIA_BYTES),meta=validateSealArtwork(bytes,type);
+   const input=await readBounded(request.body,type==='image/svg+xml'?512*1024:MAX_MEDIA_BYTES);
+   let bytes:Uint8Array=input;
+   if(type==='image/png' && input[0]===0xff && input[1]===0xd8 && input[2]===0xff)
+    throw new SealArtworkFormatMismatch('JPEG content supplied as PNG');
+   if(type==='image/png')try{bytes=preparePngUpload(input);}catch{throw new InvalidMedia('Invalid PNG');}
+   const meta=validateSealArtwork(bytes,type);
    const a=asset(await gateway.operation('reserve',null,id,{sha256:meta.sha256,byteSize:bytes.length,contentType:type}),gateway.environment);
    await gateway.bucket.put(a.key,bytes,{onlyIf:new Headers({'If-None-Match':'*'}),httpMetadata:{contentType:type,cacheControl:'private, no-store'}});
    const saved=await gateway.bucket.get(a.key);if(!saved||saved.size!==bytes.length||saved.httpMetadata?.contentType!==type)throw Error('Artwork not stored');

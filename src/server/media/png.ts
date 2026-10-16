@@ -14,8 +14,8 @@ export function crc32(bytes: Uint8Array): number {
   return (crc ^ 0xffffffff) >>> 0;
 }
 
-/** Strict subset: RGB/RGBA 8-bit, non-interlaced, only fixed display metadata.
- * Reject unsupported exports unchanged; never rewrite a commissioned file.
+/** Strict subset: RGB/RGBA 8-bit, non-interlaced, bounded colour metadata.
+ * Private ancillary metadata is removed before this validation on upload.
  */
 export function validatePng(bytes: Uint8Array, artwork: boolean, pixels?: Uint8Array) {
   if (bytes.length > MAX_MEDIA_BYTES || bytes.length < 57) invalid();
@@ -39,7 +39,7 @@ export function validatePng(bytes: Uint8Array, artwork: boolean, pixels?: Uint8A
           ![2,6].includes(colour) || b[offset+18] || b[offset+19] || b[offset+20]) invalid();
       channels = colour === 6 ? 4 : 3;
       if (artwork && (width !== 1200 || height !== 800 || channels !== 4)) invalid();
-    } else if (type === 'sRGB' || type === 'gAMA' || type === 'pHYs') {
+    } else if (['sRGB','gAMA','pHYs','iCCP','cICP','cHRM'].includes(type)) {
       // PNG permits each once, after IHDR and before the consecutive IDAT run.
       if (parts.length || displayChunks.has(type)) invalid();
       displayChunks.add(type);
@@ -49,21 +49,42 @@ export function validatePng(bytes: Uint8Array, artwork: boolean, pixels?: Uint8A
         if (size !== 4) invalid();
         gamma = b.readUInt32BE(offset + 8);
         if (gamma === 0 || gamma > 0x7fffffff) invalid();
-      } else {
+      } else if (type === 'pHYs') {
         if (size !== 9 || b[offset + 16]! > 1 ||
             b.readUInt32BE(offset + 8) > 0x7fffffff ||
             b.readUInt32BE(offset + 12) > 0x7fffffff) invalid();
+      } else if (type === 'cICP') {
+        if (size !== 4) invalid();
+      } else if (type === 'cHRM') {
+        if (size !== 32) invalid();
+        for (let i=0;i<8;i++) if (b.readUInt32BE(offset+8+i*4)>0x7fffffff) invalid();
+      } else if (type === 'iCCP') {
+        if (size < 4 || size > 128*1024) invalid();
+        const nameEnd=b.subarray(offset+8,offset+8+Math.min(size,80)).indexOf(0);
+        const nullAt=offset+8+nameEnd;
+        if (nameEnd <= 0 ||
+            b[nullAt+1] !== 0 || nullAt+2 >= end-4) invalid();
+        for(let i=offset+8;i<nullAt;i++)if(b[i]! < 32 || b[i]===127)invalid();
+        const compressedProfile=b.subarray(nullAt+2,end-4);
+        try {
+          const inflated=inflateSync(compressedProfile,{maxOutputLength:1024*1024,info:true}) as unknown as
+            {buffer:Buffer;engine:{bytesWritten:number}};
+          const profile=inflated.buffer;
+          if(inflated.engine.bytesWritten!==compressedProfile.length||profile.length<128||
+             profile.readUInt32BE(0)!==profile.length||profile.toString('ascii',36,40)!=='acsp')invalid();
+        } catch { invalid(); }
       }
     } else if (type === 'IDAT' && size > 0 && !ended) {
       parts.push(b.subarray(offset + 8, end - 4));
     } else if (type === 'IEND' && size === 0 && parts.length && end === b.length) {
       ended = true;
-    } else invalid(); // Includes EXIF/GPS, text, ICC, scripts, APNG and unknown chunks.
+    } else invalid(); // Includes EXIF/GPS, text, scripts, APNG and unknown chunks.
     offset = end;
   }
   if (!ended) invalid();
   // Avoid contradictory colour declarations regardless of their relative order.
   if (displayChunks.has('sRGB') && gamma !== undefined && gamma !== 45455) invalid();
+  if (displayChunks.has('sRGB') && displayChunks.has('iCCP')) invalid();
   const stride = width * channels, expected = (stride + 1) * height;
   const compressed = Buffer.concat(parts);
   let raw: Buffer;
