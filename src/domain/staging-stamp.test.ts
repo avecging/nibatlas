@@ -16,5 +16,7 @@ it('keeps routine staging deployment free of demo catalogue mutations', () => {
   expect(workflow).not.toContain('--include-seed');
   expect(workflow).not.toContain('publish-staging-phone-fixture.sh');
   expect(workflow).not.toContain('staging-phone-location.sql');
-  expect(workflow).toContain('supabase db push --db-url');
+  expect(workflow).toContain('node scripts/deploy/database.mjs staging');
+  expect(workflow).toContain('ISOLATED_STAGING_ENABLED');
+  expect(workflow).toContain('environment: staging-isolated');
 });

@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "nibatlas-staging",
+  "name": "nibatlas-staging-isolated",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-08-18",
   "compatibility_flags": [
@@ -21,12 +21,27 @@
     "production": {
       "name": "nibatlas-production",
       "vars": {
-        "MEDIA_ENV": "production"
+        "MEDIA_ENV": "staging"
       },
       "r2_buckets": [
         {
           "binding": "MEDIA_BUCKET",
-          "bucket_name": "nibatlas-production-images"
+          "bucket_name": "nibatlas-staging-images"
+        }
+      ],
+      "images": {
+        "binding": "PHOTO_IMAGES"
+      }
+    },
+    "staging": {
+      "name": "nibatlas-staging-isolated",
+      "vars": {
+        "MEDIA_ENV": "staging"
+      },
+      "r2_buckets": [
+        {
+          "binding": "MEDIA_BUCKET",
+          "bucket_name": "nibatlas-staging-isolated-images"
         }
       ],
       "images": {
@@ -40,7 +55,7 @@
   "r2_buckets": [
     {
       "binding": "MEDIA_BUCKET",
-      "bucket_name": "nibatlas-staging-images"
+      "bucket_name": "nibatlas-staging-isolated-images"
     }
   ],
   "images": {

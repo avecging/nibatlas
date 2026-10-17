@@ -1,4 +1,5 @@
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
+import {test, stagingRequestOptions} from "./access";
 import { decodeShopDetailV1 } from "@/src/api/v1/shop-read";
 import { projectShopDetail } from "@/src/features/shops/shop-detail-projection";
 import { shopVisitFacts } from "@/src/features/shops/shop-visit-facts";
@@ -32,8 +33,8 @@ test("renders real MapTiler geography through the static MapLibre worker", async
     }
   });
 
-  const worker = await request.get("/maplibre/maplibre-gl-worker.mjs");
-  const shared = await request.get("/maplibre/maplibre-gl-shared.mjs");
+  const worker = await request.get("/maplibre/maplibre-gl-worker.mjs", stagingRequestOptions("/maplibre/maplibre-gl-worker.mjs"));
+  const shared = await request.get("/maplibre/maplibre-gl-shared.mjs", stagingRequestOptions("/maplibre/maplibre-gl-shared.mjs"));
 
   expect(worker.ok()).toBe(true);
   expect(shared.ok()).toBe(true);
@@ -90,7 +91,7 @@ test("draws a shop's location preview from real MapTiler geography", async ({
   // Bounded read-only discovery. Missing eligible data is an explicit coverage
   // gap, never a reason to publish a fixture into the founder's catalogue.
   for (const candidate of catalogue.shops.slice(0, 20)) {
-    const response = await request.get(`/api/v1/shops/${encodeURIComponent(candidate.slug)}`);
+    const response = await request.get(`/api/v1/shops/${encodeURIComponent(candidate.slug)}`, stagingRequestOptions(`/api/v1/shops/${encodeURIComponent(candidate.slug)}`));
     expect(response.ok()).toBe(true);
     const detail = decodeShopDetailV1(await response.json());
     expect(detail).not.toBeNull();

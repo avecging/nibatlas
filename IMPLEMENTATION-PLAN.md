@@ -15,6 +15,17 @@ GPT owns end-to-end implementation and initiates independent review under
 and scope decisions. A conductor/orchestrator has not been onboarded. `AGENTS.md`
 is the shared working contract. This assignment covers every milestone; frontend work is not reserved for Claude.
 
+## Current follow-up — Environment isolation, 14 October 2026
+
+Founder authorized split PR preparation and a new isolated staging environment.
+Keep the current live database/users/media in place. Reconcile the already-live
+staging application changes with main backup changes; reject the live project in
+all new staging deployment paths. New staging resources require dashboard setup
+and fixed registration. Production release/domain cutover, merges and production
+schema changes remain separately approved. Production release is code-blocked
+until legacy media paths and production data policy are separated through a
+reviewed compatibility change. See `docs/runbooks/environment-isolation.md`.
+
 ## Current follow-up — Account deletion, 5 October 2026
 
 Authenticated readers may permanently delete their account from Me after an

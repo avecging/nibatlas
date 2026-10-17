@@ -1,7 +1,7 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { createClient } from '@supabase/supabase-js';
 import { createAdminGateway } from '@/src/server/admin/route-context';
-import { AdminForbiddenError, adminFailure } from '@/src/server/admin/http';
+import { AdminForbiddenError, adminFailure, authorizeAdmin } from '@/src/server/admin/http';
 import { readSupabasePublicConfig } from '@/src/server/supabase/config';
 import { handleMedia, MediaOperationError, decodeUpload } from './http';
 import type { PhotoImages } from './jpeg';
@@ -12,6 +12,8 @@ export async function mediaRoute(request: Request, id: string | null = null) {
     const gateway=await createAdminGateway();
     const actor=await gateway.getIdentity();
     if (!actor) return adminFailure('authentication_required');
+    const access=await authorizeAdmin(gateway,'editor');
+    if(access instanceof Response) return access;
     const config=readSupabasePublicConfig(), secret=process.env.SUPABASE_SERVICE_ROLE_KEY;
     const { env }=await getCloudflareContext({async:true});
     const binding=env as unknown as { MEDIA_BUCKET?: MediaBucket; MEDIA_ENV?: string; PHOTO_IMAGES?: PhotoImages };
@@ -28,5 +30,5 @@ export async function mediaRoute(request: Request, id: string | null = null) {
         return decodeUpload(data,uploadId);
       },
     });
-  } catch { return adminFailure('service_unavailable'); }
+  } catch(error) { return adminFailure(error instanceof AdminForbiddenError ? 'forbidden' : 'service_unavailable'); }
 }
