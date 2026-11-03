@@ -20,17 +20,40 @@ The resumed preparation reconciles main
 fix, admin authorization, illustrated error pages and existing backup safeguards.
 No app deployment follows a main push.
 
-Read-only checks on 3 November found the existing Nib Atlas organization on Pro,
-one accessible healthy project, no Supabase development branches, and 54 applied
-migrations. Exact aggregate counts were 118 shops, 15 Auth accounts, 7 collected
-stamps and 180 artwork versions; database physical size was 30,305,427 bytes.
-These counts establish a baseline, not a backup or a claim of complete health.
-Cloudflare dashboard sign-in is required in the current operator session; current
-route/binding configuration has not yet been reverified there.
+Production checks on 3 November found Nib Atlas on Pro, 54 applied migrations,
+118 shops, 15 Auth accounts, 7 collected stamps and 180 artwork versions. These
+are a baseline, not a recovery set. Cloudflare plugin reads now independently
+confirm app.nibatlas.com routes to `nibatlas-staging`, using the existing live R2
+bucket and `staging/` namespace.
+
+The founder subsequently selected a separate Free organization and created staging
+project `quvnezszorpvhdyipboz`. The project-scoped Supabase Staging connection
+successfully queried PostgreSQL 17.11. No production data was copied. The first
+25 of 54 source migrations are installed through `20260920000600`, with all stored
+SQL SHA-256 checksums and original version/name pairs verified against the source.
+The next migration, `20260920000700_b3_catalogue_choices.sql`, was not applied:
+connector confirmations expired. Resume the remaining 29 through the scoped
+connection or the existing guarded CLI workflow, which recognizes the original
+history entries. Do not replay completed files manually. Staging still has zero
+shops, Auth users and collected stamps; every public table currently has RLS.
+These partial-schema checks do not replace verification after all 54 migrations.
+
+Cloudflare staging resources are created: private R2 bucket
+`nibatlas-staging-isolated-images` (public r2.dev access disabled) and Worker
+`nibatlas-staging-isolated`. The Worker currently runs only the versioned 503
+placeholder in `scripts/deploy/staging-placeholder.worker.js`, not Nib Atlas.
+Its public hostname is protected by Access application
+`82a186d1-2d68-4e3e-88fe-f61510ddbf62`, covering both the hostname and the Worker
+(including previews). Its sole Allow policy requires the founder's exact email
+and membership of the existing Cloudflare account. An unsigned browser request
+was observed redirecting to Cloudflare sign-in before reaching the placeholder.
+Preview URLs remain disabled.
+CI service authentication, runtime secrets, Auth configuration and end-to-end
+application acceptance remain pending.
 
 | Target | Live production, preserved | New isolated staging |
 | --- | --- | --- |
-| Supabase | Existing fixed project reference | New project, reference initially unregistered |
+| Supabase | `xgyzsdrugtwqlpnkutfw`, existing Pro organization | `quvnezszorpvhdyipboz`, separate founder-created Free organization |
 | Supabase display name | Keep `nibatlas-staging` until a reviewed rename updates identity checks | `nibatlas-og-staging` |
 | Worker | Existing `nibatlas-staging` remains live; proposed `nibatlas-production` is not released | `nibatlas-staging-isolated` |
 | R2 | Existing `nibatlas-staging-images` | `nibatlas-staging-isolated-images` |
@@ -45,44 +68,36 @@ Supabase identities, profiles, tokens, roles and collections must remain separat
 
 ## Immediate deployment safety
 
-Until this PR is explicitly merged and promoted, the old staging workflow still
-targets live resources. Do not push to staging or dispatch old workflow versions.
-In GitHub Actions, temporarily disable **Deploy staging** while preparing the
-split; the connector cannot change that setting. This changes no running app.
+PR #156 is merged to main and promoted to staging. The promoted staging workflow
+was observed skipping (run `41588895550`), with no live deployment. Both branches
+now contain the new isolation guards. Do not dispatch older workflow versions.
 
-The proposed staging workflow is off unless `ISOLATED_STAGING_ENABLED=true`.
-It uses only `STAGING_` credentials in `staging-isolated`, accepts main/staging
-refs, and checks the registered project and bucket before any database operation.
-An unset registration or the existing live project ID fails closed.
-Main and staging must both contain these safeguards before re-enabling the
-workflow. Promoting the reconciled main commit with the enable flag unset skips
-deployment; never force-reset a branch or re-run an old deployment.
+Staging remains off unless `ISOLATED_STAGING_ENABLED=true`. It uses only
+`STAGING_` credentials in `staging-isolated`, accepts main/staging refs, and checks
+the exact registered project, Worker and bucket before database operations. Keep
+that opt-in off until the setup below is complete. Main pushes do not deploy the
+application. Production's code-level release blocker remains false.
 
 ## Operator setup, in order
 
-1. Confirm the destination organization with the founder. The existing **Nib Atlas**
-   organization is now **Pro**; the original Free-plan $0 assumption no longer
-   applies. Obtain the current project-specific cost quote and explicit approval
-   of any additional recurring charge before creating `nibatlas-og-staging` in
-   Singapore. A separate Free organization is an alternative only if selected
-   by the founder and eligible. Save the new database password privately; never
-   paste it into chat, issues or source.
-2. Register that reference in `scripts/deploy/targets.json` through a reviewed
-   PR. Keep the live production reference unchanged. Project creation and cost
-   quoting are now exposed through the connected service; approval and actual
-   provisioning are still pending. No new project has been created by this preparation.
-3. In Cloudflare, create private R2 bucket `nibatlas-staging-isolated-images`.
-   Keep public bucket access off. Create the staging Worker under the exact new
-   name, initially without application traffic. Do not touch app.nibatlas.com's
-   current route or its existing bucket. Reuse the current account/plan only;
-   verify that it supports the existing 1000 ms CPU and Images binding. No plan
-   change is part of the setup.
-4. Protect the new staging hostname with Cloudflare Access: allow the founder's
-   account and a separate service-auth policy for the CI service token. Create
-   an expiring staging-only service token; save its values privately. Protect
-   the workers.dev address: this workflow uses it for smoke tests. Protect any
-   custom hostname too; no alternate address may bypass the gate. Switching to
-   custom-host-only testing requires a reviewed workflow URL change.
+1. Completed: the founder created the new staging project in a separate Free
+   organization and authorized its project-scoped connection. Preserve the live
+   Pro project. Keep the staging database password private.
+2. Register `quvnezszorpvhdyipboz` in `scripts/deploy/targets.json` and verify the
+   target guard. The configured display name is `nibatlas-og-staging`; confirm it
+   matches the dashboard before the first CLI deployment, since the project-scoped
+   connection exposes its URL but not organization/display-name metadata.
+3. Completed: separate private R2 bucket and staging Worker exist. The Worker runs
+   a generic 503 placeholder and has no Supabase or application runtime credentials.
+   Keep its existing Access protection during application deployment. Its staging
+   configuration explicitly enables workers.dev and disables preview URLs.
+4. Completed: founder-only Access protection covers the Worker and its hostname.
+   Create an expiring staging-only CI service token, store its two values privately
+   in GitHub, and add a **Service Auth** (`non_identity`) policy matching only that
+   token to this Access app. Do not use a bypass or all-service-token policy.
+   No CI service token has been created by this setup, because the GitHub connector
+   cannot write environment secrets and one-time secrets must not be exposed in
+   chat or discarded.
 5. Create GitHub environment `staging-isolated`. Add the following names there;
    never paste values into chat, issues, PRs or the repository. A separate
    deployment API token must have access only to staging resources where the
@@ -114,8 +129,9 @@ deployment; never force-reset a branch or re-run an old deployment.
    callback. Keep its client secret separate from live login and the Drive
    uploader. Use test-only mail settings; do not copy accounts, sessions, private
    profiles, collections or editorial audit history from production.
-8. After explicit merge authorization and final-head CI/review, promote the
-   safeguarded commit to staging. Enable only `ISOLATED_STAGING_ENABLED`, then
+8. After final-head CI/review, promote the registered target commit to staging.
+   Verify all credentials, Access policies and runtime/Auth settings first.
+   Enable only `ISOLATED_STAGING_ENABLED`, then
    run **Deploy staging** on reviewed main/staging. App checks and OpenNext build
    precede migrations. CLI pushes original migration files only to the fixed
    new project using verified TLS/session port 5432; no seed or fixture runs.
@@ -195,13 +211,16 @@ measurements; archive size includes repository history and compresses database
 and media content. A ten-set retention estimate at today's archive size is about
 1.25 GB, excluding trash and growth.
 
-The existing organization is now Pro. Current published Micro compute is
+Production remains on Pro; the founder selected Free/Nano in a separate organization
+for staging. Free staging may pause after inactivity and has no included automatic
+database backups; keep its test data reproducible. No paid staging instance was
+created. For comparison, current published Micro compute is
 $0.01344/hour (about US$10/month); organization-level compute credits are shared,
 not an additional allowance for every new project. This is indicative pricing,
 not a provisioning quote or approval. Obtain the selected organization's current
 quote before purchase. The connected provider quoted US$10/month on 3 November
-for a new project in Nib Atlas; the founder selected this organization but has
-not yet approved that recurring charge. Pro daily database backups do not replace separate media
+for a new project inside Nib Atlas Pro; the founder instead selected separate
+Free staging to avoid that recurring charge. Pro daily database backups do not replace separate media
 backup coverage; verify that a usable post-upgrade backup actually exists.
 Cloudflare billing/usage was inaccessible, so no zero-cost Workers/Images claim
 is made. Reuse the existing plan and test a small catalogue;

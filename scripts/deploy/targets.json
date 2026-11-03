@@ -9,7 +9,7 @@
     "releaseReady": false
   },
   "staging": {
-    "projectRef": null,
+    "projectRef": "quvnezszorpvhdyipboz",
     "projectName": "nibatlas-og-staging",
     "worker": "nibatlas-staging-isolated",
     "bucket": "nibatlas-staging-isolated-images",
