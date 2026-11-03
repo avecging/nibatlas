@@ -15,14 +15,25 @@ GPT owns end-to-end implementation and initiates independent review under
 and scope decisions. A conductor/orchestrator has not been onboarded. `AGENTS.md`
 is the shared working contract. This assignment covers every milestone; frontend work is not reserved for Claude.
 
-## Current follow-up — Environment isolation, resumed 3 November 2026
+## Current follow-up — Environment isolation, 3 November 2026
 
-Founder authorized proceeding with the phased split after production recovery.
-Keep the working live resources in place and continue PR #156, reconciled with
-current main/staging including the deployed PNG fix. New staging provisioning
-awaits organization selection, current cost approval and required provider access.
-The organization is now Pro; do not reuse the historical $0 setup assumption.
-Verify backup/recovery readiness before production mutations.
+Founder authorized the phased split. PR #156 is merged to main and promoted to
+staging; the guarded staging workflow skipped without touching the live app.
+Production stays on Supabase `xgyzsdrugtwqlpnkutfw`, Worker `nibatlas-staging`
+and R2 `nibatlas-staging-images`. New staging is project
+`quvnezszorpvhdyipboz` in a separate founder-created Free organization, accessed
+through the project-scoped Supabase Staging connection. All 54 source migrations
+are installed through `20261007080000`, with verified SQL checksums and original
+version/name pairs. Staging has no shops, Auth users, collections or import batches;
+all 40 public tables have RLS, private-schema access is denied to browser/service
+roles, and anonymous reads and missing-profile admin denials were independently
+checked. Real-account and populated-data acceptance remain pending.
+Cloudflare has a separate private R2 bucket and a staging Worker serving a generic
+503 placeholder behind founder-only Access. Anonymous browser access redirects
+to Cloudflare sign-in; previews are disabled. Live domain/bucket mapping is verified.
+Do not enable staging deployment until private credentials, Auth and Access are
+ready. Production release remains blocked pending media-policy compatibility;
+verify recovery readiness before production mutations. See the isolation runbook.
 
 ### Original preparation scope, 14 October 2026
 

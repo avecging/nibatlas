@@ -46,7 +46,9 @@
       ],
       "images": {
         "binding": "PHOTO_IMAGES"
-      }
+      },
+      "workers_dev": true,
+      "preview_urls": false
     }
   },
   "vars": {

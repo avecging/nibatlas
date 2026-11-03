@@ -1,11 +1,16 @@
-# Current isolation preparation — 14 October 2026
+# Current isolation setup — 3 November 2026
 
 Read [environment-isolation.md](environment-isolation.md) first. The legacy
 `nibatlas-staging` Worker, Supabase project and bucket contain live production
-data. The deployment workflow proposed in this branch targets a separate
-`nibatlas-staging-isolated` Worker/project/bucket and stays disabled until its
-project is registered and setup is verified. The older setup below is historical
-and must not be used to migrate, seed or reset the live resources.
+data. The guarded workflow targets `nibatlas-staging-isolated` and project
+`quvnezszorpvhdyipboz`, using only the `staging-isolated` GitHub environment.
+It remains disabled until private credentials and Auth/Access setup are verified.
+The new Worker currently serves only a 503 placeholder behind founder-only Access.
+All 54 source migrations are applied to the new project with original history and
+SQL checksums verified. Private credentials, real login and application deployment
+remain pending; schema completion is not application acceptance.
+The older setup below is historical and must not be used to migrate, seed or reset
+live resources.
 
 # Staging deployment
 
