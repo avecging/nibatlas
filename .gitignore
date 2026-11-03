@@ -57,3 +57,4 @@ cloudflare-env.d.ts
 next-env.d.ts
 
 /supabase/tests/fixtures/*.inc
+/scripts/backup/__pycache__/

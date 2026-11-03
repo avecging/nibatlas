@@ -21,7 +21,7 @@ Rules are shared by Astra, Sol and Claude; no model-specific copies are needed.
 | Media/uploads | `docs/api/admin-media-v1.md`, `docs/runbooks/media-uploads.md`; illustration guide for artwork |
 | Database | Relevant `DATA-MODEL.md` section, migrations and SQL tests; directory READMEs for execution |
 | Local checks | `docs/runbooks/local-development.md`; actual package scripts and CI workflow |
-| Deployment | `docs/runbooks/staging-deployment.md`; feature-specific setup runbooks |
+| Deployment/isolation | `docs/runbooks/environment-isolation.md`; `docs/runbooks/staging-deployment.md`; feature-specific setup runbooks |
 | Contributions | `docs/runbooks/contribution-intake.md` |
 | Phone collection test | `docs/runbooks/staging-phone-test.md` only when testing/reviewing that acceptance |
 | Closed beta | `docs/runbooks/closed-beta-access.md` (planned; dashboard state must be verified) |

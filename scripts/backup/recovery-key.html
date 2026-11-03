@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Nib Atlas backup recovery key</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+    body { margin: 0 auto; padding: 24px; max-width: 620px; line-height: 1.5; }
+    h1 { font-size: 1.45rem; } button { padding: 12px 16px; font: inherit; margin: 8px 8px 8px 0; }
+    textarea { box-sizing: border-box; width: 100%; padding: 12px; min-height: 92px; font: 1rem monospace; }
+    label { display: block; margin: 16px 0; } input { width: 20px; height: 20px; vertical-align: middle; }
+    .note { opacity: .8; } #status { min-height: 24px; } [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <main id="key-maker">
+    <h1>Create your backup recovery key</h1>
+    <p>Your browser creates the key on this device. This file has no network access and never sends either key anywhere.</p>
+    <button id="generate" type="button">Generate keys on this device</button>
+    <section id="created" hidden>
+      <h2>1. Save the private recovery key</h2>
+      <p>Copy it into your password manager as the password for a record named <strong>Nib Atlas Backup Recovery</strong>. Keep an offline spare later. Do not send the private key in chat or store it with your backups.</p>
+      <button id="copy-private" type="button">Copy private key</button>
+      <button id="download" type="button">Download private key file</button>
+      <label><input id="saved" type="checkbox"> I saved the private key in my password manager.</label>
+      <section id="public-section" hidden>
+        <h2>2. Share only this public key</h2>
+        <p>The public key locks backups but cannot unlock them. It starts with <code>age1</code>. This is the only key to send to the backup setup.</p>
+        <textarea id="recipient" readonly aria-label="Public encryption key"></textarea>
+        <button id="copy-public" type="button">Copy public key</button>
+      </section>
+    </section>
+    <p id="status" role="status" aria-live="polite"></p>
+    <p class="note">Keep this page open until the private key is safely saved. Reopening it does not recover previously generated keys. Chrome 133 or newer supports the required browser cryptography.</p>
+  </main>
+  <script>
+    'use strict';
+    // Standard age X25519 key encoding (Bech32), not a new encryption format.
+    function encode(hrp, bytes) {
+      const alphabet = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+      const generators = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+      const words = [];
+      let accumulator = 0, bits = 0;
+      for (const value of bytes) {
+        accumulator = ((accumulator << 8) | value) >>> 0;
+        bits += 8;
+        while (bits >= 5) { bits -= 5; words.push((accumulator >>> bits) & 31); }
+      }
+      if (bits) words.push((accumulator << (5 - bits)) & 31);
+      const expanded = [...hrp].map(c => c.charCodeAt(0) >>> 5).concat(0, [...hrp].map(c => c.charCodeAt(0) & 31));
+      let checksum = 1;
+      for (const value of [...expanded, ...words, 0, 0, 0, 0, 0, 0]) {
+        const top = checksum >>> 25;
+        checksum = (((checksum & 0x1ffffff) << 5) ^ value) >>> 0;
+        for (let i = 0; i < 5; i++) if ((top >>> i) & 1) checksum = (checksum ^ generators[i]) >>> 0;
+      }
+      checksum = (checksum ^ 1) >>> 0;
+      for (let i = 0; i < 6; i++) words.push((checksum >>> (5 * (5 - i))) & 31);
+      return hrp + '1' + words.map(w => alphabet[w]).join('');
+    }
+    function decodeBase64url(value) {
+      const text = value.replace(/-/g, '+').replace(/_/g, '/');
+      return Uint8Array.from(atob(text.padEnd(Math.ceil(text.length / 4) * 4, '=')), c => c.charCodeAt(0));
+    }
+    const root = document.getElementById('key-maker');
+    const element = id => root.querySelector('#' + id);
+    let identity = '', recipient = '';
+    const status = message => { element('status').textContent = message; };
+    element('generate').addEventListener('click', async () => {
+      element('generate').disabled = true;
+      try {
+        if (!crypto.subtle) throw new Error('unsupported');
+        const pair = await crypto.subtle.generateKey({ name: 'X25519' }, true, ['deriveBits']);
+        const key = await crypto.subtle.exportKey('jwk', pair.privateKey);
+        const privateBytes = decodeBase64url(key.d), publicBytes = decodeBase64url(key.x);
+        if (privateBytes.length !== 32 || publicBytes.length !== 32) throw new Error('invalid');
+        identity = encode('age-secret-key-', privateBytes).toUpperCase();
+        recipient = encode('age', publicBytes);
+        privateBytes.fill(0);
+        element('recipient').value = recipient;
+        element('created').hidden = false;
+        status('Keys created locally. Save the private key before continuing.');
+      } catch {
+        element('generate').disabled = false;
+        status('This browser could not generate the key. Open this saved file in an up-to-date Chrome browser. No key was saved or transmitted.');
+      }
+    });
+    element('copy-private').addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(identity); status('Private key copied. Paste it into your password manager now.'); }
+      catch { status('Clipboard unavailable. Download the private key file and save it securely instead.'); }
+    });
+    element('download').addEventListener('click', () => {
+      const bytes = new Blob(['# Nib Atlas Backup Recovery\n# public key: ' + recipient + '\n' + identity + '\n'], { type: 'text/plain' });
+      const url = URL.createObjectURL(bytes), link = document.createElement('a');
+      link.href = url; link.download = 'nibatlas-private-recovery-key.txt'; link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      status('Save the downloaded key file securely. Never upload it to the backup folder.');
+    });
+    element('saved').addEventListener('change', () => { element('public-section').hidden = !element('saved').checked; });
+    element('copy-public').addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(recipient); status('Public key copied. This age1 key is safe to share for setup.'); }
+      catch { status('Select and copy the public key from the box.'); }
+    });
+  </script>
+</body>
+</html>

@@ -5,7 +5,8 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // These browser journeys stub first-party API responses. Build an isolated UI
-// fixture without the admin request gate; the Worker suite tests the real gate.
+// fixture without the admin request gate or its importing unit test; the Worker
+// suite tests the real gate. The copied Next build also typechecks test sources.
 const root = fileURLToPath(new URL('../', import.meta.url));
 const fixture = await mkdtemp(join(tmpdir(), 'nibatlas-ui-'));
 const excluded = new Set(['node_modules', 'test-results', 'playwright-report']);
@@ -23,7 +24,7 @@ try {
     filter(path) {
       const name = relative(root, path);
       const parts = name.split('/');
-      return !parts.some(part => excluded.has(part) || part.startsWith('.')) && name !== 'middleware.ts';
+      return !parts.some(part => excluded.has(part) || part.startsWith('.')) && !['middleware.ts', 'middleware.test.ts'].includes(name);
     },
   });
   await access(join(fixture, 'middleware.ts')).then(
