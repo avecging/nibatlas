@@ -3,8 +3,9 @@
 Read [the API and limitations](../api/admin-media-v1.md). This is private PNG/JPEG
 transport, photo/logo delivery and the simplified #73 stamp-artwork workflow
 within WP3. JPEG shop photos and logos are processed before storage. PNG logos are resized
-and normalized by the picker before upload; original stamp PNGs remain unchanged. Stamp PNGs remain exact
-validated bytes; activation advances the same stamp identity without rewriting
+and normalized by the picker before upload; stamp PNG pickers remove ancillary
+export metadata without changing pixel data. Stored stamp PNGs remain exact
+validated prepared bytes; activation advances the same stamp identity without rewriting
 older versions or impressions.
 
 ## Cloudflare setup (once, before deploying this PR)
@@ -40,12 +41,13 @@ labelled test shop. It does not read authentication cookies or print secrets.
 This is temporary developer verification, not the later founder photo interface (use the normal controls below).
 Do not upload identifiable people without permission.
 
-Normal 8-bit RGB/RGBA, non-interlaced PNG exports may include `sRGB`, `gAMA`
-and `pHYs` display information. These do not need to be removed. Each may appear
+Normal 8-bit RGB/RGBA, non-interlaced PNG exports may include `sRGB`, `gAMA`,
+`pHYs`, `iCCP`, `cICP` and `cHRM` colour/display information. Each may appear
 only once before image data; exact lengths, numeric values and colour consistency
 are checked as specified in the API contract. All other ancillary chunks, including
-EXIF, text, timestamps, unknown chunks and ICC profiles, remain unsupported.
-PNG uploads preserve the file byte-for-byte. JPEG shop photos follow the processing rules below.
+EXIF, text, timestamps and unknown chunks are removed by the normal editor
+picker before upload. Colour profiles are retained. Direct API calls must send prepared PNGs.
+JPEG shop photos follow the processing rules below.
 
 ```js
 const picker = document.createElement('input');
@@ -246,9 +248,9 @@ for publish/hide. Keep buckets private; no new environment variables are needed.
    external sign-off for MVP; those commissioning questions are #71.
 3. Choose a **1200 × 800 transparent PNG** with the normal file picker. It
    uploads and saves privately automatically; **Save PNG privately** retries a
-   failed save. The exact bytes are validated and attached to this
-   draft only. Unsupported exports fail instead of being silently cropped,
-   recoloured or rewritten.
+   failed save. Export metadata is removed before the checksum is created; the
+   image data and pixels are retained. The prepared bytes are validated and
+   attached to this draft only. Unsupported pixel formats and animation still fail.
 4. Compare the private **List / Passport / Detail** previews. The same complete
    artwork is scaled with `object-fit: contain`; no crop is introduced.
 5. **Activate this design (admin)** → confirm. Activation is revision-checked and

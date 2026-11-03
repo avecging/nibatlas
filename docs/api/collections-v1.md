@@ -137,8 +137,9 @@ Self-contained SVG excludes scripts, style sheets, entities, foreign
 objects, embedded images, animation and external references. Unsupported exports
 are rejected with a useful error rather than silently altered. PNG requests with
 JPEG bytes return 422 `jpeg_artwork_not_supported`, so the editor can explain that
-an actual PNG export is needed. Original accepted
-bytes are kept in environment-separated immutable R2 keys. Metadata is registered
+an actual PNG export is needed. Common PNG export metadata is removed before
+validation and storage; compressed image data and decoded pixels remain intact.
+The prepared accepted bytes are kept in environment-separated immutable R2 keys. Metadata is registered
 through a service-only role-checked RPC; browser tables/finalization are denied.
 Conditional write, read-back hash verification and explicit ready state precede
 attachment. At most 100 retained uploads per seal; identical content retries
@@ -147,7 +148,8 @@ applied to SVG designs with the versioned `artworkTreatment: "ink-v1"` rendering
 mode. This maps painted RGB to the selected palette ink while preserving alpha.
 PNG retains original colours. New editor saves record the treatment in the
 immutable published snapshot; legacy snapshots without it retain original colours.
-Original source bytes remain unchanged in R2.
+Existing stored versions remain unchanged. New PNG uploads retain the prepared
+pixel data; SVG source bytes remain unchanged in R2.
 
 `GET /api/v1/seals/artwork/[assetId]` delivers artwork only to a
 current editor/admin, signed-in viewers of current published artwork, or an

@@ -5,6 +5,7 @@ import {
   validatePng,
 } from "@/src/server/media/png";
 import { processJpeg, type PhotoImages } from "@/src/server/media/jpeg";
+import { preparePngUpload } from "@/src/domain/png-upload";
 import type { MediaBucket } from "@/src/server/media/r2";
 import { UUID } from "@/src/features/admin/shop-contract";
 const HEADERS = {
@@ -96,7 +97,8 @@ export async function handleAboutImage(
         bytes = processed.bytes;
         checked = processed.checked;
       } else {
-        bytes = input;
+        try { bytes = preparePngUpload(input); }
+        catch { throw new InvalidMedia('Invalid PNG'); }
         checked = validatePng(bytes, false);
       }
       // reserve/finalize both recheck and lock the actor's current admin role.

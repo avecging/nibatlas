@@ -1,20 +1,32 @@
-# Production and isolated staging — preparation, 14 October 2026
+# Production and isolated staging — resumed 3 November 2026
 
 ## State and authority
 
-The founder authorized split PR preparation and isolated staging setup. A merge,
-live production release, domain cutover, production migration, secret rotation,
-purchase or production data move is not authorized by this document.
+On 3 November 2026 the founder authorized proceeding with the phased production/
+staging split. Preserve the running production resources while provisioning and
+verifying isolated staging. This runbook does not authorize purchases: obtain
+the selected organization and a current cost quote, then approval of any nonzero
+charge before creating resources. Account authentication may require founder input.
+Do not change the public domain or production data merely to correct resource names.
 
 The live app is `app.nibatlas.com`, served by `nibatlas-staging`, using Supabase
 `xgyzsdrugtwqlpnkutfw` (display name `nibatlas-staging`) and R2
 `nibatlas-staging-images`. These resources contain production users and history.
 Never run staging resets, demo fixtures or staging migrations against them.
 
-Main `824d106e9250ad520b3c7964ceb4583b3f6a287c` and staging
-`09a4a504be63108f0954ffd4f0f81042fd6c4878` were reconciled in this preparation.
-Staging's already-deployed admin authorization and illustrated error pages are
-preserved, as are main's backup safeguards. No app deployment follows a main push.
+The resumed preparation reconciles main
+`d7e9036ece0b92592d0c43b22afec62e072be59e` and live staging
+`db8fba1e39cedb858486238426ec7bff85575dd4`. It retains the deployed PNG-upload
+fix, admin authorization, illustrated error pages and existing backup safeguards.
+No app deployment follows a main push.
+
+Read-only checks on 3 November found the existing Nib Atlas organization on Pro,
+one accessible healthy project, no Supabase development branches, and 54 applied
+migrations. Exact aggregate counts were 118 shops, 15 Auth accounts, 7 collected
+stamps and 180 artwork versions; database physical size was 30,305,427 bytes.
+These counts establish a baseline, not a backup or a claim of complete health.
+Cloudflare dashboard sign-in is required in the current operator session; current
+route/binding configuration has not yet been reverified there.
 
 | Target | Live production, preserved | New isolated staging |
 | --- | --- | --- |
@@ -48,14 +60,17 @@ deployment; never force-reset a branch or re-run an old deployment.
 
 ## Operator setup, in order
 
-1. In the existing **Nib Atlas** Free organization, create
-   `nibatlas-og-staging` in Singapore. Confirm the console shows $0 and no
-   upgrade. Save its unique database password in the password manager. Share only
-   its public project reference with the implementer.
+1. Confirm the destination organization with the founder. The existing **Nib Atlas**
+   organization is now **Pro**; the original Free-plan $0 assumption no longer
+   applies. Obtain the current project-specific cost quote and explicit approval
+   of any additional recurring charge before creating `nibatlas-og-staging` in
+   Singapore. A separate Free organization is an alternative only if selected
+   by the founder and eligible. Save the new database password privately; never
+   paste it into chat, issues or source.
 2. Register that reference in `scripts/deploy/targets.json` through a reviewed
-   PR. Keep the live production reference unchanged. Supabase project creation
-   and cost-confirmation operations were unavailable through the connected tool;
-   no new project has been created by this code preparation.
+   PR. Keep the live production reference unchanged. Project creation and cost
+   quoting are now exposed through the connected service; approval and actual
+   provisioning are still pending. No new project has been created by this preparation.
 3. In Cloudflare, create private R2 bucket `nibatlas-staging-isolated-images`.
    Keep public bucket access off. Create the staging Worker under the exact new
    name, initially without application traffic. Do not touch app.nibatlas.com's
@@ -180,19 +195,27 @@ measurements; archive size includes repository history and compresses database
 and media content. A ten-set retention estimate at today's archive size is about
 1.25 GB, excluding trash and growth.
 
-Supabase lists two active Free projects as an allowance; only one project was
-visible during preparation. Account eligibility and the actual creation screen
-must confirm $0. Cloudflare billing/usage was inaccessible, so no zero-cost
-Workers/Images claim is made. Reuse the existing plan and test a small catalogue;
+The existing organization is now Pro. Current published Micro compute is
+$0.01344/hour (about US$10/month); organization-level compute credits are shared,
+not an additional allowance for every new project. This is indicative pricing,
+not a provisioning quote or approval. Obtain the selected organization's current
+quote before purchase. The connected provider quoted US$10/month on 3 November
+for a new project in Nib Atlas; the founder selected this organization but has
+not yet approved that recurring charge. Pro daily database backups do not replace separate media
+backup coverage; verify that a usable post-upgrade backup actually exists.
+Cloudflare billing/usage was inaccessible, so no zero-cost Workers/Images claim
+is made. Reuse the existing plan and test a small catalogue;
 measure actual staging traffic and image transformations before estimating its
 ongoing usage. Existing CI covers the PR; focused guard tests add seconds, not
 another continuous database service.
 
-The Drive schedule remains off. Its OAuth uploader is still Testing with a
-seven-day authorization limit; publishing/token renewal is paused at the founder's
-request. The saved ciphertext remains available after uploader authorization
-expires. Decryption and an isolated restore have not yet been rehearsed. The
-private recovery identity stays only in the founder's password manager/device.
+The 14 October checkpoint recorded the Drive schedule off and its OAuth uploader
+in Testing with a seven-day authorization limit. On 3 November, recent backup
+runs include skips and a failure; a fresh successful recovery set and a completed
+isolated restore have not been established. Verify current authorization, backup
+freshness and recoverability before production mutations; do not overwrite live
+data with an older recovery set. The private recovery identity stays only in the
+founder's password manager/device.
 
 References: Supabase billing FAQ, PostgreSQL verify-full documentation, OpenNext
 Cloudflare CLI documentation, and Google OAuth refresh-token expiration guidance.
