@@ -28,25 +28,32 @@ bucket and `staging/` namespace.
 
 The founder subsequently selected a separate Free organization and created staging
 project `quvnezszorpvhdyipboz`. The project-scoped Supabase Staging connection
-successfully queried PostgreSQL 17.11. No production data was copied. The first
-25 of 54 source migrations are installed through `20260920000600`, with all stored
-SQL SHA-256 checksums and original version/name pairs verified against the source.
-The next migration, `20260920000700_b3_catalogue_choices.sql`, was not applied:
-connector confirmations expired. Resume the remaining 29 through the scoped
-connection or the existing guarded CLI workflow, which recognizes the original
-history entries. Do not replay completed files manually. Staging still has zero
-shops, Auth users and collected stamps; every public table currently has RLS.
-These partial-schema checks do not replace verification after all 54 migrations.
+successfully queried PostgreSQL 17.11. No production data was copied. All 54 source
+migrations are installed through `20261007080000`, with all stored SQL SHA-256
+checksums and original version/name pairs verified against the source. Future
+guarded CLI deployments recognize these original history entries; do not replay
+completed files manually. Staging has zero shops, Auth users, collected stamps and
+import batches. All 40 public tables have RLS; `anon`, `authenticated` and
+`service_role` have neither usage nor table privileges in `stamp_private`.
+The source-defined `nibatlas-verification-retention` Cron job is active every ten
+minutes. `purge_import_payloads` exists, but the source does not schedule it;
+do not infer an import-retention job from historical deployment notes.
 
-Security advisors were inspected at this partial 25/54 checkpoint. Their
+Security advisors were inspected after all 54 migrations. Their
 [RLS-without-policies](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy),
 [definer-view](https://supabase.com/docs/guides/database/database-linter?lint=0010_security_definer_view)
 and callable definer-function notices match the reviewed published-only, owner-
 scoped and current-role-checked RPC architecture; trigger-returning routines are
-not ordinary RPCs. This is not security acceptance. After all migrations, verify
-effective grants, private-schema denial, publication filters, owner isolation and
-denied anonymous/ordinary-user admin calls before enabling the application. Access
-on the Worker does not protect independently reachable Supabase endpoints.
+not ordinary RPCs. Independent read-only staging checks confirmed empty anonymous
+catalogue reads, null missing shop/About reads, denied private About-image reads,
+and denied admin/import/audit access for a nonexistent profile with spoofed admin
+metadata. Stored definitions and effective privileges were reviewed. Empty staging
+still cannot prove populated cross-owner/draft isolation or real-account role
+revocation. About-admin runtime denial was constrained by its intentional row lock
+in a read-only transaction; its definition and ACL were checked instead. Verify
+these remaining cases with fresh test identities/content before application
+acceptance. Access on the Worker does not protect independently reachable Supabase
+endpoints. Login, media, deployment and application acceptance remain pending.
 
 Cloudflare staging resources are created: private R2 bucket
 `nibatlas-staging-isolated-images` (public r2.dev access disabled) and Worker

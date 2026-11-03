@@ -22,11 +22,12 @@ staging; the guarded staging workflow skipped without touching the live app.
 Production stays on Supabase `xgyzsdrugtwqlpnkutfw`, Worker `nibatlas-staging`
 and R2 `nibatlas-staging-images`. New staging is project
 `quvnezszorpvhdyipboz` in a separate founder-created Free organization, accessed
-through the project-scoped Supabase Staging connection. The first 25 of 54 source
-migrations are installed through `20260920000600`, with verified SQL checksums
-and original version numbers. Further MCP migration confirmations expired;
-resume the remaining 29 migrations through the connection or the
-existing guarded CLI workflow once private staging credentials are configured.
+through the project-scoped Supabase Staging connection. All 54 source migrations
+are installed through `20261007080000`, with verified SQL checksums and original
+version/name pairs. Staging has no shops, Auth users, collections or import batches;
+all 40 public tables have RLS, private-schema access is denied to browser/service
+roles, and anonymous reads and missing-profile admin denials were independently
+checked. Real-account and populated-data acceptance remain pending.
 Cloudflare has a separate private R2 bucket and a staging Worker serving a generic
 503 placeholder behind founder-only Access. Anonymous browser access redirects
 to Cloudflare sign-in; previews are disabled. Live domain/bucket mapping is verified.

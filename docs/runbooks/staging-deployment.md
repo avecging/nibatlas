@@ -6,6 +6,9 @@ data. The guarded workflow targets `nibatlas-staging-isolated` and project
 `quvnezszorpvhdyipboz`, using only the `staging-isolated` GitHub environment.
 It remains disabled until private credentials and Auth/Access setup are verified.
 The new Worker currently serves only a 503 placeholder behind founder-only Access.
+All 54 source migrations are applied to the new project with original history and
+SQL checksums verified. Private credentials, real login and application deployment
+remain pending; schema completion is not application acceptance.
 The older setup below is historical and must not be used to migrate, seed or reset
 live resources.
 
