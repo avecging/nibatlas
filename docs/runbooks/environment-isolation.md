@@ -38,6 +38,16 @@ history entries. Do not replay completed files manually. Staging still has zero
 shops, Auth users and collected stamps; every public table currently has RLS.
 These partial-schema checks do not replace verification after all 54 migrations.
 
+Security advisors were inspected at this partial 25/54 checkpoint. Their
+[RLS-without-policies](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy),
+[definer-view](https://supabase.com/docs/guides/database/database-linter?lint=0010_security_definer_view)
+and callable definer-function notices match the reviewed published-only, owner-
+scoped and current-role-checked RPC architecture; trigger-returning routines are
+not ordinary RPCs. This is not security acceptance. After all migrations, verify
+effective grants, private-schema denial, publication filters, owner isolation and
+denied anonymous/ordinary-user admin calls before enabling the application. Access
+on the Worker does not protect independently reachable Supabase endpoints.
+
 Cloudflare staging resources are created: private R2 bucket
 `nibatlas-staging-isolated-images` (public r2.dev access disabled) and Worker
 `nibatlas-staging-isolated`. The Worker currently runs only the versioned 503
