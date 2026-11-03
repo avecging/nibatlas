@@ -1,4 +1,5 @@
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
+import {test, stagingRequestOptions} from "./access";
 import { decodeNearbyShopsV1 } from "@/src/api/v1/shop-read";
 import { stagingCatalogue } from "./catalogue-data";
 
@@ -31,6 +32,7 @@ test("reads the current catalogue and preserves map-detail return, or renders em
   // Existing public shop coordinates, or a fixed Singapore point for empty data.
   // Never a user's position, and never placed in a request URL.
   const nearby = await request.post("/api/v1/shops/nearby", {
+    ...stagingRequestOptions("/api/v1/shops/nearby"),
     data: { latitude: shop?.position.latitude ?? 1.3521,
       longitude: shop?.position.longitude ?? 103.8198, radiusMeters: 5000, limit: 5 },
   });

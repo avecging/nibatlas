@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import { NibAtlasMark } from "@/src/components/brand/NibAtlasMark";
 import { PrimaryNav } from "@/src/components/layout/PrimaryNav";
@@ -31,6 +31,15 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
   const pathname = usePathname() ?? "/";
   const variant = variantFor(pathname);
   const reviewer = useReviewerMode();
+
+  useEffect(() => {
+    // Remember only successful public pages, never an error or restricted page.
+    // No query strings, coordinates or account data enter this navigation hint.
+    if (/^\/admin(?:\/|$)/.test(pathname) || pathname === "/access-denied" ||
+        document.querySelector("[data-atlas-error-page]")) return;
+    try { window.sessionStorage.setItem("nibatlas:last-public-page", pathname); }
+    catch { /* Optional navigation hint; disabled storage is harmless. */ }
+  }, [pathname]);
 
   return (
     <div

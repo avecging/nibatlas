@@ -8,7 +8,8 @@ export async function createAdminGateway(
   const session = client ?? await createSupabaseServerClient();
   const rpc = async (name: string, args?: Record<string, unknown>) => {
     const { data, error } = await session.rpc(name, args);
-    if (error?.code === '42501') throw new AdminForbiddenError();
+    if (error?.code === '42501' && (name !== 'admin_access' || error.message === 'Admin access denied'))
+      throw new AdminForbiddenError();
     if (error) throw new Error('Admin service unavailable');
     return data;
   };

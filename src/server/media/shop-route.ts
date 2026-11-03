@@ -1,7 +1,7 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { createClient } from '@supabase/supabase-js';
 import { createAdminGateway } from '@/src/server/admin/route-context';
-import { AdminForbiddenError, adminFailure } from '@/src/server/admin/http';
+import { AdminForbiddenError, adminFailure, authorizeAdmin } from '@/src/server/admin/http';
 import { readSupabasePublicConfig } from '@/src/server/supabase/config';
 import { MediaOperationError } from './http';
 import { handleShopMedia } from './shop-http';
@@ -11,6 +11,10 @@ export async function shopMediaRoute(request: Request, shopId: string, id: strin
     const gateway = await createAdminGateway();
     const actor = isPublic ? null : await gateway.getIdentity();
     if (!isPublic && !actor) return adminFailure('authentication_required');
+    if (!isPublic) {
+      const access = await authorizeAdmin(gateway, 'editor');
+      if (access instanceof Response) return access;
+    }
     const config = readSupabasePublicConfig(), secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const {env} = await getCloudflareContext({async:true});
     const binding = env as unknown as {MEDIA_BUCKET?: MediaBucket; MEDIA_ENV?: string};
@@ -29,5 +33,5 @@ export async function shopMediaRoute(request: Request, shopId: string, id: strin
         return data;
       },
     });
-  } catch { return adminFailure('service_unavailable'); }
+  } catch (error) { return adminFailure(error instanceof AdminForbiddenError ? 'forbidden' : 'service_unavailable'); }
 }

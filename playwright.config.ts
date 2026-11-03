@@ -42,8 +42,8 @@ export default defineConfig({
     trace: "on-first-retry",
     ...launchOptions,
   },
-  // Journeys run against a production build so the results match what CI
-  // deploys, and so dev-only HMR behaviour cannot affect assertions.
+  // UI journeys use an isolated build with browser-stubbed session/API routes.
+  // The genuine Worker auth project tests the deployable middleware and APIs.
   ...(stagingUrl
     ? {}
     : apiIntegrationEnabled
@@ -66,7 +66,7 @@ export default defineConfig({
         }
     : {
         webServer: {
-          command: "pnpm build && pnpm start --hostname 127.0.0.1 --port 3000",
+          command: "node scripts/serve-ui-fixture.mjs",
           url: "http://127.0.0.1:3000/api/health",
           reuseExistingServer: !process.env.CI,
           timeout: 300_000,
